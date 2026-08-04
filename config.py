@@ -25,6 +25,31 @@ class Neo4jConfig:
     user: str
     password: str
     database: str = "neo4j"
+    # Driver-level connection/retry bounds. These only bound connection
+    # *acquisition* and *retryable* transient errors — they do NOT bound a
+    # query that is already running but blocked waiting on a lock held by
+    # another (possibly leaked) transaction elsewhere on a shared instance.
+    # See `query_timeout_s`/`schema_timeout_s` below for that case
+    # (confirmed live 2026-08-04: a `CREATE INDEX ... IF NOT EXISTS` no-op
+    # hung indefinitely — no timeout, no error — behind a ~2.7-hour-old
+    # leaked read transaction holding a shared schema lock on this repo's
+    # Aura dev instance; every prior `GraphDatabase.driver(...)` call site
+    # set none of these, so a stuck/unreachable Aura instance could hang
+    # every `cie` CLI invocation and every `/tools/{tool}` HTTP call
+    # forever with zero diagnostic).
+    connect_timeout_s: float = 10.0
+    max_retry_time_s: float = 15.0
+    # Hard, independently-enforced wall-clock budgets applied in
+    # `cie.timeouts.run_with_timeout` around the actual query round trip
+    # (`Neo4jRepository._run`/`load_extraction`/`reindex_file`) and schema
+    # bootstrap (`ensure_indices`) — these are what actually bound a
+    # lock-wait hang, since driver-level timeouts above do not.
+    query_timeout_s: float = 30.0
+    schema_timeout_s: float = 15.0
+    # `cie load`/`reindex` can legitimately run longer than a single read
+    # query (bulk UNWIND writes across thousands of nodes/edges), so they
+    # get their own, larger budget rather than sharing `query_timeout_s`.
+    write_timeout_s: float = 120.0
 
     @classmethod
     def from_env(cls) -> "Neo4jConfig":
@@ -38,4 +63,28 @@ class Neo4jConfig:
             or os.environ.get("NEO4J_PASSWORD", "password"),
             database=os.environ.get("CIE_NEO4J_DATABASE")
             or os.environ.get("NEO4J_DATABASE", "neo4j"),
+            connect_timeout_s=float(
+                os.environ.get("CIE_NEO4J_CONNECT_TIMEOUT_S", "10")
+            ),
+            max_retry_time_s=float(
+                os.environ.get("CIE_NEO4J_MAX_RETRY_TIME_S", "15")
+            ),
+            query_timeout_s=float(
+                os.environ.get("CIE_NEO4J_QUERY_TIMEOUT_S", "30")
+            ),
+            schema_timeout_s=float(
+                os.environ.get("CIE_NEO4J_SCHEMA_TIMEOUT_S", "15")
+            ),
+            write_timeout_s=float(
+                os.environ.get("CIE_NEO4J_WRITE_TIMEOUT_S", "120")
+            ),
         )
+
+    def driver_kwargs(self) -> dict:
+        """kwargs for `GraphDatabase.driver(...)` — connection-level bounds
+        only (see the field docstrings above for why this isn't sufficient
+        on its own)."""
+        return {
+            "connection_timeout": self.connect_timeout_s,
+            "max_transaction_retry_time": self.max_retry_time_s,
+        }

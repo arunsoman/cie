@@ -146,6 +146,67 @@ class AtomicTask(GraphBaseModel):
     #: missing it.
     required_permission: Optional[str] = None
 
+# --- Enums for Test Execution ---
+class TestType(str, Enum):
+    UNIT = "unit"
+    INTEGRATION = "integration"
+    END_TO_END = "end_to_end"
+    REGRESSION = "regression"
+    REPRODUCTION_SCRIPT = "reproduction_script"
+
+class TestOrigin(str, Enum):
+    EXTRACTED_FROM_ISSUE = "extracted_from_issue"
+    EXTRACTED_FROM_COMMENT = "extracted_from_comment"
+    GENERATED_BY_LLM = "generated_by_llm"
+
+class TestFramework(str, Enum):
+    JUNIT = "JUnit"
+    PYTEST = "pytest"
+    JEST = "Jest"
+    MOCHA = "Mocha"
+    RSPEC = "RSpec"
+    GO_TESTING = "go testing"
+    CTEST = "ctest"
+    CUSTOM_OR_UNKNOWN = "custom_or_unknown"
+
+class AtomicQaTask(AtomicTask):
+    """A 'qa'-typed AtomicTask carrying test-execution metadata. Subclasses
+    AtomicTask (rather than duplicating its fields) so every existing
+    consumer that already accepts an AtomicTask — generate_file_agentic,
+    isinstance checks, List[AtomicTask] fields — keeps working unchanged for
+    qa tasks too; only the 6 fields below are genuinely new. Constructed by
+    forge/adapt.py::adapt_task for task_type == 'qa', mirroring how QATask
+    (features/mine/story_2_tasks/qa_tasks/model.py) already carries the same
+    6 fields on the mining side.
+
+    # --- MERGED TEST METADATA (Applied when task_type == 'qa') ---
+    """
+
+    test_framework: Optional[TestFramework] = Field(
+        default=None, 
+        description="Required if task_type is 'qa'. The testing framework (e.g., Pytest, JUnit)."
+    )
+    run_command: Optional[str] = Field(
+        default=None, 
+        description="Required if task_type is 'qa'. Exact CLI command to execute ONLY this test file. "
+                    "e.g., 'pytest tests/unit/test_bug.py', 'mvn test -Dtest=BugTest'"
+    )
+    test_type: Optional[TestType] = Field(
+        default=None,
+        description="Required if task_type is 'qa'. e.g., unit, integration, e2e."
+    )
+    test_origin: Optional[TestOrigin] = Field(
+        default=None,
+        description="Required if task_type is 'qa'. Was this test extracted from the GitHub issue or generated?"
+    )
+    expected_assertions: List[str] = Field(
+        default_factory=list,
+        description="For 'qa' tasks: Human-readable list of assertions the test makes."
+    )
+    requires_mocks: bool = Field(
+        default=False,
+        description="For 'qa' tasks: True if the test relies on mocking external services or DBs."
+    )
 
 class AtomicTaskBatch(BaseModel):
     """Wrapper for the LLM to output a list of atomic tasks."""
@@ -164,6 +225,14 @@ class AtomicTaskBatch(BaseModel):
         return [t for t in self.tasks if t.task_type == "dev"]
 
     def qa_tasks(self) -> List[AtomicTask]:
+        # `self.tasks` is genuinely List[AtomicTask] — a batch built via
+        # forge/adapt.py::adapt_task will have real AtomicQaTask instances
+        # (a subclass) for qa-typed entries, but that's not guaranteed for
+        # every producer of this batch (e.g. a raw JSON round-trip through
+        # .model_validate() without a discriminated union yields plain
+        # AtomicTask). Callers wanting the 6 qa-specific fields should
+        # isinstance(t, AtomicQaTask)/getattr rather than assume every
+        # element here has them.
         return [t for t in self.tasks if t.task_type == "qa"]
 
 

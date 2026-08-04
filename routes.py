@@ -645,6 +645,8 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "path_between": _service_tool("path_between"),
     "failing_context": _service_tool("failing_context"),
     "affected_by": _service_tool("affected_by"),
+    "resolve_api_route": _service_tool("resolve_api_route"),
+    "api_call_sites": _service_tool("api_call_sites"),
     "blame_history": _service_tool("blame_history"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),

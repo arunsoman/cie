@@ -483,6 +483,58 @@ class ToolService:
         return self._ok(tool, results, started,
                         hint="distance-1 hits are the most directly affected")
 
+    def resolve_api_route(self, path: str) -> dict:
+        """Frontend API call path -> backend route(s) that serve it, with
+        file/line and which service (be-v2 vs backend) actually handles it
+        today per `frontend/vite.config.js`'s dev-proxy rules — the one
+        HTTP-API-boundary question AST extraction alone can't answer (see
+        `cie.api_routes` module docstring)."""
+        tool = "resolve_api_route"
+        started = time.monotonic()
+        try:
+            from cie import api_routes
+
+            repo_root = api_routes.find_repo_root(self._root)
+            results = api_routes.resolve_api_route(path, repo_root)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not results:
+            return self._ok(
+                tool, results, started,
+                hint=f"no backend route matches '{path}'; check the path "
+                     "template or that the route file was scanned "
+                     "(be-v2/src and backend/src only)",
+            )
+        return self._ok(
+            tool, results, started,
+            hint="a result with is_forwarding_shim=true is backend/'s "
+                 "bev2_proxy.py reverse-proxy handler, not the real "
+                 "implementation — see its forwards_to for the be-v2 "
+                 "route that actually runs",
+        )
+
+    def api_call_sites(self, route: str) -> dict:
+        """Backend route (path template, e.g. '/api/tasks/{task_id}/kill',
+        or a handler function name) -> frontend call site(s) that hit it.
+        Reverse of `resolve_api_route`."""
+        tool = "api_call_sites"
+        started = time.monotonic()
+        try:
+            from cie import api_routes
+
+            repo_root = api_routes.find_repo_root(self._root)
+            results = api_routes.api_call_sites(route, repo_root)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not results:
+            return self._ok(
+                tool, results, started,
+                hint=f"no frontend call site matches '{route}'; pass either "
+                     "the exact backend path template or the handler "
+                     "function name",
+            )
+        return self._ok(tool, results, started)
+
     # -- execution / indexing tools ------------------------------------------
 
     def run(self, cmd: str, timeout: int = 300) -> dict:

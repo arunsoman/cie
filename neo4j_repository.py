@@ -25,6 +25,7 @@ from neo4j import Driver, GraphDatabase, Query
 from core.llm.embed_text import embed_text
 from cie.embed import compute_embeddings
 from cie.extract import Extraction
+from cie.timeouts import Neo4jOperationTimeout, run_with_timeout
 
 from cie.models import (
     Confidence,
@@ -231,9 +232,19 @@ class Neo4jRepository:
     belong to the default ("") project only.
     """
 
-    def __init__(self, driver: Driver, project: str = ""):
+    def __init__(
+        self,
+        driver: Driver,
+        project: str = "",
+        query_timeout_s: float = 30.0,
+        schema_timeout_s: float = 15.0,
+        write_timeout_s: float = 120.0,
+    ):
         self._driver = driver
         self._project = project
+        self._query_timeout_s = query_timeout_s
+        self._schema_timeout_s = schema_timeout_s
+        self._write_timeout_s = write_timeout_s
 
     @classmethod
     def connect(
@@ -244,9 +255,25 @@ class Neo4jRepository:
         database: str = "neo4j",
         project: str = "",
         ensure_indices: bool = True,
+        connect_timeout_s: float = 10.0,
+        max_retry_time_s: float = 15.0,
+        query_timeout_s: float = 30.0,
+        schema_timeout_s: float = 15.0,
+        write_timeout_s: float = 120.0,
     ) -> "Neo4jRepository":
-        driver = GraphDatabase.driver(uri, auth=(user, password))
-        repo = cls(driver, project=project)
+        driver = GraphDatabase.driver(
+            uri,
+            auth=(user, password),
+            connection_timeout=connect_timeout_s,
+            max_transaction_retry_time=max_retry_time_s,
+        )
+        repo = cls(
+            driver,
+            project=project,
+            query_timeout_s=query_timeout_s,
+            schema_timeout_s=schema_timeout_s,
+            write_timeout_s=write_timeout_s,
+        )
         if ensure_indices:
             repo.ensure_indices()
         return repo
@@ -255,11 +282,34 @@ class Neo4jRepository:
         """Create every index in `_INDEX_STATEMENTS` if it doesn't exist yet.
 
         Safe to call on every connect: `IF NOT EXISTS` makes each statement a
-        no-op once the index is already there.
+        no-op once the index is already there — *except* that "no-op" still
+        requires acquiring Neo4j's exclusive schema lock, which queues
+        behind any other transaction (even a read) holding the shared
+        schema lock. Confirmed live 2026-08-04: a multi-hour leaked read
+        transaction on this repo's shared Aura instance blocked this call
+        indefinitely with no error. Bounded by `run_with_timeout`; a
+        timeout here is treated as non-fatal (the indices this call would
+        create/no-op almost certainly already exist from a prior
+        successful run — that was true in the confirmed incident) so one
+        stuck transaction elsewhere doesn't take down every read command
+        that happens to connect.
         """
-        with self._driver.session() as session:
-            for stmt in _INDEX_STATEMENTS + _VECTOR_INDEX_STATEMENTS:
-                session.run(stmt)
+        def _create_all() -> None:
+            with self._driver.session() as session:
+                for stmt in _INDEX_STATEMENTS + _VECTOR_INDEX_STATEMENTS:
+                    session.run(stmt).consume()
+
+        try:
+            run_with_timeout(
+                _create_all,
+                timeout=self._schema_timeout_s,
+                description="ensure_indices (CREATE INDEX IF NOT EXISTS)",
+            )
+        except Neo4jOperationTimeout as exc:
+            logger.warning(
+                "ensure_indices timed out and was skipped (non-fatal — "
+                "indices most likely already exist): %s", exc,
+            )
 
     def close(self) -> None:
         self._driver.close()
@@ -275,8 +325,15 @@ class Neo4jRepository:
     def _run(self, query: str, params: Optional[dict] = None):
         merged = dict(params or {})
         merged.setdefault("project", self._project)
-        with self._driver.session() as session:
-            return list(session.run(query, merged))
+
+        def _exec() -> list:
+            with self._driver.session() as session:
+                return list(session.run(query, merged))
+
+        return run_with_timeout(
+            _exec, timeout=self._query_timeout_s,
+            description=f"query {query[:80]!r}",
+        )
 
     def _pw(self, alias: str) -> str:
         """Project filter fragment: ' AND <alias>.project = $project' or ''."""
@@ -605,54 +662,61 @@ class Neo4jRepository:
         """
         rows = self._stamped_nodes(nodes, project)
         self._maybe_compute_embeddings(rows)
-        with self._driver.session() as session:
-            if project:
-                # Label-scoped deliberately: core.graph.repository's
-                # save_bev2_entity also stamps a `project` property (not
-                # `project_id`) on the business-entity nodes it writes
-                # (:Module/:Actor/etc, a different schema from this
-                # module's own :Node), and Cypher MERGE's label-subset
-                # matching means a PRD-derived :Entity:Module node can
-                # end up carrying BOTH `project_id` and `project` once
-                # any save_bev2_entity call touches it. An unlabeled
-                # match here would DETACH DELETE those too on every
-                # load_extraction call — confirmed real, not
-                # hypothetical, once code-import (which calls this) also
-                # writes business entities for the same project id (see
-                # be-v2/docs/brownfield-code-entities-and-issue-fix-plan.md).
-                session.run(
-                    "MATCH (n:Node {project: $p}) DETACH DELETE n", {"p": project},
-                )
-            else:
-                session.run("MATCH (n) DETACH DELETE n")
-            if rows:
-                session.run(
-                    "UNWIND $rows AS row CREATE (n:Node) SET n = row",
-                    {"rows": rows},
-                )
-            edge_rows = [dict(e) for e in edges]
-            if edge_rows:
+
+        def _write() -> None:
+            with self._driver.session() as session:
                 if project:
+                    # Label-scoped deliberately: core.graph.repository's
+                    # save_bev2_entity also stamps a `project` property (not
+                    # `project_id`) on the business-entity nodes it writes
+                    # (:Module/:Actor/etc, a different schema from this
+                    # module's own :Node), and Cypher MERGE's label-subset
+                    # matching means a PRD-derived :Entity:Module node can
+                    # end up carrying BOTH `project_id` and `project` once
+                    # any save_bev2_entity call touches it. An unlabeled
+                    # match here would DETACH DELETE those too on every
+                    # load_extraction call — confirmed real, not
+                    # hypothetical, once code-import (which calls this) also
+                    # writes business entities for the same project id (see
+                    # be-v2/docs/brownfield-code-entities-and-issue-fix-plan.md).
                     session.run(
-                        """
-                        UNWIND $rows AS row
-                        MATCH (a:Node {id: row.source, project: $p}),
-                              (b:Node {id: row.target, project: $p})
-                        CREATE (a)-[r:RELATES]->(b)
-                        SET r = row
-                        """,
-                        {"rows": edge_rows, "p": project},
+                        "MATCH (n:Node {project: $p}) DETACH DELETE n", {"p": project},
                     )
                 else:
+                    session.run("MATCH (n) DETACH DELETE n")
+                if rows:
                     session.run(
-                        """
-                        UNWIND $rows AS row
-                        MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
-                        CREATE (a)-[r:RELATES]->(b)
-                        SET r = row
-                        """,
-                        {"rows": edge_rows},
+                        "UNWIND $rows AS row CREATE (n:Node) SET n = row",
+                        {"rows": rows},
                     )
+                edge_rows = [dict(e) for e in edges]
+                if edge_rows:
+                    if project:
+                        session.run(
+                            """
+                            UNWIND $rows AS row
+                            MATCH (a:Node {id: row.source, project: $p}),
+                                  (b:Node {id: row.target, project: $p})
+                            CREATE (a)-[r:RELATES]->(b)
+                            SET r = row
+                            """,
+                            {"rows": edge_rows, "p": project},
+                        )
+                    else:
+                        session.run(
+                            """
+                            UNWIND $rows AS row
+                            MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                            CREATE (a)-[r:RELATES]->(b)
+                            SET r = row
+                            """,
+                            {"rows": edge_rows},
+                        )
+
+        run_with_timeout(
+            _write, timeout=self._write_timeout_s,
+            description=f"load_extraction (project={project or '<default>'})",
+        )
         return len(rows)
 
     def reindex_file(self, path: str, extraction: Extraction, project: str = "") -> int:
@@ -802,8 +866,14 @@ class Neo4jRepository:
                 )
             return len(rows)
 
-        with self._driver.session() as session:
-            return session.execute_write(_tx)
+        def _run_tx() -> int:
+            with self._driver.session() as session:
+                return session.execute_write(_tx)
+
+        return run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"reindex_file ({path})",
+        )
 
     # -- code-structure queries -------------------------------------------
 

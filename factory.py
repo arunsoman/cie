@@ -36,7 +36,7 @@ def build_driver(cfg: Optional[Neo4jConfig] = None):
     from neo4j import GraphDatabase
 
     cfg = cfg or Neo4jConfig.from_env()
-    return GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password))
+    return GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password), **cfg.driver_kwargs())
 
 
 def get_shared_driver(cfg: Optional[Neo4jConfig] = None):
@@ -59,6 +59,11 @@ def get_engine(project: str = "", cfg: Optional[Neo4jConfig] = None) -> QueryEng
             Neo4jRepository.connect(
                 uri=cfg.uri, user=cfg.user, password=cfg.password,
                 database=cfg.database, project=project,
+                connect_timeout_s=cfg.connect_timeout_s,
+                max_retry_time_s=cfg.max_retry_time_s,
+                query_timeout_s=cfg.query_timeout_s,
+                schema_timeout_s=cfg.schema_timeout_s,
+                write_timeout_s=cfg.write_timeout_s,
             )
         )
     return _engines[project]

@@ -5,11 +5,16 @@ from :mod:`cie.envelope`, shape-identical to the HTTP ``/tools/*``
 surface, so an agent can drive cie entirely over JSON:
 
     cie search "what connects attention to the optimizer"
-    cie node SwinTransformer --json
-    cie search-symbol parse_csv --kind function --json
-    cie run "pytest -q" --timeout 300 --json
+    cie --json node SwinTransformer
+    cie --json search-symbol parse_csv --kind function
+    cie --json run "pytest -q" --timeout 300
     cie tasks:push batch.json
     cie hierarchy:children <node-id> --depth 2
+
+``--json`` is a GROUP-level option (``@cli.command()``'s parent
+``@click.group()``) — it must come BEFORE the subcommand name
+(``cie --json search-symbol ...``), not after. Every command's own
+``--project``, if it has one, comes after the subcommand as usual.
 
 Connection settings come from ``CIE_NEO4J_*`` environment variables (see
 :mod:`cie.config`). ``CIE_PROJECT`` (or the adopted alias
@@ -75,7 +80,12 @@ def _open_engine(project: Optional[str] = None) -> QueryEngine:
         project = _project_from_env()
     cfg = Neo4jConfig.from_env()
     repo = Neo4jRepository.connect(
-        cfg.uri, cfg.user, cfg.password, cfg.database, project=project
+        cfg.uri, cfg.user, cfg.password, cfg.database, project=project,
+        connect_timeout_s=cfg.connect_timeout_s,
+        max_retry_time_s=cfg.max_retry_time_s,
+        query_timeout_s=cfg.query_timeout_s,
+        schema_timeout_s=cfg.schema_timeout_s,
+        write_timeout_s=cfg.write_timeout_s,
     )
     return QueryEngine(repo)
 
@@ -94,7 +104,7 @@ def _open_task_repo():
     from cie.task_repository import Neo4jTaskRepository
 
     cfg = Neo4jConfig.from_env()
-    driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password))
+    driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password), **cfg.driver_kwargs())
     return Neo4jTaskRepository.from_driver(driver), driver
 
 
@@ -105,7 +115,7 @@ def _open_hierarchy_repo(project: str = ""):
     from cie.hierarchy import Neo4jHierarchyRepository
 
     cfg = Neo4jConfig.from_env()
-    driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password))
+    driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password), **cfg.driver_kwargs())
     return Neo4jHierarchyRepository.from_driver(driver, project=project), driver
 
 
@@ -649,10 +659,9 @@ def path(ctx, source: str, target: str, max_hops: int) -> None:
 
 
 @cli.command()
-@click.argument("path", type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option(
-    "--clear/--no-clear", default=True,
-    help="Replace the existing graph (default) or merge into it.",
+@click.argument(
+    "paths", nargs=-1, required=True,
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
 )
 @click.option(
     "--project", "project", default="",
@@ -660,16 +669,29 @@ def path(ctx, source: str, target: str, max_hops: int) -> None:
          "every loaded node is stamped with it.",
 )
 @click.pass_context
-def load(ctx, path, clear: bool, project: str) -> None:
-    """Parse a directory of source files with tree-sitter and load them into Neo4j.
+def load(ctx, paths, project: str) -> None:
+    """Parse one or more directories of source files with tree-sitter and
+    load them into Neo4j, replacing this project's existing nodes.
 
     Runs the two-pass loader: pass 1 extracts files/classes/functions/methods,
     pass 2 resolves call sites into confidence-tagged `calls` edges.
+
+    Always fully replaces this project's existing nodes (a repeated load
+    of the same tree must not accumulate duplicates — see
+    `Repository.load_extraction`'s contract). To load disjoint directories
+    into ONE project without one wiping the other's data (e.g. a backend
+    and a frontend tree sharing a namespace), pass every directory in a
+    SINGLE call: `cie load be-v2/src frontend/src --project protobox-self`
+    — there used to be a `--clear/--no-clear` flag here that implied a
+    second call could merge instead of replace; it never actually worked
+    (the flag was accepted but silently ignored) and has been removed in
+    favor of this — the only way multiple directories were ever going to
+    coexist in one project without a merge write path.
     """
     from cie.callgraph import resolve_call_edges
     from cie.extract import extract_many
 
-    per_file = extract_many(path)
+    per_file = [ext for path in paths for ext in extract_many(path)]
     engine = _open_engine()
     try:
         with ToolTimer() as timer:
@@ -677,26 +699,27 @@ def load(ctx, path, clear: bool, project: str) -> None:
             if not nodes:
                 _emit_err(
                     ctx, "load", "not_found",
-                    f"no supported source files found under {path}",
-                    hint="the loader parses .py/.js/.ts/.tsx files; check the path",
+                    f"no supported source files found under {', '.join(str(p) for p in paths)}",
+                    hint="the loader parses .py/.js/.ts/.tsx files; check the path(s)",
                 )
             edges = [e for ext in per_file for e in ext.edges]
             call_edges = resolve_call_edges(per_file)
             count = engine._repo.load_extraction(  # noqa: SLF001
                 nodes, edges + call_edges, project=project,
             )
+        path_list = [str(p) for p in paths]
         payload = {
             "nodes_loaded": count,
             "edges_loaded": len(edges) + len(call_edges),
             "calls_edges": len(call_edges),
-            "path": str(path),
+            "paths": path_list,
             "project": project,
         }
         if _emit(ctx, "load", payload, timer=timer):
             return
         console.print(
             f"[green]Loaded {count} nodes and {len(edges) + len(call_edges)} edges "
-            f"({len(call_edges)} calls) from {path}.[/green]"
+            f"({len(call_edges)} calls) from {', '.join(path_list)}.[/green]"
         )
     finally:
         _close_engine(engine)
@@ -960,6 +983,134 @@ def failing_context(ctx, test_identifier: str, depth: int, limit: int) -> None:
         console.print(f"[dim]{payload['hint']}[/dim]")
 
 
+@cli.command(name="affected-by")
+@click.argument("file_path")
+@click.option(
+    "--direction", type=click.Choice(["incoming", "outgoing"]), default="incoming",
+    help="incoming (default): what depends on this file, i.e. what breaks "
+         "if it changes. outgoing: what this file depends on.",
+)
+@click.option("--max-depth", type=int, default=3, help="BFS depth (capped at 6).")
+@click.option("--max-results", type=int, default=30, help="Max results (capped at 50).")
+@click.pass_context
+def affected_by(
+    ctx, file_path: str, direction: str, max_depth: int, max_results: int,
+) -> None:
+    """Blast radius: what depends on this file, or what it depends on.
+
+    Was previously HTTP-only (`POST /tools/affected_by`), unreachable
+    without the be-v2 server running — this command was missing even
+    though every other query tool has one; added so agents driving `cie`
+    purely over the CLI (no server needed) can actually use it, matching
+    what every persona's cie-knowledge-graph design doc already assumed
+    was possible."""
+    service = _open_tool_service()
+    payload = service.affected_by(
+        file_path, max_depth=max_depth, direction=direction, max_results=max_results,
+    )
+    results = _finish_service(ctx, payload)
+    if not results:
+        console.print(f"[yellow]{payload.get('hint')}[/yellow]")
+        return
+    console.print(
+        f"[bold]{'Depends on' if direction == 'outgoing' else 'Affected by'} "
+        f"{file_path} ({len(results)} hits):[/bold]"
+    )
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Distance", justify="right")
+    table.add_column("Symbol")
+    table.add_column("File")
+    table.add_column("Confidence")
+    for r in results:
+        table.add_row(
+            str(r.get("distance", "")),
+            str(r.get("symbol", "")),
+            str(r.get("file", "")),
+            str(r.get("confidence", "")),
+        )
+    console.print(table)
+    if payload.get("hint"):
+        console.print(f"[dim]{payload['hint']}[/dim]")
+
+
+@cli.command(name="resolve-route")
+@click.argument("path")
+@click.pass_context
+def resolve_route(ctx, path: str) -> None:
+    """Frontend API call path -> backend route(s) + which service serves it.
+
+    The one HTTP-API-boundary question AST extraction alone can't answer
+    (see cie/api_routes.py's module docstring) — a small, self-contained
+    regex-based resolver over be-v2/src + backend/src route decorators and
+    frontend/src fetch()/request()/streamFetch() call sites, cross-checked
+    against frontend/vite.config.js's dev-proxy rules. `path` may be a
+    literal path or carry `${...}`/`{...}` placeholders, e.g.
+    `cie resolve-route '/api/tasks/${taskId}/kill'`.
+    """
+    service = _open_tool_service()
+    payload = service.resolve_api_route(path)
+    results = _finish_service(ctx, payload)
+    if not results:
+        console.print(f"[yellow]{payload.get('hint')}[/yellow]")
+        return
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Method")
+    table.add_column("Path")
+    table.add_column("Service")
+    table.add_column("File:Line")
+    table.add_column("Handler")
+    for r in results:
+        service_label = r.get("service", "")
+        if r.get("is_forwarding_shim"):
+            service_label += " (shim)"
+        table.add_row(
+            str(r.get("method", "")),
+            str(r.get("path", "")),
+            service_label,
+            f"{r.get('file', '')}:{r.get('line', '')}",
+            str(r.get("handler", "")),
+        )
+        forwards = r.get("forwards_to")
+        if forwards:
+            table.add_row(
+                "", forwards.get("path", ""), forwards.get("service", ""),
+                f"{forwards.get('file', '')}:{forwards.get('line', '')}",
+                f"-> real impl: {forwards.get('handler', '')}",
+            )
+    console.print(table)
+    if payload.get("hint"):
+        console.print(f"[dim]{payload['hint']}[/dim]")
+
+
+@cli.command(name="api-call-sites")
+@click.argument("route")
+@click.pass_context
+def api_call_sites(ctx, route: str) -> None:
+    """Backend route (path template or handler name) -> frontend call sites.
+
+    Reverse of `resolve-route`, e.g.
+    `cie api-call-sites '/api/tasks/{task_id}/kill'` or
+    `cie api-call-sites api_kill_task`.
+    """
+    service = _open_tool_service()
+    payload = service.api_call_sites(route)
+    results = _finish_service(ctx, payload)
+    if not results:
+        console.print(f"[yellow]{payload.get('hint')}[/yellow]")
+        return
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Path expression")
+    table.add_column("File:Line")
+    table.add_column("Enclosing")
+    for r in results:
+        table.add_row(
+            str(r.get("path", "")),
+            f"{r.get('file', '')}:{r.get('line', '')}",
+            str(r.get("enclosing", "")),
+        )
+    console.print(table)
+
+
 @cli.command()
 @click.argument("path")
 @click.option("--limit", type=int, default=20, help="Max commits returned.")
@@ -1155,7 +1306,12 @@ def watch(paths: tuple[Path, ...], project: str, debounce: float) -> None:
     project = project or _project_from_env()
     cfg = Neo4jConfig.from_env()
     repo = Neo4jRepository.connect(
-        cfg.uri, cfg.user, cfg.password, cfg.database, project=project
+        cfg.uri, cfg.user, cfg.password, cfg.database, project=project,
+        connect_timeout_s=cfg.connect_timeout_s,
+        max_retry_time_s=cfg.max_retry_time_s,
+        query_timeout_s=cfg.query_timeout_s,
+        schema_timeout_s=cfg.schema_timeout_s,
+        write_timeout_s=cfg.write_timeout_s,
     )
     handler = _build_reindex_handler(repo, project, debounce)
     observer = Observer()
