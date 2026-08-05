@@ -16,6 +16,7 @@ from cie.tasks import (
     SCHEMA_VERSION,
     Artifact,
     ArtifactKind,
+    AtomicQaTask,
     AtomicTask,
     AtomicTaskBatch,
     ContractViolation,
@@ -112,7 +113,13 @@ class TaskRepository(Protocol):
 
 
 def _task_from_node(props: dict) -> AtomicTask:
-    """Build an AtomicTask from a Neo4j node's properties."""
+    """Build an AtomicTask from a Neo4j node's properties — an
+    AtomicQaTask specifically when task_type == 'qa', so its 7
+    test-execution-metadata fields (test_framework/run_command/test_type/
+    test_origin/expected_assertions/requires_mocks/tested_file_path)
+    survive the round trip instead of being silently dropped by plain
+    AtomicTask's schema (confirmed live: every QA task read back through
+    this function came out shaped exactly like a dev task)."""
     api_spec = None
     api_json = props.get("api_spec_json")
     if api_json:
@@ -121,7 +128,7 @@ def _task_from_node(props: dict) -> AtomicTask:
     triad_json = props.get("test_triad_json")
     if triad_json:
         test_triad = TestTriad.model_validate_json(triad_json)
-    return AtomicTask(
+    common = dict(
         id=props.get("id", ""),
         name=props.get("name", ""),
         userstory_id=props.get("userstory_id", ""),
@@ -142,6 +149,18 @@ def _task_from_node(props: dict) -> AtomicTask:
         preconditions=json.loads(props.get("preconditions_json", "[]")),
         postconditions=json.loads(props.get("postconditions_json", "[]")),
     )
+    if props.get("task_type") != "qa":
+        return AtomicTask(**common)
+    return AtomicQaTask(
+        **common,
+        tested_file_path=props.get("tested_file_path", ""),
+        test_framework=props.get("test_framework") or None,
+        run_command=props.get("run_command") or None,
+        test_type=props.get("test_type") or None,
+        test_origin=props.get("test_origin") or None,
+        expected_assertions=json.loads(props.get("expected_assertions_json", "[]")),
+        requires_mocks=bool(props.get("requires_mocks", False)),
+    )
 
 
 def _task_to_props(t: AtomicTask, project: str = "") -> dict:
@@ -151,7 +170,12 @@ def _task_to_props(t: AtomicTask, project: str = "") -> dict:
     not part of AtomicTask's own pydantic schema — same pattern the module
     docstring already documents for status/attempts/created/updated. Only
     set when non-empty so existing unscoped callers/tests keep writing
-    exactly the properties they did before."""
+    exactly the properties they did before.
+
+    When ``t`` is an AtomicQaTask, its 7 test-execution-metadata fields
+    are written too (companion half of _task_from_node's fix above) — a
+    plain AtomicTask has none of these attrs, so dev tasks keep writing
+    exactly the same property set as before."""
     props = {
         "id": t.id,
         "name": t.name,
@@ -177,6 +201,16 @@ def _task_to_props(t: AtomicTask, project: str = "") -> dict:
         "created": "",
         "updated": "",
     }
+    if isinstance(t, AtomicQaTask):
+        props.update({
+            "tested_file_path": t.tested_file_path,
+            "test_framework": t.test_framework.value if t.test_framework else "",
+            "run_command": t.run_command or "",
+            "test_type": t.test_type.value if t.test_type else "",
+            "test_origin": t.test_origin.value if t.test_origin else "",
+            "expected_assertions_json": json.dumps(t.expected_assertions),
+            "requires_mocks": t.requires_mocks,
+        })
     if project:
         props["project"] = project
     return props

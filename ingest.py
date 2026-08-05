@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from cie import factory
-from cie.tasks import AtomicTask, AtomicTaskBatch
+from cie.tasks import AtomicQaTask, AtomicTask, AtomicTaskBatch
 
 #: cie/task_repository.py::_VALID_LAYERS' canonical casing. mine's
 #: DevTask/QATask.layer (features/mine/story_2_tasks/*/model.py) is a
@@ -55,11 +55,18 @@ _ACTION_CANONICAL = {"create": "create", "modify": "modify", "delete": "delete"}
 
 def to_atomic_task(entity: Any) -> AtomicTask:
     """Re-validate any AtomicTask-shaped object (pydantic model or dict)
-    into cie's own AtomicTask. Extra fields the source model carries
-    that cie.tasks.AtomicTask doesn't declare are dropped —
-    pydantic's default extra="ignore" behavior (see e.g. `origin` and
-    `dev_task_id` on that model, both declared there for exactly this
-    reason)."""
+    into cie's own AtomicTask (or AtomicQaTask for task_type == 'qa').
+    Extra fields the source model carries that the target model doesn't
+    declare are dropped — pydantic's default extra="ignore" behavior (see
+    e.g. `origin` and `dev_task_id` on AtomicTask, both declared there for
+    exactly this reason).
+
+    task_type == 'qa' validates into AtomicQaTask specifically (not plain
+    AtomicTask) — confirmed live: features/mine/story_2_tasks/qa_tasks's
+    QATask carries test_framework/run_command/test_type/test_origin/
+    expected_assertions/requires_mocks/tested_file_path, none of which
+    AtomicTask declares, so every QA task pushed through here used to lose
+    all of them silently and come out shaped exactly like a dev task."""
     if isinstance(entity, AtomicTask):
         return entity
     if hasattr(entity, "model_dump"):
@@ -83,7 +90,8 @@ def to_atomic_task(entity: Any) -> AtomicTask:
         normalized_action = _ACTION_CANONICAL.get(action.strip().lower())
         if normalized_action:
             data["action"] = normalized_action
-    return AtomicTask.model_validate(data)
+    target_model = AtomicQaTask if data.get("task_type") == "qa" else AtomicTask
+    return target_model.model_validate(data)
 
 
 def push_atomic_tasks(tasks: Iterable[Any], project: str = "") -> dict:

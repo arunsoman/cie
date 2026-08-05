@@ -1021,10 +1021,69 @@ def get_hierarchy_relations(node_id: str, project: str = Query("")) -> dict:
     }
 
 
+def _synthesize_module_workflow_nodes(project_id: str, module_ids: list[str]) -> list[dict]:
+    """Read-only, HierarchyNodeView-shaped pseudo-nodes for each Module's
+    workflow narratives — the graph-view sibling of features/blueprint/
+    graph_summary.py::_synthesize_workflow_entities (same underlying data,
+    same reason it needs synthesizing: `workflow` is a bare `list[str]`
+    field on :Module — core/graph/entities/module.py — never promoted to
+    its own node type, so HierarchyNodeView's `_view_from_props` (which
+    only reads id/name/description/metadata_json) silently drops it and
+    it never reached this route at all before this).
+
+    node_type is "module_workflow", deliberately NOT "workflow" — this
+    module's own TYPE_TO_LABEL already maps "workflow" to a real :Workflow
+    Neo4j label belonging to a distinct, unrelated "external planning
+    system" schema (this file's module docstring). Nothing in this
+    codebase writes that label today, but reusing its type key for an
+    unrelated synthetic concept would be a real collision waiting to
+    surface confusingly, not a hypothetical one, the moment it is.
+
+    Queried directly rather than sourced from repo.get_project_tree()'s
+    already-built HierarchyNodeView list, for the same reason: that list
+    has already thrown the `workflow` property away by the time it exists."""
+    if not module_ids:
+        return []
+    driver = factory.get_shared_driver()
+    with driver.session() as session:
+        rows = session.run(
+            "MATCH (m:Module) WHERE m.id IN $ids "
+            "RETURN m.id AS id, coalesce(m.module_name, m.name, m.id) AS module_name, "
+            "coalesce(m.workflow, []) AS workflow",
+            ids=module_ids,
+        )
+        module_rows = [dict(r) for r in rows]
+
+    synthesized: list[dict] = []
+    for row in module_rows:
+        narratives = row["workflow"] or []
+        module_id = row["id"]
+        module_name = row["module_name"]
+        for idx, narrative in enumerate(narratives):
+            name = (
+                f"{module_name} workflow" if len(narratives) == 1
+                else f"{module_name} workflow {idx + 1}"
+            )
+            synthesized.append({
+                "node_type": "module_workflow",
+                "id": f"{module_id}::workflow::{idx}",
+                "name": name,
+                "description": narrative,
+                "metadata": {},
+                "depth": 0,
+                "parent_id": module_id,
+                "children_ids": [],
+            })
+    return synthesized
+
+
 @router.get("/hierarchy/project/{project_id}")
 def get_project_hierarchy(project_id: str) -> list[dict]:
     repo = factory.get_hierarchy_repo(project_id)
-    return [n.model_dump() for n in repo.get_project_tree(project_id)]
+    nodes = [n.model_dump() for n in repo.get_project_tree(project_id)]
+    module_ids = [n["id"] for n in nodes if n.get("node_type") == "module"]
+    nodes.extend(_synthesize_module_workflow_nodes(project_id, module_ids))
+    return nodes
 
 
 # ---------------------------------------------------------------------------

@@ -107,12 +107,15 @@ class AtomicTask(GraphBaseModel):
     #: model) so ingest.py::to_atomic_task's re-validation doesn't
     #: silently drop it (pydantic's default extra="ignore" behavior).
     origin: str = ""
-    #: The parent UserStory's state contract (what must hold before/after
-    #: the story executes) — mechanically inherited, same origin/
-    #: reasoning as `origin` above and declared here for the same reason
-    #: (ingest.py's re-validation would otherwise silently drop them).
-    #: QA generation reads these off the DevTask to build acceptance
-    #: assertions on top of the per-file test_triad.
+    #: This DevTask's own file-level Hoare-triple state contract (what
+    #: must hold before/after THIS file's change, mapped to that file's
+    #: specific inputs/outputs) — LLM-generated per task by
+    #: AtomicTaskExtractionPrompt (dev_tasks/prompt.py Section 2 Rule 8 /
+    #: Section 4.4), NOT inherited from the parent UserStory's coarser
+    #: story-level conditions. Declared here for the same silent-drop
+    #: reason as `origin` above (ingest.py's re-validation would otherwise
+    #: drop them). QA generation reads these off the matching DevTask to
+    #: build acceptance assertions on top of the per-file test_triad.
     preconditions: List[str] = Field(default_factory=list)
     postconditions: List[str] = Field(default_factory=list)
     #: For a 'qa' task, the parent DevTask's `.id` (GraphBaseModel's uuid,
@@ -207,6 +210,13 @@ class AtomicQaTask(AtomicTask):
         default=False,
         description="For 'qa' tasks: True if the test relies on mocking external services or DBs."
     )
+    #: The exact `file_path` of the DEVELOPMENT task this QA task tests —
+    #: see features/mine/story_2_tasks/qa_tasks/model.py::QATask's own
+    #: field of the same name (that's the field's origin; mirrored here so
+    #: it survives cie/ingest.py::to_atomic_task's re-validation instead of
+    #: being silently dropped like the other 6 fields above used to be).
+    #: "" for the shared conftest/setup task, which verifies no single file.
+    tested_file_path: str = ""
 
 class AtomicTaskBatch(BaseModel):
     """Wrapper for the LLM to output a list of atomic tasks."""
