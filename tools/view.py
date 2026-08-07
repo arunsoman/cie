@@ -8,6 +8,8 @@ skeleton nodes for the file.
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from pathlib import Path
 from typing import Sequence
 
@@ -15,6 +17,38 @@ from cie.models import Node
 
 #: Default window size in lines (integration spec §0.2: ~100 lines per call).
 DEFAULT_WINDOW = 100
+
+#: path -> (mtime_ns, size, lines). Keyed by (mtime, size) rather than a
+#: plain path->lines cache with explicit invalidation calls from
+#: write_file/edit_file/delete_file: a forge run's agent loop calls
+#: view_file on the SAME file many times per generation session (skeleton
+#: first, then windowed reads), and re-reading + re-splitting from disk
+#: every time was pure waste when nothing changed. mtime/size staleness
+#: checking also covers writers this module never hears from at all (a
+#: human editing the checkout, another agent, a git merge landing mid-run)
+#: — the same class of "don't trust a cache that can't see external
+#: writes" concern CieBackend.start_watch's subprocess watcher exists for.
+_LINE_CACHE: "OrderedDict[str, tuple[tuple[int, int], tuple[str, ...]]]" = OrderedDict()
+_CACHE_LOCK = threading.Lock()
+_CACHE_MAX_ENTRIES = 512
+
+
+def _read_lines_cached(resolved: Path) -> list[str]:
+    key = str(resolved)
+    st = resolved.stat()
+    stamp = (st.st_mtime_ns, st.st_size)
+    with _CACHE_LOCK:
+        cached = _LINE_CACHE.get(key)
+        if cached is not None and cached[0] == stamp:
+            _LINE_CACHE.move_to_end(key)
+            return list(cached[1])
+    lines = resolved.read_text(errors="replace").splitlines()
+    with _CACHE_LOCK:
+        _LINE_CACHE[key] = (stamp, tuple(lines))
+        _LINE_CACHE.move_to_end(key)
+        while len(_LINE_CACHE) > _CACHE_MAX_ENTRIES:
+            _LINE_CACHE.popitem(last=False)
+    return lines
 
 
 def _jail(root: Path, path: str) -> Path:
@@ -92,7 +126,7 @@ def view_file(
     if not resolved.is_file():
         raise FileNotFoundError(f"no such file under project root: {path}")
 
-    lines = resolved.read_text(errors="replace").splitlines()
+    lines = _read_lines_cached(resolved)
     total = len(lines)
 
     start_clamped = max(1, start)

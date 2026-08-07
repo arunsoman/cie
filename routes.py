@@ -42,6 +42,7 @@ from typing import Any, Callable
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from cie import factory
 from cie.envelope import ToolTimer, envelope, err_envelope
@@ -650,6 +651,9 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "blame_history": _service_tool("blame_history"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
+    "reindex": _service_tool("reindex"),
+    "start_watch": _service_tool("start_watch"),
+    "stop_watch": _service_tool("stop_watch"),
     # -- write tools --
     "write_file": _service_tool("write_file"),
     "edit_file": _service_tool("edit_file"),
@@ -691,6 +695,17 @@ async def run_tool(tool: str, request: Request) -> JSONResponse:
     Isolation (v0): the ``run`` tool spawns a subprocess jailed to
     ``CIE_RUN_ROOT`` (default: process cwd) with a hard timeout and
     head+tail output truncation — there is no container isolation yet.
+
+    This is the only `async def` route in this module — every other route
+    here is a plain `def`, which Starlette already dispatches to its own
+    threadpool automatically, so only this one needed the explicit
+    `run_in_threadpool` wrap below. `handler(body, project)` ultimately
+    calls into `Neo4jRepository`'s synchronous driver (no async Neo4j
+    driver in this codebase — see that class's own docstring for why a
+    full async-driver migration isn't a safe fit for this pass); running
+    it inline on this `async def`'s own coroutine would block the ASGI
+    event loop for every OTHER concurrent request on this worker for the
+    duration of the Neo4j call, not just this one.
     """
     handler = TOOLS.get(tool)
     if handler is None:
@@ -725,7 +740,7 @@ async def run_tool(tool: str, request: Request) -> JSONResponse:
         )
     project = _resolve_project(str(body.pop("project", "") or ""))
     try:
-        payload = handler(body, project)
+        payload = await run_in_threadpool(handler, body, project)
     except TypeError as exc:
         return JSONResponse(
             status_code=422,

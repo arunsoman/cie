@@ -67,7 +67,7 @@ def _project_from_env() -> str:
     )
 
 
-def _open_engine(project: Optional[str] = None) -> QueryEngine:
+def _open_engine(project: Optional[str] = None, ensure_indices: bool = False) -> QueryEngine:
     """Connect a QueryEngine to Neo4j, scoped to a project.
 
     Defaults to ``CIE_PROJECT``/``FORGE_PROJECT_ID`` (see module
@@ -75,12 +75,24 @@ def _open_engine(project: Optional[str] = None) -> QueryEngine:
     honors the env var this way, not just the handful that used to thread
     it through by hand. Pass ``project=""`` explicitly for the legacy
     unscoped (all-projects) view.
+
+    ``ensure_indices=False`` by default (2026-08-07): `Neo4jRepository.
+    connect()`'s own default flipped from always-on to opt-in — every CLI
+    command used to pay a `CREATE INDEX IF NOT EXISTS` round trip (and, per
+    the confirmed 2026-08-04 incident `cie.timeouts` documents, a real risk
+    of queuing behind a stuck schema lock) on every single invocation, even
+    read-only ones like `cie health`. Indices are bootstrapped once by the
+    app's own startup lifespan (`app/api.py`) or explicitly via `cie
+    bootstrap`; `load`/`watch` below still pass `ensure_indices=True`
+    themselves since they're the natural first-touch commands for a
+    project that may never have gone through the app at all.
     """
     if project is None:
         project = _project_from_env()
     cfg = Neo4jConfig.from_env()
     repo = Neo4jRepository.connect(
         cfg.uri, cfg.user, cfg.password, cfg.database, project=project,
+        ensure_indices=ensure_indices,
         connect_timeout_s=cfg.connect_timeout_s,
         max_retry_time_s=cfg.max_retry_time_s,
         query_timeout_s=cfg.query_timeout_s,
@@ -588,6 +600,30 @@ def stats(ctx) -> None:
         _close_engine(engine)
 
 
+@cli.command()
+@click.pass_context
+def bootstrap(ctx) -> None:
+    """Create every cie index/constraint if it doesn't exist yet.
+
+    Explicit, deliberate index creation — the counterpart to
+    `Neo4jRepository.connect()`'s `ensure_indices=False` default (see
+    `_open_engine`'s docstring for why that flipped): every OTHER command
+    now assumes indices already exist rather than paying a `CREATE INDEX
+    IF NOT EXISTS` round trip (and the schema-lock contention risk
+    `cie.timeouts` documents) on every invocation. The app's own startup
+    lifespan (`app/api.py`) already calls this once per process for the
+    live service; run this by hand for a standalone CLI-only workflow
+    against a brand-new Neo4j instance the app has never booted against.
+    Safe to re-run — every statement is `IF NOT EXISTS`.
+    """
+    engine = _open_engine()
+    try:
+        engine._repo.ensure_indices()  # noqa: SLF001 - the CLI owns this call
+        console.print("[green]Indices ensured.[/green]")
+    finally:
+        _close_engine(engine)
+
+
 @cli.command(name="semantic-search")
 @click.argument("query")
 @click.option(
@@ -692,7 +728,7 @@ def load(ctx, paths, project: str) -> None:
     from cie.extract import extract_many
 
     per_file = [ext for path in paths for ext in extract_many(path)]
-    engine = _open_engine()
+    engine = _open_engine(ensure_indices=True)
     try:
         with ToolTimer() as timer:
             nodes = [n for ext in per_file for n in ext.nodes]
@@ -1214,69 +1250,19 @@ def reindex(ctx, path: str, project: str) -> None:
 
 
 def _build_reindex_handler(repo, project: str, debounce: float):
-    """Build a watchdog FileSystemEventHandler that debounces + reindex_files.
-
-    Defined lazily inside a function (not at module scope) so importing
-    `cie.cli` — and thus every command, including `--help` — never
-    requires `watchdog` to be installed unless `watch` is actually invoked.
-
-    Each supported-suffix path gets its own `threading.Timer`; repeated
-    events on the same path (an editor writing a file 2-3 times per save is
-    common) cancel-and-reschedule rather than triggering multiple reindexes.
-    A delete reindexes with an empty `Extraction`, which is exactly what
-    `Repository.reindex_file` needs to drop the file's stale nodes/edges —
-    no separate delete path required.
+    """Console-reporting wrapper over the shared ``cie.tools.watch`` handler
+    (see that module's docstring for why this used to be a second,
+    independently-maintained copy of the same debounce/reindex logic).
     """
-    from watchdog.events import FileSystemEventHandler
+    from cie.tools.watch import build_reindex_handler
 
-    class _ReindexHandler(FileSystemEventHandler):
-        def __init__(self) -> None:
-            self._timers: dict[str, threading.Timer] = {}
-            self._lock = threading.Lock()
+    def _on_reindexed(path: str, count, exc) -> None:
+        if exc is not None:
+            console.print(f"[red]failed to reindex {path}: {exc}[/red]")
+        else:
+            console.print(f"[cyan]reindexed[/cyan] {path}: {count} nodes")
 
-        def _schedule(self, path: str) -> None:
-            from cie.extract import supported_suffix
-
-            if supported_suffix(Path(path)) is None:
-                return
-            with self._lock:
-                existing = self._timers.get(path)
-                if existing is not None:
-                    existing.cancel()
-                timer = threading.Timer(debounce, self._reindex, args=(path,))
-                timer.daemon = True
-                self._timers[path] = timer
-                timer.start()
-
-        def _reindex(self, path: str) -> None:
-            from cie.extract import Extraction, extract_file
-
-            try:
-                p = Path(path)
-                extraction = extract_file(p) if p.is_file() else Extraction()
-                count = repo.reindex_file(path, extraction, project=project)
-                console.print(f"[cyan]reindexed[/cyan] {path}: {count} nodes")
-            except Exception as exc:  # noqa: BLE001 - keep the watcher alive
-                console.print(f"[red]failed to reindex {path}: {exc}[/red]")
-
-        def on_created(self, event) -> None:
-            if not event.is_directory:
-                self._schedule(event.src_path)
-
-        def on_modified(self, event) -> None:
-            if not event.is_directory:
-                self._schedule(event.src_path)
-
-        def on_deleted(self, event) -> None:
-            if not event.is_directory:
-                self._schedule(event.src_path)
-
-        def on_moved(self, event) -> None:
-            if not event.is_directory:
-                self._schedule(event.src_path)
-                self._schedule(event.dest_path)
-
-    return _ReindexHandler()
+    return build_reindex_handler(repo, project, debounce, on_reindexed=_on_reindexed)
 
 
 @cli.command()
@@ -1307,6 +1293,7 @@ def watch(paths: tuple[Path, ...], project: str, debounce: float) -> None:
     cfg = Neo4jConfig.from_env()
     repo = Neo4jRepository.connect(
         cfg.uri, cfg.user, cfg.password, cfg.database, project=project,
+        ensure_indices=True,
         connect_timeout_s=cfg.connect_timeout_s,
         max_retry_time_s=cfg.max_retry_time_s,
         query_timeout_s=cfg.query_timeout_s,

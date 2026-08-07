@@ -254,7 +254,7 @@ class Neo4jRepository:
         password: str,
         database: str = "neo4j",
         project: str = "",
-        ensure_indices: bool = True,
+        ensure_indices: bool = False,
         connect_timeout_s: float = 10.0,
         max_retry_time_s: float = 15.0,
         query_timeout_s: float = 30.0,
@@ -323,16 +323,51 @@ class Neo4jRepository:
     # -- helpers -----------------------------------------------------------
 
     def _run(self, query: str, params: Optional[dict] = None):
+        """``query`` is usually a plain Cypher string, but `affected_by`/
+        `failing_context` pass a `neo4j.Query` object instead (to carry a
+        server-side timeout — see those methods' docstrings). A `Query`
+        isn't subscriptable, so `query[:80]` for the timeout-error
+        description crashed unconditionally the moment either method ran
+        for real — confirmed live: no test exercised `Neo4jRepository.
+        affected_by` itself (only the `QueryEngine`/`ToolService` layers
+        above it, against a fake repo) so this had never been caught.
+
+        Runs through ``session.execute_read`` rather than a bare
+        ``session.run`` — confirmed live 2026-08-07: this is forge's tool-
+        call hot path (every search/view/blame during agentic generation
+        goes through here), and a bare auto-commit ``session.run`` gets
+        NO automatic retry from the driver on a transient/routing failure
+        (``ServiceUnavailable``/"Unable to retrieve routing information"),
+        unlike the write paths below that already use ``execute_write``.
+        A managed read transaction retries automatically, bounded by
+        ``max_transaction_retry_time`` (``Neo4jConfig.max_retry_time_s``,
+        driver-level, set in ``driver_kwargs()``) — the same bound writes
+        already get — instead of raising the first time Aura's routing
+        table is momentarily stale.
+
+        EXCEPT for a ``Query`` object: confirmed live 2026-08-07 (second
+        incident, same day) — the driver only accepts a ``Query`` (which
+        carries a server-side timeout) via ``Session.run``; a managed
+        transaction's ``Transaction.run`` raises
+        ``TypeError: Query object is only supported for session.run``
+        unconditionally. `affected_by`/`failing_context` need that
+        server-side timeout more than they need routing retry, so they
+        keep the bare ``session.run`` path; every plain-string query gets
+        the retry-capable managed transaction.
+        """
         merged = dict(params or {})
         merged.setdefault("project", self._project)
+        query_text = query.text if isinstance(query, Query) else query
 
         def _exec() -> list:
             with self._driver.session() as session:
-                return list(session.run(query, merged))
+                if isinstance(query, Query):
+                    return list(session.run(query, merged))
+                return list(session.execute_read(lambda tx: list(tx.run(query, merged))))
 
         return run_with_timeout(
             _exec, timeout=self._query_timeout_s,
-            description=f"query {query[:80]!r}",
+            description=f"query {query_text[:80]!r}",
         )
 
     def _pw(self, alias: str) -> str:
@@ -447,18 +482,21 @@ class Neo4jRepository:
         return [(r["cid"], r["size"]) for r in rows]
 
     def god_nodes(self, top_n: int = 10) -> list[NodeRecord]:
+        """Previously filtered file-hub/AST-stub labels partly in Cypher
+        (extension suffixes) and partly in Python (`_is_file_hub`, applied
+        AFTER the Cypher `LIMIT $top_n`) — meaning a result that hit one of
+        the two Python-only cases (a bare extension with no leading dot,
+        e.g. a malformed label literally "py") could silently return fewer
+        than `top_n` rows even when more real god nodes existed just past
+        the limit window. `$extensions` below reproduces `_is_file_hub`
+        exactly (dotted-suffix labels AND bare-extension labels), so the
+        exclusion is now applied before the LIMIT, not after — see
+        `_is_file_hub`'s own docstring, which this must stay in sync with.
+        """
         query = """
         MATCH (n:Node)
-        WHERE NOT n.label ENDS WITH '.py'
-          AND NOT n.label ENDS WITH '.ts'
-          AND NOT n.label ENDS WITH '.js'
-          AND NOT n.label ENDS WITH '.go'
-          AND NOT n.label ENDS WITH '.rs'
-          AND NOT n.label ENDS WITH '.java'
-          AND NOT n.label ENDS WITH '.rb'
-          AND NOT n.label ENDS WITH '.cpp'
-          AND NOT n.label ENDS WITH '.c'
-          AND NOT n.label ENDS WITH '.h'
+        WHERE NOT n.label IN $extensions
+          AND NOT any(ext IN $extensions WHERE n.label ENDS WITH '.' + ext)
           AND NOT n.label STARTS WITH '.'""" + self._pw("n") + """
         OPTIONAL MATCH (n)-[r]-()
         WITH n, count(r) AS degree
@@ -467,38 +505,47 @@ class Neo4jRepository:
         ORDER BY degree DESC
         LIMIT $top_n
         """
-        rows = self._run(query, {"top_n": top_n})
-        out: list[NodeRecord] = []
-        for r in rows:
-            node = _row_to_node(r["n"])
-            # Apply the AST-stub exclusion that Cypher can't express cheaply.
-            if _is_file_hub(node.label):
-                continue
-            out.append(NodeRecord(node=node, degree=r["degree"]))
-        return out[:top_n]
+        rows = self._run(query, {"top_n": top_n, "extensions": list(_FILE_EXTENSIONS)})
+        return [NodeRecord(node=_row_to_node(r["n"]), degree=r["degree"]) for r in rows]
 
     def stats(self) -> GraphStats:
-        node_rows = self._run(
-            "MATCH (n:Node)" + self._pw_where("n") + " RETURN count(n) AS c"
-        )
+        """One round trip instead of four. Chained via `WITH` (not `CALL {}`
+        subqueries) deliberately: a `CALL {}` subquery doing a GROUPED
+        aggregate (confidence -> count) collapses to zero rows when there
+        are zero matching edges, which would have zero'd out the whole
+        combined result including the unrelated node/community counts —
+        `collect(r.confidence)` instead returns an (possibly empty) list in
+        the same single scalar row every `count()` aggregate already
+        guarantees, and the per-confidence-value counting happens in Python
+        over that (small) list.
+        """
         if self._project:
-            edge_match = ("MATCH (a:Node)-[r]->(b:Node) WHERE a.project = $project "
-                          "AND b.project = $project")
+            edge_clause = (
+                "OPTIONAL MATCH (a:Node)-[r]->(b:Node) "
+                "WHERE a.project = $project AND b.project = $project"
+            )
         else:
-            edge_match = "MATCH ()-[r]->()"
-        edge_rows = self._run(edge_match + " RETURN count(r) AS c")
-        comm_rows = self._run(
-            "MATCH (n:Node) WHERE n.community IS NOT NULL" + self._pw("n")
-            + " RETURN count(DISTINCT n.community) AS c"
+            edge_clause = "OPTIONAL MATCH ()-[r]->()"
+        query = (
+            "MATCH (n:Node)" + self._pw_where("n") + "\n"
+            "WITH count(n) AS nodes\n"
+            + edge_clause + "\n"
+            "WITH nodes, count(r) AS edges, collect(r.confidence) AS confidences\n"
+            "OPTIONAL MATCH (c:Node) WHERE c.community IS NOT NULL" + self._pw("c") + "\n"
+            "RETURN nodes, edges, confidences, count(DISTINCT c.community) AS communities"
         )
-        conf_rows = self._run(
-            edge_match + " RETURN r.confidence AS conf, count(*) AS c"
-        )
-        confidence_counts = {r["conf"] or "EXTRACTED": r["c"] for r in conf_rows}
+        rows = self._run(query)
+        if not rows:
+            return GraphStats(nodes=0, edges=0, communities=0, confidence_counts={})
+        row = rows[0]
+        confidence_counts: dict[str, int] = {}
+        for conf in row["confidences"] or []:
+            key = conf or "EXTRACTED"
+            confidence_counts[key] = confidence_counts.get(key, 0) + 1
         return GraphStats(
-            nodes=node_rows[0]["c"] if node_rows else 0,
-            edges=edge_rows[0]["c"] if edge_rows else 0,
-            communities=comm_rows[0]["c"] if comm_rows else 0,
+            nodes=row["nodes"] or 0,
+            edges=row["edges"] or 0,
+            communities=row["communities"] or 0,
             confidence_counts=confidence_counts,
         )
 
@@ -659,62 +706,78 @@ class Neo4jRepository:
         (other projects in the same database are untouched) and every node is
         stamped with the project namespace. Edge rows keep their `line`
         property when present.
+
+        The delete + recreate now runs as ONE `session.execute_write`
+        transaction (matching `reindex_file`'s own pattern below) instead
+        of three separate auto-committed `session.run` calls. Each bare
+        `session.run` outside an explicit transaction auto-commits on its
+        own in the neo4j driver's default mode — the delete and the
+        recreate were never atomic, so a reader hitting the database
+        between them saw a genuinely empty graph, and a failure after the
+        delete but before the recreate finished left the project's graph
+        empty with no rollback. A single transaction removes both: nothing
+        is visible to another session until the whole write commits, and
+        an error mid-write rolls back to the pre-delete state instead of
+        leaving the graph half-loaded.
         """
         rows = self._stamped_nodes(nodes, project)
         self._maybe_compute_embeddings(rows)
+        edge_rows = [dict(e) for e in edges]
 
-        def _write() -> None:
-            with self._driver.session() as session:
+        def _tx(tx) -> None:
+            if project:
+                # Label-scoped deliberately: core.graph.repository's
+                # save_bev2_entity also stamps a `project` property (not
+                # `project_id`) on the business-entity nodes it writes
+                # (:Module/:Actor/etc, a different schema from this
+                # module's own :Node), and Cypher MERGE's label-subset
+                # matching means a PRD-derived :Entity:Module node can
+                # end up carrying BOTH `project_id` and `project` once
+                # any save_bev2_entity call touches it. An unlabeled
+                # match here would DETACH DELETE those too on every
+                # load_extraction call — confirmed real, not
+                # hypothetical, once code-import (which calls this) also
+                # writes business entities for the same project id (see
+                # be-v2/docs/brownfield-code-entities-and-issue-fix-plan.md).
+                tx.run(
+                    "MATCH (n:Node {project: $p}) DETACH DELETE n", {"p": project},
+                )
+            else:
+                tx.run("MATCH (n) DETACH DELETE n")
+            if rows:
+                tx.run(
+                    "UNWIND $rows AS row CREATE (n:Node) SET n = row",
+                    {"rows": rows},
+                )
+            if edge_rows:
                 if project:
-                    # Label-scoped deliberately: core.graph.repository's
-                    # save_bev2_entity also stamps a `project` property (not
-                    # `project_id`) on the business-entity nodes it writes
-                    # (:Module/:Actor/etc, a different schema from this
-                    # module's own :Node), and Cypher MERGE's label-subset
-                    # matching means a PRD-derived :Entity:Module node can
-                    # end up carrying BOTH `project_id` and `project` once
-                    # any save_bev2_entity call touches it. An unlabeled
-                    # match here would DETACH DELETE those too on every
-                    # load_extraction call — confirmed real, not
-                    # hypothetical, once code-import (which calls this) also
-                    # writes business entities for the same project id (see
-                    # be-v2/docs/brownfield-code-entities-and-issue-fix-plan.md).
-                    session.run(
-                        "MATCH (n:Node {project: $p}) DETACH DELETE n", {"p": project},
+                    tx.run(
+                        """
+                        UNWIND $rows AS row
+                        MATCH (a:Node {id: row.source, project: $p}),
+                              (b:Node {id: row.target, project: $p})
+                        CREATE (a)-[r:RELATES]->(b)
+                        SET r = row
+                        """,
+                        {"rows": edge_rows, "p": project},
                     )
                 else:
-                    session.run("MATCH (n) DETACH DELETE n")
-                if rows:
-                    session.run(
-                        "UNWIND $rows AS row CREATE (n:Node) SET n = row",
-                        {"rows": rows},
+                    tx.run(
+                        """
+                        UNWIND $rows AS row
+                        MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                        CREATE (a)-[r:RELATES]->(b)
+                        SET r = row
+                        """,
+                        {"rows": edge_rows},
                     )
-                edge_rows = [dict(e) for e in edges]
-                if edge_rows:
-                    if project:
-                        session.run(
-                            """
-                            UNWIND $rows AS row
-                            MATCH (a:Node {id: row.source, project: $p}),
-                                  (b:Node {id: row.target, project: $p})
-                            CREATE (a)-[r:RELATES]->(b)
-                            SET r = row
-                            """,
-                            {"rows": edge_rows, "p": project},
-                        )
-                    else:
-                        session.run(
-                            """
-                            UNWIND $rows AS row
-                            MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
-                            CREATE (a)-[r:RELATES]->(b)
-                            SET r = row
-                            """,
-                            {"rows": edge_rows},
-                        )
+
+        def _run_tx() -> None:
+            with self._driver.session() as session:
+                session.execute_write(_tx)
 
         run_with_timeout(
-            _write, timeout=self._write_timeout_s,
+            _run_tx, timeout=self._write_timeout_s,
             description=f"load_extraction (project={project or '<default>'})",
         )
         return len(rows)
@@ -974,8 +1037,18 @@ class Neo4jRepository:
         1.0; ordering is score DESC then label ASC for determinism. The
         `file_glob` is applied in Python with :mod:`fnmatch` on
         ``source_file`` (fnmatch's ``*``/``?`` do not map cleanly onto one
-        Cypher regex), so the LIMIT is applied AFTER glob filtering and a
-        glob can never starve the result below `limit`.
+        Cypher regex, and Neo4j's fulltext index doesn't accelerate
+        arbitrary-substring `CONTAINS` matching the way it would a
+        tokenized search — switching to it would change match semantics,
+        e.g. no longer finding "Foo" inside "getFooBar"), so a Cypher-side
+        `LIMIT` alone can't just be `limit`: a glob applied AFTER the fetch
+        could filter the result below `limit` even though more matches
+        exist. Previously this had NO Cypher-side limit at all (fetched
+        every matching node in the whole graph before any capping) —
+        `fetch_limit` bounds the worst case (a generous multiplier when a
+        glob is present, so the fetch:filter ratio the glob needs isn't
+        starved; tight when there's no glob to filter afterward) instead of
+        an unbounded scan.
         """
         needle = name.lower()
         query = (
@@ -991,7 +1064,10 @@ class Neo4jRepository:
         query += """
             RETURN n, CASE WHEN toLower(n.label) = $needle THEN 2.0 ELSE 1.0 END AS score
             ORDER BY score DESC, n.label
+            LIMIT $fetch_limit
             """
+        bounded_limit = max(1, int(limit))
+        params["fetch_limit"] = bounded_limit * (20 if file_glob else 1)
         rows = self._run(query, params)
         matches: list[SymbolMatch] = []
         for r in rows:
@@ -1003,7 +1079,7 @@ class Neo4jRepository:
                 Confidence.EXTRACTED if score >= 2.0 else Confidence.INFERRED
             )
             matches.append(SymbolMatch(node=node, score=score, confidence=confidence))
-        return matches[: max(1, int(limit))]
+        return matches[:bounded_limit]
 
     def get_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
         """Return edges from callers into `symbol`, capped at `limit`.
@@ -1084,7 +1160,8 @@ class Neo4jRepository:
         return [_row_to_node(r["n"]) for r in rows]
 
     def failing_context(
-        self, test_identifier: str, depth: int = 3, limit: int = 30
+        self, test_identifier: str, depth: int = 3, limit: int = 30,
+        timeout_s: float = 5.0,
     ) -> list[ContextHit]:
         """BFS outward from a failing test over outgoing structural edges.
 
@@ -1093,6 +1170,14 @@ class Neo4jRepository:
         caps the result at `limit`. Each hit carries the confidence of the
         edge that reached it on the shortest path. Unknown test node ->
         empty list.
+
+        `timeout_s`: same server-side query-timeout guard `affected_by`
+        already has (see that method's docstring, P3.16) — this method has
+        the identical unbounded variable-length-path shape
+        (`*1..depth` with no per-hop LIMIT before the final one) but was
+        missing the timeout wrapper that makes a pathologically dense
+        traversal fail fast instead of running to the driver's own
+        (much longer) default.
         """
         depth = max(1, min(int(depth), 6))
         start_id = self._resolve_test_node_id(test_identifier)
@@ -1121,6 +1206,7 @@ class Neo4jRepository:
             LIMIT $limit
             """
         )
+        query = Query(query, timeout=timeout_s)
         rows = self._run(query, {"tid": start_id, "limit": max(1, int(limit))})
         hits: list[ContextHit] = []
         for r in rows:

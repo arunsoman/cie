@@ -35,18 +35,24 @@ Interface assumptions (to verify at integration time):
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import inspect
+import logging
 import time
 from pathlib import Path
 from typing import Any, Optional
 
 from cie import extract
-from cie.models import Node
+from cie.models import Confidence, Node, SymbolMatch
 
 from cie.tools import blame as _blame
 from cie.tools import edit as _edit
 from cie.tools import runner as _runner
 from cie.tools import view as _view
+from cie.tools.heuristic import HeuristicToolSet
+from cie.tools.index import Symbol, SymbolIndex
+
+logger = logging.getLogger("cie.tools")
 
 __all__ = [
     "ToolService",
@@ -82,6 +88,24 @@ def _elapsed_ms(started: float) -> int:
 def _confidence_value(confidence: Any) -> str:
     """String value of a Confidence enum member (or plain string)."""
     return str(getattr(confidence, "value", confidence))
+
+
+def _symbol_to_node(s: Symbol) -> Node:
+    """Adapt a `cie.tools.index.Symbol` (the in-memory heuristic index's own
+    shape) to a `cie.models.Node`, so the heuristic fallback path can feed
+    the same graph-shaped consumers (`_view.view_file`'s skeleton param,
+    `search_symbol`/`file_skeleton`'s result-shaping) the real graph path
+    already uses — one result-shaping code path, not two."""
+    return Node(
+        id=f"{s.file}::{s.name}",
+        label=s.name,
+        source_file=s.file,
+        kind=s.kind,
+        signature=s.signature,
+        line_start=s.start,
+        line_end=s.end,
+        docstring=s.doc,
+    )
 
 
 def _task_to_dict(task: Any) -> dict:
@@ -120,6 +144,63 @@ class ToolService:
         self._allowed_root = (
             Path(allowed_root) if allowed_root is not None else self._root
         )
+        # Populated by start_watch()/stopped by stop_watch(); an in-process
+        # watchdog.observers.Observer, not the SEPARATE `cie watch`
+        # subprocess forge's CieBackend spawns for its own in-process use
+        # (forge/tools.py) — see cie.tools.watch's module docstring for why
+        # both exist and share one handler implementation.
+        self._watch_observer: Any = None
+        # Lazily built by _heuristic_fallback() below — NOT built here in
+        # __init__, since most ToolService instances never need it (Neo4j
+        # serves nearly every real call); a full `SymbolIndex` project
+        # walk+parse on every construction (every project's first-touch
+        # engine build, per cie.factory's caching) would be pure waste for
+        # the common case. Built on first actual need — a graph call that
+        # fails or comes back empty — and kept alive afterward so
+        # write_file/edit_file/delete_file/reindex_file can keep it
+        # incrementally fresh (see those methods) instead of it silently
+        # going stale for the rest of this ToolService's life.
+        self._symbol_index: Optional[SymbolIndex] = None
+        self._heuristic: Optional[HeuristicToolSet] = None
+        # path -> sha256 of the content this file was last indexed with.
+        # Populated by reindex_file() (so write_file/edit_file/delete_file's
+        # _sync_graph_after_write keeps it warm for free) and consulted by
+        # reindex() to skip files whose content hasn't changed since their
+        # last index instead of re-parsing/re-embedding every file under
+        # project_dir on every call — see reindex()'s docstring.
+        self._indexed_hashes: dict[str, str] = {}
+
+    # -- heuristic fallback ---------------------------------------------------
+
+    def _heuristic_fallback(self) -> HeuristicToolSet:
+        if self._heuristic is None:
+            self._symbol_index = SymbolIndex(self._root)
+            self._heuristic = HeuristicToolSet(self._root, self._symbol_index)
+        return self._heuristic
+
+    def _try_graph(self, tool: str, fn, *args, **kwargs) -> tuple[Any, Optional[Exception]]:
+        """Call a graph-backed retrieval, returning ``(result, exc)`` —
+        ``exc`` is ``None`` on success. Never raises itself: callers decide
+        whether/how to fall back to the heuristic index. Always logs a
+        genuine failure at WARNING — falling back silently would mean a
+        real Neo4j outage or a real bug in a query never shows up anywhere,
+        indistinguishable from "this project just has no data for this
+        query yet." A caller degrading gracefully doesn't mean the failure
+        should be invisible.
+        """
+        try:
+            return fn(*args, **kwargs), None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "%s: graph query failed (%s: %s); falling back to heuristic index",
+                tool, type(exc).__name__, exc,
+            )
+            return None, exc
+
+    @staticmethod
+    def _degraded_hint(exc: Exception, hint: Optional[str]) -> str:
+        base = f"graph unreachable ({type(exc).__name__}: {exc}); heuristic fallback used"
+        return f"{base} — {hint}" if hint else base
 
     # -- envelope helpers ---------------------------------------------------
 
@@ -224,18 +305,31 @@ class ToolService:
     # -- graph-backed tools -------------------------------------------------
 
     def view_file(self, path: str, start: int = 1, end: int = 100) -> dict:
-        """Windowed file view joined with the graph skeleton (T1.1)."""
+        """Windowed file view joined with the graph skeleton (T1.1).
+
+        The window's CONTENT always comes straight off disk (`_view.
+        view_file` reads the real file), regardless of graph state — only
+        the `symbol_index` annotation is graph-backed, so a Neo4j failure
+        here degrades to the in-memory heuristic index for that annotation
+        rather than failing the whole view.
+        """
         tool = "view_file"
         started = time.monotonic()
+        skeleton, exc = self._try_graph(tool, self._engine.get_file_skeleton, path)
+        if exc is not None or not skeleton:
+            skeleton = [
+                _symbol_to_node(s) for s in self._heuristic_fallback().index.in_file(path)
+            ]
         try:
-            skeleton = self._engine.get_file_skeleton(path)
             result = _view.view_file(self._root, path, start, end, skeleton)
-        except Exception as exc:  # noqa: BLE001 - converted to envelope
-            return self._guard(tool, started, exc)
+        except Exception as exc2:  # noqa: BLE001 - converted to envelope
+            return self._guard(tool, started, exc2)
         window = result["window"]
         truncated = window["end"] < result["total_lines"]
-        return self._ok(tool, [result], started, truncated=truncated,
-                        hint=result["hint"])
+        hint = result["hint"]
+        if exc is not None:
+            hint = self._degraded_hint(exc, hint)
+        return self._ok(tool, [result], started, truncated=truncated, hint=hint)
 
     def search_symbol(
         self,
@@ -247,10 +341,20 @@ class ToolService:
         """Locate symbol definitions by name (T1.2)."""
         tool = "search_symbol"
         started = time.monotonic()
-        try:
-            matches = self._engine.search_symbols(name, kind, file_glob, limit)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        matches, exc = self._try_graph(
+            tool, self._engine.search_symbols, name, kind, file_glob, limit,
+        )
+        if exc is not None or not matches:
+            heuristic_hits = self._heuristic_fallback().index.find(name, kind)[:limit]
+            if heuristic_hits:
+                matches = [
+                    SymbolMatch(
+                        node=_symbol_to_node(s),
+                        score=2.0 if s.name == name else 1.0,
+                        confidence=Confidence.EXTRACTED if s.file.endswith(".py") else Confidence.INFERRED,
+                    )
+                    for s in heuristic_hits
+                ]
         results = [
             {
                 "name": m.node.label,
@@ -261,20 +365,21 @@ class ToolService:
                 "confidence": _confidence_value(m.confidence),
                 "score": m.score,
             }
-            for m in matches
+            for m in (matches or [])
         ]
         if not results:
-            return self._ok(
-                tool, results, started,
-                hint=f"no symbol named '{name}'; try a substring or drop the "
-                     "kind filter",
-            )
+            hint = f"no symbol named '{name}'; try a substring or drop the kind filter"
+            if exc is not None:
+                hint = self._degraded_hint(exc, hint)
+            return self._ok(tool, results, started, hint=hint)
         truncated = len(results) >= limit
         hint = (
             f"results capped at {limit}; refine with kind or file_glob"
             if truncated
             else None
         )
+        if exc is not None:
+            hint = self._degraded_hint(exc, hint)
         return self._ok(tool, results, started, truncated=truncated, hint=hint)
 
     def semantic_search(self, query: str, top_k: int = 10) -> dict:
@@ -340,17 +445,43 @@ class ToolService:
             results.append(entry)
         return results
 
+    def _graph_result_or_heuristic(
+        self, tool: str, started: float, records: Any, exc: Optional[Exception],
+        heuristic_call: Any, empty_hint: str,
+    ) -> Optional[dict]:
+        """Shared tail for callers/callees/failing_context/affected_by:
+        given the outcome of an already-attempted `_try_graph` call, either
+        shape the real graph records into a success envelope, or fall back
+        to the heuristic index (on a genuine failure, or on a legitimately
+        empty graph result if the heuristic index has something to offer
+        instead). Returns ``None`` when the graph result should be used —
+        the caller shapes and returns its own envelope in that case, since
+        each tool's result shape differs enough that generalizing it too
+        wouldn't be worth the indirection.
+        """
+        if exc is None and records:
+            return None
+        fallback = heuristic_call()
+        if fallback["results"]:
+            if exc is not None:
+                fallback["hint"] = self._degraded_hint(exc, fallback.get("hint"))
+            return fallback
+        hint = empty_hint if exc is None else self._degraded_hint(exc, empty_hint)
+        return self._ok(tool, [], started, hint=hint)
+
     def callers(self, symbol: str, limit: int = 30) -> dict:
         """Blast radius: who calls ``symbol`` (T1.3)."""
         tool = "callers"
         started = time.monotonic()
-        try:
-            records = self._engine.get_callers(symbol, limit)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        records, exc = self._try_graph(tool, self._engine.get_callers, symbol, limit)
+        fallback = self._graph_result_or_heuristic(
+            tool, started, records, exc,
+            heuristic_call=lambda: self._heuristic_fallback().callers(symbol),
+            empty_hint=HINT_EMPTY_CALLERS,
+        )
+        if fallback is not None:
+            return fallback
         results = self._edge_results(records, "caller")
-        if not results:
-            return self._ok(tool, results, started, hint=HINT_EMPTY_CALLERS)
         truncated = len(results) >= limit
         return self._ok(
             tool, results, started, truncated=truncated,
@@ -361,13 +492,15 @@ class ToolService:
         """Reverse localization: what ``symbol`` calls (T1.3)."""
         tool = "callees"
         started = time.monotonic()
-        try:
-            records = self._engine.get_callees(symbol, limit)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        records, exc = self._try_graph(tool, self._engine.get_callees, symbol, limit)
+        fallback = self._graph_result_or_heuristic(
+            tool, started, records, exc,
+            heuristic_call=lambda: self._heuristic_fallback().callees(symbol),
+            empty_hint=HINT_EMPTY_CALLERS,
+        )
+        if fallback is not None:
+            return fallback
         results = self._edge_results(records, "callee")
-        if not results:
-            return self._ok(tool, results, started, hint=HINT_EMPTY_CALLERS)
         truncated = len(results) >= limit
         return self._ok(
             tool, results, started, truncated=truncated,
@@ -378,10 +511,11 @@ class ToolService:
         """Signatures + line ranges for every symbol in a file, no bodies (T2.1)."""
         tool = "file_skeleton"
         started = time.monotonic()
-        try:
-            nodes = self._engine.get_file_skeleton(path)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        nodes, exc = self._try_graph(tool, self._engine.get_file_skeleton, path)
+        if exc is not None or not nodes:
+            heuristic_syms = self._heuristic_fallback().index.in_file(path)
+            if heuristic_syms:
+                nodes = [_symbol_to_node(s) for s in heuristic_syms]
         symbols = [
             {
                 "name": n.label,
@@ -390,15 +524,13 @@ class ToolService:
                 "lines": [n.line_start, n.line_end],
                 "docstring_first_line": n.docstring,
             }
-            for n in nodes
+            for n in (nodes or [])
             if n.kind != "file"  # file hub is not a symbol
         ]
         result = {"path": path, "symbols": symbols}
-        hint = (
-            None
-            if symbols
-            else f"no symbols indexed for '{path}'; load/reindex the file first"
-        )
+        hint = None if symbols else f"no symbols indexed for '{path}'; load/reindex the file first"
+        if exc is not None:
+            hint = self._degraded_hint(exc, hint)
         return self._ok(tool, [result], started, hint=hint)
 
     def failing_context(
@@ -407,10 +539,16 @@ class ToolService:
         """Symbols reachable from a failing test, ranked by distance (T2.3)."""
         tool = "failing_context"
         started = time.monotonic()
-        try:
-            hits = self._engine.failing_context(test_identifier, depth, limit)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        hits, exc = self._try_graph(
+            tool, self._engine.failing_context, test_identifier, depth, limit,
+        )
+        fallback = self._graph_result_or_heuristic(
+            tool, started, hits, exc,
+            heuristic_call=lambda: self._heuristic_fallback().failing_context(test_identifier),
+            empty_hint=HINT_EMPTY_FAILING_CONTEXT,
+        )
+        if fallback is not None:
+            return fallback
         results = [
             {
                 "distance": h.distance,
@@ -420,9 +558,6 @@ class ToolService:
             }
             for h in hits
         ]
-        if not results:
-            return self._ok(tool, results, started,
-                            hint=HINT_EMPTY_FAILING_CONTEXT)
         return self._ok(tool, results, started,
                         hint="distance-1 symbols are the prime suspects")
 
@@ -430,17 +565,19 @@ class ToolService:
         """Shortest call/contains path as ordered per-hop chain (T2.2)."""
         tool = "path_between"
         started = time.monotonic()
-        try:
-            path = self._engine.shortest_path(source, target, max_hops)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
-        if path is None or not path.nodes:
-            return self._ok(
-                tool, [], started,
-                hint=f"no path between '{source}' and '{target}' within "
-                     f"{max_hops} hops; check the symbol names or raise "
-                     "max_hops",
-            )
+        path, exc = self._try_graph(tool, self._engine.shortest_path, source, target, max_hops)
+        empty_hint = (
+            f"no path between '{source}' and '{target}' within {max_hops} hops; "
+            "check the symbol names or raise max_hops"
+        )
+        if exc is not None or path is None or not path.nodes:
+            fallback = self._heuristic_fallback().path_between(source, target)
+            if fallback["results"]:
+                if exc is not None:
+                    fallback["hint"] = self._degraded_hint(exc, fallback.get("hint"))
+                return fallback
+            hint = empty_hint if exc is None else self._degraded_hint(exc, empty_hint)
+            return self._ok(tool, [], started, hint=hint)
         chain: list[dict] = []
         for index, node in enumerate(path.nodes):
             hop = {"file": node.source_file, "symbol": node.label}
@@ -461,10 +598,22 @@ class ToolService:
         it depends on (direction="outgoing")."""
         tool = "affected_by"
         started = time.monotonic()
-        try:
-            hits = self._engine.affected_by(file_path, max_depth, direction, max_results)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
+        hits, exc = self._try_graph(
+            tool, self._engine.affected_by, file_path, max_depth, direction, max_results,
+        )
+        empty_hint = (
+            f"no nodes found for '{file_path}' within {max_depth} hops "
+            f"({direction}); check the path or raise max_depth"
+        )
+        fallback = self._graph_result_or_heuristic(
+            tool, started, hits, exc,
+            heuristic_call=lambda: self._heuristic_fallback().affected_by(
+                file_path, max_depth, direction,
+            ),
+            empty_hint=empty_hint,
+        )
+        if fallback is not None:
+            return fallback
         results = [
             {
                 "distance": h.distance,
@@ -474,12 +623,6 @@ class ToolService:
             }
             for h in hits
         ]
-        if not results:
-            return self._ok(
-                tool, results, started,
-                hint=f"no nodes found for '{file_path}' within {max_depth} hops "
-                     f"({direction}); check the path or raise max_depth",
-            )
         return self._ok(tool, results, started,
                         hint="distance-1 hits are the most directly affected")
 
@@ -616,6 +759,14 @@ class ToolService:
             result = _edit.delete_file(self._root, path)
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
+        self._invalidate_api_routes_cache()
+        self._sync_heuristic_index(resolved)
+        # Stale on purpose if left in place: a later reindex() comparing a
+        # RECREATED file's hash against this deleted file's last-known
+        # hash could match (same content) and wrongly skip re-indexing it
+        # — but delete_file already dropped its graph nodes above, so
+        # skipping would leave it permanently missing from the graph.
+        self._indexed_hashes.pop(path, None)
         hint = None
         if extract.supported_suffix(resolved) is not None:
             try:
@@ -623,6 +774,42 @@ class ToolService:
             except Exception as exc:  # noqa: BLE001
                 hint = f"file deleted but graph cleanup failed: {exc}"
         return self._ok(tool, [result], started, hint=hint)
+
+    def _sync_heuristic_index(self, resolved: Path) -> None:
+        """Keep the lazy heuristic fallback index (see `_heuristic_fallback`)
+        fresh after a write/edit/delete — but ONLY if it's already been
+        built for this ToolService. Building it here just to update it
+        would defeat the whole point of it being lazy (most ToolServices
+        never touch it at all); a session that never fell back to it never
+        pays this either, and one that already fell back once stays fresh
+        without a full re-walk on every subsequent write.
+        """
+        if self._symbol_index is None:
+            return
+        # `resolved` always comes from `_view._jail`, which already
+        # guarantees it's under `self._root` (raises otherwise) — no need
+        # to re-check here.
+        rel = str(resolved.relative_to(self._root))
+        content = resolved.read_text(errors="replace") if resolved.is_file() else ""
+        self._symbol_index.reindex_file(rel, content)
+
+    def _invalidate_api_routes_cache(self) -> None:
+        """Drop `cie.api_routes`'s per-repo-root route/call-site index after
+        any write under the project root.
+
+        That cache (resolve_api_route/api_call_sites — a regex scan of
+        FastAPI route decorators + frontend fetch call sites, entirely
+        separate from the Neo4j code graph) never invalidated itself: a
+        forge session that generates or edits a route file and then later
+        in the SAME run calls resolve_api_route/api_call_sites would get a
+        stale answer from before its own edit. Cheap to over-invalidate
+        (a write to an unrelated file just costs one extra rebuild on the
+        NEXT resolve_api_route/api_call_sites call, not on this write) —
+        far cheaper than a wrong answer.
+        """
+        from cie import api_routes
+
+        api_routes.invalidate_cache(api_routes.find_repo_root(self._root))
 
     def _sync_graph_after_write(self, path: str, result: dict) -> tuple[dict, Optional[str]]:
         """Best-effort incremental reindex right after a write/edit landed
@@ -634,12 +821,16 @@ class ToolService:
         index — and any indexing failure (bad parse, Neo4j unreachable)
         degrades to a hint rather than failing the write, which already
         landed on disk successfully by this point."""
+        self._invalidate_api_routes_cache()
         resolved = _view._jail(self._root, path)
+        self._sync_heuristic_index(resolved)
         if extract.supported_suffix(resolved) is None:
             return result, "not an indexable source file; graph unaffected"
         try:
+            content = resolved.read_bytes()
             extraction = extract.extract_file(resolved)
             written = self._engine._repo.reindex_file(str(resolved), extraction)  # noqa: SLF001
+            self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
             return result, f"write succeeded but graph reindex failed: {exc}"
         return {**result, "nodes_written": written}, None
@@ -669,8 +860,11 @@ class ToolService:
                 raise FileNotFoundError(
                     f"no such file under project root: {path}"
                 )
+            self._sync_heuristic_index(resolved)
+            content = resolved.read_bytes()
             extraction = extract.extract_file(resolved)
             written = self._engine._repo.reindex_file(str(resolved), extraction)
+            self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(
@@ -678,6 +872,132 @@ class ToolService:
             hint="graph is fresh for this file; callers of unchanged files "
                  "were re-resolved in the same call",
         )
+
+    def reindex(self) -> dict:
+        """Re-index every supported source file under the project root
+        whose content has actually changed since it was last indexed.
+
+        Calls this class's own `reindex_file` once per CHANGED file (a
+        sha256 of the file's bytes is compared against `_indexed_hashes`,
+        the same cache `reindex_file` itself keeps warm on every call —
+        including the one `write_file`/`edit_file`/`delete_file` already
+        make internally) — so a caller of `POST /tools/reindex` gets the
+        exact same targeted, read-after-write-consistent path a single
+        incremental update already uses, without paying to re-parse and
+        re-embed every already-fresh file in the project.
+
+        Confirmed live 2026-08-07: before this, every call re-indexed
+        EVERY file unconditionally, no matter how many were already fresh
+        from their own prior `reindex_file` call — on a forge run calling
+        this (or, worse, the whole-project `reindex()`, not the per-file
+        `reindex_file()`) after every single generated file, that made
+        each successive write's graph-sync cost grow with total project
+        size, the dominant cost of the whole run. `reindex_file` callers
+        already avoided that; this makes `reindex()` itself safe to call
+        repeatedly too, not just a one-time-per-process convention.
+
+        Hashes are process-local (an in-memory dict, not persisted to the
+        graph) — a fresh process always treats every file as unseen on its
+        first `reindex()`/`reindex_file()` call, which is correct: the
+        graph itself may be stale for reasons this process has no way to
+        know about (another process's write, a git checkout) without
+        actually re-parsing to find out. One file failing to index doesn't
+        stop the rest.
+        """
+        tool = "reindex"
+        started = time.monotonic()
+        indexed = 0
+        skipped = 0
+        errors: list[dict] = []
+        for suffix in extract._LANG_LOADERS:  # noqa: SLF001
+            for f in sorted(self._root.rglob(f"*{suffix}")):
+                if any(
+                    part.startswith(".") or part in ("node_modules", "__pycache__", ".venv")
+                    for part in f.parts
+                ):
+                    continue
+                rel = str(f.relative_to(self._root))
+                try:
+                    current_hash = hashlib.sha256(f.read_bytes()).hexdigest()
+                except OSError:
+                    current_hash = None
+                if current_hash is not None and self._indexed_hashes.get(rel) == current_hash:
+                    skipped += 1
+                    continue
+                payload = self.reindex_file(rel)
+                if payload.get("ok"):
+                    indexed += 1
+                else:
+                    errors.append({
+                        "path": rel,
+                        "error": payload.get("error", {}).get("message", "unknown"),
+                    })
+        hint = None if not errors else f"{len(errors)} file(s) failed to index"
+        envelope = self._ok(
+            tool, [{"files_indexed": indexed, "files_skipped": skipped, "errors": errors}], started, hint=hint,
+        )
+        envelope["ok"] = not errors
+        return envelope
+
+    def start_watch(self, debounce: float = 0.5) -> dict:
+        """Start an in-process filesystem watcher that incrementally
+        reindexes changed source files under the project root.
+
+        Used directly by the HTTP tool surface / `CieHTTPBackend`, and
+        (since 2026-08-07) by forge's own in-process `CieBackend.
+        start_watch()` too — that one used to spawn a SEPARATE `cie watch`
+        subprocess instead, which survived independently of the request-
+        handling process; it now just delegates here, trading that
+        independence away for having no custom watch logic of its own (see
+        `CieBackend.start_watch`'s docstring for the reasoning). Shares ONE
+        handler implementation (`cie.tools.watch.build_reindex_handler`)
+        with the standalone `cie watch` CLI subcommand so their debounce/
+        reindex behavior can't drift apart — see that module's docstring.
+
+        Idempotent: a second call while a watch is already running for this
+        ToolService is a no-op. Never raises — a failed launch (`watchdog`
+        not installed) degrades to an error envelope rather than crashing
+        the caller.
+        """
+        tool = "start_watch"
+        started = time.monotonic()
+        if self._watch_observer is not None and self._watch_observer.is_alive():
+            return self._ok(
+                tool, [{"started": False}], started, hint="watch already running",
+            )
+        try:
+            from watchdog.observers import Observer
+
+            from cie.tools.watch import build_reindex_handler
+        except ImportError:
+            return self._err(
+                tool, "internal", "watchdog not installed", started,
+                hint="pip install watchdog to use start_watch",
+            )
+        # project="" matches every other write path in this class
+        # (reindex_file/write_file/edit_file/delete_file never pass an
+        # explicit project either) — see this module's own writes for the
+        # established convention.
+        handler = build_reindex_handler(self._engine._repo, "", debounce)  # noqa: SLF001
+        observer = Observer()
+        observer.schedule(handler, str(self._root), recursive=True)
+        observer.start()
+        self._watch_observer = observer
+        return self._ok(tool, [{"started": True}], started)
+
+    def stop_watch(self) -> dict:
+        """Stop the watcher started by `start_watch`, if any. Safe to call
+        even when `start_watch` was never called, or failed to launch."""
+        tool = "stop_watch"
+        started = time.monotonic()
+        observer, self._watch_observer = self._watch_observer, None
+        if observer is None or not observer.is_alive():
+            return self._ok(
+                tool, [{"stopped": False}], started, hint="watch was not running",
+            )
+        observer.stop()
+        observer.join(timeout=5)
+        return self._ok(tool, [{"stopped": True}], started)
 
     # -- git / task-graph tools ----------------------------------------------
 

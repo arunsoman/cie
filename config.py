@@ -39,6 +39,16 @@ class Neo4jConfig:
     # forever with zero diagnostic).
     connect_timeout_s: float = 10.0
     max_retry_time_s: float = 15.0
+    # Pool sizing — previously left at the driver's own defaults
+    # (max_connection_pool_size=100, connection_acquisition_timeout=60s),
+    # undocumented and un-tunable from here. forge's story-level
+    # concurrency (AdaptiveConcurrencyLimiter, ceiling 8) plus its own
+    # per-story tool calls stays well under 100 concurrent connections, so
+    # the pool itself was never actually the constraint — but leaving it
+    # implicit meant no one place to look to confirm that. Explicit and
+    # env-overridable like every other bound here.
+    max_pool_size: int = 100
+    connection_acquisition_timeout_s: float = 60.0
     # Hard, independently-enforced wall-clock budgets applied in
     # `cie.timeouts.run_with_timeout` around the actual query round trip
     # (`Neo4jRepository._run`/`load_extraction`/`reindex_file`) and schema
@@ -69,6 +79,12 @@ class Neo4jConfig:
             max_retry_time_s=float(
                 os.environ.get("CIE_NEO4J_MAX_RETRY_TIME_S", "15")
             ),
+            max_pool_size=int(
+                os.environ.get("CIE_NEO4J_MAX_POOL_SIZE", "100")
+            ),
+            connection_acquisition_timeout_s=float(
+                os.environ.get("CIE_NEO4J_CONNECTION_ACQUISITION_TIMEOUT_S", "60")
+            ),
             query_timeout_s=float(
                 os.environ.get("CIE_NEO4J_QUERY_TIMEOUT_S", "30")
             ),
@@ -87,4 +103,6 @@ class Neo4jConfig:
         return {
             "connection_timeout": self.connect_timeout_s,
             "max_transaction_retry_time": self.max_retry_time_s,
+            "max_connection_pool_size": self.max_pool_size,
+            "connection_acquisition_timeout": self.connection_acquisition_timeout_s,
         }

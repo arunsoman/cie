@@ -50,17 +50,23 @@ def get_shared_driver(cfg: Optional[Neo4jConfig] = None):
 
 
 def get_engine(project: str = "", cfg: Optional[Neo4jConfig] = None) -> QueryEngine:
-    """Process-wide QueryEngine for one project namespace, cached."""
+    """Process-wide QueryEngine for one project namespace, cached.
+
+    Built on `get_shared_driver()` rather than `Neo4jRepository.connect()`
+    (which opens its own fresh `GraphDatabase.driver(...)`) — confirmed
+    live 2026-08-07: those two ran as separate driver instances sharing
+    nothing, so a server process ended up with two independent connection
+    pools *and* two independently-refreshing routing tables against the
+    same Aura instance. One shared driver means one pool, one routing
+    table, refreshed once.
+    """
     from cie.neo4j_repository import Neo4jRepository
 
     if project not in _engines:
         cfg = cfg or Neo4jConfig.from_env()
         _engines[project] = QueryEngine(
-            Neo4jRepository.connect(
-                uri=cfg.uri, user=cfg.user, password=cfg.password,
-                database=cfg.database, project=project,
-                connect_timeout_s=cfg.connect_timeout_s,
-                max_retry_time_s=cfg.max_retry_time_s,
+            Neo4jRepository(
+                get_shared_driver(cfg), project=project,
                 query_timeout_s=cfg.query_timeout_s,
                 schema_timeout_s=cfg.schema_timeout_s,
                 write_timeout_s=cfg.write_timeout_s,
