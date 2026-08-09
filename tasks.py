@@ -170,6 +170,13 @@ class TestFramework(str, Enum):
     RSPEC = "RSpec"
     GO_TESTING = "go testing"
     CTEST = "ctest"
+    #: Spec §5b — one Playwright spec per screen-bearing story, executed
+    #: against a live dev server by features/build_app/run_playwright_tests.py
+    #: as the workflow's _stage_qa (run_workflow.py). Added alongside the
+    #: existing in-process frameworks so QA tasks can declare their real
+    #: runner without falling back to CUSTOM_OR_UNKNOWN (which would lose
+    #: the framework-specific run_command wiring build_app expects).
+    PLAYWRIGHT = "Playwright"
     CUSTOM_OR_UNKNOWN = "custom_or_unknown"
 
 class AtomicQaTask(AtomicTask):
