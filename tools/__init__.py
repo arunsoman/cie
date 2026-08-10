@@ -1207,10 +1207,12 @@ class ToolService:
                 raise FileNotFoundError(f"no such file under project root: {path}")
             extraction = extract.extract_file(resolved)
             spec_engine = self._speculative_engine()
+            project = self._canonical_project()
+            layer_rules = sync.load_layer_rules(self._engine._repo, project)  # noqa: SLF001
             result = sync.run_quality_gate(
                 spec_engine._repo, self._engine._repo,  # noqa: SLF001
-                self._canonical_project(), resolved, extraction,
-                project_root=self._root,
+                project, resolved, extraction,
+                project_root=self._root, layer_rules=layer_rules or None,
             )
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
@@ -1452,6 +1454,1016 @@ class ToolService:
         results = [{"path": d.source_file, "label": d.label} for d in docs]
         hint = None if results else "no matching documents; run doc_graph_run first"
         return self._ok(tool, results, started, hint=hint)
+
+    # -- Section 14 (Confidence Framework Integration) ------------------------
+
+    def contracts_run(self, text: str) -> dict:
+        """CF-01: LLM-extract formal contracts from requirement text,
+        bind them to existing code symbols by name, and write them."""
+        tool = "contracts_run"
+        started = time.monotonic()
+        try:
+            from cie import contracts as _contracts
+
+            extracted = asyncio.run(_contracts.extract_contracts(text))
+            nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            contract_nodes, edges = _contracts.bind_contracts_to_code(extracted, nodes)
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "Contract", contract_nodes, edges, project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if edges else "contracts extracted but none bound to a known symbol by name"
+        return self._ok(tool, [{"contracts_written": written, "bound_edges": len(edges)}], started, hint=hint)
+
+    def contracts(self, scope: str = "", contract_type: str = "") -> dict:
+        """CF-03: query already-extracted contracts by scope/type."""
+        tool = "contracts"
+        started = time.monotonic()
+        try:
+            from cie import contracts as _contracts
+
+            all_nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "Contract", project=self._canonical_project(),
+            )
+            matches = _contracts.contracts_query(all_nodes, scope=scope, contract_type=contract_type)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"id": n.id, "scope": n.properties.get("scope", ""),
+             "contract_type": n.properties.get("contract_type", ""),
+             "expression": n.properties.get("expression", "")}
+            for n in matches
+        ]
+        hint = None if results else "no contracts yet; run contracts_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def validate_types(self, domain_types: dict) -> dict:
+        """CF-02 static half: flag parameters whose name implies a
+        domain type (per `domain_types`, e.g. {"email": "Email"}) but
+        whose annotation doesn't match."""
+        tool = "validate_types"
+        started = time.monotonic()
+        try:
+            from cie import contracts as _contracts
+
+            nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            violations = _contracts.validate_types(nodes, domain_types)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, violations, started)
+
+    def inject_assertions(self, code: str, contract_specs: list) -> dict:
+        """CF-02 assertion-injection half."""
+        tool = "inject_assertions"
+        started = time.monotonic()
+        try:
+            from cie import contracts as _contracts
+
+            result = _contracts.inject_assertions(code, contract_specs)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"code": result}], started)
+
+    def strip_assertions(self, code: str) -> dict:
+        """CF-02 assertion-stripping half."""
+        tool = "strip_assertions"
+        started = time.monotonic()
+        try:
+            from cie import contracts as _contracts
+
+            result = _contracts.strip_assertions(code)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"code": result}], started)
+
+    def test_skeletons_run(self, specs: list) -> dict:
+        """CF-04: generate test skeletons from a batch of
+        `{criteria_text, target_label, test_type, spec_node_id}` specs
+        and write them as `TestSkeleton` nodes + `TESTS` edges."""
+        tool = "test_skeletons_run"
+        started = time.monotonic()
+        try:
+            from cie import test_synthesis
+
+            nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            test_nodes, edges = test_synthesis.build_test_nodes(specs, nodes)
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "TestSkeleton", test_nodes, edges, project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"skeletons_written": written, "bound_edges": len(edges)}], started)
+
+    def test_skeletons(self, spec_node_id: str = "") -> dict:
+        """CF-05: generated test skeletons, optionally filtered to one
+        spec node."""
+        tool = "test_skeletons"
+        started = time.monotonic()
+        try:
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "TestSkeleton", project=self._canonical_project(),
+            )
+            if spec_node_id:
+                nodes = [n for n in nodes if n.properties.get("spec_node_id") == spec_node_id]
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"id": n.id, "test_type": n.properties.get("test_type", ""),
+             "status": n.properties.get("status", ""), "skeleton_code": n.properties.get("skeleton_code", "")}
+            for n in nodes
+        ]
+        hint = None if results else "no test skeletons yet; run test_skeletons_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def test_coverage(self, spec_node_id: str) -> dict:
+        """CF-05: is there a generated test for `spec_node_id`?"""
+        tool = "test_coverage"
+        started = time.monotonic()
+        try:
+            from cie import test_synthesis
+
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "TestSkeleton", project=self._canonical_project(),
+            )
+            result = test_synthesis.test_coverage(spec_node_id, nodes)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def state_machine_run(self, text: str) -> dict:
+        """CF-06: LLM-extract a finite state machine from requirement
+        text and write it."""
+        tool = "state_machine_run"
+        started = time.monotonic()
+        try:
+            from cie import state_machine
+
+            fsm = asyncio.run(state_machine.extract_state_machine(text))
+            if fsm is None:
+                return self._ok(
+                    tool, [], started,
+                    hint="no stateful entity found in the text; nothing extracted",
+                )
+            fsm_nodes, edges = state_machine.build_fsm_nodes(fsm)
+            # fsm_nodes mixes THREE kinds (StateMachine/State/Transition) —
+            # replace_analysis_nodes only deletes+recreates the ONE kind it's
+            # called with, so each kind needs its own call (same grouping
+            # decompose_page already does) or State/Transition rows from a
+            # prior run never get cleaned up and could duplicate.
+            project = self._canonical_project()
+            by_kind: dict[str, list[dict]] = {}
+            for n in fsm_nodes:
+                by_kind.setdefault(n["kind"], []).append(n)
+            written = 0
+            for kind, kind_nodes in by_kind.items():
+                kind_edges = [e for e in edges if any(n["id"] == e["source"] for n in kind_nodes)]
+                written += self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                    kind, kind_nodes, kind_edges, project=project,
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{"entity_name": fsm["entity_name"], "nodes_written": written}], started,
+        )
+
+    def state_machine(self, entity_name: str) -> dict:
+        """CF-07: query a previously-extracted FSM by entity name."""
+        tool = "state_machine"
+        started = time.monotonic()
+        try:
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "StateMachine", project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        matches = [n for n in nodes if n.label == entity_name or entity_name in n.id]
+        results = [
+            {"id": n.id, "label": n.label, "kind": n.kind,
+             "from_state": n.properties.get("from_state", ""), "to_state": n.properties.get("to_state", "")}
+            for n in matches
+        ]
+        hint = None if results else f"no state machine found for '{entity_name}'; run state_machine_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def fsm_validate(self, entity_name: str) -> dict:
+        """CF-06/07: structurally validate a state machine's declared
+        states against existing code symbol labels (see `cie.
+        state_machine.validate_code_against_fsm`'s scoping)."""
+        tool = "fsm_validate"
+        started = time.monotonic()
+        try:
+            from cie import state_machine
+
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "StateMachine", project=self._canonical_project(),
+            )
+            sm_nodes = [n for n in nodes if n.kind == "StateMachine" and n.label == entity_name]
+            if not sm_nodes:
+                return self._err(
+                    tool, "not_found", f"no state machine named '{entity_name}'", started,
+                    hint="run state_machine_run first",
+                )
+            state_nodes = [n for n in nodes if n.kind == "State" and n.id.startswith(sm_nodes[0].id + "::")]
+            transition_nodes = [n for n in nodes if n.kind == "Transition" and n.id.startswith(sm_nodes[0].id + "::")]
+            fsm = {
+                "entity_name": entity_name,
+                "states": [{"name": n.label} for n in state_nodes],
+                "transitions": [
+                    {"from_state": n.properties.get("from_state", ""), "to_state": n.properties.get("to_state", "")}
+                    for n in transition_nodes
+                ],
+            }
+            code_nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            violations = state_machine.validate_code_against_fsm(fsm, code_nodes)
+            unreachable = state_machine.find_unreachable_states(fsm)
+            dead = state_machine.find_dead_states(fsm)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{"violations": violations, "unreachable_states": unreachable, "dead_states": dead}], started,
+        )
+
+    def traceability_coverage(self) -> dict:
+        """CF-08/09: fraction of code symbols tested/contracted."""
+        tool = "traceability_coverage"
+        started = time.monotonic()
+        try:
+            from cie import traceability
+
+            nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = traceability.get_coverage(nodes, edges)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def traceability_orphans(self) -> dict:
+        """CF-08/09: code symbols with no test and no contract."""
+        tool = "traceability_orphans"
+        started = time.monotonic()
+        try:
+            from cie import traceability
+
+            nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            orphans = traceability.find_orphans(nodes, edges)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [{"id": n.id, "label": n.label, "source_file": n.source_file} for n in orphans]
+        hint = None if results else "no orphans found (or graph is empty)"
+        return self._ok(tool, results, started, hint=hint)
+
+    def traceability_chain(self, symbol: str) -> dict:
+        """CF-09: full test/contract chain for one code symbol."""
+        tool = "traceability_chain"
+        started = time.monotonic()
+        try:
+            from cie import traceability
+
+            nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = traceability.traceability_chain(nodes, edges, symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def prd_traceability_coverage(self) -> dict:
+        """CF-08, PRD-hierarchy side: what fraction of file-bearing PRD
+        hierarchy nodes (AtomicTasks) have a matching FILE node in the
+        code graph. See `cie.traceability.prd_coverage`'s own docstring
+        for why this is a separate function from the code-side
+        `traceability_coverage`, not a merge of the two."""
+        tool = "prd_traceability_coverage"
+        started = time.monotonic()
+        try:
+            from cie import factory, traceability
+
+            project = self._canonical_project()
+            hierarchy_nodes = factory.get_hierarchy_repo(project).get_project_tree(project)
+            code_nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = traceability.prd_coverage(hierarchy_nodes, code_nodes)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if result["total_prd_file_tasks"] else "no file-bearing hierarchy nodes; push_hierarchy first"
+        return self._ok(tool, [result], started, hint=hint)
+
+    def prd_traceability_orphans(self) -> dict:
+        """CF-08, PRD-hierarchy side: PRD tasks with a declared file
+        that has no matching FILE node in the code graph yet."""
+        tool = "prd_traceability_orphans"
+        started = time.monotonic()
+        try:
+            from cie import factory, traceability
+
+            project = self._canonical_project()
+            hierarchy_nodes = factory.get_hierarchy_repo(project).get_project_tree(project)
+            code_nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            results = traceability.prd_orphans(hierarchy_nodes, code_nodes)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if results else "no PRD-side orphans found (or no hierarchy pushed yet)"
+        return self._ok(tool, results, started, hint=hint)
+
+    def prd_traceability_chain(self, task_id: str) -> dict:
+        """CF-09, PRD-hierarchy side: task -> implemented_in (FILE
+        node(s)) -> tested_by (TESTS edges on that file's symbols)."""
+        tool = "prd_traceability_chain"
+        started = time.monotonic()
+        try:
+            from cie import factory, traceability
+
+            project = self._canonical_project()
+            hierarchy_nodes = factory.get_hierarchy_repo(project).get_project_tree(project)
+            code_nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = traceability.prd_traceability_chain(hierarchy_nodes, code_nodes, edges, task_id)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not result.get("found"):
+            return self._err(
+                tool, "not_found", f"no hierarchy node '{task_id}'", started,
+                hint="call push_hierarchy first, or check the id with get_children",
+            )
+        return self._ok(tool, [result], started)
+
+    def semantic_diff(self, spec_text: str, target_symbol: str) -> dict:
+        """CF-10/11: prototype-level spec-vs-code contradiction check
+        (see `cie.semantic_diff`'s own scoping — pattern-matching
+        heuristic, not graph isomorphism)."""
+        tool = "semantic_diff"
+        started = time.monotonic()
+        try:
+            from cie import semantic_diff as _semantic_diff
+
+            record = self._engine.get_node(target_symbol)
+            if record is None:
+                return self._err(
+                    tool, "not_found", f"unknown symbol '{target_symbol}'", started,
+                    hint="check the symbol name with search_symbol",
+                )
+            findings = _semantic_diff.detect_contradictions(spec_text, record.node)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if findings else "no known rule patterns matched (see module scope note — narrow heuristic)"
+        return self._ok(tool, findings, started, hint=hint)
+
+    def record_verdict(
+        self, code_node_id: str, agent_name: str, verdict: str, confidence: float, reasoning: str,
+    ) -> dict:
+        """CF-12: store one agent's verdict on a code node."""
+        tool = "record_verdict"
+        started = time.monotonic()
+        try:
+            from cie import consensus as _consensus
+
+            node, edge = _consensus.build_verdict_node(code_node_id, agent_name, verdict, confidence, reasoning)
+            # merge_delta (MERGE-on-id), not replace_analysis_nodes — verdicts
+            # accumulate one call at a time; replace_analysis_nodes would wipe
+            # every OTHER already-recorded AgentVerdict on each new call.
+            self._engine._repo.merge_delta(  # noqa: SLF001
+                [node], [edge], project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"verdict_id": node["id"]}], started)
+
+    def agent_verdicts(self, code_node_id: str) -> dict:
+        """CF-12/14: every verdict recorded for `code_node_id`, plus the
+        weighted consensus confidence."""
+        tool = "agent_verdicts"
+        started = time.monotonic()
+        try:
+            from cie import consensus as _consensus
+
+            neighbors = self._engine._repo.get_neighbors(code_node_id, relation_filter="VERDICT_ON") or []  # noqa: SLF001
+            all_verdicts = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "AgentVerdict", project=self._canonical_project(),
+            )
+            by_id = {n.id: n for n in all_verdicts}
+            verdicts = [
+                by_id[er.edge.source].properties for er in neighbors
+                if er.edge.relation == "VERDICT_ON" and er.edge.source in by_id
+            ]
+            consensus_score = _consensus.consensus_confidence(verdicts)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if verdicts else "no verdicts recorded yet; call record_verdict"
+        return self._ok(
+            tool, [{"verdicts": verdicts, "consensus_confidence": consensus_score}], started, hint=hint,
+        )
+
+    def confidence_report(self) -> dict:
+        """CF-15/16: multi-layer confidence report for this project."""
+        tool = "confidence_report"
+        started = time.monotonic()
+        try:
+            from cie import confidence as _confidence
+
+            nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            verdict_nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "AgentVerdict", project=self._canonical_project(),
+            )
+            verdicts = [n.properties for n in verdict_nodes]
+            report = _confidence.compute_confidence_report(nodes, edges, verdicts)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [report], started)
+
+    def justification(self, code_node_id: str) -> dict:
+        """CF-17/18: human-readable proof chain for why `code_node_id`
+        exists (see `cie.justification`'s own scoping — no formal
+        proof, a plain-English chain over already-existing traceability
+        + consensus data)."""
+        tool = "justification"
+        started = time.monotonic()
+        try:
+            from cie import justification as _justification
+
+            nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            verdict_nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "AgentVerdict", project=self._canonical_project(),
+            )
+            neighbors = self._engine._repo.get_neighbors(code_node_id, relation_filter="VERDICT_ON") or []  # noqa: SLF001
+            by_id = {n.id: n for n in verdict_nodes}
+            verdicts = [
+                by_id[er.edge.source].properties for er in neighbors
+                if er.edge.relation == "VERDICT_ON" and er.edge.source in by_id
+            ]
+            result = _justification.build_justification(code_node_id, nodes, edges, verdicts)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def check_invariant(self, contract_id: str, expression: str, code_node_id: str, state: dict) -> dict:
+        """CF-19/20: evaluate one contract expression against a state
+        snapshot; records + returns an `InvariantViolation` on failure
+        (see `cie.invariants`'s own scoping — this is the checking
+        primitive, not a continuous production monitor)."""
+        tool = "check_invariant"
+        started = time.monotonic()
+        try:
+            from cie import invariants as _invariants
+
+            violation = _invariants.check_invariant(contract_id, expression, code_node_id, state)
+            if violation is not None:
+                existing = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                    "InvariantViolation", project=self._canonical_project(),
+                )
+                self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                    "InvariantViolation", [dict(n.properties, id=n.id, label=n.label, kind=n.kind,
+                                                 source_file=n.source_file) for n in existing] + [violation],
+                    [], project=self._canonical_project(),
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        holds = violation is None
+        return self._ok(tool, [{"holds": holds, "violation": violation}], started)
+
+    def invariant_violations(self) -> dict:
+        """CF-20: every recorded invariant violation."""
+        tool = "invariant_violations"
+        started = time.monotonic()
+        try:
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "InvariantViolation", project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"id": n.id, "contract_id": n.properties.get("contract_id", ""),
+             "code_node_id": n.properties.get("code_node_id", ""),
+             "severity": n.properties.get("severity", ""), "timestamp": n.properties.get("timestamp", "")}
+            for n in nodes
+        ]
+        hint = None if results else "no violations recorded; call check_invariant"
+        return self._ok(tool, results, started, hint=hint)
+
+    def telemetry_to_spec(self, code_node_id: str) -> dict:
+        """CF-21: trace a code node back to its contracts/tests (see
+        `cie.invariants`'s own scoping — the "on a real runtime error"
+        trigger needs telemetry ingestion this codebase doesn't have)."""
+        tool = "telemetry_to_spec"
+        started = time.monotonic()
+        try:
+            from cie import invariants as _invariants
+
+            _nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = _invariants.telemetry_to_spec(code_node_id, edges)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    # -- Section 15 (Decomposition Engine) -------------------------------------
+
+    def decompose_page(self, html: str, screen_id: str) -> dict:
+        """DE-01/02/04: extract this screen's interactive elements +
+        their derived task hints, plus the other pages it links to, and
+        write everything to the canonical graph."""
+        tool = "decompose_page"
+        started = time.monotonic()
+        try:
+            from cie import decompose
+
+            result = decompose.decompose_page(html, screen_id)
+            by_kind: dict[str, list[dict]] = {}
+            for n in result["all_nodes"]:
+                by_kind.setdefault(n["kind"], []).append(n)
+            written = 0
+            for kind, kind_nodes in by_kind.items():
+                kind_edges = [
+                    e for e in result["all_edges"]
+                    if any(n["id"] == e["source"] for n in kind_nodes)
+                ]
+                written += self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                    kind, kind_nodes, kind_edges, project=self._canonical_project(),
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{
+                "screen_id": screen_id, "nodes_written": written,
+                "element_count": len(result["elements"]),
+                "derived_task_count": len(result["derived_tasks"]),
+                "linked_page_count": len(result["linked_pages"]),
+            }],
+            started,
+        )
+
+    def page_tree(self) -> dict:
+        """DE-05: every page, its interactive elements, and their
+        derived task hints."""
+        tool = "page_tree"
+        started = time.monotonic()
+        try:
+            from cie import decompose
+
+            project = self._canonical_project()
+            pages = self._engine._repo.analysis_nodes("Page", project=project)  # noqa: SLF001
+            elements = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "InteractiveElement", project=project,
+            )
+            _nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            tree = decompose.page_tree(pages, elements, edges)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if tree else "no pages yet; run decompose_page first"
+        return self._ok(tool, tree, started, hint=hint)
+
+    def element_coverage(self, page_id: str) -> dict:
+        """DE-06: which of a page's interactive elements have at least
+        one derived task, and which don't."""
+        tool = "element_coverage"
+        started = time.monotonic()
+        try:
+            from cie import decompose
+
+            project = self._canonical_project()
+            elements = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "InteractiveElement", project=project,
+            )
+            _nodes, edges = self._engine._repo.project_graph()  # noqa: SLF001
+            result = decompose.element_coverage(page_id, elements, edges)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def implied_pages_run(self, known_labels: list) -> dict:
+        """DE-03: compare already-extracted `Page` nodes against
+        `known_labels` (the caller's own PRD-hierarchy page/screen
+        names) and write `ImpliedPage` nodes for anything the UI
+        implies but the PRD never named."""
+        tool = "implied_pages_run"
+        started = time.monotonic()
+        try:
+            from cie import decompose
+
+            project = self._canonical_project()
+            pages = self._engine._repo.analysis_nodes("Page", project=project)  # noqa: SLF001
+            implied_nodes, edges = decompose.find_implied_pages(pages, known_labels)
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "ImpliedPage", implied_nodes, edges, project=project,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"implied_pages_written": written}], started)
+
+    def implied_pages(self) -> dict:
+        """DE-07: pages implied by the UI but missing from the PRD (see
+        `cie.decompose.find_implied_pages` — a `Page` becomes
+        `ImpliedPage` when no PRD hierarchy node shares its label)."""
+        tool = "implied_pages"
+        started = time.monotonic()
+        try:
+            from cie import decompose
+
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "ImpliedPage", project=self._canonical_project(),
+            )
+            results = decompose.implied_pages_report(nodes)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if results else "no implied pages found; run decompose_page then a find-implied-pages pass"
+        return self._ok(tool, results, started, hint=hint)
+
+    # -- Section 17 (System Intelligence & Subsystem Health) -------------------
+
+    def subsystem_health(self) -> dict:
+        """SI-02/SI-08: real-time status (green/yellow/red) for every
+        registered subsystem, plus counts and a summary."""
+        tool = "subsystem_health"
+        started = time.monotonic()
+        try:
+            from cie import subsystems as _subsystems
+
+            report = _subsystems.subsystem_health_report(self._engine._repo, self._canonical_project())  # noqa: SLF001
+            dashboard = _subsystems.health_dashboard(report)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [dashboard], started)
+
+    def subsystem_gaps(self) -> dict:
+        """SI-03/SI-04: every empty/partial subsystem, why, what to do
+        about it, and what's degraded/blocked downstream."""
+        tool = "subsystem_gaps"
+        started = time.monotonic()
+        try:
+            from cie import subsystems as _subsystems
+
+            report = _subsystems.subsystem_health_report(self._engine._repo, self._canonical_project())  # noqa: SLF001
+            statuses = {r["subsystem_id"]: r["status"] for r in report["subsystems"]}
+            missing = _subsystems.missing_data_report(report)
+            for entry in missing:
+                entry["downstream_impact"] = _subsystems.downstream_impact(entry["subsystem_id"], statuses)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if missing else "every registered subsystem is populated"
+        return self._ok(tool, missing, started, hint=hint)
+
+    def subsystem_dependency_graph(self) -> dict:
+        """SI-06: the subsystem registry itself, as a meta-graph
+        (`Subsystem` nodes + `SUBSYSTEM_DEPENDS_ON`/`SUBSYSTEM_FEEDS`
+        edges)."""
+        tool = "subsystem_dependency_graph"
+        started = time.monotonic()
+        try:
+            from cie import subsystems as _subsystems
+
+            nodes, edges = _subsystems.dependency_graph_nodes()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"nodes": nodes, "edges": edges}], started)
+
+    def population_path(self, capability: str) -> dict:
+        """SI-07: the minimum ordered set of subsystems that must be
+        populated to enable `capability` (a subsystem id — see
+        `subsystem_health`'s results for valid ids)."""
+        tool = "population_path"
+        started = time.monotonic()
+        try:
+            from cie import subsystems as _subsystems
+
+            path = _subsystems.population_path(capability)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if path else f"unknown capability/subsystem id '{capability}'"
+        return self._ok(tool, [{"capability": capability, "path": path}], started, hint=hint)
+
+    # -- Section 16 (Autonomous Test Execution & APM) --------------------------
+
+    def test_plan(self, prd_text: str = "", domain_types: Optional[dict] = None) -> dict:
+        """TE-01: generate an exhaustive test plan covering every
+        already-extracted `InteractiveElement`/`Contract`/`Transition`,
+        every backend API route under this project's root, and
+        (optionally) LLM-extracted PRD error scenarios (`prd_text`) and
+        rule-based domain-type boundary cases (`domain_types`, the SAME
+        `{param_name: type_name}` shape `validate_types` takes)."""
+        tool = "test_plan"
+        started = time.monotonic()
+        try:
+            from cie import test_orchestration as orch
+
+            project = self._canonical_project()
+            elements = self._engine._repo.analysis_nodes("InteractiveElement", project=project)  # noqa: SLF001
+            contracts = self._engine._repo.analysis_nodes("Contract", project=project)  # noqa: SLF001
+            transitions = self._engine._repo.analysis_nodes("Transition", project=project)  # noqa: SLF001
+            nodes, edges = orch.generate_test_plan(elements, contracts, transitions, repo_root=self._root)
+
+            if prd_text.strip():
+                code_nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+                scenarios = asyncio.run(orch.extract_error_scenarios(prd_text))
+                scenario_nodes, scenario_edges = orch.build_error_scenario_tests(scenarios, code_nodes)
+                nodes += scenario_nodes
+                edges += scenario_edges
+
+            if domain_types:
+                boundary_nodes, boundary_edges = orch.generate_boundary_tests(domain_types)
+                nodes += boundary_nodes
+                edges += boundary_edges
+
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "TestExecution", nodes, edges, project=project,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"test_executions_written": written}], started)
+
+    def run_tests(self, test_type: str, target_files: list) -> dict:
+        """TE-02: execute one layer for real (`unit`/`integration` only
+        — every other layer reports `not_executed` with why; see
+        `cie.test_orchestration`'s own scoping note). TE-08: for an
+        EXECUTED layer, also automatically collects per-test latency via
+        `cie.apm.collect_apm_from_pytest` (pytest's own `--junitxml`
+        reporter — no caller-supplied numbers needed) and persists them
+        as `ApmMetric` nodes."""
+        tool = "run_tests"
+        started = time.monotonic()
+        try:
+            from cie import apm as _apm
+            from cie import test_orchestration as orch
+
+            result = orch.run_test_layer(test_type, target_files, self._root)
+            metrics_recorded = 0
+            if result["status"] != "not_executed":
+                metrics = _apm.collect_apm_from_pytest(target_files, self._root)
+                if metrics:
+                    self._engine._repo.merge_delta(  # noqa: SLF001
+                        metrics, [], project=self._canonical_project(),
+                    )
+                    metrics_recorded = len(metrics)
+            result = {**result, "apm_metrics_recorded": metrics_recorded}
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def record_test_result(self, test_execution_id: str, status: str) -> dict:
+        """Persist one `TestExecution`'s outcome (status one of
+        pending/running/passed/failed/skipped) — the write side
+        `test_results`/`coverage_gaps` read back from."""
+        tool = "record_test_result"
+        started = time.monotonic()
+        try:
+            count = self._engine._repo.update_node_properties(  # noqa: SLF001
+                {test_execution_id: {"status": status}}, project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not count:
+            return self._err(
+                tool, "not_found", f"unknown TestExecution '{test_execution_id}'", started,
+                hint="run test_plan first",
+            )
+        return self._ok(tool, [{"test_execution_id": test_execution_id, "status": status}], started)
+
+    def test_results(self) -> dict:
+        """TE-03: aggregated multi-layer results, read from each
+        `TestExecution`'s own (possibly still-`pending`) `status`."""
+        tool = "test_results"
+        started = time.monotonic()
+        try:
+            from cie import test_orchestration as orch
+
+            executions = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "TestExecution", project=self._canonical_project(),
+            )
+            results = {e.id: {"status": e.properties.get("status", "pending")} for e in executions}
+            report = orch.aggregate_results(executions, results)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [report], started)
+
+    def coverage_gaps(self) -> dict:
+        """TE-12: every `TestExecution` not currently `passed`."""
+        tool = "coverage_gaps"
+        started = time.monotonic()
+        try:
+            from cie import test_orchestration as orch
+
+            executions = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "TestExecution", project=self._canonical_project(),
+            )
+            results = {e.id: {"status": e.properties.get("status", "pending")} for e in executions}
+            gaps = orch.coverage_gaps(executions, results)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if gaps else "no gaps; run test_plan first if this looks wrong"
+        return self._ok(tool, gaps, started, hint=hint)
+
+    def nook_and_corner_test(self) -> dict:
+        """TE-13, ONE ROUND: generate a targeted test skeleton per
+        current coverage gap (see `cie.test_orchestration`'s own scoping
+        — not an auto-repeating loop)."""
+        tool = "nook_and_corner_test"
+        started = time.monotonic()
+        try:
+            from cie import test_orchestration as orch
+
+            project = self._canonical_project()
+            executions = self._engine._repo.analysis_nodes("TestExecution", project=project)  # noqa: SLF001
+            results = {e.id: {"status": e.properties.get("status", "pending")} for e in executions}
+            gaps = orch.coverage_gaps(executions, results)
+            skeleton_nodes, edges = orch.nook_and_corner_tests(gaps)
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "TestSkeleton", skeleton_nodes, edges, project=project,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"gaps_found": len(gaps), "skeletons_written": written}], started)
+
+    def unified_coverage_report(self) -> dict:
+        """TE-14: every coverage dimension already computed elsewhere,
+        assembled into one report (no new measurement)."""
+        tool = "unified_coverage_report"
+        started = time.monotonic()
+        try:
+            from cie import test_orchestration as orch
+
+            project = self._canonical_project()
+            traceability = self.traceability_coverage()
+            regressions = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "PerformanceRegression", project=project,
+            )
+            report = orch.unified_coverage_report(
+                traceability=traceability.get("results", [{}])[0] if traceability.get("ok") else None,
+                performance_regression_count=len(regressions),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [report], started)
+
+    def mock_registry_run(self) -> dict:
+        """TE-04: scan every supported source file under this project's
+        root for outbound calls to an external host, and write
+        `MockEndpoint` nodes."""
+        tool = "mock_registry_run"
+        started = time.monotonic()
+        try:
+            from cie import extract as _extract
+            from cie import mocking
+
+            calls: list[dict] = []
+            for suffix in _extract._LANG_LOADERS:  # noqa: SLF001
+                for f in sorted(self._root.rglob(f"*{suffix}")):
+                    if any(
+                        part.startswith(".") or part in ("node_modules", "__pycache__", ".venv")
+                        for part in f.parts
+                    ):
+                        continue
+                    try:
+                        text = f.read_text(errors="replace")
+                    except OSError:
+                        continue
+                    calls.extend(mocking.scan_external_calls(text, str(f)))
+            endpoints, edges = mocking.build_mock_endpoints(calls)
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "MockEndpoint", endpoints, edges, project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{"endpoints_written": written, "calls_found": len(calls)}], started,
+        )
+
+    def mock_registry(self) -> dict:
+        """TE-04/06: every registered mock endpoint and its mock status."""
+        tool = "mock_registry"
+        started = time.monotonic()
+        try:
+            endpoints = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "MockEndpoint", project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"id": e.id, "service_name": e.label, "endpoints": e.properties.get("endpoints", []),
+             "mock_mode": e.properties.get("mock_mode", "")}
+            for e in endpoints
+        ]
+        hint = None if results else "no mock endpoints yet; run mock_registry_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def mock_coverage(self) -> dict:
+        """TE-06: which discovered external services are mocked."""
+        tool = "mock_coverage"
+        started = time.monotonic()
+        try:
+            from cie import mocking
+
+            endpoints = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "MockEndpoint", project=self._canonical_project(),
+            )
+            result = mocking.mock_coverage([e.label for e in endpoints], endpoints)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def mock_violations(self, service_name: str, method: str, path: str) -> dict:
+        """TE-07: validate one call against its `MockEndpoint`'s
+        declared contract; persists + returns a `ContractViolation` on
+        mismatch."""
+        tool = "mock_violations"
+        started = time.monotonic()
+        try:
+            from cie import mocking
+
+            project = self._canonical_project()
+            endpoints = self._engine._repo.analysis_nodes("MockEndpoint", project=project)  # noqa: SLF001
+            matches = [e for e in endpoints if e.label == service_name]
+            if not matches:
+                return self._err(
+                    tool, "not_found", f"no mock endpoint registered for '{service_name}'", started,
+                    hint="run mock_registry_run first",
+                )
+            violation = mocking.validate_mock_call(matches[0], method, path)
+            if violation is not None:
+                self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                    "ContractViolation", [violation], [], project=project,
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"violation": violation}], started)
+
+    def record_apm_metric(
+        self, code_node_id: str, metric_type: str, value: float, percentile: str = "",
+    ) -> dict:
+        """TE-08: ingest one already-measured APM value."""
+        tool = "record_apm_metric"
+        started = time.monotonic()
+        try:
+            from cie import apm as _apm
+
+            metric = _apm.build_apm_metric(code_node_id, metric_type, value, percentile=percentile)
+            self._engine._repo.merge_delta(  # noqa: SLF001
+                [metric], [], project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"metric_id": metric["id"]}], started)
+
+    def apm_metrics(self, code_node_id: str = "", metric_type: str = "") -> dict:
+        """TE-11: query already-ingested APM metrics."""
+        tool = "apm_metrics"
+        started = time.monotonic()
+        try:
+            from cie import apm as _apm
+
+            all_metrics = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "ApmMetric", project=self._canonical_project(),
+            )
+            matches = _apm.filter_metrics(all_metrics, code_node_id=code_node_id, metric_type=metric_type)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"code_node_id": m.properties.get("code_node_id", ""), "metric_type": m.properties.get("metric_type", ""),
+             "value": m.properties.get("value"), "percentile": m.properties.get("percentile", "")}
+            for m in matches
+        ]
+        return self._ok(tool, results, started)
+
+    def performance_baseline(self, code_node_id: str) -> dict:
+        """TE-10: compute (and persist) a p50/p95/p99 baseline for
+        `code_node_id` from its already-ingested latency metrics."""
+        tool = "performance_baseline"
+        started = time.monotonic()
+        try:
+            from cie import apm as _apm
+
+            project = self._canonical_project()
+            all_metrics = self._engine._repo.analysis_nodes("ApmMetric", project=project)  # noqa: SLF001
+            metric_dicts = [m.properties for m in all_metrics]
+            baseline = _apm.compute_baseline(code_node_id, metric_dicts)
+            if baseline is None:
+                return self._err(
+                    tool, "not_found", f"no latency metrics recorded for '{code_node_id}'", started,
+                    hint="call record_apm_metric with metric_type='latency' first",
+                )
+            self._engine._repo.merge_delta([baseline], [], project=project)  # noqa: SLF001
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [baseline], started)
+
+    def performance_regressions(self, code_node_id: str, current_p95: float) -> dict:
+        """TE-10/11: compare `current_p95` against `code_node_id`'s
+        stored baseline; persists + returns a `PerformanceRegression`
+        when it exceeds the threshold."""
+        tool = "performance_regressions"
+        started = time.monotonic()
+        try:
+            from cie import apm as _apm
+
+            project = self._canonical_project()
+            baselines = self._engine._repo.analysis_nodes("PerformanceBaseline", project=project)  # noqa: SLF001
+            matches = [b for b in baselines if b.properties.get("code_node_id") == code_node_id]
+            if not matches:
+                return self._err(
+                    tool, "not_found", f"no baseline recorded for '{code_node_id}'", started,
+                    hint="call performance_baseline first",
+                )
+            baseline_dict = {"id": matches[0].id, **matches[0].properties}
+            regression = _apm.detect_regression(baseline_dict, current_p95)
+            if regression is not None:
+                self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                    "PerformanceRegression", [regression], [], project=project,
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"regression": regression}], started)
 
     def resolve_api_route(self, path: str) -> dict:
         """Frontend API call path -> backend route(s) that serve it, with
@@ -1761,6 +2773,23 @@ class ToolService:
         indexed = 0
         skipped = 0
         errors: list[dict] = []
+
+        # Phase 1: find every CHANGED file and capture its before-state —
+        # skeleton AND incoming `calls` edges — before touching ANY of
+        # them. This must be a separate pass, not interleaved with the
+        # reindex_file calls below: `reindex_file` deletes+recreates a
+        # file's own nodes (and their outgoing edges) as part of ITS OWN
+        # call, so a caller file processed earlier in the same batch can
+        # already have lost the very edge a LATER file's move-detection
+        # needs to reconnect, if capture happened only "just before" each
+        # file's own turn instead of upfront for the whole batch. See
+        # `cie.sync.apply_batch_move_detection`'s own docstring — a move
+        # is inherently a two-file event, so per-file `reindex_file` can
+        # never detect one on its own; this is the batch-level integration
+        # point (PS-09/PS-10).
+        changed_files: list[str] = []
+        before_by_file: dict[str, list] = {}
+        incoming_by_node_id: dict[str, list] = {}
         for suffix in extract._LANG_LOADERS:  # noqa: SLF001
             for f in sorted(self._root.rglob(f"*{suffix}")):
                 if any(
@@ -1776,17 +2805,48 @@ class ToolService:
                 if current_hash is not None and self._indexed_hashes.get(rel) == current_hash:
                     skipped += 1
                     continue
-                payload = self.reindex_file(rel)
-                if payload.get("ok"):
-                    indexed += 1
-                else:
-                    errors.append({
-                        "path": rel,
-                        "error": payload.get("error", {}).get("message", "unknown"),
-                    })
+                changed_files.append(rel)
+                resolved = self._root / rel
+                before = self._engine._repo.get_file_skeleton(str(resolved))  # noqa: SLF001
+                before_by_file[rel] = before
+                for node in before:
+                    incoming_by_node_id[node.id] = self._engine._repo.get_neighbors(node.id) or []  # noqa: SLF001
+
+        # Phase 2: actually reindex each changed file.
+        after_by_file: dict[str, list] = {}
+        for rel in changed_files:
+            payload = self.reindex_file(rel)
+            if payload.get("ok"):
+                indexed += 1
+                resolved = self._root / rel
+                after_by_file[rel] = self._engine._repo.get_file_skeleton(str(resolved))  # noqa: SLF001
+            else:
+                errors.append({
+                    "path": rel,
+                    "error": payload.get("error", {}).get("message", "unknown"),
+                })
+
+        # Phase 3: batch-wide move detection now that every file's final
+        # state is known.
+        move_result = {"moves_detected": 0, "moves": [], "incoming_edges_reconnected": 0}
+        if len(after_by_file) >= 2:
+            from cie import sync as _sync
+
+            try:
+                move_result = _sync.apply_batch_move_detection(
+                    self._engine._repo, before_by_file, after_by_file,  # noqa: SLF001
+                    incoming_by_node_id, project=self._canonical_project(),
+                )
+            except Exception:  # noqa: BLE001 - move detection is advisory, never blocks reindex
+                logger.warning("reindex: batch move detection failed", exc_info=True)
         hint = None if not errors else f"{len(errors)} file(s) failed to index"
         envelope = self._ok(
-            tool, [{"files_indexed": indexed, "files_skipped": skipped, "errors": errors}], started, hint=hint,
+            tool, [{
+                "files_indexed": indexed, "files_skipped": skipped, "errors": errors,
+                "moves_detected": move_result["moves_detected"],
+                "incoming_edges_reconnected": move_result["incoming_edges_reconnected"],
+            }],
+            started, hint=hint,
         )
         envelope["ok"] = not errors
         return envelope

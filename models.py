@@ -63,6 +63,41 @@ class NodeKind(str, Enum):
     TYPE = "Type"
     PACKAGE = "Package"
     DOCUMENT = "Document"
+    #: Section 14 (Confidence Framework) analysis-result kinds — same
+    #: "never produced by extract.py, only by an on-demand cie.contracts/
+    #: cie.test_synthesis/cie.state_machine/cie.consensus/cie.confidence/
+    #: cie.justification/cie.invariants pass, written via
+    #: replace_analysis_nodes" contract as every kind above.
+    CONTRACT = "Contract"
+    TEST_SKELETON = "TestSkeleton"
+    STATE_MACHINE = "StateMachine"
+    STATE = "State"
+    TRANSITION = "Transition"
+    AGENT_VERDICT = "AgentVerdict"
+    CONFIDENCE_REPORT = "ConfidenceReport"
+    JUSTIFICATION_TRACE = "JustificationTrace"
+    INVARIANT_VIOLATION = "InvariantViolation"
+    SEMANTIC_DIFF_FINDING = "SemanticDiffFinding"
+    RUNTIME_ERROR_TRACE = "RuntimeErrorTrace"
+    #: Section 15 (Decomposition Engine) kinds — same on-demand-pass
+    #: contract as every kind above. DERIVED_TASK_HINT is a lightweight
+    #: stand-in for DE-04's decomposed task, NOT the real `:AtomicTask`
+    #: entity (a separate schema/lifecycle in `cie.task_repository`) —
+    #: see `cie/decompose.py`'s module docstring.
+    PAGE = "Page"
+    IMPLIED_PAGE = "ImpliedPage"
+    INTERACTIVE_ELEMENT = "InteractiveElement"
+    DERIVED_TASK_HINT = "DerivedTaskHint"
+    #: Section 16 (Test Execution & APM) kinds — same on-demand-pass
+    #: contract as every kind above.
+    TEST_EXECUTION = "TestExecution"
+    MOCK_ENDPOINT = "MockEndpoint"
+    MOCK_CALL = "MockCall"
+    CONTRACT_VIOLATION = "ContractViolation"
+    APM_METRIC = "ApmMetric"
+    PERFORMANCE_BASELINE = "PerformanceBaseline"
+    PERFORMANCE_REGRESSION = "PerformanceRegression"
+    COVERAGE_GAP = "CoverageGap"
 
 
 class Confidence(str, Enum):

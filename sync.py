@@ -69,7 +69,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from cie.extract import Extraction, extract_tree, parse_file
-from cie.models import Confidence, Node
+from cie.models import Confidence, EdgeRecord, Node
 
 # -- PS-01/PS-03: two-graph namespacing --------------------------------------
 
@@ -610,3 +610,118 @@ def classify_event(event: GraphSyncEvent) -> str:
     (CI passed, merge speculative into canonical), "revert" (soft-delete
     a commit's nodes), or "unknown" for an unrecognized event type."""
     return _EVENT_ROUTES.get(event.event_type, "unknown")
+
+
+# -- PS-09/PS-10, wired: batch-level move detection during a real reindex ---
+
+def apply_batch_move_detection(
+    repo: Any,
+    before_by_file: dict[str, Sequence[Node]],
+    after_by_file: dict[str, Sequence[Node]],
+    incoming_by_node_id: dict[str, Sequence[EdgeRecord]],
+    project: str = "",
+) -> dict:
+    """PS-09/PS-10, wired into a real multi-file reindex batch (see
+    `ToolService.reindex`) rather than staying purely advisory.
+
+    A move is inherently a two-file event — `reindex_file` only ever
+    sees one file at a time, so per-file move detection is structurally
+    impossible; this function is the batch-level integration point a
+    caller re-indexing several changed files at once must supply.
+
+    `before_by_file`/`after_by_file`: this reindex batch's per-file node
+    skeletons, captured by the caller immediately before/after each
+    file's own `reindex_file` call. `incoming_by_node_id`: each
+    before-state node's incoming edges, captured BEFORE `reindex_file`
+    ran — by the time a cross-file move is confirmed (only knowable
+    after comparing the WHOLE batch), the old node has already been
+    `DETACH DELETE`d by its own file's `reindex_file` call, so this data
+    is unrecoverable after the fact and must be captured in advance.
+
+    For each detected move: stamps `moved_from_id`/`moved_from_file`
+    PROPERTIES on the new node — NOT a `MOVED_FROM` edge. A graph edge
+    needs both endpoints to exist; the old node is already gone by the
+    time a move is confirmed, so a property is the only way to preserve
+    this provenance without keeping tombstone nodes around (which
+    PS-12's soft-delete already handles differently, for a different
+    scenario — an explicit revert, not an ordinary move). Also
+    reconnects the moved symbol's pre-captured incoming `calls` edges to
+    the new node id via `merge_delta` (idempotent — a caller file's own
+    reindex may have already naturally re-resolved the same edge; MERGE
+    just updates it harmlessly rather than duplicating).
+    """
+    removed: list[Node] = []
+    added: list[Node] = []
+    for rel, before in before_by_file.items():
+        after = after_by_file.get(rel, before)
+        delta = ast_delta(before, after)
+        removed.extend(delta["removed"])
+    for rel, after in after_by_file.items():
+        before = before_by_file.get(rel, after)
+        delta = ast_delta(before, after)
+        added.extend(delta["added"])
+
+    moves = detect_moves(removed, added)
+    reconnected = 0
+    for move in moves:
+        repo.update_node_properties(
+            {move["to_id"]: {"moved_from_id": move["from_id"], "moved_from_file": move["from_file"]}},
+            project=project,
+        )
+        incoming = incoming_by_node_id.get(move["from_id"], ())
+        edge_rows = [
+            {
+                "source": er.edge.source, "target": move["to_id"], "relation": "calls",
+                "confidence": er.edge.confidence.value,
+            }
+            for er in incoming if er.edge.target == move["from_id"]
+        ]
+        if edge_rows:
+            repo.merge_delta([], edge_rows, project=project)
+            reconnected += len(edge_rows)
+
+    return {"moves_detected": len(moves), "moves": moves, "incoming_edges_reconnected": reconnected}
+
+
+# -- PS-07: per-project architectural layer-rule configuration --------------
+
+LAYER_RULES_CONFIG_ID = "config::layer_rules"
+
+
+def store_layer_rules(repo: Any, project: str, layer_rules: dict[str, list[str]]) -> None:
+    """PS-07: persist per-project layer-boundary rules — the SAME shape
+    `cie.drift_detect.architecture_drift`'s own `layer_rules` argument
+    takes (`{"layer_name": ["forbidden_substring", ...]}`) — as a
+    singleton config node, so `run_quality_gate`'s architectural stage
+    can enforce them without every caller passing them in by hand on
+    every gate run. A plain `:Node{kind:"Config"}` rather than a new
+    repository primitive — `merge_delta` (already built for PS-02) is a
+    generic enough write path that a dedicated config-storage method
+    would just duplicate it.
+    """
+    import json
+
+    node = {
+        "id": LAYER_RULES_CONFIG_ID, "label": "layer_rules", "kind": "Config",
+        "source_file": "", "layer_rules_json": json.dumps(layer_rules),
+    }
+    repo.merge_delta([node], [], project=project)
+
+
+def load_layer_rules(repo: Any, project: str) -> dict[str, list[str]]:
+    """PS-07: read back whatever `store_layer_rules` last wrote for
+    `project`, or `{}` if nothing has been configured yet — matches
+    `architecture_drift`'s own "no layer rules configured -> only
+    circular-dependency checks" default, not an error."""
+    import json
+
+    record = repo.get_node(LAYER_RULES_CONFIG_ID)
+    if record is None:
+        return {}
+    raw = record.node.properties.get("layer_rules_json", "")
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
