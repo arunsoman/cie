@@ -1337,6 +1337,122 @@ class ToolService:
             tool, [{"nodes_written": written, "commit_hash": commit_hash}], started,
         )
 
+    # -- Section 1 (Core Data Model): DM-01/03/09/11/13 ------------------------
+
+    def export_rdf(self, fmt: str = "turtle") -> dict:
+        """DM-01: the whole project graph as RDF Turtle, for interop."""
+        tool = "export_rdf"
+        started = time.monotonic()
+        try:
+            text = self._engine.export_rdf(fmt=fmt)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"format": fmt, "rdf": text}], started)
+
+    def related_edges(self, symbol: str) -> dict:
+        """DM-03: `symbol`'s neighbors, each labeled with its relation's
+        inverse (e.g. "calls" <-> "called_by")."""
+        tool = "related_edges"
+        started = time.monotonic()
+        try:
+            annotated = self._engine.related_edges(symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "source": a["edge_record"].edge.source,
+                "target": a["edge_record"].edge.target,
+                "relation": a["edge_record"].edge.relation,
+                "inverse": a["inverse"],
+            }
+            for a in annotated
+        ]
+        hint = None if results else f"'{symbol}' not found or has no neighbors"
+        return self._ok(tool, results, started, hint=hint)
+
+    def type_flow_run(self) -> dict:
+        """DM-09: resolve TYPE_OF edges from every function/method's
+        stored signature (return + parameter types)."""
+        tool = "type_flow_run"
+        started = time.monotonic()
+        try:
+            result = self._engine.type_flow_run(project=self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def type_flow(self, symbol: str) -> dict:
+        """DM-09: parameter/return types `symbol` uses (or functions that
+        use it as a type) — run `type_flow_run` first if this is empty."""
+        tool = "type_flow"
+        started = time.monotonic()
+        try:
+            records = self._engine.type_flow(symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"source": er.edge.source, "target": er.edge.target,
+             "role": er.edge.properties.get("role", ""),
+             "confidence": er.edge.confidence.value}
+            for er in records
+        ]
+        hint = None if results else "no TYPE_OF edges yet; run type_flow_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def dependency_graph_run(self) -> dict:
+        """DM-11: parse `pyproject.toml`/`package.json` under this
+        ToolService's project root into `PACKAGE` nodes."""
+        tool = "dependency_graph_run"
+        started = time.monotonic()
+        try:
+            result = self._engine.dependency_graph_run(
+                str(self._root), project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def dependency_graph(self) -> dict:
+        """DM-11: every parsed external dependency (`PACKAGE` node)."""
+        tool = "dependency_graph"
+        started = time.monotonic()
+        try:
+            packages = self._engine.dependency_graph(project=self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"name": p.label, "ecosystem": p.properties.get("ecosystem", ""),
+             "section": p.properties.get("section", ""), "spec": p.properties.get("spec", "")}
+            for p in packages
+        ]
+        hint = None if results else "no packages yet; run dependency_graph_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def doc_graph_run(self) -> dict:
+        """DM-13: parse markdown docs under this ToolService's project
+        root into `DOCUMENT` nodes + `DESCRIBES` edges."""
+        tool = "doc_graph_run"
+        started = time.monotonic()
+        try:
+            result = self._engine.doc_graph_run(
+                str(self._root), project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def doc_search(self, query: str) -> dict:
+        """DM-13: `DOCUMENT` nodes whose label/excerpt matches `query`."""
+        tool = "doc_search"
+        started = time.monotonic()
+        try:
+            docs = self._engine.doc_search(query, project=self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [{"path": d.source_file, "label": d.label} for d in docs]
+        hint = None if results else "no matching documents; run doc_graph_run first"
+        return self._ok(tool, results, started, hint=hint)
+
     def resolve_api_route(self, path: str) -> dict:
         """Frontend API call path -> backend route(s) that serve it, with
         file/line and which service (be-v2 vs backend) actually handles it

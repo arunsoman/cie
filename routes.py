@@ -682,6 +682,15 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "sync_ast_delta": _service_tool("sync_ast_delta"),
     "sync_evict_speculative": _service_tool("sync_evict_speculative"),
     "sync_load_commit": _service_tool("sync_load_commit"),
+    # Section 1 (Core Data Model)
+    "export_rdf": _service_tool("export_rdf"),
+    "related_edges": _service_tool("related_edges"),
+    "type_flow_run": _service_tool("type_flow_run"),
+    "type_flow": _service_tool("type_flow"),
+    "dependency_graph_run": _service_tool("dependency_graph_run"),
+    "dependency_graph": _service_tool("dependency_graph"),
+    "doc_graph_run": _service_tool("doc_graph_run"),
+    "doc_search": _service_tool("doc_search"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
     "reindex": _service_tool("reindex"),

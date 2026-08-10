@@ -49,6 +49,20 @@ class NodeKind(str, Enum):
     #: the four kinds above) so `community_search` can rank it via the
     #: same vector-index machinery `semantic_search`/`hybrid_search` use.
     COMMUNITY_SUMMARY = "CommunitySummary"
+    #: Section 1 (Core Data Model) analysis-result kinds — same "never
+    #: produced by extract.py, only by an on-demand `cie.data_model` pass,
+    #: written via `replace_analysis_nodes`" contract as the four
+    #: section-13 kinds above.
+    #:
+    #: TYPE - a resolved or synthesized stub node for a function/method's
+    #:     parameter/return type (DM-09).
+    #: PACKAGE - an external dependency parsed from a manifest file
+    #:     (pyproject.toml/package.json) (DM-11).
+    #: DOCUMENT - a markdown documentation file, chunked by heading
+    #:     (DM-13).
+    TYPE = "Type"
+    PACKAGE = "Package"
+    DOCUMENT = "Document"
 
 
 class Confidence(str, Enum):

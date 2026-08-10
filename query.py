@@ -517,6 +517,89 @@ class QueryEngine:
 
         return quality_report.salience_report(self._repo, top_n=self._clamp_limit(top_n))
 
+    # -- Section 1 (Core Data Model): DM-01/03/09/11/13 ----------------------
+
+    def export_rdf(self, fmt: str = "turtle") -> str:
+        """DM-01: the whole project graph as RDF Turtle."""
+        from cie import data_model
+
+        nodes, edges = self._repo.project_graph()
+        return data_model.export_rdf(nodes, edges, fmt=fmt)
+
+    def related_edges(self, symbol: str) -> list[dict]:
+        """DM-03: `symbol`'s direct neighbors, each annotated with its
+        relation's inverse label (e.g. "calls" <-> "called_by")."""
+        from cie import data_model
+
+        records = self._repo.get_neighbors(symbol)
+        if records is None:
+            return []
+        return data_model.annotate_inverse(records)
+
+    def type_flow_run(self, project: str = "") -> dict:
+        """DM-09: resolve TYPE_OF edges from every FUNC/METHOD's stored
+        signature and write them (+ any synthesized type stub nodes)."""
+        from cie import data_model
+
+        nodes, _edges = self._repo.project_graph()
+        stub_nodes, type_edges = data_model.resolve_type_edges(nodes)
+        written = self._repo.replace_analysis_nodes(
+            NodeKind.TYPE.value, stub_nodes, type_edges, project=project,
+        )
+        return {"stub_nodes_written": written, "type_edges_written": len(type_edges)}
+
+    def type_flow(self, symbol: str) -> list[EdgeRecord]:
+        """DM-09: TYPE_OF edges touching `symbol` (param/return types it
+        uses, or functions that use it as a type)."""
+        records = self._repo.get_neighbors(symbol, relation_filter="TYPE_OF")
+        return records or []
+
+    def dependency_graph_run(self, repo_root: str, project: str = "") -> dict:
+        """DM-11: parse `pyproject.toml`/`package.json` under `repo_root`
+        into `PACKAGE` nodes."""
+        from pathlib import Path
+
+        from cie import data_model
+
+        packages, _edges = data_model.resolve_package_nodes(Path(repo_root))
+        written = self._repo.replace_analysis_nodes(
+            NodeKind.PACKAGE.value, packages, [], project=project,
+        )
+        return {"packages_written": written}
+
+    def dependency_graph(self, project: str = "") -> list[Node]:
+        """DM-11: every `PACKAGE` node from the most recent
+        `dependency_graph_run`."""
+        return self._repo.analysis_nodes(NodeKind.PACKAGE.value, project=project)
+
+    def doc_graph_run(self, repo_root: str, project: str = "") -> dict:
+        """DM-13: parse markdown docs under `repo_root` into `DOCUMENT`
+        nodes + `DESCRIBES` edges to code nodes they mention."""
+        from pathlib import Path
+
+        from cie import data_model
+
+        nodes, _edges = self._repo.project_graph()
+        doc_nodes, describe_edges = data_model.resolve_document_nodes(Path(repo_root), nodes)
+        written = self._repo.replace_analysis_nodes(
+            NodeKind.DOCUMENT.value, doc_nodes, describe_edges, project=project,
+        )
+        return {"documents_written": written, "describes_edges_written": len(describe_edges)}
+
+    def doc_search(self, query: str, project: str = "") -> list[Node]:
+        """DM-13: `DOCUMENT` nodes whose label or excerpt contains
+        `query` (case-insensitive substring — a lightweight complement
+        to `search`/`hybrid_search`, which already cover Document nodes
+        once loaded since they're plain `:Node` entries too)."""
+        needle = query.strip().lower()
+        if not needle:
+            return []
+        docs = self._repo.analysis_nodes(NodeKind.DOCUMENT.value, project=project)
+        return [
+            d for d in docs
+            if needle in d.label.lower() or needle in d.docstring.lower()
+        ]
+
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 
     def record_coverage(

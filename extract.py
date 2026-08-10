@@ -271,7 +271,10 @@ def _strip_quotes(text: str) -> str:
 
 
 def _python_docstring(node) -> str:
-    """Return the first line of a Python function/class docstring, or ''."""
+    """Return a Python function/class docstring in full (DM-13: full text,
+    not just the first line — the summary line alone loses everything a
+    Args/Returns/Raises section or a longer prose explanation would add
+    for a `DOCUMENT`/`DESCRIBES`-style concept search), or ''."""
     body = None
     for child in node.children:
         if child.type in ("block",):
@@ -289,15 +292,16 @@ def _python_docstring(node) -> str:
     if string_node is None:
         return ""
     raw = _strip_quotes(_text(string_node)).strip()
-    return raw.splitlines()[0].strip() if raw else ""
+    return raw
 
 
 def _jsdoc_comment(node) -> str:
-    """Return the first line of a leading ``/** ... */`` jsdoc/Javadoc
-    comment, or ''. JS/TS's leading-doc-comment node type is `comment`;
-    Java's is `block_comment` (confirmed by parsing a real Javadoc'd
-    method — they are NOT the same node type name, so both must be
-    accepted or every Java method silently gets an empty docstring)."""
+    """Return the full text of a leading ``/** ... */`` jsdoc/Javadoc
+    comment (DM-13: full text, not just the first line), or ''. JS/TS's
+    leading-doc-comment node type is `comment`; Java's is `block_comment`
+    (confirmed by parsing a real Javadoc'd method — they are NOT the same
+    node type name, so both must be accepted or every Java method
+    silently gets an empty docstring)."""
     prev = node.prev_named_sibling
     if prev is None or prev.type not in ("comment", "block_comment"):
         return ""
@@ -307,15 +311,13 @@ def _jsdoc_comment(node) -> str:
     raw = raw[3:]
     if raw.endswith("*/"):
         raw = raw[:-2]
-    for line in raw.splitlines():
-        cleaned = line.strip().lstrip("*").strip()
-        if cleaned:
-            return cleaned
-    return ""
+    lines = [line.strip().lstrip("*").strip() for line in raw.splitlines()]
+    lines = [line for line in lines if line]
+    return "\n".join(lines)
 
 
 def _docstring(node, language: str) -> str:
-    """Return the first docstring line for a symbol node, per language."""
+    """Return the full docstring text for a symbol node, per language."""
     if language == "py":
         return _python_docstring(node)
     return _jsdoc_comment(node)
