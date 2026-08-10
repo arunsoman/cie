@@ -285,6 +285,35 @@ class Repository(Protocol):
         answer to "what needs better coverage." `file_glob` fnmatches
         `source_file`, matching `search_symbols`' existing convention."""
 
+    # -- Section 0 (Population & Real-Time Sync) write primitives -----------
+
+    def merge_delta(
+        self, nodes: Sequence[dict], edges: Sequence[dict], project: str = "",
+    ) -> int:
+        """PS-02/PS-16: idempotent MERGE-on-id write, never a delete.
+
+        Unlike `load_extraction` (whole-project replace) and
+        `replace_analysis_nodes` (whole-kind replace), this only ever
+        MERGEs: an existing node with the same `id` (scoped to `project`)
+        gets its properties overwritten (`ON MATCH SET n = row`), a new
+        one gets created. This is the promotion primitive (PS-02):
+        copying a speculative graph's nodes/edges into the canonical
+        namespace must not wipe out canonical nodes that came from a
+        DIFFERENT file's promotion earlier in the same session. Also
+        backs PS-16 (`load_commit`): re-running against the same commit
+        re-MERGEs the same rows, so the result is identical (true
+        idempotency, not just "replace produces the same thing every
+        time" which `load_extraction` already gave structurally-extracted
+        data). Edges MERGE on `(source, target, relation)` for the same
+        reason. Returns the number of node rows written.
+        """
+
+    def delete_nodes(self, ids: Sequence[str], project: str = "") -> int:
+        """Delete nodes by id (DETACH DELETE — also removes their edges).
+        Generic primitive; PS-01 uses it for speculative-graph TTL
+        eviction. Returns the number of ids that actually matched an
+        existing node (scoped to `project` when given)."""
+
     def record_coverage_snapshot(self, snapshot: CoverageSnapshot) -> None:
         """Append one aggregate coverage measurement (its own
         `:CoverageSnapshot` node, not a :Node — a different entity kind,

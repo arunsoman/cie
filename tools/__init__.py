@@ -1175,6 +1175,168 @@ class ToolService:
         hint = None if results else "no snapshots yet; run metrics first"
         return self._ok(tool, results, started, hint=hint)
 
+    # -- Section 0 (Population & Real-Time Sync) ------------------------------
+
+    def _canonical_project(self) -> str:
+        return getattr(self._engine._repo, "_project", "") or ""  # noqa: SLF001
+
+    def _speculative_engine(self):
+        from cie import factory, sync
+
+        canonical = self._canonical_project()
+        if not canonical:
+            raise ValueError(
+                "the two-graph model requires a non-empty project; this "
+                "ToolService is bound to the default/unnamed project"
+            )
+        return factory.get_engine(sync.speculative_project(canonical))
+
+    def sync_quality_gate(self, path: str) -> dict:
+        """PS-15: run the 4-stage quality gate (PS-04..PS-07) on one file
+        and, if it passes stages 1/2/4, promote it into the canonical
+        graph (PS-02) — SUSPECT/0.6 confidence if stage 3's linked tests
+        failed, full confidence otherwise. Always updates the speculative
+        graph first, unconditionally, even on a stage-1 rejection."""
+        tool = "sync_quality_gate"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            resolved = _view._jail(self._root, path)
+            if not resolved.is_file():
+                raise FileNotFoundError(f"no such file under project root: {path}")
+            extraction = extract.extract_file(resolved)
+            spec_engine = self._speculative_engine()
+            result = sync.run_quality_gate(
+                spec_engine._repo, self._engine._repo,  # noqa: SLF001
+                self._canonical_project(), resolved, extraction,
+                project_root=self._root,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        payload = {
+            "path": result.path, "status": result.status,
+            "confidence": result.confidence,
+            "stages": [
+                {
+                    "stage": s.stage, "passed": s.passed, "score": s.score,
+                    "violations": [
+                        {"message": v.message, "detail": v.detail} for v in s.violations
+                    ],
+                }
+                for s in result.stages
+            ],
+        }
+        hint = None
+        if result.status == "quarantined":
+            hint = "blocked from promotion; see stages[].violations for why"
+        elif result.status == "suspect":
+            hint = "promoted with SUSPECT confidence (0.6) — linked test(s) failed"
+        return self._ok(tool, [payload], started, hint=hint)
+
+    def sync_promote(self, commit_hash: str = "") -> dict:
+        """PS-02: merge the speculative graph's current contents into
+        canonical, stamped with `commit_hash`. Idempotent — safe to call
+        again for the same commit."""
+        tool = "sync_promote"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            spec_engine = self._speculative_engine()
+            written = sync.promote(
+                spec_engine._repo, self._engine._repo,  # noqa: SLF001
+                self._canonical_project(), commit_hash=commit_hash,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"nodes_written": written, "commit_hash": commit_hash}], started)
+
+    def sync_revert(self, commit_hash: str) -> dict:
+        """PS-12: soft-delete every canonical node stamped with
+        `commit_hash` (status: DEPRECATED) — never a hard delete."""
+        tool = "sync_revert"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            count = sync.revert(self._engine._repo, self._canonical_project(), commit_hash)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if count else f"no canonical nodes stamped with commit {commit_hash!r}"
+        return self._ok(tool, [{"deprecated_count": count}], started, hint=hint)
+
+    def sync_ast_delta(self, path: str) -> dict:
+        """PS-09/PS-10: symbol-level delta between what's currently
+        stored for `path` and a fresh re-parse, plus any detected moves
+        against the rest of the project's currently-removed symbols."""
+        tool = "sync_ast_delta"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            resolved = _view._jail(self._root, path)
+            if not resolved.is_file():
+                raise FileNotFoundError(f"no such file under project root: {path}")
+            before = self._engine._repo.get_file_skeleton(str(resolved))  # noqa: SLF001
+            fresh = extract.extract_file(resolved)
+            after = [
+                Node(id=n["id"], label=n.get("label", n["id"]), kind=n.get("kind", ""),
+                     source_file=n.get("source_file", ""), signature=n.get("signature", ""),
+                     docstring=n.get("docstring", ""), line_start=n.get("line_start", 0),
+                     line_end=n.get("line_end", 0))
+                for n in fresh.nodes
+            ]
+            delta = sync.ast_delta(before, after)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        payload = {
+            "added": [n.label for n in delta["added"]],
+            "removed": [n.label for n in delta["removed"]],
+            "modified": [
+                {"label": m["after"].label, "changed_fields": m["changed_fields"]}
+                for m in delta["modified"]
+            ],
+            "unchanged_count": len(delta["unchanged"]),
+        }
+        return self._ok(tool, [payload], started)
+
+    def sync_evict_speculative(self, ttl_seconds: int = 300) -> dict:
+        """PS-01: delete speculative-graph nodes older than `ttl_seconds`."""
+        tool = "sync_evict_speculative"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            spec_engine = self._speculative_engine()
+            spec_project = sync.speculative_project(self._canonical_project())
+            count = sync.evict_stale_speculative(
+                spec_engine._repo, spec_project, ttl_seconds=ttl_seconds,  # noqa: SLF001
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"evicted_count": count}], started)
+
+    def sync_load_commit(self, repo_path: str, commit_hash: str) -> dict:
+        """PS-16: idempotent, commit-linked batch population — checks out
+        `commit_hash` into a temporary git worktree, extracts it, and
+        loads it via `load_extraction`. `repo_path` is the git repository
+        root (may differ from this ToolService's own project root)."""
+        tool = "sync_load_commit"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            written = sync.load_commit(
+                self._engine._repo, Path(repo_path), commit_hash,  # noqa: SLF001
+                project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{"nodes_written": written, "commit_hash": commit_hash}], started,
+        )
+
     def resolve_api_route(self, path: str) -> dict:
         """Frontend API call path -> backend route(s) that serve it, with
         file/line and which service (be-v2 vs backend) actually handles it

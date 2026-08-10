@@ -991,6 +991,94 @@ class Neo4jRepository:
         )
         return len(rows)
 
+    def merge_delta(
+        self, nodes: Sequence[dict], edges: Sequence[dict], project: str = "",
+    ) -> int:
+        """PS-02/PS-16: idempotent MERGE-on-id write — see the Repository
+        protocol docstring for why this exists alongside `load_extraction`/
+        `replace_analysis_nodes` rather than reusing either. `ON MATCH SET`
+        overwrites an existing node's properties outright (a re-promotion
+        of the same symbol after a fresh edit should reflect the new
+        state, not keep stale fields around); `ON CREATE SET` covers the
+        first promotion. Edges MERGE on the full `(source, target,
+        relation)` triple so two different relations between the same
+        pair of nodes (e.g. `calls` and `TESTS`) don't collide.
+        """
+        rows = self._stamped_nodes(nodes, project)
+        edge_rows = [dict(e) for e in edges]
+        extracted_at = datetime.now(timezone.utc).isoformat()
+        source_ref = self._git_commit_sha()
+        rows = self._stamp_provenance(rows, extracted_at, source_ref)
+        edge_rows = self._stamp_provenance(edge_rows, extracted_at, source_ref)
+
+        def _tx(tx) -> None:
+            if rows:
+                if project:
+                    tx.run(
+                        "UNWIND $rows AS row "
+                        "MERGE (n:Node {id: row.id, project: row.project}) "
+                        "SET n = row",
+                        {"rows": rows},
+                    )
+                else:
+                    tx.run(
+                        "UNWIND $rows AS row MERGE (n:Node {id: row.id}) SET n = row",
+                        {"rows": rows},
+                    )
+            if edge_rows:
+                tx.run(
+                    """
+                    UNWIND $rows AS row
+                    MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                    WHERE coalesce(a.project, '') = $p
+                      AND coalesce(b.project, '') = $p
+                    MERGE (a)-[r:RELATES {relation: row.relation}]->(b)
+                    SET r = row
+                    """,
+                    {"rows": edge_rows, "p": project},
+                )
+
+        def _run_tx() -> None:
+            with self._driver.session() as session:
+                session.execute_write(_tx)
+
+        run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"merge_delta({len(rows)} nodes, project={project or '<default>'})",
+        )
+        return len(rows)
+
+    def delete_nodes(self, ids: Sequence[str], project: str = "") -> int:
+        """Delete nodes by id (DETACH DELETE, so their edges go too).
+        Returns how many of `ids` actually matched a node."""
+        ids = list(ids)
+        if not ids:
+            return 0
+        params: dict = {"ids": ids}
+        if project:
+            query = (
+                "UNWIND $ids AS nid MATCH (n:Node {id: nid, project: $p}) "
+                "DETACH DELETE n RETURN nid"
+            )
+            params["p"] = project
+        else:
+            query = (
+                "UNWIND $ids AS nid MATCH (n:Node {id: nid}) "
+                "DETACH DELETE n RETURN nid"
+            )
+
+        def _tx(tx) -> int:
+            return len(list(tx.run(query, params)))
+
+        def _run_tx() -> int:
+            with self._driver.session() as session:
+                return session.execute_write(_tx)
+
+        return run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"delete_nodes({len(ids)} ids)",
+        )
+
     def code_symbol_nodes(self, project: str = "") -> list[Node]:
         """Every FUNC/METHOD node with real source location — the
         candidate set `clone_detect`/`perf_analyze` re-parse from disk.

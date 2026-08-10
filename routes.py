@@ -675,6 +675,13 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "freshness_report": _service_tool("freshness_report"),
     "comprehensiveness_report": _service_tool("comprehensiveness_report"),
     "salience_report": _service_tool("salience_report"),
+    # Section 0 (Population & Real-Time Sync)
+    "sync_quality_gate": _service_tool("sync_quality_gate"),
+    "sync_promote": _service_tool("sync_promote"),
+    "sync_revert": _service_tool("sync_revert"),
+    "sync_ast_delta": _service_tool("sync_ast_delta"),
+    "sync_evict_speculative": _service_tool("sync_evict_speculative"),
+    "sync_load_commit": _service_tool("sync_load_commit"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
     "reindex": _service_tool("reindex"),
@@ -1171,3 +1178,60 @@ def get_project_code_graph(project_id: str) -> dict:
 @router.post("/qa")
 def qa_route(question: str = Query(...), project: str = Query("")) -> dict:
     return get_tool_service(project).qa(question)
+
+
+# ---------------------------------------------------------------------------
+# PS-14: multi-source event ingestion — one webhook receiver dispatching to
+# the real sync primitives (cie.sync), per GraphSyncEvent's event_type.
+# ---------------------------------------------------------------------------
+
+
+class GraphSyncEventModel(BaseModel):
+    event_type: str  # FILE_SAVE | COMMIT | CI_COMPLETE | REVERT
+    commit_hash: str = ""
+    file_paths: list[str] = []
+    author: str = ""
+    timestamp: str = ""
+
+
+@router.post("/sync/event")
+def sync_event(event: GraphSyncEventModel, project: str = Query(...)) -> dict:
+    """PS-14 webhook receiver. Routes via `cie.sync.classify_event`:
+    FILE_SAVE -> speculative reindex (no gate), COMMIT -> the full 4-stage
+    gate per file, CI_COMPLETE -> promote speculative into canonical,
+    REVERT -> soft-delete the commit's canonical nodes. `project` is
+    required (unlike every other route here) — a sync event with no
+    project would silently no-op against the empty-string default
+    namespace, which is worse than a clear 422.
+    """
+    from cie import sync
+
+    sync_event_obj = sync.GraphSyncEvent(
+        event_type=event.event_type, commit_hash=event.commit_hash,
+        file_paths=tuple(event.file_paths), author=event.author,
+        timestamp=event.timestamp,
+    )
+    route = sync.classify_event(sync_event_obj)
+    if route == "unknown":
+        return {
+            "ok": False, "tool": "sync_event",
+            "error": {"kind": "validation", "message": f"unknown event_type {event.event_type!r}"},
+            "hint": f"valid event types: {', '.join(sorted(sync._EVENT_ROUTES))}",  # noqa: SLF001
+        }
+    if route == "speculative":
+        root = Path.cwd()
+        spec_service = factory.build_tool_service(
+            sync.speculative_project(project), root=root,
+        )
+        results = [spec_service.reindex_file(p) for p in event.file_paths]
+        return {"ok": True, "tool": "sync_event", "route": route, "results": results}
+    if route == "gate":
+        service = get_tool_service(project)
+        results = [service.sync_quality_gate(p) for p in event.file_paths]
+        return {"ok": True, "tool": "sync_event", "route": route, "results": results}
+    if route == "promote":
+        result = get_tool_service(project).sync_promote(commit_hash=event.commit_hash)
+        return {"ok": True, "tool": "sync_event", "route": route, "results": [result]}
+    # route == "revert"
+    result = get_tool_service(project).sync_revert(event.commit_hash)
+    return {"ok": True, "tool": "sync_event", "route": route, "results": [result]}
