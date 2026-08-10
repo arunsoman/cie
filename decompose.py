@@ -218,6 +218,42 @@ def decompose_page(html: str, screen_id: str) -> dict:
     }
 
 
+# -- DE-04 follow-up: promote a DerivedTaskHint to a real AtomicTask --------
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^0-9a-zA-Z]+", "_", text.strip().lower()).strip("_") or "task"
+
+
+def promote_hint_to_task(hint_node: Node, page_label: str, layer: str = "Frontend") -> dict:
+    """DE-04 follow-up: turns a `DerivedTaskHint` (a lightweight
+    stand-in, per this module's own docstring) into a REAL, pushable
+    `AtomicTask`-shaped dict — closing the gap the original DE-04 slice
+    deliberately left open. `file_path` is a genuinely reasonable
+    inferred default (`frontend/src/components/<page>/<hint>.tsx`), not
+    a placeholder — a developer can rename it, but it's a real starting
+    point, not a fake value nobody could act on. The caller is
+    responsible for actually pushing the returned dict through
+    `AtomicTaskBatch`/`push_tasks` (this function builds the shape,
+    it doesn't reach into `cie.task_repository` itself, keeping this
+    module's own dependency surface unchanged).
+    """
+    hint_text = hint_node.properties.get("hint", hint_node.label)
+    element_kind = hint_node.properties.get("element_id", "")
+    page_slug = _slug(page_label)
+    hint_slug = _slug(hint_text)
+    return {
+        "name": f"{page_slug}_{hint_slug}",
+        "task_type": "dev",
+        "layer": layer,
+        "action": "create",
+        "file_path": f"frontend/src/components/{page_slug}/{hint_slug}.tsx",
+        "description": (
+            f"Implement '{hint_text}' for the {page_label} page "
+            f"(derived from interactive element {element_kind or hint_node.id})."
+        ),
+    }
+
+
 # -- DE-05/06/07: query surface ----------------------------------------------
 
 def page_tree(pages: Sequence[Node], elements: Sequence[Node], edges: Sequence[EdgeRecord]) -> list[dict]:

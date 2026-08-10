@@ -650,6 +650,8 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "api_call_sites": _service_tool("api_call_sites"),
     "class_hierarchy": _service_tool("class_hierarchy"),
     "test_map": _service_tool("test_map"),
+    "actual_callers": _service_tool("actual_callers"),
+    "dead_code_confirm": _service_tool("dead_code_confirm"),
     "hybrid_search": _service_tool("hybrid_search"),
     "entity_context": _service_tool("entity_context"),
     "qa": _service_tool("qa"),
@@ -682,9 +684,13 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "sync_ast_delta": _service_tool("sync_ast_delta"),
     "sync_evict_speculative": _service_tool("sync_evict_speculative"),
     "sync_load_commit": _service_tool("sync_load_commit"),
+    "configure_layer_rules": _service_tool("configure_layer_rules"),
+    "get_layer_rules": _service_tool("get_layer_rules"),
+    "install_git_hook": _service_tool("install_git_hook"),
     # Section 1 (Core Data Model)
     "export_rdf": _service_tool("export_rdf"),
     "related_edges": _service_tool("related_edges"),
+    "validate_property_constraints": _service_tool("validate_property_constraints"),
     "type_flow_run": _service_tool("type_flow_run"),
     "type_flow": _service_tool("type_flow"),
     "dependency_graph_run": _service_tool("dependency_graph_run"),
@@ -720,6 +726,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     # Section 15 (Decomposition Engine)
     "decompose_page": _service_tool("decompose_page"),
     "page_tree": _service_tool("page_tree"),
+    "promote_hint_to_task": _service_tool("promote_hint_to_task"),
     "element_coverage": _service_tool("element_coverage"),
     "implied_pages_run": _service_tool("implied_pages_run"),
     "implied_pages": _service_tool("implied_pages"),
@@ -727,6 +734,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "subsystem_health": _service_tool("subsystem_health"),
     "subsystem_gaps": _service_tool("subsystem_gaps"),
     "subsystem_dependency_graph": _service_tool("subsystem_dependency_graph"),
+    "subsystem_dependency_graph_run": _service_tool("subsystem_dependency_graph_run"),
     "population_path": _service_tool("population_path"),
     # Section 16 (Autonomous Test Execution & APM)
     "test_plan": _service_tool("test_plan"),
@@ -739,6 +747,8 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "mock_registry_run": _service_tool("mock_registry_run"),
     "mock_registry": _service_tool("mock_registry"),
     "mock_coverage": _service_tool("mock_coverage"),
+    "start_mock_server": _service_tool("start_mock_server"),
+    "stop_mock_server": _service_tool("stop_mock_server"),
     "mock_violations": _service_tool("mock_violations"),
     "record_apm_metric": _service_tool("record_apm_metric"),
     "apm_metrics": _service_tool("apm_metrics"),
@@ -1297,3 +1307,71 @@ def sync_event(event: GraphSyncEventModel, project: str = Query(...)) -> dict:
     # route == "revert"
     result = get_tool_service(project).sync_revert(event.commit_hash)
     return {"ok": True, "tool": "sync_event", "route": route, "results": [result]}
+
+
+# ---------------------------------------------------------------------------
+# CI-15: Runtime Telemetry Ingestion (OTLP/HTTP JSON) — see cie/telemetry.py
+# ---------------------------------------------------------------------------
+
+
+@router.post("/telemetry/otlp")
+async def ingest_telemetry(request: Request, project: str = Query(...)) -> JSONResponse:
+    """Real OTel span ingestion from a live deployment's own SDK — an
+    external exporter's raw `ExportTraceServiceRequest` body (OTLP/HTTP
+    JSON encoding), not cie's own `{project, ...kwargs}` tool envelope,
+    so this is its own dedicated route rather than a `/tools/{tool}`
+    entry. `project` is required as a query param (same reasoning as
+    `/sync/event`): an exporter is typically configured with one fixed
+    endpoint URL per deployment, and a telemetry batch silently landing
+    in the empty-string default namespace would be much harder to
+    notice than an immediate 422.
+
+    See `cie/telemetry.py`'s module docstring for the wire-format and
+    symbol-resolution scope (OTLP JSON only, `code.filepath`/
+    `code.function` semantic-convention attributes only).
+    """
+    from cie import telemetry
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001 - malformed JSON body
+        return JSONResponse(
+            status_code=422,
+            content=err_envelope(
+                "ingest_telemetry", "validation", "request body must be a JSON object",
+                hint="POST an OTLP/HTTP JSON ExportTraceServiceRequest body "
+                     "(application/json, not protobuf)",
+            ),
+        )
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            status_code=422,
+            content=err_envelope(
+                "ingest_telemetry", "validation", "request body must be a JSON object",
+            ),
+        )
+
+    resolved_project = _resolve_project(project)
+    engine = factory.get_engine(resolved_project)
+    spans = telemetry.parse_otlp_spans(payload)
+    nodes, _edges = engine._repo.project_graph()  # noqa: SLF001
+    index = telemetry.build_symbol_index(nodes)
+    pairs, unresolved = telemetry.spans_to_actual_calls(spans, index)
+    written = await run_in_threadpool(
+        engine._repo.accumulate_actual_calls, pairs, resolved_project,  # noqa: SLF001
+    )
+    return JSONResponse(status_code=200, content=envelope(
+        "ingest_telemetry",
+        {
+            "spans_received": len(spans),
+            "edges_written": written,
+            "unresolved_span_pairs": unresolved,
+        },
+        hint=(
+            f"{unresolved} span pair(s) had no matching FUNC/METHOD node "
+            "(missing/unmatched code.filepath+code.function attributes); "
+            "actual_callers/dead_code_confirm results will be partial until "
+            "your exporter's spans carry OTel's Semantic Conventions for "
+            "Code attributes"
+        ) if unresolved else None,
+    ))

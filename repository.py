@@ -314,6 +314,61 @@ class Repository(Protocol):
         eviction. Returns the number of ids that actually matched an
         existing node (scoped to `project` when given)."""
 
+    # -- CI-15/16/17 runtime telemetry (section 13.4) ------------------------
+
+    def accumulate_actual_calls(
+        self, pairs: Sequence[dict], project: str = "",
+    ) -> int:
+        """CI-15: atomically fold a batch of observed (caller, callee)
+        span pairs into `ACTUAL_CALL` edges. Each `pairs` row is
+        `{"source": node_id, "target": node_id, "latency_ms": float,
+        "is_error": bool}`. Unlike `merge_delta` (whose `SET r = row`
+        would overwrite a running counter with a single new
+        measurement), this is a real read-increment-write per pair:
+        `call_count`/`total_latency_ms`/`error_count` accumulate across
+        every ingestion this project has ever received, and
+        `avg_latency_ms`/`error_rate` are recomputed from the running
+        totals on every write. One `ACTUAL_CALL` edge per (caller,
+        callee) pair, not one per span — repeated calls between the same
+        two symbols strengthen the same edge rather than creating
+        duplicates. Returns the number of pair rows processed (not
+        necessarily distinct edges, same approximate-count convention as
+        `merge_delta`)."""
+
+    def actual_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """CI-16: functions that ACTUALLY called `symbol` at runtime
+        (per ingested telemetry), with `call_count`/`avg_latency_ms`/
+        `error_rate` on each `EdgeRecord`'s `edge.properties` — distinct
+        from `get_callers`, which returns statically POSSIBLE callers
+        from the AST call graph. Empty list (not None) when `symbol` is
+        unknown or has never been observed calling anything at runtime."""
+
+    # -- TE-09 durable telemetry queue ---------------------------------------
+
+    def publish_telemetry_event(
+        self, channel: str, payload: dict, project: str = "",
+    ) -> int:
+        """TE-09: append one event to a durable, per-`(project, channel)`
+        telemetry log (its own `:TelemetryEvent` node, CREATE-only — same
+        append-only precedent as `record_metric_snapshot`/
+        `record_coverage_snapshot`) and return its assigned sequence
+        number (monotonically increasing per `(project, channel)`, via
+        a `:TelemetryCounter` node incremented in the same write). This
+        is the persistence half of `cie.apm.TelemetryBus` — see that
+        class's docstring for why this is deliberately NOT a new message
+        broker (NATS/Kafka): the existing Neo4j database serves as the
+        append-only log instead."""
+
+    def read_telemetry_events(
+        self, channel: str, after_seq: int = 0, limit: int = 100, project: str = "",
+    ) -> list[dict]:
+        """TE-09: events on `channel` with `seq > after_seq`, oldest
+        first, capped at `limit` — the replay/resume read side of
+        `publish_telemetry_event`. Each dict: `{seq, channel, payload,
+        published_at}`. Lets a subscriber that missed live delivery
+        (crashed, or just started after the event was published) catch
+        up from the durable log instead of losing it."""
+
     def record_coverage_snapshot(self, snapshot: CoverageSnapshot) -> None:
         """Append one aggregate coverage measurement (its own
         `:CoverageSnapshot` node, not a :Node — a different entity kind,

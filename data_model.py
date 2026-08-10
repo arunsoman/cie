@@ -141,6 +141,42 @@ def inverse_relation(relation: str) -> Optional[str]:
     return INVERSE_RELATIONS.get(relation)
 
 
+def validate_property_constraints(nodes: Sequence[Node], constraints: dict[str, str]) -> list[dict]:
+    """DM-03 follow-up: the "property constraints" half of the basic-
+    ontology bucket this row's own text scopes as P1 (distinct from
+    full OWL inference, P2, still not attempted). `constraints` maps a
+    property name to a boolean expression evaluated against that
+    property's value on every node that carries it — reuses `cie.
+    invariants.evaluate_contract`'s restricted `ast` evaluator (already
+    built for CF-19) rather than a second expression-evaluation
+    mechanism. A node missing the property is skipped (nothing to
+    check); an expression that raises is also skipped (a malformed
+    constraint is a data-quality problem with the constraint itself, not
+    a violation of it — same reasoning `cie.invariants.check_invariant`
+    already applies).
+    """
+    import dataclasses
+
+    from cie.invariants import evaluate_contract
+
+    violations: list[dict] = []
+    for node in nodes:
+        row = {**dataclasses.asdict(node), **node.properties}
+        for prop, expression in constraints.items():
+            if prop not in row:
+                continue
+            try:
+                holds = evaluate_contract(expression, {prop: row[prop]})
+            except Exception:  # noqa: BLE001 - malformed constraint, not a violation
+                continue
+            if not holds:
+                violations.append({
+                    "node_id": node.id, "property": prop,
+                    "constraint": expression, "value": row[prop],
+                })
+    return violations
+
+
 def annotate_inverse(edge_records: Sequence) -> list[dict]:
     """DM-03: `[{edge_record, inverse}]` — each of `edge_records`
     (`EdgeRecord`s, e.g. from `get_neighbors`) paired with its relation's
@@ -325,6 +361,64 @@ def resolve_package_nodes(repo_root: Path) -> tuple[list[dict], list[dict]]:
                 }
 
     return list(packages.values()), []
+
+
+#: language suffix -> import-statement regex builder. Each returns a
+#: pattern matching `import <pkg>`/`from <pkg> import ...` (Python) or
+#: `import ... from '<pkg>'`/`require('<pkg>')` (JS/TS), anchored so a
+#: package named "os" doesn't false-match "osprey".
+def _python_import_re(pkg: str) -> re.Pattern:
+    escaped = re.escape(pkg)
+    return re.compile(rf"^\s*(?:import\s+{escaped}\b|from\s+{escaped}\b)", re.MULTILINE)
+
+
+def _js_import_re(pkg: str) -> re.Pattern:
+    escaped = re.escape(pkg)
+    return re.compile(
+        rf"""(?:from\s+['"]{escaped}(?:/[^'"]*)?['"]|require\(\s*['"]{escaped}(?:/[^'"]*)?['"]\s*\))""",
+    )
+
+
+def resolve_calls_external_edges(
+    package_nodes: Sequence[dict], file_nodes: Sequence[Node],
+) -> list[dict]:
+    """DM-11 follow-up: `CALLS_EXTERNAL` edges from each `FILE` node to
+    the `PACKAGE` node(s) it actually imports — closing the gap
+    `resolve_package_nodes` itself documents. Re-reads each file's own
+    text from disk (the same "re-parse from disk" pattern `cie.
+    quality_report.accuracy_check` already uses) and regex-matches
+    import statements against the already-extracted package names —
+    Python (`import pkg`/`from pkg import ...`) and JS/TS (`from 'pkg'`/
+    `require('pkg')`) conventions. Best-effort: misses a dynamically
+    constructed import path, same class of limitation `cie.mocking.
+    scan_external_calls` already documents for its own regex scan.
+    File-level, not call-site-level — a file importing `requests` gets
+    one edge regardless of how many functions in it use the import.
+    """
+    py_packages = [(p["id"], p["label"]) for p in package_nodes if p.get("ecosystem") == "pypi"]
+    npm_packages = [(p["id"], p["label"]) for p in package_nodes if p.get("ecosystem") == "npm"]
+    if not py_packages and not npm_packages:
+        return []
+
+    edges: list[dict] = []
+    for file_node in file_nodes:
+        path = Path(file_node.source_file) if file_node.source_file else None
+        if path is None or not path.is_file():
+            continue
+        suffix = path.suffix
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            continue
+        candidates = py_packages if suffix == ".py" else npm_packages if suffix in (".js", ".ts", ".tsx", ".jsx") else []
+        for package_id, package_name in candidates:
+            pattern = _python_import_re(package_name) if suffix == ".py" else _js_import_re(package_name)
+            if pattern.search(text):
+                edges.append({
+                    "source": file_node.id, "target": package_id,
+                    "relation": "CALLS_EXTERNAL", "confidence": "INFERRED",
+                })
+    return edges
 
 
 # -- DM-13: documentation / concept graph -------------------------------------

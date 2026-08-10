@@ -725,3 +725,67 @@ def load_layer_rules(repo: Any, project: str) -> dict[str, list[str]]:
         return json.loads(raw)
     except (TypeError, ValueError):
         return {}
+
+
+# -- PS-14 follow-up: real git post-commit hook installation -----------------
+
+_POST_COMMIT_TEMPLATE = """#!/bin/sh
+# Installed by cie.sync.install_git_hook — forwards each commit to CIE's
+# PS-14 sync webhook. Safe to delete; re-run install_git_hook to restore.
+curl -s -X POST "{cie_url}/sync/event?project={project}" \\
+  -H 'content-type: application/json' \\
+  -d "{{\\"event_type\\": \\"COMMIT\\", \\"commit_hash\\": \\"$(git rev-parse HEAD)\\", \\
+       \\"file_paths\\": $(git diff --name-only HEAD~1 HEAD 2>/dev/null | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().splitlines()))')}}" \\
+  >/dev/null 2>&1 || true
+"""
+
+
+def install_git_hook(repo_path: Path, cie_url: str, project: str) -> dict:
+    """PS-14 follow-up: writes a REAL, executable `.git/hooks/post-commit`
+    script into `repo_path` — the documented curl recipe
+    (`cie-sync-implementation.md`'s CLI recipe), now installable by a
+    real function call instead of copy-paste. An unattended backend
+    service still never does this on its own initiative (this is an
+    explicit, caller-invoked action, e.g. from a CLI command or an
+    onboarding flow — see this module's own docstring for why automatic
+    installation stays out of scope); what changes is that the ACTION
+    itself, once a human/agent decides to take it, is now real code, not
+    a doc snippet to hand-copy.
+
+    An existing hook is backed up to `post-commit.bak` (never silently
+    overwritten — a developer's existing hook may do something this
+    function knows nothing about) UNLESS that backup already exists too,
+    in which case this raises rather than risk clobbering an earlier
+    backup of unknown provenance.
+
+    Returns `{hook_path, backed_up: bool}`. Raises `ValueError` if
+    `repo_path` isn't a git repository (no `.git` directory) — installing
+    a hook into a non-repo is a caller error, not a soft-fail case.
+    """
+    import stat
+
+    repo_path = Path(repo_path)
+    git_dir = repo_path / ".git"
+    if not git_dir.is_dir():
+        raise ValueError(f"{repo_path} is not a git repository (no .git directory)")
+    hooks_dir = git_dir / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook_path = hooks_dir / "post-commit"
+    backup_path = hooks_dir / "post-commit.bak"
+
+    backed_up = False
+    if hook_path.is_file():
+        if backup_path.exists():
+            raise ValueError(
+                f"{hook_path} and {backup_path} both already exist — "
+                "refusing to overwrite an existing backup of unknown provenance"
+            )
+        hook_path.rename(backup_path)
+        backed_up = True
+
+    script = _POST_COMMIT_TEMPLATE.format(cie_url=cie_url.rstrip("/"), project=project)
+    hook_path.write_text(script)
+    current_mode = hook_path.stat().st_mode
+    hook_path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    return {"hook_path": str(hook_path), "backed_up": backed_up}

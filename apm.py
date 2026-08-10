@@ -14,10 +14,18 @@ response span tree): pytest's own per-test timing only, not
 instrumenting a target project's internals, which would mean modifying
 the actual generated project under test — out of scope for a generic
 graph-layer tool. TE-09 is a real, lightweight, IN-PROCESS pub/sub — NOT
-a durable cross-process broker (no persistence, no replay, no delivery
-guarantee beyond "called synchronously while this process is up"), the
-same "do not build a real broker from scratch" restraint CF-13's
-ConsensusBus documents, applied here for the same reason.
+a new message broker (NATS/Kafka), the same "do not build a real broker
+from scratch" restraint CF-13's ConsensusBus documents, applied here for
+the same reason. It IS durable, though (2026-08-10 follow-up): pass a
+`Repository` + `project` to `TelemetryBus.__init__` and every `publish()`
+also appends the event to a real, persistent, per-`(project, channel)`
+Neo4j log (`Repository.publish_telemetry_event`/`read_telemetry_events`,
+see `cie/repository.py`) — the EXISTING database serves as the
+append-only log, not a new piece of infra. A subscriber that starts
+after an event was published (a fresh process, a restarted subsystem)
+calls `TelemetryBus.replay(channel, after_seq=...)` to catch up from the
+durable log through the exact same dispatch path `publish()` uses, so
+replay isn't a second, divergent delivery mechanism.
 """
 
 from __future__ import annotations
@@ -26,7 +34,7 @@ import hashlib
 import statistics
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 from cie.models import Node, NodeKind
 
@@ -112,24 +120,32 @@ def collect_apm_from_pytest(
 # -- TE-09: Telemetry Distribution Bus (in-process pub/sub) ------------------
 
 class TelemetryBus:
-    """TE-09: real, in-process pub/sub — see module docstring for why
-    this is NOT a durable cross-process broker. Scoped to fan `ApmMetric`
-    data out to whichever in-process subscribers (confidence scorer,
-    drift detector, invariant monitor, ...) a single test run's
-    orchestrator registers.
+    """TE-09: real, in-process pub/sub — see module docstring for the
+    NOT-a-new-broker framing and how `repo`/`project` make this durable.
+    Scoped to fan `ApmMetric` data out to whichever in-process
+    subscribers (confidence scorer, drift detector, invariant monitor,
+    ...) a single test run's orchestrator registers.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, repo: Optional[Any] = None, project: str = "") -> None:
         self._subscribers: dict[str, list[Callable[[dict], None]]] = {}
+        self._repo = repo
+        self._project = project
 
     def subscribe(self, channel: str, callback: Callable[[dict], None]) -> None:
         self._subscribers.setdefault(channel, []).append(callback)
 
     def publish(self, channel: str, metric: dict) -> int:
-        """Calls every subscriber on `channel` synchronously; returns
-        how many were notified. A subscriber that raises does NOT stop
-        the others — one broken subscriber must not silently swallow
-        telemetry meant for every other one."""
+        """Durably appends `metric` first (when this bus was built with
+        a `repo`), THEN calls every subscriber on `channel` synchronously;
+        returns how many were notified. Persisting before delivery means
+        a subscriber that crashes mid-callback still leaves the event
+        recoverable via `replay()` — delivery failure never loses the
+        write. A subscriber that raises does NOT stop the others — one
+        broken subscriber must not silently swallow telemetry meant for
+        every other one."""
+        if self._repo is not None:
+            self._repo.publish_telemetry_event(channel, metric, project=self._project)
         notified = 0
         for callback in self._subscribers.get(channel, []):
             try:
@@ -138,6 +154,28 @@ class TelemetryBus:
             except Exception:  # noqa: BLE001 - isolate one bad subscriber
                 continue
         return notified
+
+    def replay(self, channel: str, after_seq: int = 0, limit: int = 100) -> list[dict]:
+        """Re-deliver durably-persisted events on `channel` with
+        `seq > after_seq` to every CURRENT subscriber, through the same
+        per-callback try/except isolation `publish()` uses — replay is
+        not a second, divergent delivery path. Returns the list of
+        `{seq, channel, payload, published_at}` dicts consumed (a
+        caller tracks `max(e["seq"] for e in ...)` as its own resume
+        cursor for the next call). `[]` when this bus has no `repo` —
+        replay is only meaningful for a durable bus."""
+        if self._repo is None:
+            return []
+        events = self._repo.read_telemetry_events(
+            channel, after_seq=after_seq, limit=limit, project=self._project,
+        )
+        for event in events:
+            for callback in self._subscribers.get(channel, []):
+                try:
+                    callback(event["payload"])
+                except Exception:  # noqa: BLE001 - isolate one bad subscriber
+                    continue
+        return events
 
 
 # -- TE-10: Performance Baseline ----------------------------------------------

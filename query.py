@@ -283,6 +283,27 @@ class QueryEngine:
             return []
         return self._repo.test_map(symbol.strip(), limit=self._clamp_limit(limit))
 
+    # -- CI-15/16/17 runtime telemetry (section 13.4) -------------------------
+
+    def actual_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """CI-16: functions that ACTUALLY called `symbol` at runtime, per
+        ingested OTel telemetry (`ACTUAL_CALL` edges) — distinct from
+        `get_callers`' statically-possible callers. [] when `symbol` is
+        blank/unknown or has never been observed being called."""
+        if not symbol or not symbol.strip():
+            return []
+        return self._repo.actual_callers(symbol.strip(), limit=self._clamp_limit(limit))
+
+    def dead_code_confirm(self) -> list[dict]:
+        """CI-17: cross-reference the static call graph with ingested
+        runtime telemetry for every FUNC/METHOD node in this project.
+        See `cie.telemetry.dead_code_confirm` for the classification
+        rules (alive/potentially_dead/confirmed_dead/unknown)."""
+        from cie import telemetry
+
+        nodes, edge_records = self._repo.project_graph()
+        return telemetry.dead_code_confirm(nodes, [er.edge for er in edge_records])
+
     # -- CI-01/02/03/04/05 clone detector ---------------------------------------
 
     def clone_detect_run(self, project: str = "") -> dict:
@@ -556,16 +577,21 @@ class QueryEngine:
 
     def dependency_graph_run(self, repo_root: str, project: str = "") -> dict:
         """DM-11: parse `pyproject.toml`/`package.json` under `repo_root`
-        into `PACKAGE` nodes."""
+        into `PACKAGE` nodes, plus `CALLS_EXTERNAL` edges from each
+        `FILE` node that actually imports one (see `cie.data_model.
+        resolve_calls_external_edges` — closes the gap this item's own
+        spec-doc row originally left open)."""
         from pathlib import Path
 
         from cie import data_model
 
         packages, _edges = data_model.resolve_package_nodes(Path(repo_root))
+        file_nodes = self._repo.list_files()
+        calls_external_edges = data_model.resolve_calls_external_edges(packages, file_nodes)
         written = self._repo.replace_analysis_nodes(
-            NodeKind.PACKAGE.value, packages, [], project=project,
+            NodeKind.PACKAGE.value, packages, calls_external_edges, project=project,
         )
-        return {"packages_written": written}
+        return {"packages_written": written, "calls_external_edges_written": len(calls_external_edges)}
 
     def dependency_graph(self, project: str = "") -> list[Node]:
         """DM-11: every `PACKAGE` node from the most recent

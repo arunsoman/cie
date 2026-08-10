@@ -953,7 +953,7 @@ class Neo4jRepository:
         without each analysis module needing its own bespoke read query.
         """
         effective_project = project or self._project
-        query = "MATCH (n:Node {kind: $kind})" + self._pw_where("n")
+        query = "MATCH (n:Node {kind: $kind})" + self._pw_where("n") + "\nRETURN n"
         rows = self._run(query, {"kind": kind, "project": effective_project})
         return [_row_to_node(r["n"]) for r in rows]
 
@@ -1047,6 +1047,160 @@ class Neo4jRepository:
             description=f"merge_delta({len(rows)} nodes, project={project or '<default>'})",
         )
         return len(rows)
+
+    def accumulate_actual_calls(
+        self, pairs: Sequence[dict], project: str = "",
+    ) -> int:
+        """CI-15: one atomic read-increment-write per (source, target)
+        pair — `ON MATCH SET ... = ... + row.x` is evaluated inside the
+        same MERGE statement Neo4j executes atomically per row, so
+        concurrent ingestions of the same edge can't lose an update the
+        way a Python-side read-then-write would."""
+        if not pairs:
+            return 0
+        now = datetime.now(timezone.utc).isoformat()
+        rows = [
+            {
+                "source": p["source"],
+                "target": p["target"],
+                "latency_ms": float(p.get("latency_ms", 0.0)),
+                "error_count": 1 if p.get("is_error") else 0,
+                "now": now,
+            }
+            for p in pairs
+        ]
+
+        def _tx(tx) -> None:
+            tx.run(
+                """
+                UNWIND $rows AS row
+                MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                WHERE coalesce(a.project, '') = $p AND coalesce(b.project, '') = $p
+                MERGE (a)-[r:RELATES {relation: 'ACTUAL_CALL'}]->(b)
+                ON CREATE SET r.call_count = 1,
+                              r.total_latency_ms = row.latency_ms,
+                              r.error_count = row.error_count,
+                              r.first_seen = row.now,
+                              r.last_seen = row.now
+                ON MATCH SET r.call_count = r.call_count + 1,
+                             r.total_latency_ms = r.total_latency_ms + row.latency_ms,
+                             r.error_count = r.error_count + row.error_count,
+                             r.last_seen = row.now
+                SET r.avg_latency_ms = toFloat(r.total_latency_ms) / r.call_count,
+                    r.error_rate = toFloat(r.error_count) / r.call_count
+                """,
+                {"rows": rows, "p": project},
+            )
+
+        def _run_tx() -> None:
+            with self._driver.session() as session:
+                session.execute_write(_tx)
+
+        run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"accumulate_actual_calls({len(rows)} pairs, project={project or '<default>'})",
+        )
+        return len(rows)
+
+    def actual_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """CI-16: reverse lookup over `ACTUAL_CALL` edges, mirroring
+        `get_callers`'/`test_map`'s "who has an edge pointing AT this"
+        shape but reading runtime-observed edges instead of the static
+        `calls` graph."""
+        target_id = self._resolve_symbol_id(symbol)
+        if target_id is None:
+            return []
+        query = (
+            """
+            MATCH (c:Node)-[r:RELATES {relation: 'ACTUAL_CALL'}]->(t:Node {id: $tid})
+            WHERE true"""
+            + self._pw("c")
+            + self._pw("t")
+            + """
+            RETURN r AS rel, c.id AS source_id, c.label AS source_label,
+                   t.id AS target_id, t.label AS target_label
+            ORDER BY r.call_count DESC
+            LIMIT $limit
+            """
+        )
+        rows = self._run(query, {"tid": target_id, "limit": max(1, int(limit))})
+        return [_row_to_edge_record(r) for r in rows]
+
+    def publish_telemetry_event(
+        self, channel: str, payload: dict, project: str = "",
+    ) -> int:
+        """TE-09: `:TelemetryCounter` incremented and `:TelemetryEvent`
+        created in the SAME write transaction, so the assigned `seq` is
+        never handed out twice even under concurrent publishers — the
+        `MERGE ... SET c.value = c.value + 1` read-modify-write is one
+        atomic Cypher statement, same durability guarantee
+        `accumulate_actual_calls` relies on."""
+        published_at = datetime.now(timezone.utc).isoformat()
+        payload_json = json.dumps(payload)
+
+        def _tx(tx):
+            result = tx.run(
+                """
+                MERGE (c:TelemetryCounter {project: $project, channel: $channel})
+                ON CREATE SET c.value = 0
+                SET c.value = c.value + 1
+                WITH c.value AS seq
+                CREATE (e:TelemetryEvent {
+                    project: $project, channel: $channel, seq: seq,
+                    payload: $payload, published_at: $published_at
+                })
+                RETURN seq
+                """,
+                {
+                    "project": project, "channel": channel,
+                    "payload": payload_json, "published_at": published_at,
+                },
+            )
+            record = result.single()
+            return record["seq"] if record else 0
+
+        def _run_tx() -> int:
+            with self._driver.session() as session:
+                return session.execute_write(_tx)
+
+        return run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"publish_telemetry_event({channel}, project={project or '<default>'})",
+        )
+
+    def read_telemetry_events(
+        self, channel: str, after_seq: int = 0, limit: int = 100, project: str = "",
+    ) -> list[dict]:
+        """TE-09: read side of `publish_telemetry_event` — oldest first
+        so a resuming consumer replays events in the order they were
+        published, not newest-first like `metric_trend`/`coverage_trend`
+        (which are "what's the latest reading," not "replay everything
+        I missed in order")."""
+        rows = self._run(
+            """
+            MATCH (e:TelemetryEvent {project: $project, channel: $channel})
+            WHERE e.seq > $after_seq
+            RETURN e.seq AS seq, e.channel AS channel, e.payload AS payload,
+                   e.published_at AS published_at
+            ORDER BY e.seq ASC
+            LIMIT $limit
+            """,
+            {
+                "project": project, "channel": channel,
+                "after_seq": int(after_seq), "limit": max(1, int(limit)),
+            },
+        )
+        out: list[dict] = []
+        for r in rows:
+            try:
+                payload = json.loads(r.get("payload") or "{}")
+            except (TypeError, ValueError):
+                payload = {}
+            out.append({
+                "seq": r.get("seq", 0), "channel": r.get("channel", channel),
+                "payload": payload, "published_at": r.get("published_at", ""),
+            })
+        return out
 
     def delete_nodes(self, ids: Sequence[str], project: str = "") -> int:
         """Delete nodes by id (DETACH DELETE, so their edges go too).
@@ -1519,7 +1673,8 @@ class Neo4jRepository:
         query = (
             """
             MATCH (n:Node)
-            WHERE toLower(n.label) CONTAINS $needle"""
+            WHERE toLower(n.label) CONTAINS $needle
+              AND coalesce(n.status, '') <> 'DEPRECATED'"""
             + self._pw("n")
         )
         params: dict = {"needle": needle}
@@ -1790,6 +1945,7 @@ class Neo4jRepository:
         CALL db.index.vector.queryNodes('node_embedding_idx', $top_k, $queryVector)
         YIELD node, score
         WHERE node.embedding IS NOT NULL
+          AND coalesce(node.status, '') <> 'DEPRECATED'
         """
         if effective_project:
             cypher += "  AND node.project = $project\n"
@@ -1835,9 +1991,10 @@ class Neo4jRepository:
         cypher = (
             "CALL db.index.fulltext.queryNodes('node_label_fulltext', $query) "
             "YIELD node, score\n"
+            "WHERE coalesce(node.status, '') <> 'DEPRECATED'\n"
         )
         if project:
-            cypher += "WHERE node.project = $project\n"
+            cypher += "AND node.project = $project\n"
         cypher += "RETURN node, score ORDER BY score DESC LIMIT $fetch_k"
         try:
             rows = self._run(cypher, {"query": query, "project": project, "fetch_k": fetch_k})
@@ -1868,6 +2025,7 @@ class Neo4jRepository:
         cypher = (
             "CALL db.index.vector.queryNodes('node_embedding_idx', $fetch_k, $queryVector) "
             "YIELD node, score\nWHERE node.embedding IS NOT NULL\n"
+            "AND coalesce(node.status, '') <> 'DEPRECATED'\n"
         )
         if project:
             cypher += "AND node.project = $project\n"

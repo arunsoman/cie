@@ -152,6 +152,11 @@ class ToolService:
         # (forge/tools.py) — see cie.tools.watch's module docstring for why
         # both exist and share one handler implementation.
         self._watch_observer: Any = None
+        # Populated by start_mock_server()/stopped by stop_mock_server()
+        # (TE-05) — same "cached on this ToolService instance, alive for
+        # as long as the caller keeps making calls against this project"
+        # lifecycle as `_watch_observer` above.
+        self._mock_server_handle: Any = None
         # Lazily built by _heuristic_fallback() below — NOT built here in
         # __init__, since most ToolService instances never need it (Neo4j
         # serves nearly every real call); a full `SymbolIndex` project
@@ -810,6 +815,61 @@ class ToolService:
             hint=f"results capped at {limit}" if truncated else None,
         )
 
+    # -- CI-15/16/17 runtime telemetry (section 13.4) ------------------------
+
+    def actual_callers(self, symbol: str, limit: int = 30) -> dict:
+        """CI-16: functions that ACTUALLY called `symbol` at runtime, per
+        ingested OTel telemetry (see `POST /telemetry/otlp` — CI-15) —
+        distinct from `callers`, which returns statically POSSIBLE
+        callers from the AST call graph."""
+        tool = "actual_callers"
+        started = time.monotonic()
+        try:
+            records = self._engine.actual_callers(symbol, limit=limit)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not records:
+            return self._ok(
+                tool, [], started,
+                hint=f"no runtime calls into '{symbol}' observed; either it's "
+                     "never been called in production, or no OTel telemetry "
+                     "has been ingested yet for this project (POST /telemetry/otlp)",
+            )
+        results = [
+            {
+                "caller": record.source_label, "callee": record.target_label,
+                "call_count": record.edge.properties.get("call_count", 0),
+                "avg_latency_ms": record.edge.properties.get("avg_latency_ms", 0.0),
+                "error_rate": record.edge.properties.get("error_rate", 0.0),
+                "last_seen": record.edge.properties.get("last_seen", ""),
+            }
+            for record in records
+        ]
+        truncated = len(results) >= limit
+        return self._ok(
+            tool, results, started, truncated=truncated,
+            hint=f"results capped at {limit}" if truncated else None,
+        )
+
+    def dead_code_confirm(self) -> dict:
+        """CI-17: cross-reference the static call graph with ingested
+        runtime telemetry. Classifies every FUNC/METHOD node as
+        alive/potentially_dead/confirmed_dead/unknown — see
+        `cie.telemetry.dead_code_confirm`'s docstring for the exact
+        classification rules."""
+        tool = "dead_code_confirm"
+        started = time.monotonic()
+        try:
+            results = self._engine.dead_code_confirm()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        confirmed = sum(1 for r in results if r["classification"] == "confirmed_dead")
+        hint = None
+        if confirmed == 0:
+            hint = "no confirmed-dead functions; either the graph is clean, " \
+                   "or no OTel telemetry has been ingested yet (see 'unknown' entries)"
+        return self._ok(tool, results, started, hint=hint)
+
     # -- CI-01/02/03/04/05 clone detector -----------------------------------
 
     def clone_detect_run(self) -> dict:
@@ -1236,6 +1296,52 @@ class ToolService:
             hint = "promoted with SUSPECT confidence (0.6) — linked test(s) failed"
         return self._ok(tool, [payload], started, hint=hint)
 
+    def configure_layer_rules(self, layer_rules: dict) -> dict:
+        """PS-07: persist per-project architectural layer-boundary rules
+        (`{"layer_name": ["forbidden_substring", ...]}`) — every
+        subsequent `sync_quality_gate` call auto-loads and enforces
+        them, no need to pass them in by hand each time."""
+        tool = "configure_layer_rules"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            sync.store_layer_rules(self._engine._repo, self._canonical_project(), layer_rules)  # noqa: SLF001
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"layer_rules": layer_rules}], started)
+
+    def get_layer_rules(self) -> dict:
+        """PS-07: the currently-configured layer rules, `{}` if none set."""
+        tool = "get_layer_rules"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            layer_rules = sync.load_layer_rules(self._engine._repo, self._canonical_project())  # noqa: SLF001
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if layer_rules else "no layer rules configured; call configure_layer_rules first"
+        return self._ok(tool, [{"layer_rules": layer_rules}], started, hint=hint)
+
+    def install_git_hook(self, cie_url: str) -> dict:
+        """PS-14 follow-up: installs a REAL `.git/hooks/post-commit`
+        script into this ToolService's own project root, forwarding
+        every commit to `POST /sync/event`. An existing hook is backed
+        up, never silently overwritten (see `cie.sync.install_git_hook`'s
+        own docstring). This is an explicit, caller-invoked action — no
+        automatic installation happens on its own."""
+        tool = "install_git_hook"
+        started = time.monotonic()
+        try:
+            from cie import sync
+
+            result = sync.install_git_hook(self._root, cie_url, self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = "existing hook backed up to post-commit.bak" if result["backed_up"] else None
+        return self._ok(tool, [result], started, hint=hint)
+
     def sync_promote(self, commit_hash: str = "") -> dict:
         """PS-02: merge the speculative graph's current contents into
         canonical, stamped with `commit_hash`. Idempotent — safe to call
@@ -1372,6 +1478,23 @@ class ToolService:
         hint = None if results else f"'{symbol}' not found or has no neighbors"
         return self._ok(tool, results, started, hint=hint)
 
+    def validate_property_constraints(self, constraints: dict) -> dict:
+        """DM-03 follow-up: the "property constraints" half of the
+        basic-ontology bucket (distinct from full OWL inference, still
+        not attempted). `constraints` maps a property name to a boolean
+        expression (`cie.invariants.evaluate_contract`'s restricted
+        evaluator) checked against every node carrying that property."""
+        tool = "validate_property_constraints"
+        started = time.monotonic()
+        try:
+            from cie import data_model
+
+            nodes, _edges = self._engine._repo.project_graph()  # noqa: SLF001
+            violations = data_model.validate_property_constraints(nodes, constraints)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, violations, started)
+
     def type_flow_run(self) -> dict:
         """DM-09: resolve TYPE_OF edges from every function/method's
         stored signature (return + parameter types)."""
@@ -1403,7 +1526,9 @@ class ToolService:
 
     def dependency_graph_run(self) -> dict:
         """DM-11: parse `pyproject.toml`/`package.json` under this
-        ToolService's project root into `PACKAGE` nodes."""
+        ToolService's project root into `PACKAGE` nodes, plus
+        `CALLS_EXTERNAL` edges from every `FILE` node that actually
+        imports one."""
         tool = "dependency_graph_run"
         started = time.monotonic()
         try:
@@ -2006,6 +2131,35 @@ class ToolService:
         hint = None if tree else "no pages yet; run decompose_page first"
         return self._ok(tool, tree, started, hint=hint)
 
+    def promote_hint_to_task(self, hint_id: str, page_label: str, layer: str = "Frontend") -> dict:
+        """DE-04 follow-up: promotes a `DerivedTaskHint` (the lightweight
+        stand-in `decompose_page` creates) into a REAL, pushed
+        `AtomicTask` — closes the gap the original DE-04 slice
+        deliberately left open (`DerivedTaskHint`s never turning into
+        anything pushable). Uses this ToolService's own `push_tasks`
+        machinery, so the promoted task goes through the SAME validation
+        every other pushed task does."""
+        tool = "promote_hint_to_task"
+        started = time.monotonic()
+        try:
+            from cie.decompose import promote_hint_to_task as _promote
+            from cie.tasks import AtomicTask, AtomicTaskBatch
+
+            project = self._canonical_project()
+            hints = self._engine._repo.analysis_nodes("DerivedTaskHint", project=project)  # noqa: SLF001
+            hint_node = next((h for h in hints if h.id == hint_id), None)
+            if hint_node is None:
+                return self._err(
+                    tool, "not_found", f"no DerivedTaskHint '{hint_id}'", started,
+                    hint="run decompose_page first, then check page_tree for hint ids",
+                )
+            task_dict = _promote(hint_node, page_label, layer=layer)
+            batch = AtomicTaskBatch(tasks=[AtomicTask(**task_dict)])
+            result = self._task_repo.push_tasks(batch, project=project)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"pushed": result.model_dump(mode="json")}], started)
+
     def element_coverage(self, page_id: str) -> dict:
         """DE-06: which of a page's interactive elements have at least
         one derived task, and which don't."""
@@ -2024,17 +2178,25 @@ class ToolService:
             return self._guard(tool, started, exc)
         return self._ok(tool, [result], started)
 
-    def implied_pages_run(self, known_labels: list) -> dict:
+    def implied_pages_run(self, known_labels: Optional[list] = None) -> dict:
         """DE-03: compare already-extracted `Page` nodes against
-        `known_labels` (the caller's own PRD-hierarchy page/screen
-        names) and write `ImpliedPage` nodes for anything the UI
-        implies but the PRD never named."""
+        `known_labels` and write `ImpliedPage` nodes for anything the UI
+        implies but the PRD never named. `known_labels` is now OPTIONAL
+        (follow-up, was required) — when omitted, auto-fetches PRD
+        hierarchy node names via `cie.hierarchy.get_project_tree`, the
+        same convenience `prd_traceability_coverage` already provides,
+        so a caller doesn't have to separately look them up first."""
         tool = "implied_pages_run"
         started = time.monotonic()
         try:
             from cie import decompose
 
             project = self._canonical_project()
+            if known_labels is None:
+                from cie import factory
+
+                hierarchy_nodes = factory.get_hierarchy_repo(project).get_project_tree(project)
+                known_labels = [n.name for n in hierarchy_nodes]
             pages = self._engine._repo.analysis_nodes("Page", project=project)  # noqa: SLF001
             implied_nodes, edges = decompose.find_implied_pages(pages, known_labels)
             written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
@@ -2109,6 +2271,27 @@ class ToolService:
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(tool, [{"nodes": nodes, "edges": edges}], started)
+
+    def subsystem_dependency_graph_run(self) -> dict:
+        """SI-06 follow-up: actually WRITES the meta-graph
+        (`dependency_graph_nodes()`'s rows were previously only
+        returned for inspection) into a `{project}:_meta` namespace —
+        scoped per underlying project (like PS-01's `:spec` suffix), not
+        one shared global namespace, so a multi-tenant Neo4j instance
+        can't have two projects' meta-graphs collide."""
+        tool = "subsystem_dependency_graph_run"
+        started = time.monotonic()
+        try:
+            from cie import subsystems as _subsystems
+
+            meta_project = f"{self._canonical_project()}:_meta"
+            nodes, edges = _subsystems.dependency_graph_nodes()
+            written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "Subsystem", nodes, edges, project=meta_project,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"nodes_written": written, "meta_project": meta_project}], started)
 
     def population_path(self, capability: str) -> dict:
         """SI-07: the minimum ordered set of subsystems that must be
@@ -2245,10 +2428,15 @@ class ToolService:
         hint = None if gaps else "no gaps; run test_plan first if this looks wrong"
         return self._ok(tool, gaps, started, hint=hint)
 
-    def nook_and_corner_test(self) -> dict:
+    def nook_and_corner_test(self, write_files: bool = True) -> dict:
         """TE-13, ONE ROUND: generate a targeted test skeleton per
         current coverage gap (see `cie.test_orchestration`'s own scoping
-        — not an auto-repeating loop)."""
+        — a skip-marked skeleton can never auto-resolve a gap, so this
+        is not a synchronous "repeat until threshold" loop; genuine
+        gap-closing needs a human/agent to fill in a skeleton and call
+        `record_test_result`). When `write_files` (default True), each
+        skeleton is ALSO written to a real file under `tests/generated/`
+        — not graph-only — so there's something to actually open."""
         tool = "nook_and_corner_test"
         started = time.monotonic()
         try:
@@ -2262,9 +2450,15 @@ class ToolService:
             written = self._engine._repo.replace_analysis_nodes(  # noqa: SLF001
                 "TestSkeleton", skeleton_nodes, edges, project=project,
             )
+            files_written: list[str] = []
+            if write_files and skeleton_nodes:
+                files_written = orch.write_skeleton_files(skeleton_nodes, self._root)
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
-        return self._ok(tool, [{"gaps_found": len(gaps), "skeletons_written": written}], started)
+        return self._ok(
+            tool, [{"gaps_found": len(gaps), "skeletons_written": written, "files_written": files_written}],
+            started,
+        )
 
     def unified_coverage_report(self) -> dict:
         """TE-14: every coverage dimension already computed elsewhere,
@@ -2352,6 +2546,43 @@ class ToolService:
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(tool, [result], started)
+
+    def start_mock_server(self, host: str = "127.0.0.1", port: int = 0) -> dict:
+        """TE-05: start the real `cie.mock_server` app (stub mode) as a
+        background thread, cached on this ToolService instance. Point a
+        test environment's own HTTP client base-URL override at
+        `base_url + "/mock/{service_name}/..."` — see `cie.mock_server`'s
+        own docstring for why this is the pattern (explicit base-URL
+        override, same as WireMock) rather than transparent network
+        interception. Idempotent: a second call while one is already
+        running for this ToolService returns the existing handle's
+        `base_url` rather than starting a duplicate server."""
+        tool = "start_mock_server"
+        started = time.monotonic()
+        try:
+            from cie import mock_server
+
+            if self._mock_server_handle is None:
+                self._mock_server_handle = mock_server.start_mock_server(host=host, port=port)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [{"base_url": self._mock_server_handle.base_url, "project": self._canonical_project()}], started,
+        )
+
+    def stop_mock_server(self) -> dict:
+        """TE-05: stop this ToolService's running mock server, if any.
+        A no-op (not an error) when none is running."""
+        tool = "stop_mock_server"
+        started = time.monotonic()
+        try:
+            was_running = self._mock_server_handle is not None
+            if self._mock_server_handle is not None:
+                self._mock_server_handle.stop()
+                self._mock_server_handle = None
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [{"stopped": was_running}], started)
 
     def mock_violations(self, service_name: str, method: str, path: str) -> dict:
         """TE-07: validate one call against its `MockEndpoint`'s

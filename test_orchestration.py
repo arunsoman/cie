@@ -321,6 +321,34 @@ def nook_and_corner_tests(gaps: Sequence[dict]) -> tuple[list[dict], list[dict]]
     return test_synthesis.build_test_nodes(specs, [])
 
 
+def write_skeleton_files(
+    skeleton_nodes: Sequence[dict], project_root: Path, subdir: str = "tests/generated",
+) -> list[str]:
+    """TE-13 follow-up: writes each generated skeleton's `skeleton_code`
+    to a REAL file under `project_root/subdir` — not just a graph node.
+    A skip-marked skeleton (CF-04's own deliberate scoping — no
+    LLM-authored assertions) can never auto-resolve a gap on its own;
+    the concrete, real value this adds is giving a human or agent an
+    ACTUAL file to open and fill in, rather than only a graph record
+    they'd have to materialize by hand first. Filenames are derived
+    from each node's own content-hashed id, so regenerating for the
+    SAME gap overwrites the same file rather than piling up duplicates.
+    Directories are created as needed; an unwritable `project_root`
+    raises (this is an explicit disk-write action, not something that
+    should degrade silently). Returns the written paths, relative to
+    `project_root`.
+    """
+    out_dir = Path(project_root) / subdir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    for node in skeleton_nodes:
+        filename = f"test_{node['id'].rsplit('::', 1)[-1]}.py"
+        path = out_dir / filename
+        path.write_text(node.get("skeleton_code", ""))
+        written.append(str(path.relative_to(project_root)))
+    return written
+
+
 # -- TE-14: Unified Coverage Report --------------------------------------------
 
 def unified_coverage_report(
