@@ -18,13 +18,16 @@ from __future__ import annotations
 import fnmatch
 import logging
 import os
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, Sequence
 
 from neo4j import Driver, GraphDatabase, Query
 
 from core.llm.embed_text import embed_text
 from cie.embed import compute_embeddings
-from cie.extract import Extraction
+from cie.extract import EXTRACTOR_VERSION, Extraction
 from cie.timeouts import Neo4jOperationTimeout, run_with_timeout
 
 from cie.models import (
@@ -37,6 +40,7 @@ from cie.models import (
     FileCoverageSummary,
     FunctionCoverage,
     GraphStats,
+    HybridMatch,
     MethodSignature,
     Node,
     NodeKind,
@@ -116,6 +120,9 @@ def _row_to_node(row: dict) -> Node:
         docstring=row.get("docstring", ""),
         project=row.get("project", ""),
         embedding=tuple(row.get("embedding") or ()),
+        extracted_at=row.get("extracted_at", ""),
+        extractor_version=row.get("extractor_version", ""),
+        source_ref=row.get("source_ref", ""),
     )
 
 
@@ -131,6 +138,9 @@ def _row_to_edge_record(row: dict) -> EdgeRecord:
         target=rel.get("_target", row["target_id"]),
         relation=rel.get("relation", ""),
         confidence=confidence,
+        extracted_at=rel.get("extracted_at", ""),
+        extractor_version=rel.get("extractor_version", ""),
+        source_ref=rel.get("source_ref", ""),
     )
     return EdgeRecord(
         edge=edge,
@@ -673,6 +683,50 @@ class Neo4jRepository:
         return rows
 
     @staticmethod
+    def _git_commit_sha(cwd: Optional[Path] = None) -> str:
+        """Best-effort git commit SHA of the repo containing `cwd`
+        (default: process cwd) for IN-08's `source_ref` — empty string on
+        ANY failure (not a git repo, git not on PATH, a shallow clone with
+        a weird HEAD, a timeout), NEVER raises. Provenance is a queryable
+        nice-to-have this slice adds on top of an already-working
+        load/reindex path; a missing git binary must not be able to break
+        indexing over it."""
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(cwd) if cwd is not None else None,
+                capture_output=True, text=True, timeout=5, check=True,
+            )
+            return result.stdout.strip()
+        except Exception:  # noqa: BLE001
+            return ""
+
+    @staticmethod
+    def _stamp_provenance(rows: list[dict], extracted_at: str, source_ref: str) -> list[dict]:
+        """Copy dicts, stamping IN-08's three provenance properties.
+
+        Applied to EVERY node and edge row `load_extraction`/`reindex_file`
+        write — structural nodes/edges from the fresh extraction, AND the
+        pass-2 `calls`/`extends`/`implements`/`TESTS`/external-stub rows
+        those methods also write in later steps — with the SAME
+        `extracted_at`/`source_ref` values for one call, since every row
+        written by one `load_extraction`/`reindex_file` invocation came
+        from the same extractor run at the same moment. `extractor_version`
+        is always the current `extract.EXTRACTOR_VERSION` constant, not a
+        parameter — there is only ever one extractor version live in a
+        given process. This is the same choke point `_stamped_nodes`
+        already stamps `project` at, not `extract.py`, which must stay
+        pure (no wall-clock reads, no git subprocess calls) per its own
+        docstring.
+        """
+        out = [dict(r) for r in rows]
+        for row in out:
+            row["extracted_at"] = extracted_at
+            row["extractor_version"] = EXTRACTOR_VERSION
+            row["source_ref"] = source_ref
+        return out
+
+    @staticmethod
     def _maybe_compute_embeddings(rows: list[dict]) -> None:
         """Compute embeddings for freshly-stamped node rows, guarded on
         NVIDIA_API_KEY so `load`/`reindex` don't hard-depend on the
@@ -723,6 +777,13 @@ class Neo4jRepository:
         rows = self._stamped_nodes(nodes, project)
         self._maybe_compute_embeddings(rows)
         edge_rows = [dict(e) for e in edges]
+        # IN-08: one extracted_at/source_ref pair for this whole write —
+        # see _stamp_provenance's docstring for why this belongs here, not
+        # in extract.py.
+        extracted_at = datetime.now(timezone.utc).isoformat()
+        source_ref = self._git_commit_sha()
+        rows = self._stamp_provenance(rows, extracted_at, source_ref)
+        edge_rows = self._stamp_provenance(edge_rows, extracted_at, source_ref)
 
         def _tx(tx) -> None:
             if project:
@@ -793,11 +854,26 @@ class Neo4jRepository:
         happen inside the same write transaction, so the call is
         read-after-write consistent. Returns the number of nodes written.
         """
-        from cie.callgraph import resolve_call_edges
+        from cie.callgraph import (
+            resolve_call_edges,
+            resolve_inheritance_edges,
+            synthesize_external_class_nodes,
+        )
+        from cie.testlink import resolve_test_edges
 
         rows = self._stamped_nodes(extraction.nodes, project)
         self._maybe_compute_embeddings(rows)
         structural_edges = [dict(e) for e in extraction.edges]
+        # IN-08: one extracted_at/source_ref pair for every row this call
+        # writes (structural + the pass-2 calls/inheritance/TESTS/external
+        # rows below) — see _stamp_provenance's docstring. `source_ref` is
+        # resolved from the file's own directory (not process cwd): a
+        # reindex_file caller isn't necessarily running from the repo root
+        # the way `cie load` typically is.
+        extracted_at = datetime.now(timezone.utc).isoformat()
+        source_ref = self._git_commit_sha(Path(path).parent if path else None)
+        rows = self._stamp_provenance(rows, extracted_at, source_ref)
+        structural_edges = self._stamp_provenance(structural_edges, extracted_at, source_ref)
 
         def _tx(tx) -> int:
             params = {"path": path, "p": project}
@@ -915,6 +991,7 @@ class Neo4jRepository:
                     "line": record["line"] or 0,
                 })
             # 6. Write the freshly resolved `calls` edges.
+            call_edges = self._stamp_provenance(call_edges, extracted_at, source_ref)
             if call_edges:
                 tx.run(
                     """
@@ -926,6 +1003,78 @@ class Neo4jRepository:
                     SET r = row
                     """,
                     {"rows": call_edges, "p": project},
+                )
+            # 7. DM-08: resolve and write this file's `extends`/`implements`
+            #    edges the same way (fresh `class_bases` evidence resolved
+            #    against the whole project's `per_file` symbol/class index,
+            #    filtered back down to just this file's classes). Unlike
+            #    `calls`, an unresolved base is never dropped — it targets a
+            #    synthesized `external::<name>` stub node (see
+            #    `synthesize_external_class_nodes`) so the edge still writes.
+            inheritance_edges = resolve_inheritance_edges(per_file)
+            inheritance_edges = [
+                e for e in inheritance_edges if e["source"] in fresh_sources
+            ]
+            known_ids = {n["id"] for n in node_rows} | fresh_sources
+            external_nodes = self._stamped_nodes(
+                synthesize_external_class_nodes(inheritance_edges, known_ids), project,
+            )
+            external_nodes = self._stamp_provenance(external_nodes, extracted_at, source_ref)
+            inheritance_edges = self._stamp_provenance(inheritance_edges, extracted_at, source_ref)
+            if external_nodes:
+                # MERGE (not CREATE): an external stub is a durable
+                # placeholder that should survive unrelated reindex_file
+                # calls (another file may reference the same external
+                # base later) rather than being duplicated every time.
+                # The merge key includes `project` when set — matching by
+                # `id` alone would let two DIFFERENT projects sharing this
+                # Neo4j database collide on the same external id (e.g.
+                # both `import unittest` and extend `TestCase`) and reuse
+                # each other's stub node.
+                if project:
+                    tx.run(
+                        "UNWIND $rows AS row "
+                        "MERGE (n:Node {id: row.id, project: row.project}) "
+                        "ON CREATE SET n = row",
+                        {"rows": external_nodes},
+                    )
+                else:
+                    tx.run(
+                        "UNWIND $rows AS row MERGE (n:Node {id: row.id}) "
+                        "ON CREATE SET n = row",
+                        {"rows": external_nodes},
+                    )
+            if inheritance_edges:
+                tx.run(
+                    """
+                    UNWIND $rows AS row
+                    MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                    WHERE coalesce(a.project, '') = $p
+                      AND coalesce(b.project, '') = $p
+                    CREATE (a)-[r:RELATES]->(b)
+                    SET r = row
+                    """,
+                    {"rows": inheritance_edges, "p": project},
+                )
+            # 8. DM-14: resolve and write this file's `TESTS` edges (naming
+            #    convention + calls-edge upgrade + @patch-target — see
+            #    cie.testlink). Every target is a real node already in the
+            #    graph (a test only ever names something inside the same
+            #    extracted project), so no stub-node step is needed here.
+            test_edges = resolve_test_edges(per_file, call_edges)
+            test_edges = [e for e in test_edges if e["source"] in fresh_sources]
+            test_edges = self._stamp_provenance(test_edges, extracted_at, source_ref)
+            if test_edges:
+                tx.run(
+                    """
+                    UNWIND $rows AS row
+                    MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                    WHERE coalesce(a.project, '') = $p
+                      AND coalesce(b.project, '') = $p
+                    CREATE (a)-[r:RELATES]->(b)
+                    SET r = row
+                    """,
+                    {"rows": test_edges, "p": project},
                 )
             return len(rows)
 
@@ -1342,6 +1491,273 @@ class Neo4jRepository:
             SemanticMatch(node=_row_to_node(dict(r["node"])), score=r["score"])
             for r in rows
         ]
+
+    # -- RQ-01 hybrid retrieval ---------------------------------------------
+
+    # Lexical and dense are weighted equally (0.45 each) as the two
+    # genuine "does this match the query" signals; graph degree gets a
+    # smaller nudge (0.10) — a heavily-connected symbol IS more likely to
+    # be a meaningful answer than an obscure leaf, but degree says nothing
+    # about relevance to THIS query, so it must never be able to out-rank
+    # a strong lexical/dense match on its own. Weights sum to 1.0 so
+    # `score` stays in a stable 0..1 range when every leg finds the node.
+    _HYBRID_LEXICAL_WEIGHT = 0.45
+    _HYBRID_DENSE_WEIGHT = 0.45
+    _HYBRID_GRAPH_WEIGHT = 0.10
+
+    def _hybrid_lexical_leg(
+        self, query: str, fetch_k: int, project: str,
+    ) -> dict[str, tuple[Node, float]]:
+        """Lexical leg: finally actually queries `node_label_fulltext`
+        (created since day one in `_INDEX_STATEMENTS` but never consulted
+        — `find_nodes_by_terms`/`search_symbols` still use `CONTAINS`,
+        UNCHANGED by this method; this is additive, not a replacement).
+        A raw user query can contain characters Lucene's query parser
+        treats specially (`+`, `-`, `"`, `(`, ...) and raise — degrades to
+        an empty leg rather than failing the whole hybrid_search, so the
+        dense/graph legs still contribute."""
+        cypher = (
+            "CALL db.index.fulltext.queryNodes('node_label_fulltext', $query) "
+            "YIELD node, score\n"
+        )
+        if project:
+            cypher += "WHERE node.project = $project\n"
+        cypher += "RETURN node, score ORDER BY score DESC LIMIT $fetch_k"
+        try:
+            rows = self._run(cypher, {"query": query, "project": project, "fetch_k": fetch_k})
+        except Exception:  # noqa: BLE001 - malformed Lucene query, degrade
+            logger.warning("hybrid_search: lexical leg failed", exc_info=True)
+            return {}
+        out: dict[str, tuple[Node, float]] = {}
+        for r in rows:
+            node = _row_to_node(dict(r["node"]))
+            out[node.id] = (node, float(r["score"]))
+        return out
+
+    def _hybrid_dense_leg(
+        self, query: str, fetch_k: int, project: str,
+    ) -> dict[str, tuple[Node, float]]:
+        """Dense leg: same `node_embedding_idx` vector index and query
+        pattern `semantic_search` already uses (embed once, `db.index.
+        vector.queryNodes`) — kept separate from that method rather than
+        calling it, since it needs the raw (node, score) pairs to combine,
+        not `semantic_search`'s already-shaped `SemanticMatch` list."""
+        try:
+            query_vector = embed_text(query, input_type="query")
+        except Exception:  # noqa: BLE001 - degrade, don't raise
+            logger.warning("hybrid_search: dense leg failed to embed query", exc_info=True)
+            return {}
+        if not query_vector:
+            return {}
+        cypher = (
+            "CALL db.index.vector.queryNodes('node_embedding_idx', $fetch_k, $queryVector) "
+            "YIELD node, score\nWHERE node.embedding IS NOT NULL\n"
+        )
+        if project:
+            cypher += "AND node.project = $project\n"
+        cypher += "RETURN node, score"
+        rows = self._run(cypher, {
+            "fetch_k": fetch_k, "queryVector": list(query_vector), "project": project,
+        })
+        out: dict[str, tuple[Node, float]] = {}
+        for r in rows:
+            node = _row_to_node(dict(r["node"]))
+            out[node.id] = (node, float(r["score"]))
+        return out
+
+    def _hybrid_graph_leg(self, ids: set[str], project: str) -> dict[str, float]:
+        """Graph leg: the SAME degree computation `god_nodes` already does
+        (`OPTIONAL MATCH (n)-[r]-() WITH n, count(r) AS degree`), scoped
+        to just the candidate ids the lexical/dense legs already found —
+        not a call to `god_nodes` itself, which additionally excludes
+        file-hub nodes and applies its own `top_n` LIMIT, semantics that
+        don't apply to "the degree of these specific candidates"."""
+        if not ids:
+            return {}
+        cypher = "MATCH (n:Node) WHERE n.id IN $ids"
+        if project:
+            cypher += " AND n.project = $project"
+        cypher += "\nOPTIONAL MATCH (n)-[r]-()\nWITH n, count(r) AS degree\nRETURN n.id AS id, degree"
+        rows = self._run(cypher, {"ids": list(ids), "project": project})
+        return {r["id"]: float(r["degree"]) for r in rows}
+
+    @staticmethod
+    def _hybrid_normalized(raw: dict[str, float]) -> dict[str, float]:
+        """Max-normalize one leg's raw scores to 0..1 — each leg's raw
+        scores are on a different, incomparable scale (Lucene's fulltext
+        score is unbounded; cosine similarity is roughly 0..1 already but
+        not GUARANTEED to be; degree is an unbounded integer count), so
+        every leg is normalized independently before the weighted sum,
+        rather than trusting any leg's raw scale."""
+        if not raw:
+            return {}
+        peak = max(raw.values())
+        if peak <= 0:
+            return {k: 0.0 for k in raw}
+        return {k: v / peak for k, v in raw.items()}
+
+    def hybrid_search(
+        self, query: str, top_k: int = 10, project: str = "",
+    ) -> list[HybridMatch]:
+        """RQ-01: one ranked, deduplicated list combining lexical
+        (fulltext), dense (embedding), and graph (degree) signals — see
+        the three `_hybrid_*_leg` helpers and `_hybrid_normalized` for
+        what each contributes and why. A node absent from a leg (e.g. no
+        embedding yet, so absent from the dense leg) contributes 0 for
+        that leg rather than being excluded outright, as long as at least
+        one leg found it. Empty list when `query` is blank or every leg
+        comes back empty (never raises — matches `semantic_search`'s own
+        not-found convention).
+        """
+        if not query or not query.strip():
+            return []
+        query = query.strip()
+        top_k = max(1, int(top_k))
+        effective_project = project or self._project
+        # Overfetch each leg so the post-normalization reranking has more
+        # than `top_k` candidates to choose from — a node that ranks #3
+        # lexically but #15 in the raw dense leg could still win overall.
+        fetch_k = max(top_k * 4, 20)
+
+        lexical = self._hybrid_lexical_leg(query, fetch_k, effective_project)
+        dense = self._hybrid_dense_leg(query, fetch_k, effective_project)
+        candidate_ids = set(lexical) | set(dense)
+        graph_raw = self._hybrid_graph_leg(candidate_ids, effective_project)
+
+        lexical_scores = self._hybrid_normalized(
+            {nid: score for nid, (_node, score) in lexical.items()}
+        )
+        dense_scores = self._hybrid_normalized(
+            {nid: score for nid, (_node, score) in dense.items()}
+        )
+        graph_scores = self._hybrid_normalized(graph_raw)
+
+        nodes_by_id: dict[str, Node] = {}
+        for nid, (node, _score) in lexical.items():
+            nodes_by_id[nid] = node
+        for nid, (node, _score) in dense.items():
+            nodes_by_id.setdefault(nid, node)
+
+        combined: list[HybridMatch] = []
+        for nid, node in nodes_by_id.items():
+            lex = lexical_scores.get(nid, 0.0)
+            den = dense_scores.get(nid, 0.0)
+            grf = graph_scores.get(nid, 0.0)
+            score = (
+                lex * self._HYBRID_LEXICAL_WEIGHT
+                + den * self._HYBRID_DENSE_WEIGHT
+                + grf * self._HYBRID_GRAPH_WEIGHT
+            )
+            combined.append(HybridMatch(
+                node=node, score=score,
+                lexical_score=lex, dense_score=den, graph_score=grf,
+            ))
+        combined.sort(key=lambda m: m.score, reverse=True)
+        return combined[:top_k]
+
+    def class_hierarchy(self, class_name: str) -> dict:
+        """DM-08: ancestors/interfaces/descendants/implementers of a class
+        or interface, resolved entirely from `extends`/`implements` edges
+        (see `cie.callgraph.resolve_inheritance_edges`).
+
+        `ancestors`/`descendants` are TRANSITIVE (a full extends chain,
+        via `*1..10` bounded variable-length paths — 10 is a generous cap
+        for any real class hierarchy, matching the depth bound
+        `traverse`/`affected_by` already use elsewhere in this file for
+        the same "don't let a pathological graph run unbounded" reason).
+        `interfaces`/`implementers` are DIRECT ONLY, deliberately not
+        unioned across the ancestor chain — a subclass's interfaces are
+        knowable by also calling `class_hierarchy` on each ancestor if
+        needed; keeping this one query's shape simple was judged more
+        valuable than one query that silently conflates "this class
+        directly implements X" with "an ancestor of this class implements
+        X" (a real caveat, documented rather than hidden — see the
+        cie-grounding-slice-implementation.md write-up for this item).
+
+        Returns `{}` when `class_name` doesn't resolve to any node at all.
+        """
+        needle = class_name.lower()
+        resolve_query = (
+            """
+            MATCH (n:Node)
+            WHERE toLower(n.label) CONTAINS $needle"""
+            + self._pw("n")
+            + """
+            WITH n,
+                 CASE WHEN toLower(n.label) = $needle THEN 0 ELSE 1 END AS name_rank,
+                 CASE WHEN n.kind = $class THEN 0 ELSE 1 END AS kind_rank
+            RETURN n
+            ORDER BY name_rank, kind_rank, n.label
+            LIMIT 1
+            """
+        )
+        rows = self._run(resolve_query, {"needle": needle, "class": NodeKind.CLASS.value})
+        if not rows:
+            return {}
+        root = _row_to_node(rows[0]["n"])
+
+        query = (
+            """
+            MATCH (n:Node {id: $id})
+            OPTIONAL MATCH (n)-[:RELATES*1..10 {relation: 'extends'}]->(anc:Node)"""
+            + self._pw_where("anc")
+            + """
+            WITH n, collect(DISTINCT anc) AS ancestors
+            OPTIONAL MATCH (n)-[:RELATES {relation: 'implements'}]->(iface:Node)"""
+            + self._pw_where("iface")
+            + """
+            WITH n, ancestors, collect(DISTINCT iface) AS interfaces
+            OPTIONAL MATCH (desc:Node)-[:RELATES*1..10 {relation: 'extends'}]->(n)"""
+            + self._pw_where("desc")
+            + """
+            WITH n, ancestors, interfaces, collect(DISTINCT desc) AS descendants
+            OPTIONAL MATCH (impl:Node)-[:RELATES {relation: 'implements'}]->(n)"""
+            + self._pw_where("impl")
+            + """
+            RETURN ancestors, interfaces, descendants, collect(DISTINCT impl) AS implementers
+            """
+        )
+        rows2 = self._run(query, {"id": root.id})
+        if not rows2:
+            return {
+                "node": root, "ancestors": [], "interfaces": [],
+                "descendants": [], "implementers": [],
+            }
+        row = rows2[0]
+        return {
+            "node": root,
+            "ancestors": [_row_to_node(dict(x)) for x in row["ancestors"] if x is not None],
+            "interfaces": [_row_to_node(dict(x)) for x in row["interfaces"] if x is not None],
+            "descendants": [_row_to_node(dict(x)) for x in row["descendants"] if x is not None],
+            "implementers": [_row_to_node(dict(x)) for x in row["implementers"] if x is not None],
+        }
+
+    def test_map(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """DM-14: tests covering `symbol`, resolved from `TESTS` edges
+        (see `cie.testlink.resolve_test_edges`) — reverse lookup, mirroring
+        `get_callers`' own "who has an edge pointing AT this" shape.
+        `source_label`/`target_label` on each `EdgeRecord` are the test's
+        and the implementation's labels respectively (test -> target is
+        the direction `resolve_test_edges` writes, same as `calls`'
+        caller-to-callee convention). Unknown symbol -> empty list."""
+        target_id = self._resolve_symbol_id(symbol)
+        if target_id is None:
+            return []
+        query = (
+            """
+            MATCH (t:Node)-[r:RELATES {relation: 'TESTS'}]->(s:Node {id: $sid})
+            WHERE true"""
+            + self._pw("t")
+            + self._pw("s")
+            + """
+            RETURN r AS rel, t.id AS source_id, t.label AS source_label,
+                   s.id AS target_id, s.label AS target_label
+            ORDER BY t.label
+            LIMIT $limit
+            """
+        )
+        rows = self._run(query, {"sid": target_id, "limit": max(1, int(limit))})
+        return [_row_to_edge_record(r) for r in rows]
 
     def _resolve_symbol_id(self, symbol: str) -> Optional[str]:
         """Resolve a symbol name to a node id, or None when unknown.

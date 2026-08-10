@@ -33,6 +33,17 @@ from typing import Callable, Optional
 from cie.models import CallSite, Confidence, ImportRecord, NodeKind
 
 
+# IN-08 provenance: stamped onto every node/edge row by
+# Neo4jRepository.load_extraction/.reindex_file (this module stays pure —
+# see its own docstring — so it only OWNS this constant, it never writes
+# it anywhere itself). Bump whenever a change to this module's extraction
+# logic would make two runs' output meaningfully different for the same
+# source (a new node/edge kind, a changed id scheme, a fixed bug that
+# changes what gets emitted) — the point is "what extractor code produced
+# this row", not a full semver contract.
+EXTRACTOR_VERSION = "1.0.0"
+
+
 # File suffix -> tree-sitter language loader. Each loader is imported lazily
 # so that a missing grammar wheel does not break importing this module.
 _LANG_LOADERS = {
@@ -109,7 +120,16 @@ class Extraction:
     cie.callgraph. `instance_bindings` holds ``{name, class_name, line}``
     dicts for constructor assignments (``svc = Service()`` /
     ``const svc = new Service()``) that power the resolver's receiver-type
-    heuristic.
+    heuristic. `class_bases` holds ``{class_id, name, relation, line}``
+    dicts (DM-08) — one per base class / implemented interface a class
+    declares, `name` still raw/possibly-dotted text exactly as written
+    (``"Base"``, ``"mod.Base2"``, ``"unittest.TestCase"``) and `relation`
+    either ``"extends"`` or ``"implements"``. Resolving these raw
+    references to an actual class node id (same file, or across files via
+    the import map) is a pass-2 concern, deliberately not done here — see
+    ``cie.callgraph.resolve_inheritance_edges``, which reuses the same
+    ``_Index``/import-map machinery `resolve_call_edges` already built for
+    exactly this same-file-vs-cross-file resolution problem.
     """
 
     nodes: list[dict] = field(default_factory=list)
@@ -117,6 +137,7 @@ class Extraction:
     imports: list[dict] = field(default_factory=list)
     call_sites: list[dict] = field(default_factory=list)
     instance_bindings: list[dict] = field(default_factory=list)
+    class_bases: list[dict] = field(default_factory=list)
 
     def merge(self, other: "Extraction") -> None:
         self.nodes.extend(other.nodes)
@@ -124,6 +145,7 @@ class Extraction:
         self.imports.extend(other.imports)
         self.call_sites.extend(other.call_sites)
         self.instance_bindings.extend(other.instance_bindings)
+        self.class_bases.extend(other.class_bases)
 
 
 def supported_suffix(path: Path) -> Optional[str]:
@@ -407,15 +429,180 @@ def _java_annotations_for(node) -> list[DecoratorRecord]:
     return out
 
 
+def _python_decorators_for(node) -> list[DecoratorRecord]:
+    """All decorator records on a Python function/class `node`.
+
+    Unlike TS (three different attachment shapes) and Java (nested inside
+    a `modifiers` node), a decorated Python def/class has exactly ONE
+    shape: tree-sitter-python wraps it in a `decorated_definition` node
+    whose children are the `decorator`* nodes followed by the actual
+    `function_definition`/`class_definition` — confirmed by parsing a
+    real `@patch(...) def test_bar(): ...`. `node` here is always that
+    inner function/class node (found via `_walk`'s generic recursion
+    through `decorated_definition`'s children, same as any other wrapper),
+    so its decorators live on ITS PARENT, not on `node` itself.
+
+    Added for DM-14 (`cie.testlink`), which needs `@patch("mod.Target")`/
+    `@mock.patch(...)` decorator `args_text` to link a test to the symbol
+    it patches — Python decorator extraction was previously out of scope
+    entirely ("TS/TSX decorators and Java annotations only"), which would
+    have silently starved that heuristic of its one Python-only signal.
+    """
+    parent = node.parent
+    if parent is None or parent.type != "decorated_definition":
+        return []
+    out: list[DecoratorRecord] = []
+    for child in parent.children:
+        if child.type != _DECORATOR_TYPE:
+            continue
+        # A Python decorator's inner expression is a `call` (`@patch(...)`)
+        # or a bare `identifier`/`attribute` (`@staticmethod`, `@mock.patch`
+        # with no call — rare but valid); node TYPE NAMES differ from TS's
+        # own `call_expression`/`member_expression`, so this can't reuse
+        # `_ts_decorator_record`.
+        inner = next(
+            (c for c in child.children if c.type in ("call", "identifier", "attribute")),
+            None,
+        )
+        if inner is None:
+            continue
+        if inner.type == "call":
+            fn = inner.child_by_field_name("function")
+            args = inner.child_by_field_name("arguments")
+            name = _text(fn) if fn is not None else ""
+            args_text = _text(args) if args is not None else ""
+        else:
+            name, args_text = _text(inner), ""
+        if not name:
+            continue
+        out.append(DecoratorRecord(name=name, args_text=args_text, line=child.start_point[0] + 1))
+    return out
+
+
 def _decorators_for(node, language: str) -> list[DecoratorRecord]:
-    """Dispatch to the per-language marker finder. Python has no
-    equivalent capability wired up here (scope: TS/TSX decorators and
-    Java annotations only, per the brownfield language-support plan)."""
+    """Dispatch to the per-language marker finder."""
     if language == "java":
         return _java_annotations_for(node)
-    if language != "py":
-        return _ts_decorators_for(node)
-    return []
+    if language == "py":
+        return _python_decorators_for(node)
+    return _ts_decorators_for(node)
+
+
+def _base_name_text(node) -> str:
+    """Usable base-class/interface name text for one heritage-clause child.
+
+    A TS/Java generic reference (`Comparable<Foo>`) parses as a
+    `generic_type` node whose OWN text includes the type arguments —
+    `_text(node)` alone would record `"Comparable<Foo>"` as the base name,
+    which the pass-2 resolver's import-map lookup would never match
+    (imports bind the bare class name, not a parameterized one). The
+    grammar exposes the unparameterized name via a `name` field on
+    `generic_type` specifically for this reason, so that case is unwrapped
+    before falling back to the node's own text for every other shape
+    (`identifier`, `type_identifier`, `attribute`, `member_expression`,
+    `scoped_type_identifier`)."""
+    if node.type == "generic_type":
+        name_node = node.child_by_field_name("name")
+        return _text(name_node) if name_node is not None else _text(node)
+    return _text(node)
+
+
+def _python_class_bases(node) -> list[tuple[str, str]]:
+    """Python base classes from a `class_definition`'s `superclasses`
+    field (an `argument_list`, confirmed by parsing a real
+    `class Foo(Base1, mod.Base2, metaclass=Meta)` — NOT a field literally
+    named `bases` as some other grammars use). `identifier`/`attribute`
+    children are real base classes (the latter for a dotted reference like
+    `mod.Base2`); a `keyword_argument` child (`metaclass=Meta`, or any
+    other PEP 487 `__init_subclass__` keyword arg) is deliberately
+    excluded — it configures class creation, it is not a base class, and
+    treating it as one would silently fabricate a bogus `extends` edge.
+    Python has no `implements` concept (structural/duck typing, no
+    interface keyword), so every entry here is `"extends"`."""
+    args = node.child_by_field_name("superclasses")
+    if args is None:
+        return []
+    out: list[tuple[str, str]] = []
+    for child in args.children:
+        if child.type in ("identifier", "attribute"):
+            out.append((_text(child), "extends"))
+    return out
+
+
+def _ts_class_bases(node) -> list[tuple[str, str]]:
+    """JS/TS base class + implemented interfaces from a `class_declaration`'s
+    `class_heritage` child (no grammar field exposes it — confirmed by
+    parsing real `extends`/`implements` classes, unlike Java/Python's own
+    heritage fields).
+
+    JS and TS shape `class_heritage` differently, confirmed by parsing
+    both: plain JS puts `extends <expr>` directly as `class_heritage`'s own
+    children (no wrapper — JS has no `implements`, so there is nothing to
+    disambiguate a wrapper from); TS always wraps in an `extends_clause`
+    (`value` field) and, only when present, an `implements_clause` (TS-only
+    — JS has no interfaces). Handling both shapes here, rather than
+    dispatching by language, means one function stays correct even if a
+    `.js` file is ever parsed with the TS grammar upstream (`.jsx` already
+    aliases to the JS grammar, not TS, so this is defensive, not currently
+    reachable — see `_LANG_LOADERS`)."""
+    heritage = _child_of_type(node, "class_heritage")
+    if heritage is None:
+        return []
+    out: list[tuple[str, str]] = []
+    for child in heritage.children:
+        if child.type == "extends_clause":
+            value = child.child_by_field_name("value")
+            if value is not None:
+                out.append((_base_name_text(value), "extends"))
+        elif child.type == "implements_clause":
+            for iface in child.children:
+                if iface.type in (
+                    "type_identifier", "generic_type",
+                    "nested_type_identifier", "member_expression",
+                ):
+                    out.append((_base_name_text(iface), "implements"))
+        elif child.type in ("identifier", "member_expression"):
+            # Plain JS's unwrapped shape: class_heritage -> extends <expr>.
+            out.append((_base_name_text(child), "extends"))
+    return out
+
+
+def _java_class_bases(node) -> list[tuple[str, str]]:
+    """Java superclass + implemented interfaces from a `class_declaration`'s
+    `superclass`/`interfaces` fields — CONFIRMED two separate grammar
+    fields (not one combined `bases`/`heritage` field the way JS/TS
+    exposes it), by parsing a real
+    `class Foo extends Base implements IA, IB`. `superclass`'s own text is
+    `"extends Base"` (it wraps BOTH the `extends` keyword token and the
+    type), so its non-keyword child is what's recorded; `interfaces`
+    similarly wraps a `type_list` of the actual interface types."""
+    out: list[tuple[str, str]] = []
+    superclass = node.child_by_field_name("superclass")
+    if superclass is not None:
+        for child in superclass.children:
+            if child.type != "extends":
+                out.append((_base_name_text(child), "extends"))
+    interfaces = node.child_by_field_name("interfaces")
+    if interfaces is not None:
+        type_list = _child_of_type(interfaces, "type_list")
+        if type_list is not None:
+            for child in type_list.children:
+                if child.type in (
+                    "type_identifier", "scoped_type_identifier", "generic_type",
+                ):
+                    out.append((_base_name_text(child), "implements"))
+    return out
+
+
+def _class_bases_for(node, language: str) -> list[tuple[str, str]]:
+    """Dispatch to the per-language base-class/interface finder.
+    Returns `(raw_name, relation)` pairs, `relation` one of
+    `"extends"`/`"implements"`."""
+    if language == "py":
+        return _python_class_bases(node)
+    if language == "java":
+        return _java_class_bases(node)
+    return _ts_class_bases(node)
 
 
 def _node_lines(node) -> tuple[int, int]:
@@ -540,6 +727,15 @@ def _walk_file(
             "relation": "defines",
             "confidence": Confidence.EXTRACTED.value,
         })
+        for base_name, relation in _class_bases_for(n, language):
+            if not base_name:
+                continue
+            out.class_bases.append({
+                "class_id": node_id,
+                "name": base_name,
+                "relation": relation,
+                "line": n.start_point[0] + 1,
+            })
         return node_id
 
     def _walk(node, enclosing_class_id: Optional[str]) -> None:

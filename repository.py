@@ -19,6 +19,7 @@ from cie.models import (
     FileCoverage,
     FileCoverageSummary,
     GraphStats,
+    HybridMatch,
     MethodSignature,
     Node,
     NodeRecord,
@@ -168,6 +169,32 @@ class Repository(Protocol):
         embedding yet. `project` optionally overrides the repository's own
         project scoping (empty = use whatever the repo was constructed
         with)."""
+
+    # -- RQ-01 hybrid retrieval -----------------------------------------------
+
+    def hybrid_search(
+        self, query: str, top_k: int = 10, project: str = "",
+    ) -> list[HybridMatch]:
+        """Combined lexical + dense + graph-degree ranked search; [] when
+        `query` is blank or every leg finds nothing. See
+        `Neo4jRepository.hybrid_search` for the weighting/normalization
+        details."""
+
+    # -- DM-08 inheritance/interface -----------------------------------------
+
+    def class_hierarchy(self, class_name: str) -> dict:
+        """Ancestors/interfaces/descendants/implementers of a class or
+        interface, resolved from `extends`/`implements` edges. `{}` when
+        `class_name` doesn't resolve to any node. See
+        `Neo4jRepository.class_hierarchy` for the transitive-vs-direct
+        scoping of each key."""
+
+    # -- DM-14 test-to-implementation links ----------------------------------
+
+    def test_map(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """Tests covering `symbol`, resolved from `TESTS` edges (see
+        `cie.testlink.resolve_test_edges`). Empty list (not None) when
+        `symbol` is unknown or has no linked test."""
 
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 

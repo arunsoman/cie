@@ -341,3 +341,158 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
             })
 
     return edges
+
+
+# ---------------------------------------------------------------------------
+# DM-08: inheritance/interface edges.
+#
+# Reuses `_Index` (the same symbol/class/import-map machinery
+# `resolve_call_edges` above already builds) rather than a second index —
+# a base class reference resolves through exactly the same two channels a
+# bare call does: (a) a class of that name in the same file, (b) a class
+# reachable through the file's import map (a bare name imported directly,
+# or `mod.Base` where `mod` itself is a namespace/module import). There is
+# no third "receiver instance" channel here the way calls have — a base
+# class reference is always a type name, never an instance.
+# ---------------------------------------------------------------------------
+
+
+def _resolve_base_class(
+    index: _Index, file_id: str, import_map: dict[str, str], raw_name: str,
+) -> tuple[Optional[str], Optional[Confidence]]:
+    """Resolve one raw base-class/interface name to a class node id.
+
+    `raw_name` is exactly as written in source (`extract.py` never
+    resolves it) — either a bare name (`"Base"`) or a dotted reference
+    (`"mod.Base2"`, `"unittest.TestCase"`). Only the LAST dotted segment
+    is ever a candidate class name; everything before it is a module/
+    namespace prefix, resolved the same way `resolve_call_edges`' rule
+    (b) resolves a `receiver.method()` call's `receiver` — via the file's
+    own import map, never a full package-path re-derivation (this module
+    has never needed one for calls either; the import map already IS the
+    file's own map from bound names to defining files).
+
+    Returns `(None, None)` when unresolved (external library, or a name
+    this pass genuinely cannot place) — the caller decides what to do
+    with that (see `resolve_inheritance_edges`'s AMBIGUOUS-and-external-
+    stub handling, which is DELIBERATELY different from `calls`' rule
+    (d): calls silently drop an unresolvable site, inheritance edges do
+    not, because "what does this class extend" is a question worth
+    answering even when the answer is "something outside this repo").
+    """
+    parts = raw_name.split(".")
+    simple = parts[-1]
+    if len(parts) == 1:
+        scope = index._class_scope(file_id, import_map, simple)
+        if scope is not None:
+            return index.classes[scope][simple], Confidence.EXTRACTED
+        return None, None
+    prefix = parts[0]
+    target_file = import_map.get(prefix)
+    if target_file is not None:
+        hit = index.classes.get(target_file, {}).get(simple)
+        if hit is not None:
+            return hit, Confidence.EXTRACTED
+    return None, None
+
+
+def resolve_inheritance_edges(per_file: list[Extraction]) -> list[dict]:
+    """Resolve DM-08 `extends`/`implements` edges from per-file extractions.
+
+    Args:
+        per_file: one Extraction per source file, each carrying
+            `class_bases` (see `extract.py`'s `Extraction` docstring) and
+            `imports` for the pass-2 import-map lookup.
+
+    Returns:
+        Edge dicts ``{source, target, relation, confidence}`` where
+        `relation` is `"extends"` or `"implements"` and `confidence` is
+        EXTRACTED (resolved same-file or via import map) or AMBIGUOUS
+        (everything else — an external library base, or a reference this
+        pass cannot place). Unlike `resolve_call_edges`'s rule (d), an
+        unresolved base is NEVER dropped: its `target` becomes
+        `"external::<raw name>"` so the edge still exists and still says
+        something ("this class extends *something* named X") — see
+        `synthesize_external_class_nodes` for how the loader gives that
+        target id an actual node to attach to, since Neo4j's edge-write
+        Cypher MATCHes both endpoints by id and would otherwise silently
+        drop an edge whose target has no node.
+    """
+    index = _Index(per_file)
+    edges: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    for ext in per_file:
+        file_id = _file_hub_id(ext)
+        if not file_id:
+            continue
+        import_map = index.import_map_for(file_id, ext.imports)
+        for base in getattr(ext, "class_bases", None) or []:
+            class_id = base.get("class_id", "")
+            raw_name = base.get("name", "")
+            relation = base.get("relation", "extends")
+            if not class_id or not raw_name:
+                continue
+            target, confidence = _resolve_base_class(index, file_id, import_map, raw_name)
+            if target is None:
+                target = f"external::{raw_name}"
+                confidence = Confidence.AMBIGUOUS
+            key = (class_id, target, relation)
+            if key in seen:
+                continue
+            seen.add(key)
+            edges.append({
+                "source": class_id,
+                "target": target,
+                "relation": relation,
+                "confidence": confidence.value,
+            })
+
+    return edges
+
+
+def synthesize_external_class_nodes(edges: list[dict], known_ids: set[str]) -> list[dict]:
+    """Minimal stub nodes for `extends`/`implements` edges whose target
+    isn't among `known_ids` (the ids of the nodes actually about to be
+    written alongside these edges).
+
+    Both `Neo4jRepository.load_extraction` and `.reindex_file` write edges
+    with `MATCH (a:Node {id: row.source}), (b:Node {id: row.target}) ...
+    CREATE (a)-[:RELATES]->(b)` — a `MATCH` that finds zero rows for
+    either endpoint silently writes nothing, no error. Without this, every
+    `resolve_inheritance_edges` edge whose target is an unresolved
+    `"external::..."` id (by design, per that function's docstring) would
+    vanish the moment it reached Neo4j, making its whole "never drop,
+    label AMBIGUOUS instead" contract pointless past the pure-Python
+    layer. One stub node per distinct missing target (`label` is just the
+    base/interface's own short name, `signature` keeps the full raw dotted
+    reference for anyone inspecting the node directly); `kind` is SYMBOL,
+    not CLASS — this is a placeholder for something this pass never
+    actually parsed a class body for, not a discovered class, and
+    `class_hierarchy`/DM-08 queries should not mistake external stubs for
+    real project classes when e.g. counting classes.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    for edge in edges:
+        if edge.get("relation") not in ("extends", "implements"):
+            continue
+        target = edge.get("target", "")
+        if not target or target in known_ids or target in seen:
+            continue
+        seen.add(target)
+        raw = target[len("external::"):] if target.startswith("external::") else target
+        out.append({
+            "id": target,
+            "label": raw.rsplit(".", 1)[-1],
+            "source_file": "",
+            "source_location": "",
+            "file_type": "external",
+            "kind": NodeKind.SYMBOL.value,
+            "signature": raw,
+            "line_start": 0,
+            "line_end": 0,
+            "docstring": "",
+            "decorators": "[]",
+        })
+    return out

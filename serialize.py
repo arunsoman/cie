@@ -11,7 +11,15 @@ from cie.tasks import AtomicTask
 
 
 def node_to_dict(n) -> dict:
-    """JSON-ready dict for a graph Node (all Wave A fields included)."""
+    """JSON-ready dict for a graph Node (all Wave A fields included).
+
+    `extracted_at`/`extractor_version`/`source_ref` (IN-08 provenance) are
+    included here too — the whole point of stamping them at write time is
+    queryable provenance, not just written-and-orphaned Neo4j properties;
+    this is the ONE place every node-returning tool/route serializes
+    through, so adding them here surfaces them everywhere at once (class_
+    hierarchy, entity_context, search_symbol, file_skeleton, ...).
+    """
     return {
         "id": n.id,
         "label": n.label,
@@ -25,6 +33,9 @@ def node_to_dict(n) -> dict:
         "line_end": getattr(n, "line_end", 0),
         "docstring": getattr(n, "docstring", ""),
         "project": getattr(n, "project", ""),
+        "extracted_at": getattr(n, "extracted_at", ""),
+        "extractor_version": getattr(n, "extractor_version", ""),
+        "source_ref": getattr(n, "source_ref", ""),
     }
 
 
@@ -37,6 +48,9 @@ def edge_record_to_dict(rec) -> dict:
         "confidence": rec.edge.confidence.value,
         "source_label": rec.source_label,
         "target_label": rec.target_label,
+        "extracted_at": getattr(rec.edge, "extracted_at", ""),
+        "extractor_version": getattr(rec.edge, "extractor_version", ""),
+        "source_ref": getattr(rec.edge, "source_ref", ""),
     }
 
 

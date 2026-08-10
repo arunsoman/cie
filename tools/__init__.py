@@ -34,6 +34,7 @@ Interface assumptions (to verify at integration time):
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import hashlib
 import inspect
@@ -43,6 +44,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from cie import extract
+from cie import serialize as _serialize
 from cie.models import Confidence, Node, SymbolMatch
 
 from cie.tools import blame as _blame
@@ -625,6 +627,180 @@ class ToolService:
         ]
         return self._ok(tool, results, started,
                         hint="distance-1 hits are the most directly affected")
+
+    def hybrid_search(self, query: str, top_k: int = 10) -> dict:
+        """RQ-01: one ranked list combining lexical (fulltext), dense
+        (embedding), and graph (degree) signals — see
+        `Neo4jRepository.hybrid_search` for the weighting."""
+        tool = "hybrid_search"
+        started = time.monotonic()
+        try:
+            matches = self._engine.hybrid_search(query, top_k=top_k)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "name": m.node.label,
+                "kind": m.node.kind,
+                "signature": m.node.signature,
+                "source_file": m.node.source_file,
+                "line_range": [m.node.line_start, m.node.line_end],
+                "score": m.score,
+                "lexical_score": m.lexical_score,
+                "dense_score": m.dense_score,
+                "graph_score": m.graph_score,
+            }
+            for m in matches
+        ]
+        if not results:
+            return self._ok(
+                tool, results, started,
+                hint="no lexical/dense/graph matches for this query; try "
+                     "search_symbol or semantic_search individually",
+            )
+        truncated = len(results) >= top_k
+        return self._ok(
+            tool, results, started, truncated=truncated,
+            hint=f"results capped at {top_k}" if truncated else None,
+        )
+
+    def entity_context(self, symbol: str) -> dict:
+        """AI-02: one structured neighborhood block for `symbol` — node
+        info (with IN-08 provenance), callers, callees, tests, and class
+        hierarchy when applicable. Composes existing engine methods; see
+        `QueryEngine.entity_context` for why there's no new Cypher here."""
+        tool = "entity_context"
+        started = time.monotonic()
+        try:
+            context = self._engine.entity_context(symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not context:
+            return self._ok(
+                tool, [], started,
+                hint=f"no symbol named '{symbol}'; try search_symbol first",
+            )
+        payload = {
+            "node": _serialize.node_to_dict(context["node"]),
+            "degree": context["degree"],
+            "callers": [_serialize.edge_record_to_dict(r) for r in context["callers"]],
+            "callees": [_serialize.edge_record_to_dict(r) for r in context["callees"]],
+            "tests": [_serialize.edge_record_to_dict(r) for r in context["tests"]],
+            "class_hierarchy": None,
+        }
+        hierarchy = context.get("class_hierarchy")
+        if hierarchy:
+            payload["class_hierarchy"] = {
+                "node": _serialize.node_to_dict(hierarchy["node"]),
+                "ancestors": [_serialize.node_to_dict(n) for n in hierarchy["ancestors"]],
+                "interfaces": [_serialize.node_to_dict(n) for n in hierarchy["interfaces"]],
+                "descendants": [_serialize.node_to_dict(n) for n in hierarchy["descendants"]],
+                "implementers": [_serialize.node_to_dict(n) for n in hierarchy["implementers"]],
+            }
+        return self._ok(tool, [payload], started)
+
+    def qa(self, question: str) -> dict:
+        """AI-01: GraphRAG question-answering — hybrid_search retrieval,
+        entity_context expansion, one LLM call, and a citation trail built
+        entirely from the retrieval results (never from the LLM itself —
+        see `cie.graphrag`'s module docstring). Runs the async pipeline
+        via `asyncio.run` since every other `ToolService` method (and the
+        `POST /tools/{tool}` dispatcher's `run_in_threadpool` wrapper
+        around it) is synchronous — this is the same sync-bridge pattern
+        `forge/watchdog/killbug_bridge.py` already uses for its own
+        `asyncio.run(ask(...))` call from a plain function.
+
+        `cie.graphrag` (which imports `core.llm`) is imported HERE, not
+        at module level: `core.llm`'s own import chain reaches
+        `core.graph.repository`, which imports `cie.factory`, which
+        imports `cie.tools` (for `ToolService` itself) — a module-level
+        import here is a genuine circular import (confirmed live, not
+        hypothetical), not just this module importing `cie.graphrag`
+        directly (which alone would ALSO cycle back through
+        `cie.factory`).
+        """
+        from cie import graphrag as _graphrag
+
+        tool = "qa"
+        started = time.monotonic()
+        try:
+            result = asyncio.run(_graphrag.qa(question, engine=self._engine))
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        payload = {
+            "answer": result.answer,
+            "citations": [dataclasses.asdict(c) for c in result.citations],
+            "retrieved_node_ids": list(result.retrieved_node_ids),
+        }
+        if not result.citations:
+            return self._ok(
+                tool, [payload], started,
+                hint="no retrieved context grounded this answer; try "
+                     "hybrid_search or search_symbol directly to check "
+                     "what's indexed for this question",
+            )
+        return self._ok(tool, [payload], started)
+
+    def class_hierarchy(self, class_name: str) -> dict:
+        """DM-08: ancestors/interfaces/descendants/implementers of a class
+        or interface, resolved from `extends`/`implements` edges."""
+        tool = "class_hierarchy"
+        started = time.monotonic()
+        try:
+            result = self._engine.class_hierarchy(class_name)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not result:
+            return self._ok(
+                tool, [], started,
+                hint=f"no class or interface named '{class_name}' is indexed; "
+                     "check with search_symbol or load/reindex the file first",
+            )
+        payload = {
+            "node": _serialize.node_to_dict(result["node"]),
+            "ancestors": [_serialize.node_to_dict(n) for n in result["ancestors"]],
+            "interfaces": [_serialize.node_to_dict(n) for n in result["interfaces"]],
+            "descendants": [_serialize.node_to_dict(n) for n in result["descendants"]],
+            "implementers": [_serialize.node_to_dict(n) for n in result["implementers"]],
+        }
+        hint = (
+            "ancestors/descendants are transitive over `extends`; "
+            "interfaces/implementers are direct `implements` edges only "
+            "(an ancestor's own interfaces are not unioned in)"
+        )
+        return self._ok(tool, [payload], started, hint=hint)
+
+    def test_map(self, symbol: str, limit: int = 30) -> dict:
+        """DM-14: which test(s) cover `symbol` — naming-convention +
+        calls-edge-upgrade + `@patch`-target heuristics (see
+        `cie.testlink`), not exhaustive."""
+        tool = "test_map"
+        started = time.monotonic()
+        try:
+            records = self._engine.test_map(symbol, limit=limit)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not records:
+            return self._ok(
+                tool, [], started,
+                hint=f"no test found covering '{symbol}'; TESTS edges are "
+                     "naming-convention/calls-edge/@patch-target heuristics, "
+                     "not exhaustive - a non-conventionally-named test is missed",
+            )
+        results = [
+            {
+                "test": record.source_label,
+                "implementation": record.target_label,
+                "relation": record.edge.relation,
+                "confidence": _confidence_value(record.edge.confidence),
+            }
+            for record in records
+        ]
+        truncated = len(results) >= limit
+        return self._ok(
+            tool, results, started, truncated=truncated,
+            hint=f"results capped at {limit}" if truncated else None,
+        )
 
     def resolve_api_route(self, path: str) -> dict:
         """Frontend API call path -> backend route(s) that serve it, with

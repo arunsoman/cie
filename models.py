@@ -68,6 +68,14 @@ class Node:
     docstring: str = ""
     project: str = ""
     embedding: tuple[float, ...] = field(default_factory=tuple)
+    # IN-08 provenance/lineage — stamped at write time by
+    # Neo4jRepository.load_extraction/.reindex_file (extract.py stays pure,
+    # never sets these itself). "" is the "never stamped" default, not a
+    # sentinel for a real value — old rows written before IN-08 shipped
+    # simply read back with these empty rather than raising.
+    extracted_at: str = ""
+    extractor_version: str = ""
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -112,6 +120,24 @@ class SemanticMatch:
 
 
 @dataclass(frozen=True)
+class HybridMatch:
+    """A hybrid_search (RQ-01) result: one node plus its combined score
+    AND the three component signals that produced it — lexical
+    (fulltext-index label match), dense (vector-embedding similarity),
+    graph (degree-centrality boost). Each component is already
+    normalized to 0..1 before the weighted sum that produces `score` (see
+    Neo4jRepository.hybrid_search for the exact weights/reasoning), so a
+    caller can see WHY a result ranked where it did, not just the final
+    number — useful for AI-01's citation trail (item 6), not just display."""
+
+    node: Node
+    score: float
+    lexical_score: float
+    dense_score: float
+    graph_score: float
+
+
+@dataclass(frozen=True)
 class ContextHit:
     """A failing_context result: one symbol reachable from a test node."""
 
@@ -132,6 +158,11 @@ class Edge:
     target: str
     relation: str = ""
     confidence: Confidence = Confidence.EXTRACTED
+    # IN-08 provenance/lineage — see Node's own fields for why these are
+    # stamped at write time, not extraction time, and default to "".
+    extracted_at: str = ""
+    extractor_version: str = ""
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)

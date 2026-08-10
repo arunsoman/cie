@@ -648,6 +648,11 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "affected_by": _service_tool("affected_by"),
     "resolve_api_route": _service_tool("resolve_api_route"),
     "api_call_sites": _service_tool("api_call_sites"),
+    "class_hierarchy": _service_tool("class_hierarchy"),
+    "test_map": _service_tool("test_map"),
+    "hybrid_search": _service_tool("hybrid_search"),
+    "entity_context": _service_tool("entity_context"),
+    "qa": _service_tool("qa"),
     "blame_history": _service_tool("blame_history"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
@@ -1131,3 +1136,17 @@ def get_project_code_graph(project_id: str) -> dict:
             for e in edges
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# AI-01: GraphRAG question-answering (item 6 of the cie grounding slice —
+# be-v2/docs/cie-grounding-slice-implementation.md). A plain REST alias for
+# ToolService.qa alongside the generic POST /tools/qa dispatcher — trivial
+# to add (Query params only, no new request/response Pydantic model) so it
+# gets one, per that item's own scope note.
+# ---------------------------------------------------------------------------
+
+
+@router.post("/qa")
+def qa_route(question: str = Query(...), project: str = Query("")) -> dict:
+    return get_tool_service(project).qa(question)

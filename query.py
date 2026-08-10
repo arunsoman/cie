@@ -16,8 +16,10 @@ from cie.models import (
     FileCoverage,
     FileCoverageSummary,
     GraphStats,
+    HybridMatch,
     MethodSignature,
     Node,
+    NodeKind,
     NodeRecord,
     PathResult,
     SemanticMatch,
@@ -206,6 +208,80 @@ class QueryEngine:
         return self._repo.semantic_search(
             query.strip(), top_k=self._clamp_limit(top_k)
         )
+
+    # -- RQ-01 hybrid retrieval -----------------------------------------------
+
+    def hybrid_search(self, query: str, top_k: int = 10) -> list[HybridMatch]:
+        """Combined lexical + dense + graph-degree ranked search; [] when
+        `query` is blank."""
+        if not query or not query.strip():
+            return []
+        return self._repo.hybrid_search(query.strip(), top_k=self._clamp_limit(top_k))
+
+    # -- AI-02 entity-centric grounding ----------------------------------------
+
+    def entity_context(self, symbol: str) -> dict:
+        """One structured neighborhood block for `symbol` — a COMPOSITION
+        of existing methods (`get_node`, `get_callers`, `get_callees`,
+        `test_map`, and `class_hierarchy` when applicable), deliberately
+        not a new Cypher traversal (per the task's own instruction: "it's
+        a composition of what already exists"). This is why the method
+        lives here, on `QueryEngine`, and NOT on `Repository`/
+        `Neo4jRepository`/`InMemoryRepository` the way every other item in
+        this slice does — there is no new persistence-layer query to add.
+
+        `class_hierarchy` is populated when `symbol` resolves to a CLASS
+        node (hierarchy of the class itself) OR a METHOD node (hierarchy
+        of its ENCLOSING class, resolved via `get_signature`'s
+        `enclosing_class` — `Node` itself carries no enclosing-class
+        field, so this is the one existing method that already answers
+        "what class is this method on"); `{}` for a FUNC/FILE/SYMBOL node,
+        where "class hierarchy" doesn't apply.
+
+        `{}` (not None) when `symbol` doesn't resolve to any node at all —
+        matching this class's other not-found convention.
+        """
+        if not symbol or not symbol.strip():
+            return {}
+        symbol = symbol.strip()
+        node_record = self.get_node(symbol)
+        if node_record is None:
+            return {}
+        node = node_record.node
+
+        hierarchy: dict = {}
+        if node.kind == NodeKind.CLASS.value:
+            hierarchy = self.class_hierarchy(node.label)
+        elif node.kind == NodeKind.METHOD.value:
+            signature = self.get_signature(symbol)
+            if signature is not None and signature.enclosing_class:
+                hierarchy = self.class_hierarchy(signature.enclosing_class)
+
+        return {
+            "node": node,
+            "degree": node_record.degree,
+            "callers": self.get_callers(symbol),
+            "callees": self.get_callees(symbol),
+            "tests": self.test_map(symbol),
+            "class_hierarchy": hierarchy,
+        }
+
+    # -- DM-08 inheritance/interface -----------------------------------------
+
+    def class_hierarchy(self, class_name: str) -> dict:
+        """Ancestors/interfaces/descendants/implementers of a class or
+        interface; `{}` when `class_name` is blank or unresolved."""
+        if not class_name or not class_name.strip():
+            return {}
+        return self._repo.class_hierarchy(class_name.strip())
+
+    # -- DM-14 test-to-implementation links ----------------------------------
+
+    def test_map(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
+        """Tests covering `symbol`; [] when `symbol` is blank or unknown."""
+        if not symbol or not symbol.strip():
+            return []
+        return self._repo.test_map(symbol.strip(), limit=self._clamp_limit(limit))
 
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 

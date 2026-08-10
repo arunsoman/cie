@@ -724,8 +724,13 @@ def load(ctx, paths, project: str) -> None:
     favor of this — the only way multiple directories were ever going to
     coexist in one project without a merge write path.
     """
-    from cie.callgraph import resolve_call_edges
+    from cie.callgraph import (
+        resolve_call_edges,
+        resolve_inheritance_edges,
+        synthesize_external_class_nodes,
+    )
     from cie.extract import extract_many
+    from cie.testlink import resolve_test_edges
 
     per_file = [ext for path in paths for ext in extract_many(path)]
     engine = _open_engine(ensure_indices=True)
@@ -740,22 +745,37 @@ def load(ctx, paths, project: str) -> None:
                 )
             edges = [e for ext in per_file for e in ext.edges]
             call_edges = resolve_call_edges(per_file)
+            inheritance_edges = resolve_inheritance_edges(per_file)
+            known_ids = {n["id"] for n in nodes}
+            # DM-08: an unresolved base class (external library, or a
+            # reference this pass cannot place) still gets an edge — see
+            # resolve_inheritance_edges — so it needs a real node to
+            # attach to, or the edge-write MATCH below silently drops it.
+            external_nodes = synthesize_external_class_nodes(inheritance_edges, known_ids)
+            nodes = nodes + external_nodes
+            test_edges = resolve_test_edges(per_file, call_edges)
             count = engine._repo.load_extraction(  # noqa: SLF001
-                nodes, edges + call_edges, project=project,
+                nodes, edges + call_edges + inheritance_edges + test_edges, project=project,
             )
         path_list = [str(p) for p in paths]
+        total_edges = (
+            len(edges) + len(call_edges) + len(inheritance_edges) + len(test_edges)
+        )
         payload = {
             "nodes_loaded": count,
-            "edges_loaded": len(edges) + len(call_edges),
+            "edges_loaded": total_edges,
             "calls_edges": len(call_edges),
+            "inheritance_edges": len(inheritance_edges),
+            "test_edges": len(test_edges),
             "paths": path_list,
             "project": project,
         }
         if _emit(ctx, "load", payload, timer=timer):
             return
         console.print(
-            f"[green]Loaded {count} nodes and {len(edges) + len(call_edges)} edges "
-            f"({len(call_edges)} calls) from {', '.join(path_list)}.[/green]"
+            f"[green]Loaded {count} nodes and {total_edges} edges "
+            f"({len(call_edges)} calls, {len(inheritance_edges)} inheritance, "
+            f"{len(test_edges)} TESTS) from {', '.join(path_list)}.[/green]"
         )
     finally:
         _close_engine(engine)
