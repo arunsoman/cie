@@ -23,6 +23,7 @@ makes that class of error structurally impossible, not just unlikely.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -89,11 +90,14 @@ class QaResult:
     """qa()'s return shape: an answer plus its full grounding trail —
     the citations AND the raw retrieved node ids (a superset of what the
     citations alone show, so a caller can inspect exactly what was
-    retrieved even if it didn't become a citation)."""
+    retrieved even if it didn't become a citation). `faithfulness_score`
+    is QG-07's post-hoc check — see `_faithfulness_score`'s docstring
+    for what it does and does not catch."""
 
     answer: str
     citations: tuple[Citation, ...] = field(default_factory=tuple)
     retrieved_node_ids: tuple[str, ...] = field(default_factory=tuple)
+    faithfulness_score: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -296,6 +300,66 @@ def _build_citations(matches: list[HybridMatch]) -> list[Citation]:
     ]
 
 
+_IDENTIFIER_RE = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]{2,}(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*\b")
+
+# Common English words that happen to match the identifier-token shape
+# (snake_case/PascalCase heuristic below can't tell "the answer" from a
+# real symbol) — excluded so the faithfulness score isn't dragged down
+# by ordinary prose the LLM had to use to write a sentence at all.
+_STOPWORDS = frozenset({
+    "the", "this", "that", "and", "for", "with", "from", "into", "returns",
+    "when", "then", "does", "not", "have", "has", "will", "can", "which",
+    "these", "those", "its", "it's", "a", "an", "is", "are", "was", "were",
+})
+
+
+def _faithfulness_score(answer: str, matches: list[HybridMatch], contexts: list[dict]) -> Optional[float]:
+    """QG-07's post-hoc faithfulness check: what fraction of the
+    identifier-LOOKING tokens in `answer` (snake_case/PascalCase/dotted
+    names — the shape a real code symbol has) also appear among the
+    labels the retrieval actually surfaced (top-level matches PLUS their
+    expanded neighborhoods' callers/callees/tests/hierarchy)?
+
+    This is a CRUDE, cheap, deterministic proxy for faithfulness, not a
+    real fact-checker — it catches "the answer names a symbol that was
+    never retrieved" (a strong hallucination signal) but says nothing
+    about whether a claim ABOUT a real, retrieved symbol is actually
+    true (e.g. "foo returns a list" when `foo` really returns a dict —
+    both `foo` and `returns`/`list` would score as grounded/ignored
+    respectively, and the false claim slips through). A real semantic
+    fact-checker would need a second LLM call cross-examining each
+    claim against the cited nodes — cut for scope here; the PRIMARY
+    hallucination defense in this module is structural (citations are
+    never LLM-generated, see module docstring), and this score is a
+    secondary, approximate signal layered on top of that, not a
+    replacement for it.
+
+    Returns `None` (not 0.0) when the answer contains no identifier-
+    shaped tokens to check at all (e.g. a pure "I don't know" answer) —
+    a score of 0.0 would misleadingly read as "fully unfaithful."
+    """
+    known_labels: set[str] = {m.node.label for m in matches}
+    for ctx in contexts:
+        for key in ("callers", "callees", "tests"):
+            for er in ctx.get(key) or []:
+                known_labels.add(er.source_label)
+                known_labels.add(er.target_label)
+        hierarchy = ctx.get("class_hierarchy") or {}
+        for key in ("ancestors", "interfaces", "descendants", "implementers"):
+            for n in hierarchy.get(key) or []:
+                known_labels.add(n.label)
+    known_lower = {label.lower() for label in known_labels if label}
+
+    tokens = [
+        t for t in _IDENTIFIER_RE.findall(answer)
+        if t.lower() not in _STOPWORDS and ("_" in t or t != t.lower())
+    ]
+    if not tokens:
+        return None
+    grounded = sum(1 for t in tokens if t.lower() in known_lower)
+    return round(grounded / len(tokens), 4)
+
+
 def _entity_lookup_matches(engine: QueryEngine, symbol: str) -> list[HybridMatch]:
     """AI-05's entity_lookup fast path: build a single-element
     `HybridMatch` list directly from `get_node` (skipping
@@ -392,4 +456,5 @@ async def qa(
         answer=llm_output.answer,
         citations=tuple(_build_citations(matches)),
         retrieved_node_ids=tuple(m.node.id for m in matches),
+        faithfulness_score=_faithfulness_score(llm_output.answer, matches, contexts),
     )

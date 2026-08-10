@@ -671,6 +671,10 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "community_detect_run": _service_tool("community_detect_run"),
     "community_summarize_run": _service_tool("community_summarize_run"),
     "community_search": _service_tool("community_search"),
+    "accuracy_check": _service_tool("accuracy_check"),
+    "freshness_report": _service_tool("freshness_report"),
+    "comprehensiveness_report": _service_tool("comprehensiveness_report"),
+    "salience_report": _service_tool("salience_report"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
     "reindex": _service_tool("reindex"),

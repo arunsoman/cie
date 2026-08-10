@@ -479,6 +479,44 @@ class QueryEngine:
             return []
         return community_detect.community_search(self._repo, query.strip(), top_k=top_k)
 
+    # -- QG-01/02/03/04 quality/governance reports --------------------------
+
+    def accuracy_check(self, sample_size: int = 20, seed: Optional[int] = None) -> dict:
+        """QG-01: re-parse a random sample of indexed symbols from disk
+        and compare against the graph. See `cie.quality_report.
+        accuracy_check`."""
+        from cie import quality_report
+
+        return quality_report.accuracy_check(self._repo, sample_size=sample_size, seed=seed)
+
+    def freshness_report(self, stale_after_days: float = 7.0) -> dict:
+        """QG-02: age every node's IN-08 `extracted_at` against
+        `stale_after_days`."""
+        from cie import quality_report
+
+        return quality_report.freshness_report(self._repo, stale_after_days=stale_after_days)
+
+    def comprehensiveness_report(self, repo_root: str = "") -> dict:
+        """QG-03: file/docstring/call-resolution coverage ratios.
+        `repo_root` optionally enables the file-index ratio (needs
+        filesystem access `QueryEngine` doesn't otherwise use) — blank
+        skips that one ratio (`file_index_pct: None`), not the whole
+        report."""
+        from pathlib import Path
+
+        from cie import quality_report
+
+        root = Path(repo_root) if repo_root else None
+        return quality_report.comprehensiveness_report(self._repo, repo_root=root)
+
+    def salience_report(self, top_n: int = 20) -> list[dict]:
+        """QG-04, READ-ONLY — lowest-salience symbols (pruning
+        candidates), never an actual prune. See `cie.quality_report.
+        salience_report`."""
+        from cie import quality_report
+
+        return quality_report.salience_report(self._repo, top_n=self._clamp_limit(top_n))
+
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 
     def record_coverage(

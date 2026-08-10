@@ -731,6 +731,7 @@ class ToolService:
             "answer": result.answer,
             "citations": [dataclasses.asdict(c) for c in result.citations],
             "retrieved_node_ids": list(result.retrieved_node_ids),
+            "faithfulness_score": result.faithfulness_score,
         }
         if not result.citations:
             return self._ok(
@@ -739,7 +740,14 @@ class ToolService:
                      "hybrid_search or search_symbol directly to check "
                      "what's indexed for this question",
             )
-        return self._ok(tool, [payload], started)
+        hint = None
+        if result.faithfulness_score is not None and result.faithfulness_score < 0.5:
+            hint = (
+                f"faithfulness_score {result.faithfulness_score} is low — the "
+                "answer names identifiers this pass didn't retrieve; treat "
+                "with extra scrutiny (see QG-07's caveats on this heuristic)"
+            )
+        return self._ok(tool, [payload], started, hint=hint)
 
     def class_hierarchy(self, class_name: str) -> dict:
         """DM-08: ancestors/interfaces/descendants/implementers of a class
@@ -1064,6 +1072,61 @@ class ToolService:
             "then community_summarize_run first"
         )
         return self._ok(tool, results, started, hint=hint)
+
+    # -- QG-01/02/03/04 quality/governance reports ---------------------------
+
+    def accuracy_check(self, sample_size: int = 20) -> dict:
+        """QG-01: re-parse a random sample of indexed symbols from disk
+        and compare against the graph — flags a stale graph, doesn't
+        fix it (re-run `reindex` for that)."""
+        tool = "accuracy_check"
+        started = time.monotonic()
+        try:
+            result = self._engine.accuracy_check(sample_size=sample_size)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None
+        if result["mismatches"]:
+            hint = f"{result['mismatches']} of {result['sampled']} sampled symbols are stale; run reindex"
+        return self._ok(tool, [result], started, hint=hint)
+
+    def freshness_report(self, stale_after_days: float = 7.0) -> dict:
+        """QG-02: how much of the graph hasn't been re-extracted in
+        `stale_after_days`."""
+        tool = "freshness_report"
+        started = time.monotonic()
+        try:
+            result = self._engine.freshness_report(stale_after_days=stale_after_days)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def comprehensiveness_report(self) -> dict:
+        """QG-03: file/docstring/call-resolution coverage ratios, using
+        this ToolService's own bound project root for the file-index
+        ratio (no need for the caller to pass it)."""
+        tool = "comprehensiveness_report"
+        started = time.monotonic()
+        try:
+            result = self._engine.comprehensiveness_report(repo_root=str(self._root))
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def salience_report(self, top_n: int = 20) -> dict:
+        """QG-04, READ-ONLY — lowest-salience symbols (pruning
+        candidates only, never an actual prune)."""
+        tool = "salience_report"
+        started = time.monotonic()
+        try:
+            results = self._engine.salience_report(top_n=top_n)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, results, started,
+            hint="lowest-salience symbols first; this is a report, not a "
+                 "prune — nothing is deleted",
+        )
 
     # -- CI-19/20/21 metric computer ------------------------------------------
 
