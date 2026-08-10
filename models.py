@@ -44,6 +44,11 @@ class NodeKind(str, Enum):
     ANTI_PATTERN = "AntiPattern"
     DRIFT_FINDING = "DriftFinding"
     METRIC_SNAPSHOT = "MetricSnapshot"
+    #: RQ-04/AI-03: one LLM-generated thematic summary per detected
+    #: community (`cie.community_detect`) — carries an `embedding` (unlike
+    #: the four kinds above) so `community_search` can rank it via the
+    #: same vector-index machinery `semantic_search`/`hybrid_search` use.
+    COMMUNITY_SUMMARY = "CommunitySummary"
 
 
 class Confidence(str, Enum):

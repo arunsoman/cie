@@ -667,6 +667,10 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "metrics": _service_tool("metrics"),
     "tech_debt_report": _service_tool("tech_debt_report"),
     "metric_trend": _service_tool("metric_trend"),
+    "graph_diff": _service_tool("graph_diff"),
+    "community_detect_run": _service_tool("community_detect_run"),
+    "community_summarize_run": _service_tool("community_summarize_run"),
+    "community_search": _service_tool("community_search"),
     # Index lifecycle
     "reindex_file": _service_tool("reindex_file"),
     "reindex": _service_tool("reindex"),

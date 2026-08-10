@@ -1012,6 +1012,59 @@ class ToolService:
         hint = None if findings else "no circular dependencies found"
         return self._ok(tool, findings, started, hint=hint)
 
+    # -- RQ-04/AI-03 community-aware retrieval + global summarization -------
+
+    def community_detect_run(self) -> dict:
+        """Detect communities (label propagation) and patch `community`
+        onto the graph's nodes — a prerequisite most of RQ-04's other
+        pieces need (`community`/`get_community` were previously
+        always-empty read paths with no write behind them)."""
+        tool = "community_detect_run"
+        started = time.monotonic()
+        try:
+            summary = self._engine.community_detect_run()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if summary["communities"] else (
+            "no communities found — the graph may have too few edges, "
+            "or hasn't been loaded/reindexed yet"
+        )
+        return self._ok(tool, [summary], started, hint=hint)
+
+    def community_summarize_run(self) -> dict:
+        """One LLM-generated thematic summary per community from the
+        most recent `community_detect_run`. Bridges the async pipeline
+        via `asyncio.run`, same sync-bridge pattern `qa` uses (safe here
+        for the same reason: `POST /tools/{tool}` already runs every
+        handler inside `run_in_threadpool`, never the ASGI event loop
+        thread)."""
+        tool = "community_summarize_run"
+        started = time.monotonic()
+        try:
+            summary = asyncio.run(self._engine.community_summarize_run())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None
+        if summary.get("summarized", 0) == 0:
+            hint = "no summaries written; run community_detect_run first"
+        elif summary.get("failed"):
+            hint = f"{len(summary['failed'])} community summary(ies) failed to generate"
+        return self._ok(tool, [summary], started, hint=hint)
+
+    def community_search(self, query: str, top_k: int = 5) -> dict:
+        """Thematic search over community summaries."""
+        tool = "community_search"
+        started = time.monotonic()
+        try:
+            results = self._engine.community_search(query, top_k=top_k)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if results else (
+            "no matching community summaries; run community_detect_run "
+            "then community_summarize_run first"
+        )
+        return self._ok(tool, results, started, hint=hint)
+
     # -- CI-19/20/21 metric computer ------------------------------------------
 
     def metrics(self) -> dict:
@@ -1088,6 +1141,31 @@ class ToolService:
                  "implementation — see its forwards_to for the be-v2 "
                  "route that actually runs",
         )
+
+    def graph_diff(self, before_path: str, after_path: str) -> dict:
+        """RQ-12: pure filesystem diff between two directory trees'
+        extractions (e.g. two git worktrees, or a before/after of the
+        same tree) — never touches the live graph. See `cie.graph_diff`'s
+        module docstring for why this doesn't depend on DM-05 temporal
+        versioning. Both paths are jailed under `allowed_root` (the same,
+        broader jail the `run` tool uses — not `root`, since comparing
+        two DIFFERENT trees is the whole point of this tool)."""
+        tool = "graph_diff"
+        started = time.monotonic()
+        try:
+            before_resolved = _view._jail(self._allowed_root, before_path)
+            after_resolved = _view._jail(self._allowed_root, after_path)
+            from cie import graph_diff as _graph_diff
+
+            diff = _graph_diff.graph_diff(before_resolved, after_resolved)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        summary = _graph_diff.graph_diff_summary(diff)
+        payload = {**diff, "summary": summary}
+        hint = None
+        if summary["added"] == summary["removed"] == summary["modified"] == 0:
+            hint = "no differences found between the two trees"
+        return self._ok(tool, [payload], started, hint=hint)
 
     def api_call_sites(self, route: str) -> dict:
         """Backend route (path template, e.g. '/api/tasks/{task_id}/kill',

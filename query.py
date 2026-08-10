@@ -448,6 +448,37 @@ class QueryEngine:
             metric_type=metric_type, limit=self._clamp_limit(limit), project=project,
         )
 
+    # -- RQ-04/AI-03 community-aware retrieval + global summarization ------
+
+    def community_detect_run(self, project: str = "") -> dict:
+        """Detect communities (label propagation) and patch `community`
+        onto the graph's nodes. See `cie.community_detect.
+        community_detect_run` — this is the write-path RQ-04 needed
+        before ANY of `list_communities`/`get_community`/
+        `community_search` could return anything real."""
+        from cie import community_detect
+
+        return community_detect.community_detect_run(self._repo, project=project)
+
+    async def community_summarize_run(self, project: str = "") -> dict:
+        """RQ-04 + AI-03: one LLM-generated summary per community from
+        the most recent `community_detect_run`. Async (an LLM call per
+        community) — `ToolService.community_summarize_run` bridges this
+        into its synchronous method surface via `asyncio.run`, same
+        pattern as `ToolService.qa`."""
+        from cie import community_detect
+
+        return await community_detect.generate_community_summaries(self._repo, project=project)
+
+    def community_search(self, query: str, top_k: int = 5) -> list[dict]:
+        """RQ-04: thematic search over community summaries. []
+        immediately when `query` is blank."""
+        from cie import community_detect
+
+        if not query or not query.strip():
+            return []
+        return community_detect.community_search(self._repo, query.strip(), top_k=top_k)
+
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 
     def record_coverage(

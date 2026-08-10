@@ -1,9 +1,12 @@
 """AI-01: GraphRAG question-answering with citations.
 
-Pipeline: `hybrid_search` (item 4, RQ-01) retrieves candidate nodes for
-`question`; `entity_context` (item 5, AI-02) expands the top few hits into
-their callers/callees/tests/class-hierarchy neighborhood; both are
-assembled into one compact, char-capped context block; an LLM call
+Pipeline: `cie.query_plan.classify` (AI-05) picks a retrieval strategy;
+for the common case (`hybrid_search`) `hybrid_search` (RQ-01) retrieves
+candidate nodes, `rerank` (RQ-07) reorders them by an LLM's relevance
+judgment, `entity_context` (AI-02) expands the top few hits into their
+callers/callees/tests/class-hierarchy neighborhood, and
+`_assemble_context` (AI-06) turns both into one deduplicated,
+salience-ordered, token-budgeted context block; a final LLM call
 (`core.llm`'s standard `Prompt[T]` + `AGENT = LlmAgent(...)` + `ask(...)`
 shape) turns that context + the question into an answer.
 
@@ -17,14 +20,6 @@ requirement, not a style preference: a model asked to also emit citations
 could plausibly hallucinate a file/line that LOOKS right but was never
 actually retrieved — building them server-side from real retrieval data
 makes that class of error structurally impossible, not just unlikely.
-
-Context assembly is deliberately simple: a straight text join of the
-retrieved nodes' signatures/docstrings plus each expanded entity's
-immediate neighborhood, bounded by a generous character cap
-(`_CONTEXT_CHAR_CAP`). This is NOT the full dedup/salience token-budget
-system described in spec item AI-06 — that is explicitly out of scope for
-this slice (see be-v2/docs/cie-grounding-slice-implementation.md's item 6
-caveats).
 """
 from __future__ import annotations
 
@@ -36,13 +31,17 @@ from pydantic import BaseModel
 from core.llm import LlmAgent, Prompt, ask
 from cie.models import HybridMatch
 from cie.query import QueryEngine
+from cie import query_plan
 
-# Context-block char cap — generous but bounded, per this module's own
-# docstring ("keep this simple... do NOT build the full token-budget
-# system"). ~8000 chars is comfortably inside every configured model's
-# context window for this codebase's providers while still being large
-# enough to carry several retrieved symbols plus their neighborhoods.
-_CONTEXT_CHAR_CAP = 8000
+# AI-06: per-query-type token budgets from spec item AI-06's own table
+# ("GraphRAG context <= 4K tokens"). Token count is APPROXIMATED as
+# chars // 4 (a standard rough heuristic for English prose/code text) —
+# this codebase has no tokenizer dependency to count exactly, and an
+# approximation that's honest about being one is better than a fake
+# precise-looking count.
+_CONTEXT_TOKEN_BUDGET = 4000
+_CHARS_PER_TOKEN = 4
+_CONTEXT_CHAR_CAP = _CONTEXT_TOKEN_BUDGET * _CHARS_PER_TOKEN
 
 # How many of hybrid_search's top hits get expanded via entity_context.
 # Expanding every hit would multiply Neo4j round trips for diminishing
@@ -53,6 +52,12 @@ _EXPAND_TOP_N = 3
 # How many hybrid_search hits to retrieve in total (citations cover all of
 # these, even the ones not expanded via entity_context).
 _RETRIEVE_TOP_K = 8
+
+
+def _estimate_tokens(text: str) -> int:
+    """AI-06's documented token approximation — see the budget constants'
+    comment above for why this is chars // 4, not a real tokenizer."""
+    return len(text) // _CHARS_PER_TOKEN
 
 
 class QaLlmOutput(BaseModel):
@@ -121,43 +126,161 @@ class QaPrompt(Prompt[QaLlmOutput]):
 AGENT = LlmAgent(name="cie_graphrag_qa", prompt_type=QaPrompt, output_type=QaLlmOutput)
 
 
-def _assemble_context(matches: list[HybridMatch], contexts: list[dict]) -> str:
-    """Compact, char-capped text block — see module docstring for why
-    this is a plain join, not a salience/dedup system."""
-    lines: list[str] = ["### Retrieved symbols"]
+class RerankLlmOutput(BaseModel):
+    """RQ-07's ENTIRE LLM output: a relevance-ordered list of node ids
+    drawn from the candidates it was shown (most-relevant first). The
+    model is never asked to invent new ids — `rerank` below drops any id
+    it returns that wasn't in the original candidate set, same
+    grounding-integrity discipline as `QaLlmOutput`."""
+
+    ranked_node_ids: list[str]
+
+
+@dataclass(frozen=True)
+class RerankPrompt(Prompt[RerankLlmOutput]):
+    question: str
+    candidates: str
+
+    def system_prompt(self) -> str:
+        return (
+            "You are a relevance-ranking assistant for a code knowledge "
+            "graph. Given a question and a list of candidate symbols "
+            "(each with an id), return `ranked_node_ids`: the candidates' "
+            "ids reordered from MOST to LEAST relevant to answering the "
+            "question. You may drop candidates that are clearly "
+            "irrelevant, but only return ids that appeared in the "
+            "candidate list — never invent a new id."
+        )
+
+    def render(self) -> str:
+        return f"## Question\n{self.question}\n\n## Candidates\n{self.candidates}"
+
+
+RERANK_AGENT = LlmAgent(
+    name="cie_graphrag_rerank", prompt_type=RerankPrompt, output_type=RerankLlmOutput,
+)
+
+
+def _render_candidates(matches: list[HybridMatch]) -> str:
+    lines = []
     for m in matches:
         n = m.node
-        lines.append(f"- {n.label} ({n.kind}) in {n.source_file}:{n.source_location}")
+        blurb = n.docstring or n.signature or ""
+        lines.append(f"- {n.id}: {n.label} ({n.kind}) — {blurb}")
+    return "\n".join(lines)
+
+
+async def rerank(question: str, matches: list[HybridMatch], top_k: Optional[int] = None) -> list[HybridMatch]:
+    """RQ-07: LLM-based reranking of `hybrid_search` results (a
+    cross-encoder model, the spec's other suggested option, would add a
+    new ML dependency this codebase doesn't otherwise need — an LLM call
+    reuses infrastructure `qa()` already depends on, per the spec's own
+    "alternatively, use an LLM to rerank" fallback).
+
+    Degrades to the ORIGINAL hybrid_search order on any LLM failure
+    (network/provider error, malformed output) — a reranker hiccup must
+    never break retrieval entirely, only fail to improve it.
+    """
+    if len(matches) <= 1:
+        return matches[: top_k or len(matches)]
+    try:
+        output = await ask(RerankPrompt(
+            question=question, candidates=_render_candidates(matches),
+        ))
+        by_id = {m.node.id: m for m in matches}
+        ranked = [by_id[nid] for nid in output.ranked_node_ids if nid in by_id]
+        seen = {m.node.id for m in ranked}
+        ranked.extend(m for m in matches if m.node.id not in seen)
+        return ranked[: top_k or len(matches)]
+    except Exception:  # noqa: BLE001 - degrade to original order, don't raise
+        # Covers BOTH a failed `ask()` call (network/provider error) AND
+        # a malformed response from an unreliable model (missing/wrong-
+        # shaped `ranked_node_ids`) — either way, a reranker hiccup must
+        # never break retrieval entirely, only fail to improve it.
+        return matches[: top_k or len(matches)]
+
+
+def _assemble_context(matches: list[HybridMatch], contexts: list[dict]) -> str:
+    """AI-06: deduplicated, salience-ordered, token-budgeted context
+    block.
+
+    Salience order: `matches` is already rank-ordered (by `hybrid_search`
+    or `rerank`) — this function processes it top-to-bottom and STOPS
+    adding full detail once `_CONTEXT_TOKEN_BUDGET` is spent, so a
+    lower-ranked match never displaces a higher-ranked one's detail. A
+    match that arrives after the budget is exhausted still gets ONE
+    compact summary line (never silently vanishes from the caller's view
+    of what was retrieved) rather than nothing.
+
+    Deduplication: a node that shows up BOTH as a top-level retrieved
+    symbol AND inside another match's expanded neighborhood (a common
+    callers/callees overlap) is only rendered with full detail once —
+    `_seen_ids` tracks this across both passes.
+    """
+    lines: list[str] = ["### Retrieved symbols"]
+    budget = _CONTEXT_TOKEN_BUDGET
+    seen_ids: set[str] = set()
+
+    for m in matches:
+        n = m.node
+        if n.id in seen_ids:
+            continue
+        seen_ids.add(n.id)
+        full = [f"- {n.label} ({n.kind}) in {n.source_file}:{n.source_location}"]
         if n.signature:
-            lines.append(f"  signature: {n.signature}")
+            full.append(f"  signature: {n.signature}")
         if n.docstring:
-            lines.append(f"  docstring: {n.docstring}")
+            full.append(f"  docstring: {n.docstring}")
+        full_text = "\n".join(full)
+        if _estimate_tokens(full_text) <= budget:
+            lines.append(full_text)
+            budget -= _estimate_tokens(full_text)
+        else:
+            # Salience-truncated: still listed (never silently dropped),
+            # just without the detail that would have blown the budget.
+            summary = f"- {n.label} ({n.kind}) in {n.source_file}"
+            lines.append(summary)
+            budget -= _estimate_tokens(summary)
 
     for ctx in contexts:
         node = ctx.get("node")
-        if node is None:
+        if node is None or budget <= 0:
             continue
-        lines.append(f"\n### {node.label} neighborhood")
-        callers = ctx.get("callers") or []
+        block: list[str] = [f"\n### {node.label} neighborhood"]
+        callers = [
+            r for r in (ctx.get("callers") or [])
+            if r.edge.source not in seen_ids
+        ][:5]
         if callers:
-            names = ", ".join(r.source_label for r in callers[:5])
-            lines.append(f"  called by: {names}")
-        callees = ctx.get("callees") or []
+            block.append(f"  called by: {', '.join(r.source_label for r in callers)}")
+        callees = [
+            r for r in (ctx.get("callees") or [])
+            if r.edge.target not in seen_ids
+        ][:5]
         if callees:
-            names = ", ".join(r.target_label for r in callees[:5])
-            lines.append(f"  calls: {names}")
+            block.append(f"  calls: {', '.join(r.target_label for r in callees)}")
         tests = ctx.get("tests") or []
         if tests:
-            names = ", ".join(r.source_label for r in tests[:5])
-            lines.append(f"  tested by: {names}")
+            block.append(f"  tested by: {', '.join(r.source_label for r in tests[:5])}")
         hierarchy = ctx.get("class_hierarchy") or {}
         ancestors = hierarchy.get("ancestors") or []
         if ancestors:
-            lines.append(f"  extends: {', '.join(a.label for a in ancestors)}")
+            block.append(f"  extends: {', '.join(a.label for a in ancestors)}")
         interfaces = hierarchy.get("interfaces") or []
         if interfaces:
-            lines.append(f"  implements: {', '.join(i.label for i in interfaces)}")
+            block.append(f"  implements: {', '.join(i.label for i in interfaces)}")
+        if len(block) == 1:
+            continue  # nothing new beyond the header — skip entirely
+        block_text = "\n".join(block)
+        if _estimate_tokens(block_text) > budget:
+            continue  # neighborhood detail is the first thing cut when tight
+        lines.append(block_text)
+        budget -= _estimate_tokens(block_text)
 
+    # Final hard cap: a belt-and-suspenders bound in raw chars, in case
+    # the per-block budget bookkeeping above still lets the total run a
+    # little over (e.g. many small blocks each individually under
+    # budget but summing past it near the boundary).
     return "\n".join(lines)[:_CONTEXT_CHAR_CAP]
 
 
@@ -173,10 +296,29 @@ def _build_citations(matches: list[HybridMatch]) -> list[Citation]:
     ]
 
 
+def _entity_lookup_matches(engine: QueryEngine, symbol: str) -> list[HybridMatch]:
+    """AI-05's entity_lookup fast path: build a single-element
+    `HybridMatch` list directly from `get_node` (skipping
+    `hybrid_search` entirely) so `qa()`'s downstream assembly/citation
+    code can treat this exactly like a one-hit search result — one
+    shape, not a second code path for the fast case. `score=1.0`: the
+    symbol was named EXPLICITLY by the question (backtick/quoted), which
+    is a stronger confidence signal than any retrieval score."""
+    node_record = engine.get_node(symbol)
+    if node_record is None:
+        return []
+    return [HybridMatch(
+        node=node_record.node, score=1.0,
+        lexical_score=1.0, dense_score=0.0, graph_score=0.0,
+    )]
+
+
 async def qa(
     question: str, project: str = "", engine: Optional[QueryEngine] = None,
+    use_reranking: bool = True,
 ) -> QaResult:
-    """AI-01: retrieve -> expand -> assemble -> ask, with a citation trail.
+    """AI-01: plan -> retrieve -> rerank -> expand -> assemble -> ask,
+    with a citation trail.
 
     Args:
         question: the natural-language question.
@@ -187,12 +329,26 @@ async def qa(
             OWN already-project-scoped engine here (it doesn't track a
             separate project string of its own), so this call doesn't
             redundantly re-resolve one through `cie.factory`.
+        use_reranking: RQ-07's LLM reranking pass over `hybrid_search`
+            results. `True` by default; `False` skips a second LLM call
+            when the caller wants lower latency/cost over precision, or
+            in tests that want to isolate retrieval from reranking.
 
     Returns:
         A `QaResult` — never raises for "no context found" (degrades to
         an explicit "not enough context" answer with no citations); DOES
         propagate a real LLM-call failure (network/provider error), same
         as every other `core.llm.ask` caller in this codebase.
+
+    AI-05 note: `cie.query_plan.classify` is consulted for a single fast
+    path — `entity_lookup` with exactly one confidently-extracted symbol
+    skips `hybrid_search`/`rerank` entirely and grounds directly on that
+    node via `entity_context`. Every other strategy (`impact_analysis`,
+    `path_query`, and the `hybrid_search` default) still runs the SAME
+    hybrid_search+rerank+expand pipeline below — see this module's
+    docstring in `cie/query_plan.py` for why a broader rewiring per
+    strategy was cut for scope (a wrong deterministic guess would be
+    worse than the existing broad-retrieval default).
     """
     if not question or not question.strip():
         return QaResult(answer="", citations=(), retrieved_node_ids=())
@@ -206,7 +362,16 @@ async def qa(
 
         engine = factory.get_engine(project)
 
-    matches = engine.hybrid_search(question, top_k=_RETRIEVE_TOP_K)
+    plan = query_plan.classify(question)
+    matches: list[HybridMatch] = []
+    if plan["strategy"] == query_plan.STRATEGY_ENTITY_LOOKUP and plan["symbols"]:
+        matches = _entity_lookup_matches(engine, plan["symbols"][0])
+
+    if not matches:
+        matches = engine.hybrid_search(question, top_k=_RETRIEVE_TOP_K)
+        if matches and use_reranking:
+            matches = await rerank(question, matches, top_k=_RETRIEVE_TOP_K)
+
     if not matches:
         return QaResult(
             answer="I don't have enough indexed context in this codebase's "
