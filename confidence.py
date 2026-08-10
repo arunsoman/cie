@@ -35,11 +35,13 @@ def compute_confidence_report(
 ) -> dict:
     """CF-15: aggregate `spec`/`testing`/`consensus` layer scores into an
     overall confidence level. `spec`/`testing` come from CF-08's
-    `get_coverage`; `consensus` from CF-14's `consensus_confidence`
-    (`None`, not `0.0`, when `verdicts` is empty — SI-05's own framing
-    of "empty layers show as N/A, not 0" applies here too, even before
+    `get_coverage` (`None`, not `0.0`, when there are no code symbols to
+    measure yet — i.e. CIE hasn't scanned any code for this project);
+    `consensus` from CF-14's `consensus_confidence` (`None`, not `0.0`,
+    when `verdicts` is empty). SI-05's own framing of "empty layers show
+    as N/A, not 0" applies to all three measurable layers, even before
     section 17's subsystem-population layer exists to enforce it
-    everywhere). `generation`/`runtime` layers (per the spec's full
+    everywhere. `generation`/`runtime` layers (per the spec's full
     5-layer model) are always `None` — this codebase has no signal for
     either yet (no code-generation-confidence tracking, no runtime
     telemetry ingestion; see `cie.invariants`' own scoping note on CI-15).
@@ -48,9 +50,10 @@ def compute_confidence_report(
 
     coverage = _traceability.get_coverage(nodes, edges)
     orphans = _traceability.find_orphans(nodes, edges)
+    has_code = coverage["total_code_symbols"] > 0
     layer_scores: dict[str, Optional[float]] = {
-        "spec": coverage["contracted_pct"] / 100.0,
-        "testing": coverage["tested_pct"] / 100.0,
+        "spec": coverage["contracted_pct"] / 100.0 if has_code else None,
+        "testing": coverage["tested_pct"] / 100.0 if has_code else None,
         "consensus": _consensus.consensus_confidence(verdicts) if verdicts else None,
         "generation": None,
         "runtime": None,
