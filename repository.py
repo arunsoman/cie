@@ -21,6 +21,7 @@ from cie.models import (
     GraphStats,
     HybridMatch,
     MethodSignature,
+    MetricSnapshot,
     Node,
     NodeRecord,
     PathResult,
@@ -195,6 +196,52 @@ class Repository(Protocol):
         """Tests covering `symbol`, resolved from `TESTS` edges (see
         `cie.testlink.resolve_test_edges`). Empty list (not None) when
         `symbol` is unknown or has no linked test."""
+
+    # -- Section 13 (Code Intelligence) shared plumbing -----------------------
+
+    def code_symbol_nodes(self, project: str = "") -> list[Node]:
+        """Every FUNC/METHOD node with a real `source_file` — the
+        candidate set `cie.clone_detect`/`cie.perf_analyze` re-parse from
+        disk. See `Neo4jRepository.code_symbol_nodes` for the exact
+        exclusions (CLASS/FILE/SYMBOL nodes, section 13's own analysis
+        kinds)."""
+
+    def analysis_nodes(self, kind: str, project: str = "") -> list[Node]:
+        """Every existing node of one section-13 analysis kind
+        (CloneCluster/AntiPattern/DriftFinding) — read side of
+        `replace_analysis_nodes`."""
+
+    def replace_analysis_nodes(
+        self, kind: str, nodes: Sequence[dict], edges: Sequence[dict],
+        project: str = "",
+    ) -> int:
+        """Idempotent replace of ONE analysis kind's nodes/edges — deletes
+        existing `:Node {kind: kind}` (scoped to `project`) before writing
+        fresh ones, leaving every other node kind (including OTHER
+        analysis kinds) untouched. See `Neo4jRepository.
+        replace_analysis_nodes` for the full write-path contract."""
+
+    def embedding_clone_pairs(
+        self, threshold: float = 0.92, k: int = 5, project: str = "",
+    ) -> list[tuple[str, str, float]]:
+        """CI-03: `(id_a, id_b, score)` triples for FUNC/METHOD node pairs
+        whose stored embeddings are cosine-similar at or above
+        `threshold`. See `Neo4jRepository.embedding_clone_pairs`."""
+
+    def update_node_properties(self, updates: dict[str, dict], project: str = "") -> int:
+        """CI-06/08: patch EXISTING nodes (by id) with extra properties
+        (`complexity_class`, `hot_path`), without touching any other
+        field. See `Neo4jRepository.update_node_properties`."""
+
+    def record_metric_snapshot(self, snapshot: MetricSnapshot) -> None:
+        """CI-19: append one aggregate-metric measurement (append-only,
+        never replaced). See `Neo4jRepository.record_metric_snapshot`."""
+
+    def metric_trend(
+        self, metric_type: str = "", limit: int = 20, project: str = "",
+    ) -> list[MetricSnapshot]:
+        """CI-21: historical `MetricSnapshot`s, most recent first. See
+        `Neo4jRepository.metric_trend`."""
 
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 

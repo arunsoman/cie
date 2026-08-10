@@ -1104,6 +1104,50 @@ def extract_file(path: Path) -> Extraction:
     )
 
 
+def parse_file(path: Path) -> Optional[tuple]:
+    """Parse `path` and return its raw ``(tree, source_bytes)`` tree-sitter
+    pair, or ``None`` for an unsupported suffix.
+
+    Public re-entry point for analysis passes that need the actual tree
+    (`cie.source_analysis`, backing CI-01/02 clone detection and CI-06/07
+    performance analysis) — `extract_file` above only exposes the WALKED
+    result (nodes/edges/imports), never the tree itself. Reuses the exact
+    same `_LANG_LOADERS`/`_parser_for` resolution as `extract_file` so a
+    language added there is automatically available here too, with no
+    second place to keep in sync.
+    """
+    suffix = supported_suffix(path)
+    if suffix is None:
+        return None
+    try:
+        source = path.read_bytes()
+    except OSError:
+        return None
+    return _parser_for(suffix).parse(source), source
+
+
+def is_class_node(node) -> bool:
+    """True when `node` is a class/struct declaration, per language."""
+    return node.type in _CLASS_TYPES
+
+
+def is_function_node(node) -> bool:
+    """True when `node` is a function/method declaration, per language."""
+    return node.type in _FUNCTION_TYPES
+
+
+def is_call_node(node) -> bool:
+    """True when `node` is a call expression, per language."""
+    return node.type in _CALL_TYPES
+
+
+def declared_name(node) -> str:
+    """Public alias of `_declared_name` — a class/function/method node's
+    own name (see `_declared_name`'s docstring for the field-vs-scan
+    resolution order)."""
+    return _declared_name(node)
+
+
 def extract_many(root: Path) -> list[Extraction]:
     """Recursively extract every supported source file under `root`.
 

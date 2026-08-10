@@ -36,6 +36,11 @@ def node_to_dict(n) -> dict:
         "extracted_at": getattr(n, "extracted_at", ""),
         "extractor_version": getattr(n, "extractor_version", ""),
         "source_ref": getattr(n, "source_ref", ""),
+        # Section 13 analysis-node extras (CloneCluster's member_count/
+        # consolidation_target, AntiPattern's severity/suggested_fix,
+        # DriftFinding's drift_type/detail, ...) — {} for every other
+        # node kind. See Node.properties's docstring.
+        "properties": dict(getattr(n, "properties", {}) or {}),
     }
 
 
@@ -51,6 +56,7 @@ def edge_record_to_dict(rec) -> dict:
         "extracted_at": getattr(rec.edge, "extracted_at", ""),
         "extractor_version": getattr(rec.edge, "extractor_version", ""),
         "source_ref": getattr(rec.edge, "source_ref", ""),
+        "properties": dict(getattr(rec.edge, "properties", {}) or {}),
     }
 
 

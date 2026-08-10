@@ -16,6 +16,7 @@ attributes preserve the original extraction direction.
 from __future__ import annotations
 
 import fnmatch
+import json
 import logging
 import os
 import subprocess
@@ -42,6 +43,7 @@ from cie.models import (
     GraphStats,
     HybridMatch,
     MethodSignature,
+    MetricSnapshot,
     Node,
     NodeKind,
     NodeRecord,
@@ -105,6 +107,25 @@ _VECTOR_INDEX_STATEMENTS = (
 )
 
 
+# Node/Edge properties consumed by a NAMED dataclass field — anything a
+# Neo4j row carries beyond these lands in `.properties` instead (see
+# `Node.properties`/`Edge.properties`'s docstrings: section 13's
+# CloneCluster/AntiPattern/DriftFinding kinds need properties no other
+# node kind has, e.g. `similarity`, `severity`, `drift_type`, and
+# bolting a named field onto Node/Edge for every one of them would bloat
+# every OTHER node kind for no benefit).
+_NODE_NAMED_KEYS = frozenset({
+    "id", "label", "source_file", "source_location", "file_type",
+    "community", "kind", "signature", "line_start", "line_end",
+    "docstring", "project", "embedding", "extracted_at",
+    "extractor_version", "source_ref",
+})
+_EDGE_NAMED_KEYS = frozenset({
+    "_source", "_target", "source", "target", "relation", "confidence",
+    "extracted_at", "extractor_version", "source_ref",
+})
+
+
 def _row_to_node(row: dict) -> Node:
     return Node(
         id=row["id"],
@@ -123,6 +144,7 @@ def _row_to_node(row: dict) -> Node:
         extracted_at=row.get("extracted_at", ""),
         extractor_version=row.get("extractor_version", ""),
         source_ref=row.get("source_ref", ""),
+        properties={k: v for k, v in row.items() if k not in _NODE_NAMED_KEYS},
     )
 
 
@@ -141,6 +163,7 @@ def _row_to_edge_record(row: dict) -> EdgeRecord:
         extracted_at=rel.get("extracted_at", ""),
         extractor_version=rel.get("extractor_version", ""),
         source_ref=rel.get("source_ref", ""),
+        properties={k: v for k, v in dict(rel).items() if k not in _EDGE_NAMED_KEYS},
     )
     return EdgeRecord(
         edge=edge,
@@ -842,6 +865,211 @@ class Neo4jRepository:
             description=f"load_extraction (project={project or '<default>'})",
         )
         return len(rows)
+
+    def replace_analysis_nodes(
+        self, kind: str, nodes: Sequence[dict], edges: Sequence[dict],
+        project: str = "",
+    ) -> int:
+        """Idempotent replace of ONE analysis-node kind's nodes/edges —
+        section 13's shared write path for `CloneCluster` (clone_detect),
+        `AntiPattern` (perf_analyze), and `DriftFinding` (drift_detect).
+
+        Unlike `load_extraction` (which replaces the WHOLE project graph),
+        this deletes only existing `:Node {kind: kind}` nodes before
+        writing fresh ones — re-running clone detection must not touch
+        `AntiPattern`/`DriftFinding` nodes from a separate analysis pass,
+        and a stale prior run's clusters (a function got edited and is no
+        longer a clone) must not accumulate forever alongside fresh ones.
+        `nodes` are analysis-only rows (the CloneCluster/AntiPattern/
+        DriftFinding nodes themselves) — the FUNC/METHOD/FILE nodes an
+        edge in `edges` connects TO already exist from a prior
+        `load_extraction`/`reindex_file` and are only ever MATCHed, never
+        recreated, same as `load_extraction`'s own edge-write phase.
+        Analysis passes are explicit, on-demand, whole-project scans (spec
+        section 13.5's own "scheduled/batch" framing) — this is
+        deliberately NOT wired into `reindex_file`'s per-file hot path.
+        """
+        rows = self._stamped_nodes(nodes, project)
+        edge_rows = [dict(e) for e in edges]
+        extracted_at = datetime.now(timezone.utc).isoformat()
+        source_ref = self._git_commit_sha()
+        rows = self._stamp_provenance(rows, extracted_at, source_ref)
+        edge_rows = self._stamp_provenance(edge_rows, extracted_at, source_ref)
+
+        def _tx(tx) -> None:
+            if project:
+                tx.run(
+                    "MATCH (n:Node {kind: $kind, project: $p}) DETACH DELETE n",
+                    {"kind": kind, "p": project},
+                )
+            else:
+                tx.run(
+                    "MATCH (n:Node {kind: $kind}) WHERE n.project IS NULL "
+                    "DETACH DELETE n",
+                    {"kind": kind},
+                )
+            if rows:
+                tx.run(
+                    "UNWIND $rows AS row CREATE (n:Node) SET n = row",
+                    {"rows": rows},
+                )
+            if edge_rows:
+                if project:
+                    tx.run(
+                        """
+                        UNWIND $rows AS row
+                        MATCH (a:Node {id: row.source, project: $p}),
+                              (b:Node {id: row.target, project: $p})
+                        CREATE (a)-[r:RELATES]->(b)
+                        SET r = row
+                        """,
+                        {"rows": edge_rows, "p": project},
+                    )
+                else:
+                    tx.run(
+                        """
+                        UNWIND $rows AS row
+                        MATCH (a:Node {id: row.source}), (b:Node {id: row.target})
+                        CREATE (a)-[r:RELATES]->(b)
+                        SET r = row
+                        """,
+                        {"rows": edge_rows},
+                    )
+
+        def _run_tx() -> None:
+            with self._driver.session() as session:
+                session.execute_write(_tx)
+
+        run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"replace_analysis_nodes(kind={kind}, project={project or '<default>'})",
+        )
+        return len(rows)
+
+    def analysis_nodes(self, kind: str, project: str = "") -> list[Node]:
+        """Every existing `:Node {kind: kind}` — read side of
+        `replace_analysis_nodes`, used by `cie.metrics` to aggregate
+        whatever clone/anti-pattern/drift passes have already written
+        without each analysis module needing its own bespoke read query.
+        """
+        effective_project = project or self._project
+        query = "MATCH (n:Node {kind: $kind})" + self._pw_where("n")
+        rows = self._run(query, {"kind": kind, "project": effective_project})
+        return [_row_to_node(r["n"]) for r in rows]
+
+    def update_node_properties(self, updates: dict[str, dict], project: str = "") -> int:
+        """Patch EXISTING nodes (by id) with extra properties — CI-06/08's
+        `complexity_class`/`hot_path` annotations. `SET n += row` merges
+        onto whatever the node already has; it never replaces the node
+        or touches a field not present in `updates[id]`. Unlike
+        `replace_analysis_nodes`, this never deletes anything — it's a
+        pure patch over nodes `load_extraction`/`reindex_file` already
+        wrote."""
+        if not updates:
+            return 0
+        rows = [{"id": nid, **props} for nid, props in updates.items()]
+        params: dict = {"rows": rows}
+        if project:
+            query = (
+                "UNWIND $rows AS row MATCH (n:Node {id: row.id, project: $p}) "
+                "SET n += row"
+            )
+            params["p"] = project
+        else:
+            query = "UNWIND $rows AS row MATCH (n:Node {id: row.id}) SET n += row"
+
+        def _tx(tx) -> None:
+            tx.run(query, params)
+
+        def _run_tx() -> None:
+            with self._driver.session() as session:
+                session.execute_write(_tx)
+
+        run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"update_node_properties({len(rows)} nodes)",
+        )
+        return len(rows)
+
+    def code_symbol_nodes(self, project: str = "") -> list[Node]:
+        """Every FUNC/METHOD node with real source location — the
+        candidate set `clone_detect`/`perf_analyze` re-parse from disk.
+        Excludes FILE/CLASS/SYMBOL nodes (a class has no body of its own
+        to tokenize; SYMBOL covers synthetic/external stub nodes, which
+        have no `source_file` to re-read) and any node whose `kind` is
+        one of section 13's OWN analysis kinds (CloneCluster/AntiPattern/
+        DriftFinding/MetricSnapshot) — those never have source to
+        re-parse either, and would otherwise show up as spurious
+        candidates once a project has been analyzed once.
+        """
+        query = (
+            """
+            MATCH (n:Node)
+            WHERE n.kind IN [$func, $method] AND n.source_file <> ''"""
+            + self._pw("n")
+            + """
+            RETURN n
+            ORDER BY n.source_file, n.line_start
+            """
+        )
+        rows = self._run(query, {
+            "func": NodeKind.FUNC.value, "method": NodeKind.METHOD.value,
+        })
+        return [_row_to_node(r["n"]) for r in rows]
+
+    def record_metric_snapshot(self, snapshot: MetricSnapshot) -> None:
+        """CI-19: append one aggregate-metric measurement. Unlike
+        `replace_analysis_nodes` (which deletes-then-recreates one
+        analysis kind), this only ever CREATEs — `MetricSnapshot` is
+        explicitly append-only (same shape as `record_coverage_snapshot`
+        for line coverage) so `metric_trend` can answer "is tech debt
+        trending up or down," not just report the latest reading."""
+        node_id = f"metricsnapshot::{snapshot.project}::{snapshot.metric_type}::{snapshot.measured_at}"
+        query = """
+        CREATE (n:Node {
+            id: $id, label: $label, source_file: '', source_location: '',
+            file_type: 'analysis', kind: $kind, signature: '',
+            line_start: 0, line_end: 0, docstring: '', project: $project,
+            metric_type: $metric_type, value: $value, measured_at: $measured_at,
+            detail: $detail
+        })
+        """
+        self._run(query, {
+            "id": node_id, "label": f"{snapshot.metric_type} = {snapshot.value}",
+            "kind": NodeKind.METRIC_SNAPSHOT.value, "project": snapshot.project,
+            "metric_type": snapshot.metric_type, "value": float(snapshot.value),
+            "measured_at": snapshot.measured_at,
+            "detail": json.dumps(snapshot.detail),
+        })
+
+    def metric_trend(
+        self, metric_type: str = "", limit: int = 20, project: str = "",
+    ) -> list[MetricSnapshot]:
+        """CI-21: historical `MetricSnapshot`s, most recent first."""
+        query = "MATCH (n:Node {kind: $kind}" + (", project: $p}" if project else "}")
+        params: dict = {"kind": NodeKind.METRIC_SNAPSHOT.value}
+        if project:
+            params["p"] = project
+        if metric_type:
+            query += " WHERE n.metric_type = $metric_type"
+            params["metric_type"] = metric_type
+        query += " RETURN n ORDER BY n.measured_at DESC LIMIT $limit"
+        params["limit"] = max(1, int(limit))
+        rows = self._run(query, params)
+        out: list[MetricSnapshot] = []
+        for r in rows:
+            n = r["n"]
+            detail_raw = n.get("detail", "{}")
+            try:
+                detail = json.loads(detail_raw) if isinstance(detail_raw, str) else {}
+            except (TypeError, ValueError):
+                detail = {}
+            out.append(MetricSnapshot(
+                project=n.get("project", ""), metric_type=n.get("metric_type", ""),
+                value=n.get("value") or 0.0, measured_at=n.get("measured_at", ""),
+                detail=detail,
+            ))
+        return out
 
     def reindex_file(self, path: str, extraction: Extraction, project: str = "") -> int:
         """Incrementally re-index one file in a single transaction.
@@ -1654,6 +1882,56 @@ class Neo4jRepository:
             ))
         combined.sort(key=lambda m: m.score, reverse=True)
         return combined[:top_k]
+
+    def embedding_clone_pairs(
+        self, threshold: float = 0.92, k: int = 5, project: str = "",
+    ) -> list[tuple[str, str, float]]:
+        """CI-03: embedding-level clone pairs. For every FUNC/METHOD node
+        with a stored embedding, query its `k` nearest neighbors via the
+        SAME vector index `semantic_search`/`hybrid_search` already use
+        (reused, not reimplemented) and keep those scoring `>= threshold`
+        (excluding the node itself). O(n) vector-index queries, one per
+        candidate — acceptable for an on-demand, explicit analysis pass
+        (see `cie.clone_detect`'s module docstring) at this project's
+        current scale (~1K-10K symbols); a much larger project would want
+        a true approximate-nearest-neighbor-graph algorithm instead of
+        node-at-a-time queries.
+
+        Returns deduplicated, order-independent `(id_a, id_b, score)`
+        triples (`id_a < id_b` lexicographically) — a symmetric neighbor
+        relationship is reported once, not twice.
+        """
+        effective_project = project or self._project
+        candidates = self.code_symbol_nodes(project=effective_project)
+        seen: set[tuple[str, str]] = set()
+        out: list[tuple[str, str, float]] = []
+        fetch_k = max(1, int(k)) + 1  # +1: a node is nearly always its own top hit
+        for node in candidates:
+            if not node.embedding:
+                continue
+            cypher = """
+            CALL db.index.vector.queryNodes('node_embedding_idx', $k, $queryVector)
+            YIELD node, score
+            WHERE node.embedding IS NOT NULL
+            """
+            if effective_project:
+                cypher += "  AND node.project = $project\n"
+            cypher += "RETURN node.id AS id, score"
+            rows = self._run(cypher, {
+                "k": fetch_k, "queryVector": list(node.embedding),
+                "project": effective_project,
+            })
+            for r in rows:
+                other_id = r["id"]
+                score = float(r["score"])
+                if other_id == node.id or score < threshold:
+                    continue
+                pair = tuple(sorted((node.id, other_id)))
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                out.append((pair[0], pair[1], score))
+        return out
 
     def class_hierarchy(self, class_name: str) -> dict:
         """DM-08: ancestors/interfaces/descendants/implementers of a class

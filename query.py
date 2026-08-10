@@ -283,6 +283,171 @@ class QueryEngine:
             return []
         return self._repo.test_map(symbol.strip(), limit=self._clamp_limit(limit))
 
+    # -- CI-01/02/03/04/05 clone detector ---------------------------------------
+
+    def clone_detect_run(self, project: str = "") -> dict:
+        """Run the full clone-detection pass (CI-01/02/03) and write
+        `CloneCluster` nodes (CI-04) — see `cie.clone_detect.analyze`.
+        Returns a summary: cluster/member counts and `clone_coverage_pct`
+        (CI-05)."""
+        from cie import clone_detect
+
+        return clone_detect.analyze(self._repo, project=project)
+
+    def clone_clusters(self, project: str = "") -> list[dict]:
+        """Every `CloneCluster` from the most recent `clone_detect_run`,
+        each with its resolved member nodes and the `consolidation_target`
+        `cie.clone_detect.resolve_clone_clusters` picked — [] before any
+        run, or once a run finds nothing to cluster."""
+        clusters = self._repo.analysis_nodes(NodeKind.CLONE_CLUSTER.value, project=project)
+        out: list[dict] = []
+        for cluster in clusters:
+            members = self.get_neighbors(cluster.id, "MEMBER_OF") or []
+            out.append({
+                "cluster": cluster,
+                "member_count": cluster.properties.get("member_count", len(members)),
+                "consolidation_target": cluster.properties.get("consolidation_target", ""),
+                "members": members,
+            })
+        return out
+
+    def clone_find(self, symbol: str) -> dict:
+        """`symbol`'s clone cluster (if any) and its clustermates — {}
+        when `symbol` is unknown or was never grouped into a cluster by
+        the most recent `clone_detect_run`."""
+        if not symbol or not symbol.strip():
+            return {}
+        node_record = self.get_node(symbol.strip())
+        if node_record is None:
+            return {}
+        node = node_record.node
+        neighbors = self.get_neighbors(node.id, "MEMBER_OF") or []
+        cluster_edge = next(
+            (er for er in neighbors if er.edge.target.startswith("clonecluster::")),
+            None,
+        )
+        if cluster_edge is None:
+            return {}
+        cluster_id = cluster_edge.edge.target
+        cluster_record = self.get_node(cluster_id)
+        clustermates = [
+            er for er in (self.get_neighbors(cluster_id, "MEMBER_OF") or [])
+            if er.edge.source != node.id
+        ]
+        return {
+            "node": node,
+            "similarity": cluster_edge.edge.properties.get("similarity"),
+            "detected_by": cluster_edge.edge.properties.get("detected_by", ""),
+            "cluster": cluster_record.node if cluster_record else None,
+            "clustermates": clustermates,
+        }
+
+    # -- CI-06/07/08 static performance analyzer --------------------------------
+
+    def performance_analyze_run(self, project: str = "") -> dict:
+        """Run CI-06 (`complexity_class`) + CI-07 (`AntiPattern` nodes) +
+        CI-08 (`hot_path`) — see `cie.perf_analyze.analyze`."""
+        from cie import perf_analyze
+
+        return perf_analyze.analyze(self._repo, project=project)
+
+    def performance_profile(self, symbol: str) -> dict:
+        """`symbol`'s `complexity_class`/`hot_path` (from the most recent
+        `performance_analyze_run`) plus its anti-pattern findings — {}
+        when `symbol` is unknown."""
+        if not symbol or not symbol.strip():
+            return {}
+        node_record = self.get_node(symbol.strip())
+        if node_record is None:
+            return {}
+        node = node_record.node
+        antipatterns = [
+            er for er in (self.get_neighbors(node.id, "HAS_ANTIPATTERN") or [])
+            if er.edge.source == node.id
+        ]
+        return {
+            "node": node,
+            "complexity_class": node.properties.get("complexity_class", ""),
+            "hot_path": bool(node.properties.get("hot_path", False)),
+            "antipatterns": antipatterns,
+        }
+
+    def antipattern_scan(self, file_glob: str = "", project: str = "") -> list[dict]:
+        """Every `AntiPattern` finding from the most recent
+        `performance_analyze_run`, optionally narrowed to files whose
+        path CONTAINS `file_glob` (a plain substring match, same
+        convention as `get_file_skeleton`'s `path` argument — not a real
+        glob, despite the parameter name inherited from spec section
+        13.7's own tool-surface naming)."""
+        findings = self._repo.analysis_nodes(NodeKind.ANTI_PATTERN.value, project=project)
+        if file_glob:
+            needle = file_glob.lower()
+            findings = [f for f in findings if needle in f.source_file.lower()]
+        return [
+            {
+                "node": f,
+                "pattern": f.properties.get("pattern", ""),
+                "severity": f.properties.get("severity", ""),
+                "detail": f.properties.get("detail", ""),
+            }
+            for f in findings
+        ]
+
+    # -- CI-10/11/12 non-semantic drift detector ---------------------------
+
+    def drift_report(self, drift_type: str = "", project: str = "") -> list[dict]:
+        """Every `DriftFinding` from the most recent
+        `ToolService.drift_detect_run`, optionally narrowed to one
+        `drift_type` (REQUIREMENT_GAP / UNUSED_ROUTE / MISSING_ENDPOINT /
+        CIRCULAR_DEPENDENCY / LAYER_VIOLATION)."""
+        findings = self._repo.analysis_nodes(NodeKind.DRIFT_FINDING.value, project=project)
+        if drift_type:
+            findings = [f for f in findings if f.properties.get("drift_type") == drift_type]
+        return [
+            {
+                "node": f,
+                "drift_type": f.properties.get("drift_type", ""),
+                "severity": f.properties.get("severity", ""),
+                "detail": f.properties.get("detail", ""),
+            }
+            for f in findings
+        ]
+
+    def architecture_check(self, layer_rules: Optional[dict] = None) -> list[dict]:
+        """CI-12 only, run live (not from a stored `drift_detect_run`) —
+        circular file dependencies + optional layer-boundary violations
+        over the CURRENT graph state, for a quick check without a full
+        `drift_detect_run` (which also re-scans the filesystem for
+        CI-11)."""
+        from cie import drift_detect
+
+        nodes, edges = self._repo.project_graph()
+        return drift_detect.architecture_drift(nodes, edges, layer_rules=layer_rules)
+
+    # -- CI-19/20/21 metric computer ---------------------------------------
+
+    def metrics(self, project: str = "") -> dict:
+        """Compute + record CI-19's three aggregate metrics from whatever
+        section-13 analysis nodes already exist. See `cie.metrics.compute`."""
+        from cie import metrics as _metrics
+
+        return _metrics.compute(self._repo, project=project)
+
+    def tech_debt_report(self, project: str = "", top_n: int = 20) -> dict:
+        """CI-20: unified, prioritized report over every clone cluster,
+        anti-pattern, and drift finding. See `cie.metrics.tech_debt_report`."""
+        from cie import metrics as _metrics
+
+        return _metrics.tech_debt_report(self._repo, project=project, top_n=top_n)
+
+    def metric_trend(
+        self, metric_type: str = "", limit: int = 20, project: str = "",
+    ) -> list:
+        """CI-21: historical metric readings, most recent first."""
+        return self._repo.metric_trend(
+            metric_type=metric_type, limit=self._clamp_limit(limit), project=project,
+        )
+
     # -- QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md) --
 
     def record_coverage(

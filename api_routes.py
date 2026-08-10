@@ -76,6 +76,13 @@ def _paths_match(a_normalized: str, b_normalized: str) -> bool:
     return all(a == "*" or b == "*" or a == b for a, b in zip(a_parts, b_parts))
 
 
+def paths_match(a_normalized: str, b_normalized: str) -> bool:
+    """Public alias of `_paths_match` — `cie.drift_detect`'s CI-11 diff
+    runs the SAME segment-wise wildcard match `resolve_api_route`/
+    `api_call_sites` use per-lookup, just over every route/call at once."""
+    return _paths_match(a_normalized, b_normalized)
+
+
 # ---------------------------------------------------------------------------
 # Backend route extraction
 # ---------------------------------------------------------------------------

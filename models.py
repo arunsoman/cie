@@ -20,7 +20,19 @@ class NodeKind(str, Enum):
     CLASS - a class or struct declaration.
     FUNC  - a module-level function.
     METHOD - a method declared inside a class.
-    SYMBOL - any other extracted concept (kept for forward compatibility).
+    SYMBOL - any other extracted concept (kept for forward compatibility;
+        also used for DM-08's `external::` base-class stub nodes).
+
+    The four below are section 13 (Code Intelligence) analysis-result
+    kinds — never produced by `extract.py`, only by the on-demand
+    `cie.clone_detect`/`cie.perf_analyze`/`cie.drift_detect`/`cie.metrics`
+    passes, written via `Neo4jRepository.replace_analysis_nodes`/
+    `record_metric_snapshot` rather than `load_extraction`/`reindex_file`.
+
+    CLONE_CLUSTER  - a group of cloned symbols (CI-04).
+    ANTI_PATTERN   - a detected performance anti-pattern (CI-07).
+    DRIFT_FINDING  - a detected spec-vs-code or architectural drift (CI-10/11/12).
+    METRIC_SNAPSHOT - an append-only aggregate quality measurement (CI-19).
     """
 
     FILE = "file"
@@ -28,6 +40,10 @@ class NodeKind(str, Enum):
     FUNC = "function"
     METHOD = "method"
     SYMBOL = "symbol"
+    CLONE_CLUSTER = "CloneCluster"
+    ANTI_PATTERN = "AntiPattern"
+    DRIFT_FINDING = "DriftFinding"
+    METRIC_SNAPSHOT = "MetricSnapshot"
 
 
 class Confidence(str, Enum):
@@ -76,6 +92,16 @@ class Node:
     extracted_at: str = ""
     extractor_version: str = ""
     source_ref: str = ""
+    # Section 13 (Code Intelligence) analysis nodes carry properties that
+    # don't fit any named field above (CloneCluster's `member_count`/
+    # `consolidation_target`, AntiPattern's `severity`/`pattern`/
+    # `suggested_fix`, DriftFinding's `drift_type`/`detail`) — rather than
+    # keep bolting named fields onto EVERY Node for a handful of kinds
+    # that need them, unmapped Neo4j properties land here. Every OTHER
+    # node kind's `properties` stays `{}`; this is additive, not a
+    # replacement for the named fields above (which stay the fast, typed
+    # path for the properties every node kind actually shares).
+    properties: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -163,6 +189,10 @@ class Edge:
     extracted_at: str = ""
     extractor_version: str = ""
     source_ref: str = ""
+    # Section 13 analysis edges carry properties beyond the named fields
+    # above (MEMBER_OF's `similarity`/`detected_by`) — same catch-all
+    # rationale as Node.properties.
+    properties: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -302,3 +332,20 @@ class CoverageSnapshot:
     total_lines: int
     covered_lines: int
     measured_at: str
+
+
+@dataclass(frozen=True)
+class MetricSnapshot:
+    """One CI-19 aggregate quality metric measurement, append-only (same
+    shape/rationale as `CoverageSnapshot` above — "is tech debt trending
+    up or down" is only answerable from history, not a single reading).
+    `metric_type` is one of "clone_coverage_pct" / "drift_index" /
+    "tech_debt_score" (CI-05/CI-19's own vocabulary — no separate
+    "refactor_score", cut for scope, see `cie.metrics` module docstring).
+    """
+
+    project: str
+    metric_type: str
+    value: float
+    measured_at: str
+    detail: dict = field(default_factory=dict)

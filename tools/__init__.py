@@ -802,6 +802,263 @@ class ToolService:
             hint=f"results capped at {limit}" if truncated else None,
         )
 
+    # -- CI-01/02/03/04/05 clone detector -----------------------------------
+
+    def clone_detect_run(self) -> dict:
+        """Run the full clone-detection pass and write fresh
+        `CloneCluster` nodes — an explicit, on-demand, whole-project
+        analysis (see `cie.clone_detect`'s module docstring), NOT part of
+        `reindex`/`reindex_file`'s per-file hot path. Safe to call
+        repeatedly: each run REPLACES the prior run's clusters rather
+        than accumulating them."""
+        tool = "clone_detect_run"
+        started = time.monotonic()
+        try:
+            summary = self._engine.clone_detect_run()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None
+        if summary["clusters"] == 0:
+            hint = (
+                "no clone clusters found — either the project genuinely has "
+                "no duplication above threshold, or NVIDIA_API_KEY wasn't "
+                "set at load time (embedding-level detection needs it; "
+                "token/AST-level detection does not)"
+            )
+        return self._ok(tool, [summary], started, hint=hint)
+
+    def clone_clusters(self) -> dict:
+        """Every clone cluster from the most recent `clone_detect_run`."""
+        tool = "clone_clusters"
+        started = time.monotonic()
+        try:
+            clusters = self._engine.clone_clusters()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "cluster_id": c["cluster"].id,
+                "member_count": c["member_count"],
+                "consolidation_target": c["consolidation_target"],
+                "members": [
+                    {"label": er.source_label, "id": er.edge.source}
+                    for er in c["members"]
+                ],
+            }
+            for c in clusters
+        ]
+        hint = None if results else "no clusters yet; run clone_detect_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def clone_find(self, symbol: str) -> dict:
+        """`symbol`'s clone cluster and clustermates, if any."""
+        tool = "clone_find"
+        started = time.monotonic()
+        try:
+            found = self._engine.clone_find(symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not found:
+            return self._ok(
+                tool, [], started,
+                hint=f"'{symbol}' has no clone cluster; either it's unique, "
+                     "it's below the similarity threshold, or "
+                     "clone_detect_run hasn't been run yet",
+            )
+        payload = {
+            "node": _serialize.node_to_dict(found["node"]),
+            "similarity": found["similarity"],
+            "detected_by": found["detected_by"],
+            "cluster_id": found["cluster"].id if found["cluster"] else None,
+            "clustermates": [
+                {"label": er.source_label, "id": er.edge.source}
+                for er in found["clustermates"]
+            ],
+        }
+        return self._ok(tool, [payload], started)
+
+    # -- CI-06/07/08 static performance analyzer -----------------------------
+
+    def performance_analyze_run(self) -> dict:
+        """Run Big-O estimation (CI-06), anti-pattern detection (CI-07),
+        and hot-path flagging (CI-08) — explicit, on-demand, whole-
+        project, same as `clone_detect_run`. Safe to call repeatedly."""
+        tool = "performance_analyze_run"
+        started = time.monotonic()
+        try:
+            summary = self._engine.performance_analyze_run()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [summary], started)
+
+    def performance_profile(self, symbol: str) -> dict:
+        """`symbol`'s Big-O estimate, hot-path flag, and anti-pattern
+        findings from the most recent `performance_analyze_run`."""
+        tool = "performance_profile"
+        started = time.monotonic()
+        try:
+            profile = self._engine.performance_profile(symbol)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        if not profile:
+            return self._ok(
+                tool, [], started,
+                hint=f"no symbol named '{symbol}'; check with search_symbol",
+            )
+        payload = {
+            "node": _serialize.node_to_dict(profile["node"]),
+            "complexity_class": profile["complexity_class"],
+            "hot_path": profile["hot_path"],
+            "antipatterns": [
+                _serialize.edge_record_to_dict(er) for er in profile["antipatterns"]
+            ],
+        }
+        hint = None
+        if not profile["complexity_class"]:
+            hint = "no complexity_class yet; run performance_analyze_run first"
+        return self._ok(tool, [payload], started, hint=hint)
+
+    def antipattern_scan(self, file_glob: str = "") -> dict:
+        """Every anti-pattern finding from the most recent
+        `performance_analyze_run`, optionally narrowed to a file (plain
+        substring match on `source_file`)."""
+        tool = "antipattern_scan"
+        started = time.monotonic()
+        try:
+            findings = self._engine.antipattern_scan(file_glob)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "symbol": f["node"].label,
+                "source_file": f["node"].source_file,
+                "line": f["node"].line_start,
+                "pattern": f["pattern"],
+                "severity": f["severity"],
+                "detail": f["detail"],
+            }
+            for f in findings
+        ]
+        hint = None if results else "no findings; run performance_analyze_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    # -- CI-10/11/12 non-semantic drift detector -----------------------------
+
+    def drift_detect_run(self) -> dict:
+        """Run all three drift checks (CI-10/11/12) and write fresh
+        `DriftFinding` nodes — explicit, on-demand, whole-project, same
+        as `clone_detect_run`/`performance_analyze_run`. Pulls this
+        ToolService's OWN already-bound project/root (it doesn't track a
+        separate project string of its own — see `qa`'s docstring for
+        the same reasoning) rather than requiring the caller to pass
+        them again."""
+        tool = "drift_detect_run"
+        started = time.monotonic()
+        try:
+            from cie import drift_detect
+
+            project = getattr(self._engine._repo, "_project", "") or ""  # noqa: SLF001
+            tasks = (
+                self._task_repo.list_all_for_project(project)
+                if project and hasattr(self._task_repo, "list_all_for_project")
+                else []
+            )
+            summary = drift_detect.analyze(
+                self._engine._repo, self._root, tasks, project=project,  # noqa: SLF001
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None
+        if not tasks and project:
+            hint = (
+                "requirement_gap found no tasks for this project — either "
+                "none were pushed via tasks:push, or CI-10 genuinely has "
+                "nothing to check; UNUSED_ROUTE/MISSING_ENDPOINT/"
+                "CIRCULAR_DEPENDENCY are unaffected"
+            )
+        return self._ok(tool, [summary], started, hint=hint)
+
+    def drift_report(self, drift_type: str = "") -> dict:
+        """Every drift finding from the most recent `drift_detect_run`,
+        optionally narrowed to one `drift_type`."""
+        tool = "drift_report"
+        started = time.monotonic()
+        try:
+            findings = self._engine.drift_report(drift_type)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "drift_type": f["drift_type"],
+                "severity": f["severity"],
+                "file": f["node"].source_file,
+                "detail": f["detail"],
+            }
+            for f in findings
+        ]
+        hint = None if results else "no findings; run drift_detect_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def architecture_check(self) -> dict:
+        """CI-12 only, run live over the current graph state (no
+        filesystem re-scan, no write) — a quick circular-dependency
+        check without a full `drift_detect_run`."""
+        tool = "architecture_check"
+        started = time.monotonic()
+        try:
+            findings = self._engine.architecture_check()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = None if findings else "no circular dependencies found"
+        return self._ok(tool, findings, started, hint=hint)
+
+    # -- CI-19/20/21 metric computer ------------------------------------------
+
+    def metrics(self) -> dict:
+        """Compute + record clone_coverage_pct/drift_index/tech_debt_score
+        from whatever section-13 analysis has already been run. Reading
+        this WITHOUT having run `clone_detect_run`/`performance_analyze_run`/
+        `drift_detect_run` first yields all-zero readings, not an error —
+        see `cie.metrics`'s module docstring for why this pass can't tell
+        "clean" from "never analyzed" on its own."""
+        tool = "metrics"
+        started = time.monotonic()
+        try:
+            result = self._engine.metrics()
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def tech_debt_report(self, top_n: int = 20) -> dict:
+        """Unified, prioritized tech-debt report: every clone cluster,
+        anti-pattern, and drift finding, ranked by severity, plus the
+        aggregate scores."""
+        tool = "tech_debt_report"
+        started = time.monotonic()
+        try:
+            report = self._engine.tech_debt_report(top_n=top_n)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [report], started)
+
+    def metric_trend(self, metric_type: str = "", limit: int = 20) -> dict:
+        """Historical metric readings (most recent first) — CI-21."""
+        tool = "metric_trend"
+        started = time.monotonic()
+        try:
+            snapshots = self._engine.metric_trend(metric_type, limit=limit)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {
+                "metric_type": s.metric_type, "value": s.value,
+                "measured_at": s.measured_at, "detail": s.detail,
+            }
+            for s in snapshots
+        ]
+        hint = None if results else "no snapshots yet; run metrics first"
+        return self._ok(tool, results, started, hint=hint)
+
     def resolve_api_route(self, path: str) -> dict:
         """Frontend API call path -> backend route(s) that serve it, with
         file/line and which service (be-v2 vs backend) actually handles it
