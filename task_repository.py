@@ -89,6 +89,17 @@ class TaskRepository(Protocol):
     def set_status(self, name: str, status: TaskStatus, updated_at: str) -> bool:
         """Update a task's status and bump attempts. Return False if missing."""
 
+    def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
+        """Update a task's QA-specific outcome ('qa_generated'/'qa_failed').
+
+        Separate from :meth:`set_status`: `status` tracks a task's own
+        generate/repair lifecycle (shared by dev and qa tasks alike —
+        see forge/generate_agent.py), while `qa_status` is the outcome
+        of a QA-type task's own generation specifically, surfaced by the
+        dashboard's "QA Gen" counters. Not a TaskStatus enum member since
+        it's a distinct, smaller vocabulary with no PENDING/TESTED_GREEN
+        states. Return False if the task is missing."""
+
     def add_artifact(self, task_name: str, artifact: Artifact) -> bool:
         """Link a produced artifact to a task. Return False if task missing."""
 
@@ -200,6 +211,8 @@ def _task_to_props(t: AtomicTask, project: str = "") -> dict:
         "attempts": 0,
         "created": "",
         "updated": "",
+        "qa_status": "",
+        "qa_updated": "",
     }
     if isinstance(t, AtomicQaTask):
         props.update({
@@ -607,6 +620,15 @@ class Neo4jTaskRepository:
             "SET t.status = $status, t.updated = $updated, t.attempts = t.attempts + 1 "
             "RETURN count(t) AS c",
             {"name": name, "status": status.value, "updated": updated_at},
+        )
+        return bool(rows and rows[0]["c"] > 0)
+
+    def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
+        rows = self._run(
+            "MATCH (t:AtomicTask {name: $name}) "
+            "SET t.qa_status = $qa_status, t.qa_updated = $updated "
+            "RETURN count(t) AS c",
+            {"name": name, "qa_status": qa_status, "updated": updated_at},
         )
         return bool(rows and rows[0]["c"] > 0)
 
