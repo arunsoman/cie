@@ -10,7 +10,10 @@ AtomicTask nodes whose file_path matches, unifying the two graphs).
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional, Protocol, runtime_checkable
+
+log = logging.getLogger(__name__)
 
 from cie.tasks import (
     SCHEMA_VERSION,
@@ -377,7 +380,10 @@ def plan_push(
         if reason is None:
             reason = _task_rule_error(t)
         if reason is not None:
-            rejected.append(RejectedTask(name=t.name, reason=reason))
+            rejected.append(RejectedTask(
+                name=t.name, reason=reason, userstory_id=t.userstory_id,
+                task_type=t.task_type, file_path=t.file_path,
+            ))
         else:
             seen.add(t.name)
             survivors.append(t)
@@ -389,7 +395,9 @@ def plan_push(
         if cycle:
             rejected.append(
                 RejectedTask(
-                    name=t.name, reason=f"dependency cycle: {' -> '.join(cycle)}"
+                    name=t.name, reason=f"dependency cycle: {' -> '.join(cycle)}",
+                    userstory_id=t.userstory_id, task_type=t.task_type,
+                    file_path=t.file_path,
                 )
             )
         else:
@@ -479,11 +487,46 @@ class Neo4jTaskRepository:
         return [_task_from_node(dict(r["t"])) for r in rows]
 
     def push_tasks(self, batch: AtomicTaskBatch, project: str = "") -> PushResult:
-        """Validate per task and write only the valid ones (partial accept)."""
+        """Validate per task and write only the valid ones (partial accept).
+
+        Rejections are now durably recorded (`:RejectedTask` nodes, one per
+        rejection, append-only — never MERGEd/deduplicated, since each is a
+        distinct historical event, not an entity) — previously the ONLY
+        record of a rejected task was a `print()` in the caller
+        (features/mine/service.py), which produced exactly the failure
+        mode confirmed live 2026-08-13 on book-my-calender: a dev task
+        silently dropped for missing a test_triad, its sibling QA task
+        written anyway (no equivalent gate), leaving an orphaned test with
+        no implementation and nothing anywhere to show it had ever
+        happened. Never blocks the push itself — a durability failure here
+        must not turn a successful partial-accept into a hard error."""
         accepted, rejected = plan_push(batch, self._all_tasks())
         if accepted:
             self._write_tasks(accepted, project=project)
+        if rejected:
+            try:
+                self._write_rejected_tasks(rejected, project=project)
+            except Exception:  # noqa: BLE001 — best-effort durability, never fatal
+                log.exception(
+                    "failed to durably record %d rejected task(s) for project %r",
+                    len(rejected), project,
+                )
         return PushResult(accepted=len(accepted), rejected=rejected)
+
+    def _write_rejected_tasks(self, rejected: list[RejectedTask], project: str = "") -> None:
+        with self._driver.session() as session:
+            for r in rejected:
+                session.run(
+                    "CREATE (n:RejectedTask {id: randomUUID(), project: $project, "
+                    "name: $name, reason: $reason, userstory_id: $userstory_id, "
+                    "task_type: $task_type, file_path: $file_path, "
+                    "created: datetime()})",
+                    {
+                        "project": project, "name": r.name, "reason": r.reason,
+                        "userstory_id": r.userstory_id, "task_type": r.task_type,
+                        "file_path": r.file_path,
+                    },
+                )
 
     def submit_batch(self, batch: AtomicTaskBatch) -> int:
         """Back-compat alias: all-or-nothing wrapper around :meth:`push_tasks`.

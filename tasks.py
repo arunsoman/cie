@@ -341,10 +341,25 @@ class ContractViolation(BaseModel):
 
 
 class RejectedTask(BaseModel):
-    """One task that failed validation during ``push_tasks`` (nothing written)."""
+    """One task that failed validation during ``push_tasks`` (nothing written).
+
+    userstory_id/task_type/file_path are best-effort context (blank when
+    not known/applicable) — added so a rejection can be durably persisted
+    and later cross-referenced back to "which story/file was this for"
+    without needing the original in-memory batch. Before this, a
+    rejection's only record was a `print()` in features/mine/service.py's
+    caller — confirmed live 2026-08-13: book-my-calender's `select_time_slot`
+    dev task was silently dropped this way (missing test_triad, most
+    likely) while its sibling QA task passed validation and got written,
+    leaving an orphaned test with no implementation and zero durable trace
+    of why. See `Neo4jTaskRepository.push_tasks`'s own docstring for where
+    this now gets written."""
 
     name: str
     reason: str
+    userstory_id: str = ""
+    task_type: str = ""
+    file_path: str = ""
 
 
 class PushResult(BaseModel):
