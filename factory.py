@@ -124,6 +124,7 @@ def build_tool_service(
         get_task_repo(project, cfg),
         root=Path(root),
         allowed_root=Path(allowed_root) if allowed_root is not None else None,
+        project=project,
     )
 
 

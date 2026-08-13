@@ -140,6 +140,7 @@ class ToolService:
         task_repo: Any,
         root: Path,
         allowed_root: Optional[Path] = None,
+        project: str = "",
     ) -> None:
         self._engine = engine
         self._task_repo = task_repo
@@ -147,6 +148,16 @@ class ToolService:
         self._allowed_root = (
             Path(allowed_root) if allowed_root is not None else self._root
         )
+        # This service's own project namespace — threaded into every
+        # write_file/edit_file/delete_file/reindex_file's reindex_file()
+        # call below, matching the project-scoping every READ query in
+        # Neo4jRepository already applies via `_pw`/`_pw_where`. Reading
+        # it off `engine`/`engine._repo` instead would only work for the
+        # real Neo4jRepository (which happens to keep a private `_project`
+        # of its own) and break the `Repository` Protocol's test doubles
+        # (InMemoryRepository, the various fakes in tests/cie/) that have
+        # no such attribute — this stays a plain constructor value instead.
+        self._project = project
         # Populated by start_watch()/stopped by stop_watch(); an in-process
         # watchdog.observers.Observer, not the SEPARATE `cie watch`
         # subprocess forge's CieBackend spawns for its own in-process use
@@ -2905,7 +2916,9 @@ class ToolService:
         hint = None
         if extract.supported_suffix(resolved) is not None:
             try:
-                self._engine._repo.reindex_file(str(resolved), extract.Extraction())  # noqa: SLF001
+                self._engine._repo.reindex_file(  # noqa: SLF001
+                    str(resolved), extract.Extraction(), project=self._project,
+                )
             except Exception as exc:  # noqa: BLE001
                 hint = f"file deleted but graph cleanup failed: {exc}"
         return self._ok(tool, [result], started, hint=hint)
@@ -2964,7 +2977,9 @@ class ToolService:
         try:
             content = resolved.read_bytes()
             extraction = extract.extract_file(resolved)
-            written = self._engine._repo.reindex_file(str(resolved), extraction)  # noqa: SLF001
+            written = self._engine._repo.reindex_file(  # noqa: SLF001
+                str(resolved), extraction, project=self._project,
+            )
             self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
             return result, f"write succeeded but graph reindex failed: {exc}"
@@ -2998,7 +3013,9 @@ class ToolService:
             self._sync_heuristic_index(resolved)
             content = resolved.read_bytes()
             extraction = extract.extract_file(resolved)
-            written = self._engine._repo.reindex_file(str(resolved), extraction)
+            written = self._engine._repo.reindex_file(  # noqa: SLF001
+                str(resolved), extraction, project=self._project,
+            )
             self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)

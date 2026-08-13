@@ -83,6 +83,18 @@ _CALL_TYPES = {"call", "call_expression", "method_invocation"}
 # Node types that wrap the callable being invoked (attribute/member access).
 _ATTRIBUTE_TYPES = {"attribute", "member_expression"}
 
+# JSX tag node types (JS/TSX only) — `<Foo .../>` / `<Foo>...</Foo>` never
+# parses as a call_expression, so without this a component's usage site
+# (as opposed to its plain-function-call usage, already covered by
+# _CALL_TYPES above) produces zero call_sites and the component is
+# unreachable from anything that only renders it via JSX — confirmed live:
+# a test file importing and rendering <TimeSlotList .../> had no edge to
+# TimeSlotList.tsx at all, so failing_context's BFS from a failing test
+# could never reach the component actually under test. jsx_closing_element
+# is deliberately excluded: for a paired jsx_element it names the same tag
+# as jsx_opening_element and would just double the same call site.
+_JSX_ELEMENT_TYPES = {"jsx_opening_element", "jsx_self_closing_element"}
+
 # TS/TSX decorator node type (`@Component(...)`), and the wrapper node type
 # whose own children hold a class's decorators when the class is exported
 # (`export class Foo` / `export default class Foo`) rather than the class
@@ -1037,6 +1049,22 @@ def _call_target(node) -> tuple[str, str]:
     return "", ""
 
 
+def _jsx_component_name(node) -> str:
+    """Tag name of a jsx_opening_element/jsx_self_closing_element, or ''
+    when it's a lowercase host element (``<div>``) rather than a
+    component reference, or a dotted/namespaced tag (``<Foo.Bar>``) —
+    out of scope here; the plain-identifier case (``<TimeSlotList .../>``)
+    is what a component's own import binding resolves through via the
+    same import_map machinery a bare call already uses."""
+    for child in node.children:
+        if child.type == "identifier":
+            name = _text(child)
+            return name if name and name[0].isupper() else ""
+        if child.type == "member_expression":
+            return ""
+    return ""
+
+
 def _collect_call_sites(root, file_id: str, language: str,
                         is_function: Callable[[object], bool],
                         function_name: Callable[[object], str],
@@ -1060,22 +1088,26 @@ def _collect_call_sites(root, file_id: str, language: str,
         return file_id
 
     def _visit(node) -> None:
+        if node.type in _CALL_TYPES and language != "py" and _is_require_call(node):
+            return
+        called_name = ""
+        receiver = ""
         if node.type in _CALL_TYPES:
-            if language != "py" and _is_require_call(node):
-                return
             called_name, receiver = _call_target(node)
-            if called_name:
-                line = node.start_point[0] + 1
-                caller = _caller_id(node)
-                key = (caller, called_name, receiver, line)
-                if key not in seen:
-                    seen.add(key)
-                    out.call_sites.append(asdict(CallSite(
-                        caller_id=caller,
-                        called_name=called_name,
-                        receiver=receiver,
-                        line=line,
-                    )))
+        elif node.type in _JSX_ELEMENT_TYPES:
+            called_name = _jsx_component_name(node)
+        if called_name:
+            line = node.start_point[0] + 1
+            caller = _caller_id(node)
+            key = (caller, called_name, receiver, line)
+            if key not in seen:
+                seen.add(key)
+                out.call_sites.append(asdict(CallSite(
+                    caller_id=caller,
+                    called_name=called_name,
+                    receiver=receiver,
+                    line=line,
+                )))
         for child in node.children:
             _visit(child)
 

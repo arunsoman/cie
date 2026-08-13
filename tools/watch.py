@@ -51,6 +51,20 @@ def build_reindex_handler(repo: Any, project: str, debounce: float,
 
             if supported_suffix(Path(path)) is None:
                 return
+            # Same ignored-directory convention ToolService.reindex()'s bulk
+            # walk already applies (cie/tools/__init__.py) — without it, a
+            # watched project root (recursive=True, no path filter of its
+            # own) schedules a reindex for every file `npm install` writes
+            # under node_modules, polluting the graph with third-party
+            # internals. Confirmed live: a minified axios bundle's mangled
+            # `it` symbol got indexed this way and then won every project's
+            # test files' `it(...)` call-site resolution via callgraph.py's
+            # rule (d) "globally unique same-named symbol" fallback.
+            if any(
+                part.startswith(".") or part in ("node_modules", "__pycache__", ".venv")
+                for part in Path(path).parts
+            ):
+                return
             with self._lock:
                 existing = self._timers.get(path)
                 if existing is not None:

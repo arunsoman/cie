@@ -33,6 +33,23 @@ _JS_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
 # Receivers that mean "the enclosing class instance" (py self / js this).
 _SELF_RECEIVERS = ("self", "this")
 
+# Bare call names that are near-universally test-runner/testing-library
+# globals (injected by the framework, e.g. vitest's `globals: true`, never
+# a project-defined symbol reachable through (a)/(b)/(c) above) — excluded
+# from rule (d)'s "exactly one same-named symbol project-wide" fallback.
+# That heuristic has no real signal for a name this generic: confirmed
+# live against book-my-calender, where a minified node_modules bundle
+# happened to contain exactly one symbol named `it` and rule (d) wired
+# every test file's `it(...)` block to it, crowding out the one real edge
+# a repair loop's `failing_context` traversal needed (the test's own
+# import of the component under test, which pass-2 already resolves
+# correctly via (b) if the call site is even eligible for it).
+_TEST_FRAMEWORK_GLOBALS = frozenset({
+    "describe", "it", "test", "expect", "vi", "jest",
+    "beforeEach", "afterEach", "beforeAll", "afterAll",
+    "render", "screen", "fireEvent", "waitFor", "cleanup",
+})
+
 
 def _norm(path: str) -> str:
     """Normalize a path string for comparison (forward slashes, no dots)."""
@@ -320,7 +337,7 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
                 )
 
             # (d) project-wide unique same-named function/method.
-            if target is None:
+            if target is None and name not in _TEST_FRAMEWORK_GLOBALS:
                 candidates = index.global_funcs.get(name, [])
                 if len(candidates) == 1:
                     target = candidates[0]

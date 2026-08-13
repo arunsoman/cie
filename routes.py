@@ -1207,6 +1207,33 @@ def get_project_hierarchy(project_id: str) -> list[dict]:
     return nodes
 
 
+@router.get("/api/projects/{project_id}/code-mapping")
+def get_project_code_mapping(project_id: str) -> dict:
+    """PRD->code mapping for the admin graph explorer: the same PRD tree
+    get_project_hierarchy already returns (Module/Capability/UseCase/
+    UserStory/Task — Task included, per that route's own coverage), plus
+    every CodeFile node forge/generate_agent.py's write hook has written
+    for this project, each tagged with the id of the Task that OUTPUTS it.
+    Frontend stitches code_files onto their task_id — a project never
+    rebuilt since this feature shipped will simply have an empty
+    code_files list (fall back to each Task's own file_path there)."""
+    repo = factory.get_hierarchy_repo(project_id)
+    tree = [n.model_dump() for n in repo.get_project_tree(project_id)]
+
+    driver = factory.get_shared_driver()
+    with driver.session() as session:
+        rows = session.run(
+            "MATCH (c:CodeFile {project: $project_id}) "
+            "OPTIONAL MATCH (t)-[:OUTPUTS]->(c) "
+            "RETURN c.id AS id, c.file_path AS file_path, "
+            "c.written_at AS written_at, c.status AS status, t.id AS task_id",
+            project_id=project_id,
+        )
+        code_files = [dict(r) for r in rows]
+
+    return {"tree": tree, "code_files": code_files}
+
+
 # ---------------------------------------------------------------------------
 # Whole-project code-structure graph (AST/code-graph, distinct from the
 # PRD/business hierarchy above) — was entirely missing under be-v2-alone
@@ -1237,6 +1264,124 @@ def get_project_code_graph(project_id: str) -> dict:
             for e in edges
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Blast radius (admin graph explorer, be-v2/docs/plans/admin-graph-
+# explorer.md) — a plain REST alias for QueryEngine.affected_by, same
+# direct-engine-call pattern as get_project_code_graph above (no
+# ToolService fallback wrapper; this is a read-only admin view, not the
+# repair agent's degraded-mode path). "incoming" (the default) answers
+# "what breaks if I change this file"; "outgoing" answers "what does this
+# file depend on".
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/projects/{project_id}/blast-radius")
+def get_blast_radius(
+    project_id: str,
+    file_path: str = Query(...),
+    direction: str = Query("incoming"),
+    max_depth: int = Query(3, ge=1, le=6),
+    max_results: int = Query(30, ge=1, le=50),
+) -> dict:
+    engine = factory.get_engine(project_id)
+    hits = engine.affected_by(file_path, max_depth=max_depth, direction=direction, max_results=max_results)
+    return {
+        "file_path": file_path,
+        "direction": direction,
+        "hits": [
+            {
+                "id": h.node.id, "file": h.node.source_file, "symbol": h.node.label,
+                "distance": h.distance, "confidence": h.confidence.value,
+            }
+            for h in hits
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# CIE Tool Console (admin graph explorer, be-v2/docs/plans/admin-graph-
+# explorer.md) — a generic UI over CIE's ~90 read-only introspection/
+# reporting tools (search, traceability, drift/clone reports, subsystem
+# health, coverage, metrics, ...), reusing the existing POST /tools/{tool}
+# dispatcher (`run_tool` above) for the actual call so there's exactly one
+# envelope/error-handling implementation. This is an explicit ALLOWLIST,
+# not a denylist of known-mutating tools: a tool this list doesn't
+# recognize is excluded by default rather than accidentally exposed —
+# deliberately excludes every tool that writes to the graph, filesystem,
+# or test runner (write_file/edit_file/delete_file, reindex*, sync_*,
+# every `*_run` analysis-trigger paired with a read-only report tool,
+# record_*, push_hierarchy, install_git_hook, configure_layer_rules,
+# start_watch/stop_watch, start_mock_server/stop_mock_server, run_tests,
+# run, nook_and_corner_test (writes files by default), decompose_page,
+# promote_hint_to_task, link_artifact, append_repair_events,
+# inject_assertions/strip_assertions, export_rdf).
+# ---------------------------------------------------------------------------
+
+READ_ONLY_CIE_TOOLS: frozenset[str] = frozenset({
+    "view_file", "search_symbol", "resolve_import", "semantic_search",
+    "callers", "callees", "file_skeleton", "path_between", "failing_context",
+    "affected_by", "resolve_api_route", "api_call_sites", "class_hierarchy",
+    "test_map", "actual_callers", "dead_code_confirm", "hybrid_search",
+    "entity_context", "qa", "blame_history",
+    "clone_clusters", "clone_find",
+    "performance_profile", "antipattern_scan",
+    "drift_report", "architecture_check",
+    "metrics", "tech_debt_report", "metric_trend", "graph_diff",
+    "community_search",
+    "accuracy_check", "freshness_report", "comprehensiveness_report", "salience_report",
+    "related_edges", "validate_property_constraints",
+    "type_flow", "dependency_graph", "doc_search", "contracts",
+    "validate_types",
+    "test_skeletons", "test_coverage",
+    "state_machine", "fsm_validate",
+    "traceability_coverage", "traceability_orphans", "traceability_chain",
+    "prd_traceability_coverage", "prd_traceability_orphans", "prd_traceability_chain",
+    "semantic_diff",
+    "agent_verdicts", "confidence_report", "justification",
+    "check_invariant", "invariant_violations",
+    "telemetry_to_spec",
+    "page_tree", "element_coverage", "implied_pages",
+    "subsystem_health", "subsystem_gaps", "subsystem_dependency_graph",
+    "population_path",
+    "test_plan", "test_results", "coverage_gaps", "unified_coverage_report",
+    "mock_registry", "mock_coverage", "mock_violations",
+    "apm_metrics", "performance_baseline", "performance_regressions",
+    "list_pending_tasks", "get_task", "task_dependency_closure",
+    "get_coverage", "coverage_report", "coverage_trend",
+    "get_children", "get_lineage", "get_layer_rules",
+    "health", "schema_version",
+    "validate_api_contracts", "validate_coverage", "validate_cycles",
+})
+
+
+@router.get("/api/cie-tools")
+def list_cie_tools(project: str = Query("")) -> dict:
+    """Manifest for the Tool Console dropdown: live-introspected {name,
+    signature, doc} (same source as GET /tools) filtered down to
+    READ_ONLY_CIE_TOOLS, so signatures/docs can't drift from what the
+    tool actually accepts."""
+    manifest = get_tool_service(project).describe()
+    tools = [t for t in manifest.get("results", []) if t["name"] in READ_ONLY_CIE_TOOLS]
+    return {"tools": tools}
+
+
+@router.post("/api/cie-tools/{tool}")
+async def run_cie_tool(tool: str, request: Request) -> JSONResponse:
+    """Gated alias for POST /tools/{tool} — only forwards when `tool` is in
+    the read-only allowlist above; everything else (including a tool this
+    list has simply never heard of) gets a 403 rather than being forwarded
+    to the full mutating-capable dispatcher."""
+    if tool not in READ_ONLY_CIE_TOOLS:
+        return JSONResponse(
+            status_code=403,
+            content=err_envelope(
+                tool, "validation", f"'{tool}' is not exposed through the read-only Tool Console",
+                hint="see READ_ONLY_CIE_TOOLS in cie/routes.py",
+            ),
+        )
+    return await run_tool(tool, request)
 
 
 # ---------------------------------------------------------------------------

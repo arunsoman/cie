@@ -368,7 +368,7 @@ def plan_push(
     """Split a batch into (accepted, rejected) under the partial-accept rules.
 
     Rejection rules, per task, in order:
-      1. duplicate name within the batch,
+      1. duplicate name or duplicate id within the batch,
       2. schema violations (enums, empty name/file_path),
       3. dev-without-triad / API-layer-without-api_spec,
       4. dependency cycles (batch-internal or against ``stored`` tasks).
@@ -380,10 +380,19 @@ def plan_push(
     rejected: list[RejectedTask] = []
     survivors: list[AtomicTask] = []
     seen: set[str] = set()
+    #: id, not name — _write_tasks (2026-08-13,
+    #: docs/plans/atomic-task-duplicate-id-fix.md) now MERGEs on id, so
+    #: two batch members sharing an id (even with different names) would
+    #: silently collapse onto one node at write time, the second row's
+    #: props clobbering the first's, with no rejection recorded — this
+    #: catches that before it ever reaches Neo4j.
+    seen_ids: set[str] = set()
     for t in batch.tasks:
         reason: Optional[str] = None
         if t.name in seen:
             reason = f"duplicate task name '{t.name}' in batch"
+        if reason is None and t.id in seen_ids:
+            reason = f"duplicate task id '{t.id}' in batch"
         if reason is None:
             reason = _task_schema_error(t)
         if reason is None:
@@ -395,6 +404,7 @@ def plan_push(
             ))
         else:
             seen.add(t.name)
+            seen_ids.add(t.id)
             survivors.append(t)
     # Cycle check over the graph that would exist after writing the survivors.
     graph = _dependency_graph(stored, survivors)
@@ -441,11 +451,25 @@ def flush_atomic_task_batch(driver, rows: list[dict]) -> None:
     `graph_cache.get_entity_cache(...)` as a plain callable from
     `cie/factory.py` without that module needing to import the class
     just to close over `self._driver`.
+
+    Merges on `(id, project)`, not `name` (2026-08-13 fix,
+    docs/plans/atomic-task-duplicate-id-fix.md) — `row.id` is always the
+    AtomicTask's `id` now (both `_write_tasks`'s cached node-creation
+    write and `set_status_cached`'s status write key their queued rows
+    on `t.id`/`task_id`), and `row.props.project` (present whenever the
+    repo was constructed with a project — both writers include it in
+    props for exactly this reason) resolves each row to the correct
+    per-project node instead of colliding with another project's task
+    that happens to reuse the same short id. `name` was the old (buggy)
+    match key: LLM-generated free text that can reword between
+    regenerations of "the same" task, which let a reworded regeneration
+    silently create a second, orphaned node instead of updating the
+    first (confirmed live on book-my-calender's duplicate `QA-T002`).
     """
     with driver.session() as session:
         session.run(
             "UNWIND $rows AS row "
-            "MERGE (t:AtomicTask {name: row.id}) "
+            "MERGE (t:AtomicTask {id: row.id, project: coalesce(row.props.project, '')}) "
             "SET t += row.props "
             "SET t.attempts = coalesce(t.attempts, 0) + coalesce(row.counters.attempts, 0)",
             {"rows": rows},
@@ -609,13 +633,29 @@ class Neo4jTaskRepository:
             for t in tasks:
                 props = _task_to_props(t, project=project)
                 if self._entity_cache is not None:
-                    self._entity_cache.write("AtomicTask", t.name, props=props, counters={})
+                    # Keyed on t.id, not t.name (2026-08-13 fix,
+                    # docs/plans/atomic-task-duplicate-id-fix.md) — id is
+                    # the stable identifier, name is LLM-generated free
+                    # text that can reword between regenerations of "the
+                    # same" task. set_status_cached() now keys its own
+                    # writes to this same shared "AtomicTask" cache
+                    # bucket on t.id too (and flush_atomic_task_batch's
+                    # MERGE matches on id+project), so both writers land
+                    # on the same node instead of one silently creating a
+                    # second, orphaned one keyed by a reworded name
+                    # (confirmed live on book-my-calender's duplicate
+                    # `QA-T002`).
+                    self._entity_cache.write("AtomicTask", t.id, props=props, counters={})
                     if t.api_spec or t.test_triad or t.dependencies:
-                        self._entity_cache.flush_key("AtomicTask", t.name)
+                        self._entity_cache.flush_key("AtomicTask", t.id)
                 else:
+                    # id+project, not name (2026-08-13 fix) — see the
+                    # entity_cache branch's comment above for why. project
+                    # defaults to "" for unscoped callers/tests, same
+                    # sentinel flush_atomic_task_batch's MERGE below uses.
                     session.run(
-                        "MERGE (t:AtomicTask {name: $name}) SET t += $props",
-                        {"name": t.name, "props": props},
+                        "MERGE (t:AtomicTask {id: $id, project: $project}) SET t += $props",
+                        {"id": t.id, "project": project, "props": props},
                     )
                 # Write ApiSpec as a separate node if present
                 if t.api_spec:
@@ -733,7 +773,7 @@ class Neo4jTaskRepository:
         )
         return bool(rows and rows[0]["c"] > 0)
 
-    def set_status_cached(self, name: str, status: TaskStatus, updated_at: str) -> None:
+    def set_status_cached(self, task_id: str, status: TaskStatus, updated_at: str) -> None:
         """Write-behind status write for forge's hot path
         (forge/reporter.py::CieReporter.status(), up to 8 concurrent
         workers — docs/plans/graph-write-behind-cache-plan.md §1/§3/§6
@@ -746,18 +786,51 @@ class Neo4jTaskRepository:
         404, keep calling set_status() directly and are untouched by
         this method's existence.
 
-        Falls back to set_status() (dropping its bool return) when this
-        repo has no entity_cache configured — the direct-construction
+        Takes `task_id` (AtomicTask.id), not name (2026-08-13 fix,
+        docs/plans/atomic-task-duplicate-id-fix.md) — this shares one
+        write-behind flush queue/Cypher for the "AtomicTask" label with
+        `_write_tasks`'s cached node-creation write
+        (flush_atomic_task_batch's MERGE below), and both sides of that
+        shared queue must key on the same, stable property (id) for the
+        MERGE to resolve to one real node instead of silently creating a
+        second, bogus one keyed by whatever string this call happened to
+        pass. `name` is LLM-generated free text that can reword between
+        regenerations of "the same" task — keying on it here is exactly
+        what let a reworded regeneration orphan a task's status updates
+        onto a phantom node (confirmed live on book-my-calender's
+        duplicate `QA-T002`).
+
+        Falls back to a synchronous id-keyed MATCH (not set_status(),
+        which is still name-keyed for its own callers — see that
+        method's docstring) when this repo has no entity_cache
+        configured — the direct-construction
         path every test in this suite uses, and any caller that hasn't
         gone through cie.factory.get_task_repo.
         """
         if self._entity_cache is None:
-            self.set_status(name, status, updated_at)
+            params = {"id": task_id, "status": status.value, "updated": updated_at}
+            match = "MATCH (t:AtomicTask {id: $id})"
+            if self._project:
+                match = "MATCH (t:AtomicTask {id: $id, project: $project})"
+                params["project"] = self._project
+            self._run(
+                f"{match} SET t.status = $status, t.updated = $updated, "
+                "t.attempts = coalesce(t.attempts, 0) + 1",
+                params,
+            )
             return
+        cached_props: dict = {"status": status.value, "updated": updated_at}
+        if self._project:
+            # Threaded into props (not just the eventual MERGE key) so
+            # flush_atomic_task_batch's shared Cypher can read
+            # `row.props.project` consistently regardless of whether a
+            # given queued row came from here or from _write_tasks's own
+            # cached node-creation write — both need to resolve to the
+            # SAME (id, project) key for the shared MERGE to land on one
+            # real node.
+            cached_props["project"] = self._project
         self._entity_cache.write(
-            "AtomicTask", name,
-            props={"status": status.value, "updated": updated_at},
-            counters={"attempts": 1},
+            "AtomicTask", task_id, props=cached_props, counters={"attempts": 1},
         )
 
     def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
@@ -828,7 +901,12 @@ class Neo4jTaskRepository:
         project_filter = ""
         if project:
             params["project"] = project
-            project_filter = " AND t.project = $project"
+            # WHERE, not AND (pre-existing bug, found live 2026-08-13
+            # while cleaning up book-my-calender's duplicate QA-T002):
+            # the base MATCH has no clause to AND onto — every scoped
+            # call raised CypherSyntaxError, meaning the project-scoped
+            # form of this method has never actually worked.
+            project_filter = " WHERE t.project = $project"
         rows = self._run(
             f"MATCH (t:AtomicTask {{name: $name}}){project_filter} "
             "DETACH DELETE t "
