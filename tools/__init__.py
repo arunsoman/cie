@@ -52,6 +52,7 @@ from cie.tools import edit as _edit
 from cie.tools import runner as _runner
 from cie.tools import view as _view
 from cie.tools.heuristic import HeuristicToolSet
+from cie.tools.imports import format_import
 from cie.tools.index import Symbol, SymbolIndex
 
 logger = logging.getLogger("cie.tools")
@@ -388,6 +389,45 @@ class ToolService:
         if exc is not None:
             hint = self._degraded_hint(exc, hint)
         return self._ok(tool, results, started, truncated=truncated, hint=hint)
+
+    def resolve_import(self, symbol: str, importing_file: str = "", language: str = "") -> dict:
+        """Symbol/class name -> the exact import statement to write for it,
+        resolved against the project's REAL current file layout instead of
+        a guessed module path.
+
+        Closes a recurring cross-task drift bug: one task creates a shared
+        module (e.g. `backend/core/database.py`'s `get_db`/`Base`), a later
+        task guesses a plausible-but-wrong import for it (e.g. `from
+        backend.database import get_db`) instead of checking where the
+        symbol actually lives. `forge/repair_agent.py`'s own failure-signal
+        regexes can't reliably catch this after the fact — a plain Python
+        `ModuleNotFoundError: No module named 'x.y'` names a dotted module,
+        not a file path, and the traceback line pointing at the bad import
+        (e.g. `features/auth/router.py:7`) falls outside the
+        `src/`/`lib/`/`app/` prefixes `extract_signals` looks for — so it's
+        cheaper to never guess the import in the first place. Prefer this
+        over hand-deriving an import path for any symbol not defined in the
+        file being written.
+
+        `importing_file`: the file this import will be written into.
+        Required for a correct RELATIVE path on JS/TS/TSX (Python's dotted
+        path is project-root-relative regardless); also used to drop a
+        same-file match (nothing to import — the symbol's already local)
+        and to compute the relative specifier.
+
+        `language`: optional filter ("python" | "typescript") for a symbol
+        name that's ambiguous across stacks (e.g. both a Python and a TS
+        file define something called `Booking`).
+        """
+        tool = "resolve_import"
+        started = time.monotonic()
+        search = self.search_symbol(symbol)
+        if not search.get("ok", True):
+            return search
+        results, hint = format_import(
+            search.get("results") or [], symbol, importing_file, language,
+        )
+        return self._ok(tool, results, started, hint=hint)
 
     def semantic_search(self, query: str, top_k: int = 10) -> dict:
         """Rank nodes by embedding similarity to a natural-language query."""

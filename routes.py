@@ -637,6 +637,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     # Tier 1
     "view_file": _service_tool("view_file"),
     "search_symbol": _service_tool("search_symbol"),
+    "resolve_import": _service_tool("resolve_import"),
     "semantic_search": _service_tool("semantic_search"),
     "callers": _service_tool("callers"),
     "callees": _service_tool("callees"),
