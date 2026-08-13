@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from cie.graph_cache import EntityCache
 
 from cie.tasks import (
     SCHEMA_VERSION,
@@ -91,6 +94,12 @@ class TaskRepository(Protocol):
 
     def set_status(self, name: str, status: TaskStatus, updated_at: str) -> bool:
         """Update a task's status and bump attempts. Return False if missing."""
+
+    def set_status_cached(self, name: str, status: TaskStatus, updated_at: str) -> None:
+        """Write-behind variant of :meth:`set_status` for high-frequency
+        callers that don't need the existence check (see
+        Neo4jTaskRepository's docstring). No return value — writes may
+        be deferred behind an in-process cache."""
 
     def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
         """Update a task's QA-specific outcome ('qa_generated'/'qa_failed').
@@ -417,6 +426,32 @@ def legacy_rejection_message(rejected: RejectedTask) -> str:
 from cie.tasks import ApiSpec, TestTriad  # noqa: E402
 
 
+def flush_atomic_task_batch(driver, rows: list[dict]) -> None:
+    """Batched write-behind flush callback for the "AtomicTask" label
+    (docs/plans/graph-write-behind-cache-plan.md §6 Phase 3/4) — one
+    UNWIND covering every task queued since the last flush, instead of
+    one `session.run` per task. `attempts` is a counter, not a plain
+    property: `set_status_cached`'s cached writes accumulate it as a
+    per-key delta (see cie.graph_cache.EntityCache's counters), so the
+    flush adds that delta server-side rather than overwriting — a burst
+    of status transitions for the same task coalesced into one flush
+    still ends up with the right total, not a collapsed +1.
+
+    Not a method on Neo4jTaskRepository so it can be handed to
+    `graph_cache.get_entity_cache(...)` as a plain callable from
+    `cie/factory.py` without that module needing to import the class
+    just to close over `self._driver`.
+    """
+    with driver.session() as session:
+        session.run(
+            "UNWIND $rows AS row "
+            "MERGE (t:AtomicTask {name: row.id}) "
+            "SET t += row.props "
+            "SET t.attempts = coalesce(t.attempts, 0) + coalesce(row.counters.attempts, 0)",
+            {"rows": rows},
+        )
+
+
 class Neo4jTaskRepository:
     """Neo4j-backed implementation of the TaskRepository protocol.
 
@@ -427,7 +462,7 @@ class Neo4jTaskRepository:
     queries (get_dependent_tasks, validate_cycles).
     """
 
-    def __init__(self, driver, project: str = ""):
+    def __init__(self, driver, project: str = "", entity_cache: "Optional[EntityCache]" = None):
         self._driver = driver
         #: Scopes list_pending() to this project — see that method.
         #: factory.get_task_repo(project) always passes this through, so
@@ -435,10 +470,23 @@ class Neo4jTaskRepository:
         #: forge/graph_source.pull_batch_cie, the CLI, cie's own
         #: tools) is scoped for free.
         self._project = project
+        #: Write-behind cache for the hot AtomicTask write paths
+        #: (set_status_cached, _write_tasks' primary node write) — see
+        #: docs/plans/graph-write-behind-cache-plan.md. None (the default,
+        #: and what every direct `Neo4jTaskRepository(driver, ...)`
+        #: construction outside cie.factory gets, including every existing
+        #: test in this suite) means "caching disabled" — set_status_cached
+        #: falls back to set_status and _write_tasks writes directly,
+        #: identical to this class's behavior before this cache existed.
+        #: cie.factory.get_task_repo is the one production call path that
+        #: actually supplies a real one.
+        self._entity_cache = entity_cache
 
     @classmethod
-    def from_driver(cls, driver, project: str = "") -> "Neo4jTaskRepository":
-        return cls(driver, project=project)
+    def from_driver(
+        cls, driver, project: str = "", entity_cache: "Optional[EntityCache]" = None,
+    ) -> "Neo4jTaskRepository":
+        return cls(driver, project=project, entity_cache=entity_cache)
 
     def _run(self, query: str, params: Optional[dict] = None):
         with self._driver.session() as session:
@@ -542,14 +590,33 @@ class Neo4jTaskRepository:
         return result.accepted
 
     def _write_tasks(self, tasks: list[AtomicTask], project: str = "") -> None:
-        """Merge task nodes plus ApiSpec/TestTriad/file/task DEPENDS_ON edges."""
+        """Merge task nodes plus ApiSpec/TestTriad/file/task DEPENDS_ON edges.
+
+        The primary task-node write (docs/plans/graph-write-behind-cache-
+        plan.md §1's "confirmed unbatched" `MERGE...SET t += $props`,
+        §6 Phase 4) goes through the entity cache when one is configured.
+        A task with an api_spec/test_triad/dependency, though, needs its
+        node to exist RIGHT NOW for the `MATCH (t:AtomicTask {name:
+        $name})` statements immediately below in this same loop
+        iteration — those would silently no-op against a node that's
+        still sitting unflushed in the cache. `flush_key` forces exactly
+        that one entry out synchronously in that case; tasks with none
+        of the three (nothing else in this call needs the node to exist
+        yet) stay on the deferred/batched path for real cross-call
+        coalescing (e.g. with forge/reporter.py's set_status_cached
+        writes for the same task, landing in the same flush)."""
         with self._driver.session() as session:
             for t in tasks:
                 props = _task_to_props(t, project=project)
-                session.run(
-                    "MERGE (t:AtomicTask {name: $name}) SET t += $props",
-                    {"name": t.name, "props": props},
-                )
+                if self._entity_cache is not None:
+                    self._entity_cache.write("AtomicTask", t.name, props=props, counters={})
+                    if t.api_spec or t.test_triad or t.dependencies:
+                        self._entity_cache.flush_key("AtomicTask", t.name)
+                else:
+                    session.run(
+                        "MERGE (t:AtomicTask {name: $name}) SET t += $props",
+                        {"name": t.name, "props": props},
+                    )
                 # Write ApiSpec as a separate node if present
                 if t.api_spec:
                     session.run(
@@ -665,6 +732,33 @@ class Neo4jTaskRepository:
             {"name": name, "status": status.value, "updated": updated_at},
         )
         return bool(rows and rows[0]["c"] > 0)
+
+    def set_status_cached(self, name: str, status: TaskStatus, updated_at: str) -> None:
+        """Write-behind status write for forge's hot path
+        (forge/reporter.py::CieReporter.status(), up to 8 concurrent
+        workers — docs/plans/graph-write-behind-cache-plan.md §1/§3/§6
+        Phase 3). Unlike set_status(), this never confirms the task
+        exists — no synchronous round trip at all on the common path —
+        and returns nothing. CieReporter never checked set_status()'s
+        return value anyway (it's a failure-isolated fire-and-forget
+        write, same as every other GraphReporter call); cie/routes.py's
+        HTTP endpoints, which DO need the existence check for a proper
+        404, keep calling set_status() directly and are untouched by
+        this method's existence.
+
+        Falls back to set_status() (dropping its bool return) when this
+        repo has no entity_cache configured — the direct-construction
+        path every test in this suite uses, and any caller that hasn't
+        gone through cie.factory.get_task_repo.
+        """
+        if self._entity_cache is None:
+            self.set_status(name, status, updated_at)
+            return
+        self._entity_cache.write(
+            "AtomicTask", name,
+            props={"status": status.value, "updated": updated_at},
+            counters={"attempts": 1},
+        )
 
     def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
         rows = self._run(

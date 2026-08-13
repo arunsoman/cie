@@ -22,14 +22,18 @@ import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from neo4j import Driver, GraphDatabase, Query
 
 from core.llm.embed_text import embed_text
 from cie.embed import compute_embeddings
 from cie.extract import EXTRACTOR_VERSION, Extraction
+from cie.graph_cache import cached_query
 from cie.timeouts import Neo4jOperationTimeout, run_with_timeout
+
+if TYPE_CHECKING:
+    from cie.graph_cache import QueryCache
 
 from cie.models import (
     Confidence,
@@ -272,12 +276,21 @@ class Neo4jRepository:
         query_timeout_s: float = 30.0,
         schema_timeout_s: float = 15.0,
         write_timeout_s: float = 120.0,
+        query_cache: "Optional[QueryCache]" = None,
     ):
         self._driver = driver
         self._project = project
         self._query_timeout_s = query_timeout_s
         self._schema_timeout_s = schema_timeout_s
         self._write_timeout_s = write_timeout_s
+        #: Read-through cache for @cached_query-decorated methods (plan:
+        #: docs/plans/graph-write-behind-cache-plan.md). None (the
+        #: default — every direct `Neo4jRepository(driver, ...)`
+        #: construction, including every test in this suite) means
+        #: caching is off and those methods behave exactly as before
+        #: this cache existed. cie.factory.get_engine() is the one
+        #: production path that supplies a real cie.graph_cache.QueryCache.
+        self._query_cache = query_cache
 
     @classmethod
     def connect(
@@ -1647,6 +1660,7 @@ class Neo4jRepository:
 
     # -- forge tool-layer queries (Wave B) ----------------------------------
 
+    @cached_query(labels=frozenset({"Node"}))
     def search_symbols(
         self, name: str, kind: str = "", file_glob: str = "", limit: int = 20
     ) -> list[SymbolMatch]:
@@ -1751,6 +1765,7 @@ class Neo4jRepository:
         rows = self._run(query, {"sid": source_id, "limit": max(1, int(limit))})
         return [_row_to_edge_record(r) for r in rows]
 
+    @cached_query(labels=frozenset({"Node"}))
     def get_file_skeleton(self, path: str) -> list[Node]:
         """Return class/function/method nodes for a file, ordered by line_start.
 
@@ -1844,6 +1859,7 @@ class Neo4jRepository:
             )
         return hits
 
+    @cached_query(labels=frozenset({"Node"}))
     def affected_by(
         self, file_path: str, max_depth: int = 3, direction: str = "incoming",
         max_results: int = 30, timeout_s: float = 5.0,

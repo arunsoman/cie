@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from cie import factory
+from cie.task_repository import _task_from_node
 from cie.tasks import AtomicQaTask, AtomicTask, AtomicTaskBatch
 
 #: cie/task_repository.py::_VALID_LAYERS' canonical casing. mine's
@@ -53,6 +54,16 @@ _LAYER_PREFIXES = (("frontend", "Frontend"), ("backend", "Backend"), ("api", "AP
 _ACTION_CANONICAL = {"create": "create", "modify": "modify", "delete": "delete"}
 
 
+def _is_flattened_graph_node(data: dict) -> bool:
+    """True for a raw Neo4j node property dict — nested fields (test_triad,
+    api_spec, exact_imports, ...) are JSON-encoded into ``<field>_json``
+    string properties by core/graph/repository.py::_flatten_props (Neo4j
+    can't store nested objects), never under the plain field name. Any
+    dict carrying such a key is that raw shape, not an already-flat
+    AtomicTask-compatible dict."""
+    return any(k.endswith("_json") for k in data)
+
+
 def to_atomic_task(entity: Any) -> AtomicTask:
     """Re-validate any AtomicTask-shaped object (pydantic model or dict)
     into cie's own AtomicTask (or AtomicQaTask for task_type == 'qa').
@@ -72,7 +83,24 @@ def to_atomic_task(entity: Any) -> AtomicTask:
     if hasattr(entity, "model_dump"):
         data = entity.model_dump(mode="json", exclude={"parent_ids", "child_ids"})
     elif isinstance(entity, dict):
-        data = dict(entity)
+        if _is_flattened_graph_node(entity):
+            # Raw Neo4j node dict (e.g. features/forge_repair/routes.py's
+            # cached-story repush path, which reads already-saved DevTask/
+            # QATask entities back via core.graph.repository.
+            # list_entities_by_project) — go through the same node ->
+            # AtomicTask reconstruction cie/task_repository.py's own reads
+            # use (_task_from_node) so test_triad/api_spec/exact_imports/
+            # etc. round-trip correctly, instead of `dict(entity)` leaving
+            # every nested field at its pydantic default (None/[]) because
+            # only the `<field>_json` key exists on the raw node. Confirmed
+            # live 2026-08-13 on book-my-calender: a dev task's
+            # test_triad_json held real content but validated to
+            # test_triad=None here, tripping _task_rule_error's "missing a
+            # test_triad" rejection and silently dropping the dev task
+            # while its QA sibling (no equivalent gate) was written anyway.
+            data = _task_from_node(entity).model_dump(mode="json", exclude={"parent_ids", "child_ids"})
+        else:
+            data = dict(entity)
     else:
         raise TypeError(f"cannot convert {type(entity)!r} to cie.tasks.AtomicTask")
     layer = data.get("layer")

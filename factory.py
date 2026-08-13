@@ -60,6 +60,7 @@ def get_engine(project: str = "", cfg: Optional[Neo4jConfig] = None) -> QueryEng
     same Aura instance. One shared driver means one pool, one routing
     table, refreshed once.
     """
+    from cie.graph_cache import get_query_cache
     from cie.neo4j_repository import Neo4jRepository
 
     if project not in _engines:
@@ -70,6 +71,7 @@ def get_engine(project: str = "", cfg: Optional[Neo4jConfig] = None) -> QueryEng
                 query_timeout_s=cfg.query_timeout_s,
                 schema_timeout_s=cfg.schema_timeout_s,
                 write_timeout_s=cfg.write_timeout_s,
+                query_cache=get_query_cache(project),
             )
         )
     return _engines[project]
@@ -82,9 +84,25 @@ def get_task_repo(project: str = "", cfg: Optional[Neo4jConfig] = None) -> Neo4j
     to the same shared driver but constructed with its own project — so
     list_pending() (see that method) is scoped to this project, not the
     whole shared Neo4j.
+
+    Wired with a real write-behind entity cache (docs/plans/graph-write-
+    behind-cache-plan.md) — this is the one production construction path
+    that gets one; direct `Neo4jTaskRepository(driver, project=...)`
+    construction (every existing test in this suite, and any future
+    caller that wants the old uncached behavior) does not.
     """
     if project not in _task_repos:
-        _task_repos[project] = Neo4jTaskRepository.from_driver(get_shared_driver(cfg), project=project)
+        from cie.graph_cache import get_entity_cache
+        from cie.task_repository import flush_atomic_task_batch
+
+        driver = get_shared_driver(cfg)
+        entity_cache = get_entity_cache(
+            project,
+            flush_fns={"AtomicTask": lambda rows, _d=driver: flush_atomic_task_batch(_d, rows)},
+        )
+        _task_repos[project] = Neo4jTaskRepository.from_driver(
+            driver, project=project, entity_cache=entity_cache,
+        )
     return _task_repos[project]
 
 
@@ -110,8 +128,13 @@ def build_tool_service(
 
 
 def reset_caches() -> None:
-    """Test/reload hook — drop cached engines, task repos, and the shared driver."""
+    """Test/reload hook — drop cached engines, task repos, the shared
+    driver, and the graph_cache entity/query cache singletons (stops
+    every entity cache's flusher thread first)."""
     global _shared_driver
+    from cie.graph_cache import reset_caches as _reset_graph_caches
+
     _engines.clear()
     _task_repos.clear()
     _shared_driver = None
+    _reset_graph_caches()
