@@ -109,15 +109,26 @@ def _close_engine(engine: QueryEngine) -> None:
         close()
 
 
-def _open_task_repo():
-    """Connect the task repository; returns ``(repo, driver)``."""
+def _open_task_repo(project: Optional[str] = None):
+    """Connect the task repository; returns ``(repo, driver)``.
+
+    Defaults to ``CIE_PROJECT``/``FORGE_PROJECT_ID`` the same way
+    :func:`_open_engine` does (2026-08-14 fix, RF6) — this never resolved
+    project from the env at all before, so every CLI task command (`tasks:
+    push`, `tasks:get`, etc.) always wrote/read the unscoped '' bucket
+    regardless of CIE_PROJECT, even when `_open_engine` in the very same
+    process correctly picked up the real project. Pass ``project=""``
+    explicitly for the legacy unscoped (all-projects) view.
+    """
     from neo4j import GraphDatabase
 
     from cie.task_repository import Neo4jTaskRepository
 
+    if project is None:
+        project = _project_from_env()
     cfg = Neo4jConfig.from_env()
     driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password), **cfg.driver_kwargs())
-    return Neo4jTaskRepository.from_driver(driver), driver
+    return Neo4jTaskRepository.from_driver(driver, project=project), driver
 
 
 def _open_hierarchy_repo(project: str = ""):
@@ -139,11 +150,21 @@ def _open_tool_service():
     """
     from cie.tools import ToolService
 
-    engine = _open_engine()
-    task_repo, _driver = _open_task_repo()
+    # 2026-08-14 fix (RF6): resolve project ONCE and thread it into engine,
+    # task_repo, AND ToolService's own project=. Previously ToolService was
+    # constructed with no project= at all (defaulting to ""), so
+    # self._project (what write_file/edit_file/delete_file/reindex_file
+    # actually scope their writes with) stayed "" even when engine/task_repo
+    # were correctly env-scoped via CIE_PROJECT — every CLI-driven write
+    # went to the unscoped bucket regardless of the env var.
+    project = _project_from_env()
+    engine = _open_engine(project)
+    task_repo, _driver = _open_task_repo(project)
     root = Path.cwd()
     allowed_root = Path(os.environ.get("CIE_RUN_ROOT") or str(root))
-    return ToolService(engine, task_repo, root=root, allowed_root=allowed_root)
+    return ToolService(
+        engine, task_repo, root=root, allowed_root=allowed_root, project=project,
+    )
 
 
 def _close_driver(driver: Any) -> None:
@@ -1888,12 +1909,14 @@ def hierarchy_push(ctx, tree_file: Path, project: str) -> None:
 @click.option("--type", "type_filter", default="",
               help="Restrict results to one node_type (e.g. userstory).")
 @click.option("--limit", type=int, default=200, help="Max children returned.")
+@click.option("--project", default="", help="Project namespace (2026-08-14, RF6 — "
+              "previously no way to scope this read at all).")
 @click.pass_context
 def hierarchy_children(ctx, node_id: str, depth: int, type_filter: str,
-                       limit: int) -> None:
+                       limit: int, project: str) -> None:
     """BFS 'all children' traversal of the PRD hierarchy."""
     tool = "get_children"
-    repo, driver = _open_hierarchy_repo()
+    repo, driver = _open_hierarchy_repo(project)
     timer = ToolTimer()
     try:
         with timer:
@@ -1932,11 +1955,13 @@ def hierarchy_children(ctx, node_id: str, depth: int, type_filter: str,
 
 @cli.command(name="hierarchy:lineage")
 @click.argument("node_id")
+@click.option("--project", default="", help="Project namespace (2026-08-14, RF6 — "
+              "previously no way to scope this read at all).")
 @click.pass_context
-def hierarchy_lineage(ctx, node_id: str) -> None:
+def hierarchy_lineage(ctx, node_id: str, project: str) -> None:
     """Ancestor path of a hierarchy node, root-first."""
     tool = "get_lineage"
-    repo, driver = _open_hierarchy_repo()
+    repo, driver = _open_hierarchy_repo(project)
     try:
         with ToolTimer() as timer:
             lineage = repo.get_lineage(node_id)

@@ -980,14 +980,15 @@ class Neo4jRepository:
         wrote."""
         if not updates:
             return 0
+        effective_project = project or self._project
         rows = [{"id": nid, **props} for nid, props in updates.items()]
         params: dict = {"rows": rows}
-        if project:
+        if effective_project:
             query = (
                 "UNWIND $rows AS row MATCH (n:Node {id: row.id, project: $p}) "
                 "SET n += row"
             )
-            params["p"] = project
+            params["p"] = effective_project
         else:
             query = "UNWIND $rows AS row MATCH (n:Node {id: row.id}) SET n += row"
 
@@ -1017,7 +1018,8 @@ class Neo4jRepository:
         relation)` triple so two different relations between the same
         pair of nodes (e.g. `calls` and `TESTS`) don't collide.
         """
-        rows = self._stamped_nodes(nodes, project)
+        effective_project = project or self._project
+        rows = self._stamped_nodes(nodes, effective_project)
         edge_rows = [dict(e) for e in edges]
         extracted_at = datetime.now(timezone.utc).isoformat()
         source_ref = self._git_commit_sha()
@@ -1026,7 +1028,7 @@ class Neo4jRepository:
 
         def _tx(tx) -> None:
             if rows:
-                if project:
+                if effective_project:
                     tx.run(
                         "UNWIND $rows AS row "
                         "MERGE (n:Node {id: row.id, project: row.project}) "
@@ -1048,7 +1050,7 @@ class Neo4jRepository:
                     MERGE (a)-[r:RELATES {relation: row.relation}]->(b)
                     SET r = row
                     """,
-                    {"rows": edge_rows, "p": project},
+                    {"rows": edge_rows, "p": effective_project},
                 )
 
         def _run_tx() -> None:
@@ -1057,7 +1059,7 @@ class Neo4jRepository:
 
         run_with_timeout(
             _run_tx, timeout=self._write_timeout_s,
-            description=f"merge_delta({len(rows)} nodes, project={project or '<default>'})",
+            description=f"merge_delta({len(rows)} nodes, project={effective_project or '<default>'})",
         )
         return len(rows)
 
@@ -1221,13 +1223,14 @@ class Neo4jRepository:
         ids = list(ids)
         if not ids:
             return 0
+        effective_project = project or self._project
         params: dict = {"ids": ids}
-        if project:
+        if effective_project:
             query = (
                 "UNWIND $ids AS nid MATCH (n:Node {id: nid, project: $p}) "
                 "DETACH DELETE n RETURN nid"
             )
-            params["p"] = project
+            params["p"] = effective_project
         else:
             query = (
                 "UNWIND $ids AS nid MATCH (n:Node {id: nid}) "
@@ -1257,11 +1260,12 @@ class Neo4jRepository:
         re-parse either, and would otherwise show up as spurious
         candidates once a project has been analyzed once.
         """
+        effective_project = project or self._project
         query = (
             """
             MATCH (n:Node)
             WHERE n.kind IN [$func, $method] AND n.source_file <> ''"""
-            + self._pw("n")
+            + (" AND n.project = $project" if effective_project else "")
             + """
             RETURN n
             ORDER BY n.source_file, n.line_start
@@ -1269,6 +1273,7 @@ class Neo4jRepository:
         )
         rows = self._run(query, {
             "func": NodeKind.FUNC.value, "method": NodeKind.METHOD.value,
+            "project": effective_project,
         })
         return [_row_to_node(r["n"]) for r in rows]
 
@@ -1301,10 +1306,11 @@ class Neo4jRepository:
         self, metric_type: str = "", limit: int = 20, project: str = "",
     ) -> list[MetricSnapshot]:
         """CI-21: historical `MetricSnapshot`s, most recent first."""
-        query = "MATCH (n:Node {kind: $kind}" + (", project: $p}" if project else "}")
+        effective_project = project or self._project
+        query = "MATCH (n:Node {kind: $kind}" + (", project: $p}" if effective_project else "}")
         params: dict = {"kind": NodeKind.METRIC_SNAPSHOT.value}
-        if project:
-            params["p"] = project
+        if effective_project:
+            params["p"] = effective_project
         if metric_type:
             query += " WHERE n.metric_type = $metric_type"
             params["metric_type"] = metric_type
@@ -2437,8 +2443,9 @@ class Neo4jRepository:
             updates.append({"id": r["id"], "pct": pct})
         if updates:
             self._run(
-                "UNWIND $rows AS row MATCH (n:Node {id: row.id}) "
-                "SET n.coverage_pct = row.pct",
+                "UNWIND $rows AS row MATCH (n:Node {id: row.id})"
+                + self._pw_where("n")
+                + " SET n.coverage_pct = row.pct",
                 {"rows": updates},
             )
         return functions

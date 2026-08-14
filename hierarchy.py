@@ -225,15 +225,24 @@ class Neo4jHierarchyRepository:
             )
         effective_project = project or self._project
         total = count_nodes(root)
-        stack: list[tuple[Optional[HierarchyNode], HierarchyNode]] = [(None, root)]
-        with self._driver.session() as session:
+        root_stack: list[tuple[Optional[HierarchyNode], HierarchyNode]] = [(None, root)]
+
+        # 2026-08-14 fix (RF3): the node MERGE now keys on {id, project}
+        # instead of bare {id} (a colliding hierarchy id from a different
+        # project used to silently reparent/overwrite that node into the
+        # new project), the REALIZED_BY match scopes AtomicTask by project
+        # too (same bare-name cross-project mislink bug class as RF2), and
+        # the whole tree write is wrapped in one execute_write transaction
+        # instead of per-statement auto-commit.
+        def _tx(tx) -> None:
+            stack = list(root_stack)
             while stack:
                 parent, node = stack.pop()
                 label = TYPE_TO_LABEL[node.node_type]
-                session.run(
-                    f"MERGE (n:{label} {{id: $id}}) "
+                tx.run(
+                    f"MERGE (n:{label} {{id: $id, project: $project}}) "
                     "SET n.name = $name, n.description = $description, "
-                    "n.metadata_json = $metadata_json, n.project = $project",
+                    "n.metadata_json = $metadata_json",
                     {
                         "id": node.id,
                         "name": node.name,
@@ -244,25 +253,28 @@ class Neo4jHierarchyRepository:
                 )
                 if parent is not None:
                     parent_label = TYPE_TO_LABEL[parent.node_type]
-                    session.run(
-                        f"MATCH (p:{parent_label} {{id: $pid}}), "
-                        f"(c:{label} {{id: $cid}}) "
+                    tx.run(
+                        f"MATCH (p:{parent_label} {{id: $pid, project: $project}}), "
+                        f"(c:{label} {{id: $cid, project: $project}}) "
                         "MERGE (p)-[:HAS_CHILD]->(c)",
-                        {"pid": parent.id, "cid": node.id},
+                        {"pid": parent.id, "cid": node.id, "project": effective_project},
                     )
                 if node.node_type == "userstory":
                     task_names = node.metadata.get("task_names") or []
                     for task_name in task_names:
                         if not isinstance(task_name, str):
                             continue
-                        session.run(
-                            "MATCH (u:UserStory {id: $uid}), "
-                            "(t:AtomicTask {name: $tname}) "
+                        tx.run(
+                            "MATCH (u:UserStory {id: $uid, project: $project}), "
+                            "(t:AtomicTask {name: $tname, project: $project}) "
                             "MERGE (u)-[:REALIZED_BY]->(t)",
-                            {"uid": node.id, "tname": task_name},
+                            {"uid": node.id, "tname": task_name, "project": effective_project},
                         )
                 for child in node.children:
                     stack.append((node, child))
+
+        with self._driver.session() as session:
+            session.execute_write(_tx)
         return total
 
     # -- reads --------------------------------------------------------------

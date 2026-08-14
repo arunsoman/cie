@@ -115,8 +115,17 @@ class TaskRepository(Protocol):
     def add_artifact(self, task_name: str, artifact: Artifact) -> bool:
         """Link a produced artifact to a task. Return False if task missing."""
 
+    def get_artifacts(self, task_name: str) -> list[Artifact]:
+        """Return every artifact linked to a task, project-scoped like
+        :meth:`get_task` — added 2026-08-14 (RF2) so callers needing a
+        single task's full detail don't have to issue their own raw Cypher."""
+
     def add_event(self, task_name: str, event: RepairEvent) -> bool:
         """Append a repair event to a task. Return False if task missing."""
+
+    def get_events(self, task_name: str) -> list[RepairEvent]:
+        """Return every repair event linked to a task, project-scoped like
+        :meth:`get_task` — see :meth:`get_artifacts`."""
 
     # -- D: consistency validation ----------------------------------------
 
@@ -541,9 +550,19 @@ class Neo4jTaskRepository:
             )
         return [_task_from_node(dict(r["t"])) for r in rows]
 
-    def _all_tasks(self) -> list[AtomicTask]:
-        """Return every stored task (used for stored-vs-batch cycle checks)."""
-        rows = self._run("MATCH (t:AtomicTask) RETURN t")
+    def _all_tasks(self, project: str = "") -> list[AtomicTask]:
+        """Return every stored task (used for stored-vs-batch cycle checks),
+        scoped to ``project`` (falling back to this repo's own
+        ``self._project``) when one is available — unscoped only for
+        legacy/no-project repos, matching ``list_pending``'s convention."""
+        effective_project = project or self._project
+        if effective_project:
+            rows = self._run(
+                "MATCH (t:AtomicTask {project: $project}) RETURN t",
+                {"project": effective_project},
+            )
+        else:
+            rows = self._run("MATCH (t:AtomicTask) RETURN t")
         return [_task_from_node(dict(r["t"])) for r in rows]
 
     def list_all_for_project(self, project: str) -> list[AtomicTask]:
@@ -572,16 +591,17 @@ class Neo4jTaskRepository:
         no implementation and nothing anywhere to show it had ever
         happened. Never blocks the push itself — a durability failure here
         must not turn a successful partial-accept into a hard error."""
-        accepted, rejected = plan_push(batch, self._all_tasks())
+        effective_project = project or self._project
+        accepted, rejected = plan_push(batch, self._all_tasks(effective_project))
         if accepted:
-            self._write_tasks(accepted, project=project)
+            self._write_tasks(accepted, project=effective_project)
         if rejected:
             try:
-                self._write_rejected_tasks(rejected, project=project)
+                self._write_rejected_tasks(rejected, project=effective_project)
             except Exception:  # noqa: BLE001 — best-effort durability, never fatal
                 log.exception(
                     "failed to durably record %d rejected task(s) for project %r",
-                    len(rejected), project,
+                    len(rejected), effective_project,
                 )
         return PushResult(accepted=len(accepted), rejected=rejected)
 
@@ -657,58 +677,74 @@ class Neo4jTaskRepository:
                         "MERGE (t:AtomicTask {id: $id, project: $project}) SET t += $props",
                         {"id": t.id, "project": project, "props": props},
                     )
-                # Write ApiSpec as a separate node if present
+                # Write ApiSpec as a separate node if present. Scoped by
+                # project on the MATCH (2026-08-14 fix) — a bare {name:
+                # $name} match hit every project's identically-named task
+                # (e.g. LLM-generated titles like "Create login endpoint"),
+                # attaching this project's contract data to unrelated ones.
                 if t.api_spec:
                     session.run(
-                        "MATCH (t:AtomicTask {name: $name}) "
+                        "MATCH (t:AtomicTask {name: $name, project: $project}) "
                         "MERGE (s:ApiSpec {endpoint: $ep, request_schema: $req, response_schema: $res}) "
                         "SET s.error_codes_json = $errs "
                         "MERGE (t)-[:OWNS_API]->(s)",
                         {
-                            "name": t.name,
+                            "name": t.name, "project": project,
                             "ep": t.api_spec.endpoint,
                             "req": t.api_spec.request_schema,
                             "res": t.api_spec.response_schema,
                             "errs": json.dumps(t.api_spec.error_codes),
                         },
                     )
-                # Write TestTriad as a separate node if present
+                # Write TestTriad as a separate node if present (same
+                # project-scoping fix as ApiSpec above).
                 if t.test_triad:
                     session.run(
-                        "MATCH (t:AtomicTask {name: $name}) "
+                        "MATCH (t:AtomicTask {name: $name, project: $project}) "
                         "MERGE (tri:TestTriad {positive: $p, negative: $n, negative_to_positive: $ntp}) "
                         "MERGE (t)-[:OWNS_TRIAD]->(tri)",
                         {
-                            "name": t.name,
+                            "name": t.name, "project": project,
                             "p": t.test_triad.positive,
                             "n": t.test_triad.negative,
                             "ntp": t.test_triad.negative_to_positive,
                         },
                     )
-                # Write DEPENDS_ON edges to file nodes (unified code graph)
+                # Write DEPENDS_ON edges to file nodes (unified code graph).
+                # File nodes are intentionally NOT project-scoped (the
+                # unified code graph shares :Node file nodes across the
+                # project they were extracted under), so only the task side
+                # of the match needs the project filter.
                 for dep_path in t.dependencies:
                     session.run(
-                        "MATCH (t:AtomicTask {name: $name}) "
+                        "MATCH (t:AtomicTask {name: $name, project: $project}) "
                         "MERGE (f:Node {kind: 'file', source_file: $path}) "
                         "ON CREATE SET f.label = $path, f.id = randomUUID() "
                         "MERGE (t)-[:DEPENDS_ON]->(f)",
-                        {"name": t.name, "path": dep_path},
+                        {"name": t.name, "project": project, "path": dep_path},
                     )
             # Task-to-task DEPENDS_ON edges (batch-internal + against stored
             # tasks) — written after all task nodes so batch deps resolve.
+            # Both sides scoped by project (2026-08-14 fix): an unscoped
+            # {file_path: $path} match on `d` created edges between tasks in
+            # entirely unrelated projects that happen to share a common
+            # scaffold path (e.g. 'src/App.tsx').
             for t in tasks:
                 for dep_path in t.dependencies:
                     session.run(
-                        "MATCH (t:AtomicTask {name: $name}), "
-                        "(d:AtomicTask {file_path: $path}) "
+                        "MATCH (t:AtomicTask {name: $name, project: $project}), "
+                        "(d:AtomicTask {file_path: $path, project: $project}) "
                         "MERGE (t)-[:DEPENDS_ON]->(d)",
-                        {"name": t.name, "path": dep_path},
+                        {"name": t.name, "project": project, "path": dep_path},
                     )
 
     def get_task(self, name: str) -> Optional[AtomicTask]:
-        rows = self._run(
-            "MATCH (t:AtomicTask {name: $name}) RETURN t", {"name": name}
-        )
+        params: dict = {"name": name}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
+        rows = self._run(f"{match} RETURN t", params)
         if not rows:
             return None
         return _task_from_node(dict(rows[0]["t"]))
@@ -765,11 +801,16 @@ class Neo4jTaskRepository:
     # -- B: status write-back ---------------------------------------------
 
     def set_status(self, name: str, status: TaskStatus, updated_at: str) -> bool:
+        params: dict = {"name": name, "status": status.value, "updated": updated_at}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            "MATCH (t:AtomicTask {name: $name}) "
+            f"{match} "
             "SET t.status = $status, t.updated = $updated, t.attempts = t.attempts + 1 "
             "RETURN count(t) AS c",
-            {"name": name, "status": status.value, "updated": updated_at},
+            params,
         )
         return bool(rows and rows[0]["c"] > 0)
 
@@ -834,17 +875,34 @@ class Neo4jTaskRepository:
         )
 
     def set_qa_status(self, name: str, qa_status: str, updated_at: str) -> bool:
+        params: dict = {"name": name, "qa_status": qa_status, "updated": updated_at}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            "MATCH (t:AtomicTask {name: $name}) "
+            f"{match} "
             "SET t.qa_status = $qa_status, t.qa_updated = $updated "
             "RETURN count(t) AS c",
-            {"name": name, "qa_status": qa_status, "updated": updated_at},
+            params,
         )
         return bool(rows and rows[0]["c"] > 0)
 
     def add_artifact(self, task_name: str, artifact: Artifact) -> bool:
+        params: dict = {
+            "name": task_name,
+            "path": artifact.path,
+            "kind": artifact.kind.value,
+            "commit": artifact.commit_sha,
+            "content_ref": artifact.content_ref,
+            "verdict": artifact.verdict,
+        }
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            "MATCH (t:AtomicTask {name: $name}) "
+            f"{match} "
             "MERGE (a:Artifact {path: $path, kind: $kind, commit_sha: $commit}) "
             # content_ref/verdict (docs/forge-rebuild-plan.md's Phase 1 /
             # WS9): SET, not part of the MERGE key, so repeated
@@ -854,16 +912,68 @@ class Neo4jTaskRepository:
             "SET a.content_ref = $content_ref, a.verdict = $verdict "
             "MERGE (t)-[:PRODUCED]->(a) "
             "RETURN count(t) AS c",
-            {
-                "name": task_name,
-                "path": artifact.path,
-                "kind": artifact.kind.value,
-                "commit": artifact.commit_sha,
-                "content_ref": artifact.content_ref,
-                "verdict": artifact.verdict,
-            },
+            params,
         )
         return bool(rows and rows[0]["c"] > 0)
+
+    def get_artifacts(self, task_name: str) -> list[Artifact]:
+        """Project-scoped read side of :meth:`add_artifact` — added
+        2026-08-14 alongside :meth:`get_events` so
+        features/forge_repair/routes.py's get_task_detail can stop issuing
+        its own raw, unscoped Cypher (RF2)."""
+        params: dict = {"name": task_name}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
+        rows = self._run(
+            f"{match}-[:PRODUCED]->(a:Artifact) "
+            "RETURN a ORDER BY a.path",
+            params,
+        )
+        out: list[Artifact] = []
+        for r in rows:
+            props = dict(r["a"])
+            kind = props.get("kind", ArtifactKind.SOURCE.value)
+            try:
+                artifact_kind = ArtifactKind(kind)
+            except ValueError:
+                artifact_kind = ArtifactKind.SOURCE
+            out.append(Artifact(
+                path=props.get("path", ""), kind=artifact_kind,
+                commit_sha=props.get("commit_sha", ""),
+                content_ref=props.get("content_ref", ""),
+                verdict=props.get("verdict", ""),
+            ))
+        return out
+
+    def get_events(self, task_name: str) -> list[RepairEvent]:
+        """Project-scoped read side of :meth:`add_event` — see
+        :meth:`get_artifacts`'s docstring."""
+        params: dict = {"name": task_name}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
+        rows = self._run(
+            f"{match}-[:HAS_EVENT]->(e:RepairEvent) "
+            "RETURN e ORDER BY e.timestamp",
+            params,
+        )
+        out: list[RepairEvent] = []
+        for r in rows:
+            props = dict(r["e"])
+            out.append(RepairEvent(
+                round=props.get("round", 0),
+                failures_before=props.get("failures_before", 0),
+                failures_after=props.get("failures_after", 0),
+                mode=props.get("mode", ""),
+                lint_ok=props.get("lint_ok", True),
+                timestamp=props.get("timestamp", ""),
+                failures=props.get("failures"),
+                ts=props.get("ts"),
+            ))
+        return out
 
     def add_event(self, task_name: str, event: RepairEvent) -> bool:
         props: dict = {
@@ -879,12 +989,17 @@ class Neo4jTaskRepository:
             props["failures"] = event.failures
         if event.ts is not None:
             props["ts"] = event.ts
+        params: dict = {"name": task_name, "props": props}
+        match = "MATCH (t:AtomicTask {name: $name})"
+        if self._project:
+            match = "MATCH (t:AtomicTask {name: $name, project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            "MATCH (t:AtomicTask {name: $name}) "
+            f"{match} "
             "CREATE (e:RepairEvent $props) "
             "MERGE (t)-[:HAS_EVENT]->(e) "
             "RETURN count(t) AS c",
-            {"name": task_name, "props": props},
+            params,
         )
         return bool(rows and rows[0]["c"] > 0)
 
@@ -945,9 +1060,15 @@ class Neo4jTaskRepository:
     # -- D: consistency validation ----------------------------------------
 
     def validate_cycles(self) -> CycleResult:
+        params: dict = {}
+        node_pattern = "(t:AtomicTask)"
+        if self._project:
+            node_pattern = "(t:AtomicTask {project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            "MATCH p=(t:AtomicTask)-[:DEPENDS_ON*2..]->(t) "
-            "RETURN [n IN nodes(p) | coalesce(n.name, n.source_file)] AS names LIMIT 1"
+            f"MATCH p={node_pattern}-[:DEPENDS_ON*2..]->(t) "
+            "RETURN [n IN nodes(p) | coalesce(n.name, n.source_file)] AS names LIMIT 1",
+            params,
         )
         if rows:
             return CycleResult(has_cycle=True, cycle=rows[0]["names"])
@@ -957,20 +1078,35 @@ class Neo4jTaskRepository:
         """Find dev tasks with no test artifact and no linked QA task.
 
         A QA task covers a dev task when they share the same parent_feature
-        and file_path, and the QA task's task_type is 'qa'.
+        and file_path, and the QA task's task_type is 'qa'. Project-scoped
+        when this repo was constructed with one (2026-08-14, RF2) — a
+        coverage-gap report for one project must not be skewed by another
+        project's tasks that coincidentally share a parent_feature/file_path.
         """
+        params: dict = {}
+        t_pattern = "(t:AtomicTask {task_type: 'dev'})"
+        qa_pattern = (
+            "(qa:AtomicTask {task_type: 'qa', "
+            "parent_feature: t.parent_feature, file_path: t.file_path})"
+        )
+        if self._project:
+            t_pattern = "(t:AtomicTask {task_type: 'dev', project: $project})"
+            qa_pattern = (
+                "(qa:AtomicTask {task_type: 'qa', project: $project, "
+                "parent_feature: t.parent_feature, file_path: t.file_path})"
+            )
+            params["project"] = self._project
         rows = self._run(
-            """
-            MATCH (t:AtomicTask {task_type: 'dev'})
-            OPTIONAL MATCH (t)-[:PRODUCED]->(a:Artifact {kind: 'test'})
+            f"""
+            MATCH {t_pattern}
+            OPTIONAL MATCH (t)-[:PRODUCED]->(a:Artifact {{kind: 'test'}})
             WITH t, count(a) AS test_count
-            OPTIONAL MATCH (qa:AtomicTask {task_type: 'qa',
-                                           parent_feature: t.parent_feature,
-                                           file_path: t.file_path})
+            OPTIONAL MATCH {qa_pattern}
             WITH t, test_count, count(qa) AS qa_count
             WHERE test_count = 0 AND qa_count = 0
             RETURN t.name AS name, t.file_path AS path, t.parent_feature AS feature
-            """
+            """,
+            params,
         )
         return [
             CoverageGap(task_name=r["name"], file_path=r["path"], parent_feature=r["feature"])
@@ -983,12 +1119,20 @@ class Neo4jTaskRepository:
         Tasks are paired when they share the same parent_feature and one is
         layer='Frontend' and the other is layer='API' or 'Backend'. They
         violate the contract when their ApiSpec endpoints match but the
-        request/response schemas differ.
+        request/response schemas differ. Project-scoped when this repo was
+        constructed with one (2026-08-14, RF2) — see :meth:`validate_coverage`.
         """
+        params: dict = {}
+        fe_pattern = "(fe:AtomicTask {layer: 'Frontend'})"
+        be_pattern = "(be:AtomicTask)"
+        if self._project:
+            fe_pattern = "(fe:AtomicTask {layer: 'Frontend', project: $project})"
+            be_pattern = "(be:AtomicTask {project: $project})"
+            params["project"] = self._project
         rows = self._run(
-            """
-            MATCH (fe:AtomicTask {layer: 'Frontend'})-[:OWNS_API]->(s1:ApiSpec)
-            MATCH (be:AtomicTask)-[:OWNS_API]->(s2:ApiSpec)
+            f"""
+            MATCH {fe_pattern}-[:OWNS_API]->(s1:ApiSpec)
+            MATCH {be_pattern}-[:OWNS_API]->(s2:ApiSpec)
             WHERE be.layer IN ['API', 'Backend']
               AND fe.parent_feature = be.parent_feature
               AND s1.endpoint = s2.endpoint
@@ -996,7 +1140,8 @@ class Neo4jTaskRepository:
                    OR s1.response_schema <> s2.response_schema)
             RETURN fe.name AS fe_name, be.name AS be_name,
                    s1.endpoint AS endpoint, fe.parent_feature AS feature
-            """
+            """,
+            params,
         )
         return [
             ContractViolation(

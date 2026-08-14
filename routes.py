@@ -1025,8 +1025,16 @@ def code_reload(path: str = Query(...), project: str = Query("")) -> dict:
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"path '{path}' not found")
     extraction = extract_tree(p)
-    engine = factory.get_engine(_resolve_project(project))
-    count = engine._repo.load_extraction(extraction.nodes, extraction.edges)  # noqa: SLF001
+    resolved_project = _resolve_project(project)
+    engine = factory.get_engine(resolved_project)
+    # 2026-08-14 fix (RF6): load_extraction's own docstring says empty
+    # project replaces the WHOLE multi-project graph — this route resolved
+    # `project` to pick the right engine above but never passed it through
+    # to the write itself, so every reload wiped every OTHER project's data
+    # too. Thread the same resolved project into the write.
+    count = engine._repo.load_extraction(  # noqa: SLF001
+        extraction.nodes, extraction.edges, project=resolved_project,
+    )
     return {"loaded_nodes": count, "loaded_edges": len(extraction.edges)}
 
 

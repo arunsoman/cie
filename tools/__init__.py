@@ -1141,7 +1141,7 @@ class ToolService:
         tool = "community_detect_run"
         started = time.monotonic()
         try:
-            summary = self._engine.community_detect_run()
+            summary = self._engine.community_detect_run(project=self._canonical_project())
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         hint = None if summary["communities"] else (
@@ -1160,7 +1160,9 @@ class ToolService:
         tool = "community_summarize_run"
         started = time.monotonic()
         try:
-            summary = asyncio.run(self._engine.community_summarize_run())
+            summary = asyncio.run(
+                self._engine.community_summarize_run(project=self._canonical_project())
+            )
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         hint = None
@@ -3174,11 +3176,12 @@ class ToolService:
                 tool, "internal", "watchdog not installed", started,
                 hint="pip install watchdog to use start_watch",
             )
-        # project="" matches every other write path in this class
-        # (reindex_file/write_file/edit_file/delete_file never pass an
-        # explicit project either) — see this module's own writes for the
-        # established convention.
-        handler = build_reindex_handler(self._engine._repo, "", debounce)  # noqa: SLF001
+        # 2026-08-14 fix (RF6): this comment's claim was factually wrong —
+        # reindex_file/write_file/edit_file (via _sync_graph_after_write)
+        # DO pass project=self._project explicitly. Use the same value here
+        # instead of a hardcoded "" so filesystem-watch-triggered reindexes
+        # land in the same project scope as every other write path.
+        handler = build_reindex_handler(self._engine._repo, self._project, debounce)  # noqa: SLF001
         observer = Observer()
         observer.schedule(handler, str(self._root), recursive=True)
         observer.start()
