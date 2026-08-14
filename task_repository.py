@@ -319,12 +319,44 @@ def _task_schema_error(t: AtomicTask) -> Optional[str]:
     return None
 
 
+#: The four AtomicQaTask fields every field docstring in cie/tasks.py
+#: already claims are "Required if task_type is 'qa'" — Optional[...]=None
+#: on the model (so structured-output validation alone never enforces
+#: this), left unchecked here until RF15 (2026-08-14): an LLM response
+#: satisfying the schema but leaving these None used to pass straight
+#: through to push_atomic_tasks and reach forge missing test-execution
+#: metadata build_app's test runner needs.
+_QA_REQUIRED_FIELDS = ("test_framework", "run_command", "test_type", "test_origin")
+
+
 def _task_rule_error(t: AtomicTask) -> Optional[str]:
     """Return a precise reason when a task violates the pipeline invariants."""
     if t.task_type == "dev" and t.test_triad is None:
         return f"dev task '{t.name}' is missing a test_triad"
     if t.layer == "API" and t.api_spec is None:
         return f"API-layer task '{t.name}' is missing an api_spec"
+    # RF15: O3's own stated invariant ("NEVER leave function_signatures
+    # empty" — dev_tasks/prompt.py, qa_tasks/prompt.py) was asserted in
+    # prompt prose only; an empty list is a perfectly valid List[str] so
+    # structured-output validation never caught a violation. Applies to
+    # every task, dev or qa — the code generator (generate_file_agentic)
+    # needs this to know is signatures to implement/test regardless of
+    # task_type.
+    if not t.function_signatures:
+        return f"task '{t.name}' has empty function_signatures"
+    # Gated on task_type, not isinstance(t, AtomicQaTask): the fields are
+    # only ever populated on that subclass, but the discriminator every
+    # other caller/consumer actually branches on is task_type == "qa" —
+    # `getattr(..., None)` degrades safely to "missing" for a plain
+    # AtomicTask that somehow got task_type set to "qa" without the
+    # subclass's fields at all, which is exactly as invalid.
+    if t.task_type == "qa":
+        missing = [f for f in _QA_REQUIRED_FIELDS if getattr(t, f, None) is None]
+        if missing:
+            return (
+                f"qa task '{t.name}' is missing required test-execution "
+                f"metadata: {', '.join(missing)}"
+            )
     return None
 
 

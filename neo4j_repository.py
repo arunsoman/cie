@@ -292,6 +292,35 @@ class Neo4jRepository:
         #: production path that supplies a real cie.graph_cache.QueryCache.
         self._query_cache = query_cache
 
+    def _invalidate_node_cache(self, project: str) -> None:
+        """Bust `@cached_query`'s `Node`-labeled entries for `project`
+        (2026-08-14, RF13: `search_symbols`/`get_file_skeleton`/
+        `affected_by` are all `@cached_query(labels=frozenset({"Node"}))`
+        — the only label any `@cached_query` method in this class
+        declares — but nothing ever called `QueryCache.invalidate_labels`
+        from this class's own Node-graph write methods, so forge's
+        repair loop could read a pre-edit `search_symbols`/skeleton/
+        blast-radius result within the cache's TTL window right after a
+        `write_file`/`edit_file` had already changed the underlying
+        graph). Call this at the end of every method that writes to the
+        `:Node` label (`load_extraction`/`merge_delta`/`reindex_file`/
+        `update_node_properties`/`delete_nodes`) — and ONLY those, not
+        every write in this class (e.g. `replace_analysis_nodes`,
+        `accumulate_actual_calls`'s edge-only write, or
+        `publish_telemetry_event`, none of which touch a label any
+        `@cached_query` method reads) — invalidating on an unrelated
+        write would reintroduce the exact perf problem `@cached_query`
+        was added to solve.
+
+        No-op when this instance has no `QueryCache` (`self._query_cache
+        is None` — every direct `Neo4jRepository(driver, ...)`
+        construction outside `cie.factory.get_engine()`, matching
+        `cached_query`'s own opt-in-only contract) or when `project`
+        doesn't match this cache's own project partition (`QueryCache.
+        invalidate_labels` already no-ops in that case)."""
+        if self._query_cache is not None:
+            self._query_cache.invalidate_labels(project, {"Node"})
+
     @classmethod
     def connect(
         cls,
@@ -877,6 +906,7 @@ class Neo4jRepository:
             _run_tx, timeout=self._write_timeout_s,
             description=f"load_extraction (project={project or '<default>'})",
         )
+        self._invalidate_node_cache(project)
         return len(rows)
 
     def replace_analysis_nodes(
@@ -1003,6 +1033,7 @@ class Neo4jRepository:
             _run_tx, timeout=self._write_timeout_s,
             description=f"update_node_properties({len(rows)} nodes)",
         )
+        self._invalidate_node_cache(effective_project)
         return len(rows)
 
     def merge_delta(
@@ -1061,6 +1092,8 @@ class Neo4jRepository:
             _run_tx, timeout=self._write_timeout_s,
             description=f"merge_delta({len(rows)} nodes, project={effective_project or '<default>'})",
         )
+        if rows:
+            self._invalidate_node_cache(effective_project)
         return len(rows)
 
     def accumulate_actual_calls(
@@ -1244,10 +1277,12 @@ class Neo4jRepository:
             with self._driver.session() as session:
                 return session.execute_write(_tx)
 
-        return run_with_timeout(
+        deleted = run_with_timeout(
             _run_tx, timeout=self._write_timeout_s,
             description=f"delete_nodes({len(ids)} ids)",
         )
+        self._invalidate_node_cache(effective_project)
+        return deleted
 
     def code_symbol_nodes(self, project: str = "") -> list[Node]:
         """Every FUNC/METHOD node with real source location — the
@@ -1571,10 +1606,12 @@ class Neo4jRepository:
             with self._driver.session() as session:
                 return session.execute_write(_tx)
 
-        return run_with_timeout(
+        written = run_with_timeout(
             _run_tx, timeout=self._write_timeout_s,
             description=f"reindex_file ({path})",
         )
+        self._invalidate_node_cache(project)
+        return written
 
     # -- code-structure queries -------------------------------------------
 
