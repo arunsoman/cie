@@ -188,6 +188,20 @@ class ToolService:
         # last index instead of re-parsing/re-embedding every file under
         # project_dir on every call — see reindex()'s docstring.
         self._indexed_hashes: dict[str, str] = {}
+        # Lazily built by _telemetry_bus() below — TE-09's real durable
+        # pub/sub (see cie.apm's module docstring). Every ApmMetric this
+        # service ingests is published on the "apm_metrics" channel
+        # instead of being persisted via a bare merge_delta call, so (a)
+        # the metric is also appended to the durable per-project telemetry
+        # log (`Repository.publish_telemetry_event`, replay-able via
+        # `TelemetryBus.replay`) and (b) any subscriber registered on this
+        # bus (confidence scorer, drift detector, invariant monitor) is
+        # notified synchronously. The ApmMetric `Node` write itself still
+        # has to happen — apm_metrics()/performance_baseline() read it
+        # back via `analysis_nodes("ApmMetric", ...)` — so a subscriber
+        # that does exactly that merge_delta is registered the first time
+        # this bus is built, instead of each call site doing it inline.
+        self._telemetry: Optional[Any] = None
 
     # -- heuristic fallback ---------------------------------------------------
 
@@ -196,6 +210,26 @@ class ToolService:
             self._symbol_index = SymbolIndex(self._root)
             self._heuristic = HeuristicToolSet(self._root, self._symbol_index)
         return self._heuristic
+
+    def _telemetry_bus(self) -> Any:
+        """TE-09: this ToolService's `TelemetryBus` (see `_telemetry`'s
+        field comment in `__init__`), built once and reused for the life
+        of this instance. Registers the one subscriber every ApmMetric
+        publish needs (persist the metric as a queryable `ApmMetric`
+        `Node`) so ingestion call sites just `publish()` instead of each
+        re-implementing that persistence inline."""
+        if self._telemetry is None:
+            from cie import apm as _apm
+
+            project = self._canonical_project()
+            bus = _apm.TelemetryBus(repo=self._engine._repo, project=project)  # noqa: SLF001
+
+            def _persist_metric(metric: dict, _project: str = project) -> None:
+                self._engine._repo.merge_delta([metric], [], project=_project)  # noqa: SLF001
+
+            bus.subscribe("apm_metrics", _persist_metric)
+            self._telemetry = bus
+        return self._telemetry
 
     def _try_graph(self, tool: str, fn, *args, **kwargs) -> tuple[Any, Optional[Exception]]:
         """Call a graph-backed retrieval, returning ``(result, exc)`` —
@@ -2419,9 +2453,9 @@ class ToolService:
             if result["status"] != "not_executed":
                 metrics = _apm.collect_apm_from_pytest(target_files, self._root)
                 if metrics:
-                    self._engine._repo.merge_delta(  # noqa: SLF001
-                        metrics, [], project=self._canonical_project(),
-                    )
+                    bus = self._telemetry_bus()
+                    for metric in metrics:
+                        bus.publish("apm_metrics", metric)
                     metrics_recorded = len(metrics)
             result = {**result, "apm_metrics_recorded": metrics_recorded}
         except Exception as exc:  # noqa: BLE001
@@ -2673,9 +2707,7 @@ class ToolService:
             from cie import apm as _apm
 
             metric = _apm.build_apm_metric(code_node_id, metric_type, value, percentile=percentile)
-            self._engine._repo.merge_delta(  # noqa: SLF001
-                [metric], [], project=self._canonical_project(),
-            )
+            self._telemetry_bus().publish("apm_metrics", metric)
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(tool, [{"metric_id": metric["id"]}], started)
