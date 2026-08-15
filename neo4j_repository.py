@@ -1284,6 +1284,49 @@ class Neo4jRepository:
         self._invalidate_node_cache(effective_project)
         return deleted
 
+    def delete_nodes_before(self, ids: Sequence[str], cutoff_iso: str, project: str = "") -> int:
+        """SF4: single-transaction, timestamp-filtered delete — see
+        `cie.repository.Repository.delete_nodes_before`'s docstring for
+        why this exists (closes `evict_stale_speculative`'s TOCTOU race).
+        `n.extracted_at < $cutoff` is re-evaluated by Neo4j inside the
+        SAME `MATCH ... WHERE ... DETACH DELETE` transaction the delete
+        itself runs in — a node whose `extracted_at` was refreshed to a
+        newer value by a concurrent write between this call being made
+        and this transaction executing is correctly excluded, unlike
+        `delete_nodes`'s plain id-list match."""
+        ids = list(ids)
+        if not ids:
+            return 0
+        effective_project = project or self._project
+        params: dict = {"ids": ids, "cutoff": cutoff_iso}
+        if effective_project:
+            query = (
+                "UNWIND $ids AS nid MATCH (n:Node {id: nid, project: $p}) "
+                "WHERE n.extracted_at < $cutoff "
+                "DETACH DELETE n RETURN nid"
+            )
+            params["p"] = effective_project
+        else:
+            query = (
+                "UNWIND $ids AS nid MATCH (n:Node {id: nid}) "
+                "WHERE n.extracted_at < $cutoff "
+                "DETACH DELETE n RETURN nid"
+            )
+
+        def _tx(tx) -> int:
+            return len(list(tx.run(query, params)))
+
+        def _run_tx() -> int:
+            with self._driver.session() as session:
+                return session.execute_write(_tx)
+
+        deleted = run_with_timeout(
+            _run_tx, timeout=self._write_timeout_s,
+            description=f"delete_nodes_before({len(ids)} ids)",
+        )
+        self._invalidate_node_cache(effective_project)
+        return deleted
+
     def code_symbol_nodes(self, project: str = "") -> list[Node]:
         """Every FUNC/METHOD node with real source location — the
         candidate set `clone_detect`/`perf_analyze` re-parse from disk.
@@ -1385,7 +1428,14 @@ class Neo4jRepository:
         )
         from cie.testlink import resolve_test_edges
 
-        rows = self._stamped_nodes(extraction.nodes, project)
+        # Falls back to self._project like every sibling write method
+        # (merge_delta, update_node_properties, delete_nodes, ...) — a
+        # bare `project` param a caller (e.g. sync.py's speculative-graph
+        # quality gate) never passes defaults to "", which would silently
+        # scope this whole reindex to the UNSCOPED partition instead of
+        # the repo's own bound project/speculative namespace.
+        effective_project = project or self._project
+        rows = self._stamped_nodes(extraction.nodes, effective_project)
         self._maybe_compute_embeddings(rows)
         structural_edges = [dict(e) for e in extraction.edges]
         # IN-08: one extracted_at/source_ref pair for every row this call
@@ -1400,7 +1450,7 @@ class Neo4jRepository:
         structural_edges = self._stamp_provenance(structural_edges, extracted_at, source_ref)
 
         def _tx(tx) -> int:
-            params = {"path": path, "p": project}
+            params = {"path": path, "p": effective_project}
             # 1. Remember incoming `calls` edges from other files so importer
             #    edges can be reconnected to the re-parsed symbols afterwards.
             incoming = list(tx.run(
@@ -1440,7 +1490,7 @@ class Neo4jRepository:
                     CREATE (a)-[r:RELATES]->(b)
                     SET r = row
                     """,
-                    {"rows": structural_edges, "p": project},
+                    {"rows": structural_edges, "p": effective_project},
                 )
             # 4. Read back the whole project (in-transaction: sees our writes)
             #    and rebuild per-file extractions for the pass-2 resolver.
@@ -1526,7 +1576,7 @@ class Neo4jRepository:
                     CREATE (a)-[r:RELATES]->(b)
                     SET r = row
                     """,
-                    {"rows": call_edges, "p": project},
+                    {"rows": call_edges, "p": effective_project},
                 )
             # 7. DM-08: resolve and write this file's `extends`/`implements`
             #    edges the same way (fresh `class_bases` evidence resolved
@@ -1541,7 +1591,7 @@ class Neo4jRepository:
             ]
             known_ids = {n["id"] for n in node_rows} | fresh_sources
             external_nodes = self._stamped_nodes(
-                synthesize_external_class_nodes(inheritance_edges, known_ids), project,
+                synthesize_external_class_nodes(inheritance_edges, known_ids), effective_project,
             )
             external_nodes = self._stamp_provenance(external_nodes, extracted_at, source_ref)
             inheritance_edges = self._stamp_provenance(inheritance_edges, extracted_at, source_ref)
@@ -1555,7 +1605,7 @@ class Neo4jRepository:
                 # Neo4j database collide on the same external id (e.g.
                 # both `import unittest` and extend `TestCase`) and reuse
                 # each other's stub node.
-                if project:
+                if effective_project:
                     tx.run(
                         "UNWIND $rows AS row "
                         "MERGE (n:Node {id: row.id, project: row.project}) "
@@ -1578,7 +1628,7 @@ class Neo4jRepository:
                     CREATE (a)-[r:RELATES]->(b)
                     SET r = row
                     """,
-                    {"rows": inheritance_edges, "p": project},
+                    {"rows": inheritance_edges, "p": effective_project},
                 )
             # 8. DM-14: resolve and write this file's `TESTS` edges (naming
             #    convention + calls-edge upgrade + @patch-target — see
@@ -1598,7 +1648,7 @@ class Neo4jRepository:
                     CREATE (a)-[r:RELATES]->(b)
                     SET r = row
                     """,
-                    {"rows": test_edges, "p": project},
+                    {"rows": test_edges, "p": effective_project},
                 )
             return len(rows)
 
@@ -1610,7 +1660,7 @@ class Neo4jRepository:
             _run_tx, timeout=self._write_timeout_s,
             description=f"reindex_file ({path})",
         )
-        self._invalidate_node_cache(project)
+        self._invalidate_node_cache(effective_project)
         return written
 
     # -- code-structure queries -------------------------------------------

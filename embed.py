@@ -113,15 +113,23 @@ def compute_embeddings(nodes: List[dict], max_workers: int = 12) -> None:
 
 
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
-    """Cosine similarity between two vectors; 0.0 for empty/zero vectors.
+    """Cosine similarity between two vectors; 0.0 for empty/zero vectors
+    OR mismatched dimensionality.
 
     Pure Python (no numpy). Returns 0.0 rather than raising when either
-    vector is empty or has zero magnitude — an embedding-less node should
-    score as "no match", not crash the ranking.
+    vector is empty, has zero magnitude, or the two vectors aren't the
+    same length (SF3: a node carrying an embedding from a different
+    model/version than another — post-upgrade, or backfilled by a
+    different path — used to get silently truncated to the shorter
+    vector's prefix and compared anyway, producing a plausible-looking
+    but meaningless score instead of the same "no match" signal already
+    used for every other degenerate input) — an embedding-less OR
+    incompatible-dimension node should score as "no match", not crash
+    the ranking or return a bogus number.
     """
-    if not a or not b:
+    if not a or not b or len(a) != len(b):
         return 0.0
-    n = min(len(a), len(b))
+    n = len(a)
     dot = 0.0
     norm_a = 0.0
     norm_b = 0.0

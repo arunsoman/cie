@@ -314,6 +314,23 @@ class Repository(Protocol):
         eviction. Returns the number of ids that actually matched an
         existing node (scoped to `project` when given)."""
 
+    def delete_nodes_before(self, ids: Sequence[str], cutoff_iso: str, project: str = "") -> int:
+        """SF4: single-transaction, timestamp-filtered variant of
+        `delete_nodes` — deletes only the nodes in `ids` whose own
+        `extracted_at` is STILL `< cutoff_iso` at delete time (re-checked
+        server-side, in the SAME transaction as the delete, not read
+        separately beforehand). `evict_stale_speculative` (PS-01) uses
+        this instead of `delete_nodes` for exactly the race
+        `delete_nodes` alone can't close: computing a `stale_ids` list
+        from a point-in-time snapshot, then deleting by id in a SEPARATE
+        call, means a concurrent `FILE_SAVE` sync event that refreshes
+        one of those same node ids in between gets its refresh silently
+        discarded — the id was already captured as stale before the
+        refresh landed. Re-checking `extracted_at` inside the same delete
+        transaction closes that window. Returns the number of nodes
+        actually deleted (a node whose `extracted_at` was refreshed past
+        `cutoff_iso` before this ran is correctly NOT counted)."""
+
     # -- CI-15/16/17 runtime telemetry (section 13.4) ------------------------
 
     def accumulate_actual_calls(

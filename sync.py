@@ -434,11 +434,26 @@ def evict_stale_speculative(
     IN-08's `extracted_at`). Refuses to run against a project name that
     doesn't look speculative (see `is_speculative`) — an eviction call is
     destructive and must never be pointed at canonical data by a caller's
-    mistake."""
+    mistake.
+
+    SF4: uses `delete_nodes_before` (a single-transaction, timestamp-
+    filtered delete — see `Repository.delete_nodes_before`'s docstring),
+    not a plain `delete_nodes` by id. `stale_ids` below is still computed
+    from a point-in-time `project_graph()` snapshot (unavoidable — this
+    function needs SOME candidate id list to hand the repository), but
+    the actual delete re-checks each candidate's CURRENT `extracted_at`
+    server-side at delete time, inside the same transaction as the
+    delete itself. This closes the window where a concurrent FILE_SAVE
+    sync event refreshes one of those same node ids between this
+    snapshot and the delete: a plain `delete_nodes(stale_ids)` would
+    delete it anyway (its id was already captured as stale before the
+    refresh), while `delete_nodes_before` correctly skips it once its
+    `extracted_at` has moved past `cutoff`."""
     if not is_speculative(project):
         raise ValueError(f"refusing to evict non-speculative project {project!r}")
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(seconds=ttl_seconds)
+    cutoff_iso = cutoff.isoformat()
     nodes, _edges = repo_speculative.project_graph()
     stale_ids = []
     for n in nodes:
@@ -452,7 +467,7 @@ def evict_stale_speculative(
             stale_ids.append(n.id)
     if not stale_ids:
         return 0
-    return repo_speculative.delete_nodes(stale_ids, project=project)
+    return repo_speculative.delete_nodes_before(stale_ids, cutoff_iso, project=project)
 
 
 # -- PS-09/PS-10: AST delta detection + move detection -----------------------

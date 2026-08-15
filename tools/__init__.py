@@ -2650,7 +2650,9 @@ class ToolService:
             from cie import mock_server
 
             if self._mock_server_handle is None:
-                self._mock_server_handle = mock_server.start_mock_server(host=host, port=port)
+                self._mock_server_handle = mock_server.start_mock_server(
+                    project=self._canonical_project(), host=host, port=port,
+                )
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(

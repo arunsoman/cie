@@ -331,6 +331,26 @@ _QA_REQUIRED_FIELDS = ("test_framework", "run_command", "test_type", "test_origi
 
 def _task_rule_error(t: AtomicTask) -> Optional[str]:
     """Return a precise reason when a task violates the pipeline invariants."""
+    # Gap found 2026-08-14 while verifying RF11's id-grammar fix: that fix
+    # enforces "child id must extend parent id" inside core/graph/
+    # repository.py's save_entity/save_batch — the write path Module/
+    # Actor/Capability/UseCase/UserStory entities go through — but this
+    # class's own push_tasks() (the ACTUAL write path forge_repair's
+    # AtomicTask/QATask nodes go through, via cie.ingest.push_atomic_tasks)
+    # never routed through that check at all; it's a completely separate
+    # Neo4jTaskRepository write path. RF11 already fixed the real mint
+    # sites feeding this path (mint_dev_task_id/mint_qa_task_id, both
+    # `<user_story_id>-{dev,qa}-<NNN>`), so this was low-risk in practice,
+    # but had no infrastructure-layer backstop the way the entity path
+    # now does. Only checked when userstory_id is non-empty — mirrors
+    # RF11's own "for every non-empty parent_ids entry" guard, since
+    # manually-added/conftest tasks legitimately have no parent story.
+    if t.userstory_id:
+        from core.graph.validate_ids import validate_child_id
+
+        grammar_violation = validate_child_id(t.id, t.userstory_id, kind="task")
+        if grammar_violation:
+            return grammar_violation
     if t.task_type == "dev" and t.test_triad is None:
         return f"dev task '{t.name}' is missing a test_triad"
     if t.layer == "API" and t.api_spec is None:

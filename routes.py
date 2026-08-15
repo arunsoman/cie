@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -62,6 +63,25 @@ from cie.tools import ToolService
 router = APIRouter(tags=["cie"])
 
 _tool_services: dict[str, ToolService] = {}
+#: SF5: guards _tool_services' check-then-act construction below. A
+#: per-project lock (not one global lock) so two concurrent FIRST
+#: requests for DIFFERENT never-cached projects don't serialize behind
+#: each other — only requests racing for the SAME project contend.
+#: _tool_services_locks_guard protects the lock dict itself (a plain
+#: dict, unlike Python's GIL-protected simple get/set, isn't safe against
+#: two threads both creating a NEW per-project lock for the same missing
+#: key at once).
+_tool_services_locks: dict[str, threading.Lock] = {}
+_tool_services_locks_guard = threading.Lock()
+
+
+def _project_lock(project: str) -> threading.Lock:
+    with _tool_services_locks_guard:
+        lock = _tool_services_locks.get(project)
+        if lock is None:
+            lock = threading.Lock()
+            _tool_services_locks[project] = lock
+        return lock
 
 
 def _project_from_env() -> str:
@@ -79,14 +99,25 @@ def get_tool_service(project: str = "") -> ToolService:
     """ToolService for one project namespace, cached (§ module docstring).
 
     The ``run`` tool's jail root is ``CIE_RUN_ROOT`` (default: cwd).
+
+    SF5: construction is guarded by a per-project lock (double-checked —
+    the fast path for an already-cached project takes no lock at all).
+    Previously this was a bare check-then-act: two concurrent first
+    requests for the same never-cached project could both see the miss,
+    both build a ToolService/engine pair, and the second assignment
+    silently won, wasting the first construction's resources — not
+    data-corrupting, but real resource duplication on the ~90-tool hot
+    path.
     """
     project = _resolve_project(project)
     if project not in _tool_services:
-        root = Path.cwd()
-        allowed_root = Path(os.environ.get("CIE_RUN_ROOT") or str(root))
-        _tool_services[project] = factory.build_tool_service(
-            project, root=root, allowed_root=allowed_root
-        )
+        with _project_lock(project):
+            if project not in _tool_services:
+                root = Path.cwd()
+                allowed_root = Path(os.environ.get("CIE_RUN_ROOT") or str(root))
+                _tool_services[project] = factory.build_tool_service(
+                    project, root=root, allowed_root=allowed_root
+                )
     return _tool_services[project]
 
 

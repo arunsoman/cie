@@ -34,9 +34,6 @@ from typing import Any, Optional
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-router = APIRouter(tags=["cie-mock-server"])
-
-
 def _handle_mock_call(engine: Any, project: str, service_name: str, path: str, method: str) -> JSONResponse:
     """Synchronous handler body — kept as a plain function (not inline in
     the async route) so it's directly unit-testable without spinning up
@@ -68,34 +65,52 @@ def _handle_mock_call(engine: Any, project: str, service_name: str, path: str, m
     return JSONResponse(status_code=response["status_code"], content=response["body"])
 
 
-@router.api_route(
-    "/mock/{service_name}/{path:path}",
-    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-)
-async def mock_endpoint_call(
-    service_name: str, path: str, request: Request, project: str = "",
-) -> JSONResponse:
-    """The one route this server exposes — every registered service's
-    stub traffic flows through here, disambiguated by `service_name` in
-    the URL path (matching the base-URL-override pattern this module's
-    own docstring describes)."""
-    from starlette.concurrency import run_in_threadpool
+def _build_router(project: str) -> APIRouter:
+    """SF6: `project` is bound into this router's one route via closure
+    at construction time, not read from a `project` query param on every
+    request. `start_mock_server`/`MockServerHandle` are already
+    effectively single-project (one uvicorn thread/port per instance,
+    cached as `ToolService._mock_server_handle`) — nothing in be-v2
+    ever supplied `?project=...` on real traffic (`start_mock_server`'s
+    returned `base_url` never embeds it, and the module's own documented
+    usage example has none either), so every real request used to hit
+    `project=""`, which never matched the real-project-scoped
+    `MockEndpoint` nodes `mock_registry_run` had just written — the
+    handler always 404'd immediately after successful registration.
+    Binding at construction time (chosen over embedding project in the
+    URL path) requires zero changes to `base_url`'s shape or to any
+    external documentation/consumer expectation about the URL."""
+    router = APIRouter(tags=["cie-mock-server"])
 
-    from cie import factory
-
-    engine = factory.get_engine(project)
-    return await run_in_threadpool(
-        _handle_mock_call, engine, project, service_name, path, request.method,
+    @router.api_route(
+        "/mock/{service_name}/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     )
+    async def mock_endpoint_call(service_name: str, path: str, request: Request) -> JSONResponse:
+        """The one route this server exposes — every registered service's
+        stub traffic flows through here, disambiguated by `service_name`
+        in the URL path (matching the base-URL-override pattern this
+        module's own docstring describes)."""
+        from starlette.concurrency import run_in_threadpool
+
+        from cie import factory
+
+        engine = factory.get_engine(project)
+        return await run_in_threadpool(
+            _handle_mock_call, engine, project, service_name, path, request.method,
+        )
+
+    return router
 
 
-def build_mock_server_app() -> FastAPI:
+def build_mock_server_app(project: str = "") -> FastAPI:
     """A standalone FastAPI app for this router — separate from the main
     CIE app (`app/api.py`) so it can run as its own process/port during
     test execution, matching TE-05's "start before test execution"
-    framing."""
+    framing. `project` is bound into every request this app serves — see
+    `_build_router`'s docstring (SF6)."""
     app = FastAPI(title="CIE Mock Server")
-    app.include_router(router)
+    app.include_router(_build_router(project))
     return app
 
 
@@ -119,18 +134,20 @@ class MockServerHandle:
         self._thread.join(timeout=timeout)
 
 
-def start_mock_server(host: str = "127.0.0.1", port: int = 0) -> MockServerHandle:
+def start_mock_server(project: str = "", host: str = "127.0.0.1", port: int = 0) -> MockServerHandle:
     """TE-05: start the mock server for real, in a background thread.
-    `port=0` (the default) lets the OS assign a free port — the actual
-    bound port is read back from the socket after startup and returned
-    on the handle, so a caller doesn't have to guess or pre-reserve one.
-    Blocks briefly until the server has actually started listening
-    (bounded wait, not a fixed sleep) so a caller can use `handle.
-    base_url` immediately after this returns.
+    `project` is bound into every request this server instance handles
+    (SF6 — see `_build_router`'s docstring); a real caller must pass its
+    actual project id. `port=0` (the default) lets the OS assign a free
+    port — the actual bound port is read back from the socket after
+    startup and returned on the handle, so a caller doesn't have to
+    guess or pre-reserve one. Blocks briefly until the server has
+    actually started listening (bounded wait, not a fixed sleep) so a
+    caller can use `handle.base_url` immediately after this returns.
     """
     import uvicorn
 
-    app = build_mock_server_app()
+    app = build_mock_server_app(project)
     config = uvicorn.Config(app, host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
 

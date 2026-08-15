@@ -217,7 +217,9 @@ class Neo4jHierarchyRepository:
     # -- writes -------------------------------------------------------------
 
     def push_hierarchy(self, root: HierarchyNode, project: str = "") -> int:
-        """MERGE the whole tree (idempotent by node id); see protocol."""
+        """MERGE the whole tree (idempotent by (node id, project) — see
+        the 2026-08-15 fix note below for how a node written before that
+        key existed still resolves to one node, not two); see protocol."""
         repeated = find_repeated_id(root)
         if repeated is not None:
             raise ValueError(
@@ -234,12 +236,32 @@ class Neo4jHierarchyRepository:
         # too (same bare-name cross-project mislink bug class as RF2), and
         # the whole tree write is wrapped in one execute_write transaction
         # instead of per-statement auto-commit.
+        #
+        # 2026-08-15 fix: RF3's new {id, project} MERGE key does not
+        # match a node written before RF3 shipped (bare {id}, so it has
+        # NO `project` property at all — property absence != `project:
+        # ""` in Neo4j's exact-match MERGE semantics) — confirmed live:
+        # 36/75 Module, 78/417 UserStory, and 4/11 Project nodes in the
+        # shared Neo4j have no `project` property today. Re-pushing any
+        # tree that touches one of those ids would silently fork a
+        # second, id-colliding node instead of updating the existing one
+        # in place — exactly what this method's own docstring claims
+        # can't happen. The OPTIONAL MATCH below adopts such a legacy
+        # node into `effective_project` the first time this method
+        # touches its id (one-time, self-resolving migration-on-write);
+        # a node that already has ANY project (including a different
+        # one) is left untouched, so RF3's actual cross-project
+        # collision protection is unaffected.
         def _tx(tx) -> None:
             stack = list(root_stack)
             while stack:
                 parent, node = stack.pop()
                 label = TYPE_TO_LABEL[node.node_type]
                 tx.run(
+                    f"OPTIONAL MATCH (legacy:{label} {{id: $id}}) "
+                    "WHERE legacy.project IS NULL "
+                    "SET legacy.project = $project "
+                    "WITH legacy "
                     f"MERGE (n:{label} {{id: $id, project: $project}}) "
                     "SET n.name = $name, n.description = $description, "
                     "n.metadata_json = $metadata_json",

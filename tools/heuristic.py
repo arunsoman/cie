@@ -177,13 +177,19 @@ class HeuristicToolSet:
                          hint=f"results capped at {LIST_CAP}" if truncated else None)
 
     def path_between(self, a: str, b: str) -> dict:
-        """BFS over the heuristic calls graph, symbol → symbol."""
-        adj: dict[str, set[str]] = {}
-        for s in self.index.symbols:
-            for hit in self.callees(s.name)["results"]:
-                adj.setdefault(s.name, set()).add(
-                    _signature_symbol_name(hit["callee_signature"])
-                )
+        """BFS over the heuristic calls graph, symbol → symbol.
+
+        SF7: adjacency is built LAZILY — `callees()` is only called for a
+        node once it's actually dequeued from the BFS frontier, and BFS
+        still stops the instant `b` is found. This used to eagerly call
+        `callees()` for EVERY indexed symbol up front (each `callees()`
+        call itself re-reads and regex-scans a file against every other
+        symbol name), materializing the whole project's O(symbols^2)
+        adjacency graph before BFS even started — regardless of how close
+        `a`/`b` actually are, or whether the target is reachable at all.
+        This function has no `max_hops` parameter (nor does its one
+        caller, `cie/tools/__init__.py`'s heuristic fallback, ever pass
+        one) — unbounded, matching the prior behavior exactly."""
         queue = deque([(a, [a])]); seen = {a}
         while queue:
             node, path = queue.popleft()
@@ -195,7 +201,8 @@ class HeuristicToolSet:
                                   "file": defs[0].file if defs else "?",
                                   "confidence": "INFERRED"})
                 return _envelope("path_between", [{"hops": len(path) - 1, "chain": chain}])
-            for nxt in adj.get(node, ()):
+            for hit in self.callees(node)["results"]:
+                nxt = _signature_symbol_name(hit["callee_signature"])
                 if nxt not in seen:
                     seen.add(nxt); queue.append((nxt, path + [nxt]))
         return _envelope("path_between", [], hint=f"no call path from {a} to {b} within index")
