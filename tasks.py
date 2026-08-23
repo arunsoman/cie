@@ -90,7 +90,7 @@ class AtomicTask(GraphBaseModel):
     userstory_id: str = ""
     parent_feature: str = ""
     task_type: str = Field(default="dev", description="'dev' or 'qa'")
-    layer: str = Field(default="", description="'Backend' | 'Frontend' | 'API' | 'Data'")
+    layer: str = Field(default="", description="'Backend' | 'Frontend' | 'API' | 'Data' | 'Program' (nirdosha lane)")
     action: str = Field(default="create", description="'create' | 'modify' | 'delete'")
     file_path: str = Field(description="Exact path from project root.")
     description: str = Field(default="", description="1-2 sentences exactly detailing what this file does.")

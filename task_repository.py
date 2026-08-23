@@ -287,7 +287,9 @@ def _detect_cycle(names: list[str], deps: dict[str, list[str]]) -> list[str]:
 
 _VALID_TASK_TYPES = ("dev", "qa")
 _VALID_ACTIONS = ("create", "modify", "delete")
-_VALID_LAYERS = ("", "Backend", "Frontend", "API", "Data")
+#: "Program" = the nirdosha lane's only layer value (one artifact serving
+#: both API and generated UI — see story_2_tasks/model.py::TaskLayer).
+_VALID_LAYERS = ("", "Backend", "Frontend", "API", "Data", "Program")
 
 
 def _task_schema_error(t: AtomicTask) -> Optional[str]:
