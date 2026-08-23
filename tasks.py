@@ -148,6 +148,18 @@ class AtomicTask(GraphBaseModel):
     #: field) were collapsed onto this canonical model, which had been
     #: missing it.
     required_permission: Optional[str] = None
+    #: be-v2/docs/plans/nirdosha-default-pipeline-plan.md Phase 3 — for a
+    #: pipeline_mode="nirdosha" project, the `module "name" { }` /
+    #: `fn`/`struct`/`enum`/`screen` block name this task owns inside the
+    #: project's single shared `.nir` entrypoint (`file_path` is that same
+    #: shared path for every task in the project, not a unique-per-task
+    #: path the way the classic lane uses it). None for every classic-lane
+    #: task, and for nirdosha-lane tasks until features/mine/
+    #: story_2_tasks/dev_tasks (Phase 4, not yet built) actually populates
+    #: it. Declared here for the same silent-drop reason as `origin`/
+    #: `dev_task_id`/`required_permission` above — cie/ingest.py::
+    #: to_atomic_task's re-validation would otherwise drop it.
+    target_construct: Optional[str] = None
 
 # --- Enums for Test Execution ---
 class TestType(str, Enum):
