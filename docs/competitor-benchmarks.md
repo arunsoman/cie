@@ -63,34 +63,39 @@ called 121 times, and `reporter.py::_post`, called 5 times) — a
 genuinely ambiguous bare name, deliberately chosen for this benchmark
 because Task 1 wasn't testing anything hard.
 
-| Tool | Reported | What actually happened |
+| Tool | Reported (at time of this benchmark) | What actually happened |
 |---|---|---|
 | CodeGraphContext | 20+ (display-truncated) | Returned real callers spanning BOTH `_post` definitions — conflates the two targets, but every result shown was a real call site |
-| **cie** | **2** | Also conflates the two targets, but returns an inconsistent partial subset (1 caller of each) — a real, diagnosed limitation, not the resolver being broken (see below) |
+| **cie (before the fix below)** | **2** | Also conflates the two targets, but returned an inconsistent partial subset (1 caller of each) — a real, diagnosed limitation, not the resolver being broken (see below) |
+| **cie (after the fix below)** | **126, correctly** (30 shown at the default `limit`, `truncated: true`) | Aggregates across every exact-name match, matching (and slightly beating, since it distinguishes exact from substring matches) CodeGraphContext's own approach |
 
-**This sent us digging, and it was worth it — the finding is more precise
-and less flattering to cie than "cie is worse here":**
+**This sent us digging, and it was worth it — the finding was more precise
+and less flattering to cie than "cie is worse here," and it led straight
+to a real, now-fixed bug:**
 
 Ground-truthed `cie.callgraph.resolve_call_edges` directly (not through
 `ToolService.callers()`) against this exact codebase: it resolved **all
 126 of 126** real call sites correctly, correctly split 121/5 across the
-two distinct `_post` node ids. **The pass-2 call-graph resolver itself is
+two distinct `_post` node ids. **The pass-2 call-graph resolver itself was
 exactly right — verified against the actual grep ground truth, not just
 "looks plausible."**
 
-The bug is one layer up, in `ToolService.callers(name)`'s bare-name
-symbol resolution (`_resolve_symbol_id` in
-`cie/in_memory_repository.py`): given an ambiguous name matching two
-distinct definitions, it does not return all matches, does not pick one
-consistently, and does not surface the ambiguity to the caller — it
-silently returns a small, confident-looking, incomplete result. That's
-arguably worse than either alternative (CodeGraphContext's "return
-everything, let the caller sort it out" or a clean "ambiguous — did you
-mean X or Y?" error) because it looks trustworthy while being wrong.
-**Filed as a known limitation, not fixed as part of this benchmark** —
-recommended fix: either aggregate across every exact-name match (matching
-CodeGraphContext's behavior) or return an explicit ambiguity error;
-either beats the current silent partial result.
+The bug was one layer up, in bare-name symbol resolution
+(`_resolve_symbol_id` in `cie/in_memory_repository.py`, and the identical
+`LIMIT 1`-based pattern in `cie/neo4j_repository.py`): given an ambiguous
+name matching two distinct definitions, it picked exactly one and
+`get_callers`/`get_callees`/`test_map`/`actual_callers` then only ever
+saw edges touching that one node — silently, with no indication other
+definitions existed. **Fixed** (same day, both backends): a new
+`_resolve_symbol_ids` returns every EXACT-name match (falling back to the
+old single best-substring-match behavior only when there is no exact
+match at all, so an unambiguous name's behavior is unchanged), and all
+four consumer methods now aggregate across every resolved id instead of
+just the first. Re-run against this exact codebase post-fix: `callers("_post")`
+now correctly reports 126 total callers (30 shown at the default limit,
+`truncated: true`) — see `tests/test_embedded_repository.py`'s
+`test_get_callers_aggregates_across_every_ambiguous_definition` and
+neighboring tests for the regression coverage.
 
 ### Task 3: understand a file (`file_skeleton`)
 

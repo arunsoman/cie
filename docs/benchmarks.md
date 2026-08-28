@@ -61,7 +61,7 @@ cherry-picked for the best number.
 See [`competitor-benchmarks.md`](competitor-benchmarks.md) for the same
 codebase indexed and queried with CodeGraphContext and Serena actually
 installed and run — including a real bug this comparison surfaced in
-cie's own ambiguous-name resolution, diagnosed precisely.
+cie's own ambiguous-name resolution, diagnosed precisely and since fixed.
 
 ## What this benchmark does not yet cover
 

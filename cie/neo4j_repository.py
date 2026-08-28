@@ -1157,13 +1157,13 @@ class Neo4jRepository:
         `get_callers`'/`test_map`'s "who has an edge pointing AT this"
         shape but reading runtime-observed edges instead of the static
         `calls` graph."""
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         query = (
             """
-            MATCH (c:Node)-[r:RELATES {relation: 'ACTUAL_CALL'}]->(t:Node {id: $tid})
-            WHERE true"""
+            MATCH (c:Node)-[r:RELATES {relation: 'ACTUAL_CALL'}]->(t:Node)
+            WHERE t.id IN $tids"""
             + self._pw("c")
             + self._pw("t")
             + """
@@ -1173,7 +1173,7 @@ class Neo4jRepository:
             LIMIT $limit
             """
         )
-        rows = self._run(query, {"tid": target_id, "limit": max(1, int(limit))})
+        rows = self._run(query, {"tids": target_ids, "limit": max(1, int(limit))})
         return [_row_to_edge_record(r) for r in rows]
 
     def publish_telemetry_event(
@@ -1820,13 +1820,13 @@ class Neo4jRepository:
         exactly "has an outgoing calls edge TO symbol". Each EdgeRecord
         carries the edge's confidence. Unknown symbol -> empty list.
         """
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         query = (
             """
-            MATCH (c:Node)-[r:RELATES {relation: 'calls'}]->(t:Node {id: $tid})
-            WHERE true"""
+            MATCH (c:Node)-[r:RELATES {relation: 'calls'}]->(t:Node)
+            WHERE t.id IN $tids"""
             + self._pw("c")
             + self._pw("t")
             + """
@@ -1836,18 +1836,18 @@ class Neo4jRepository:
             LIMIT $limit
             """
         )
-        rows = self._run(query, {"tid": target_id, "limit": max(1, int(limit))})
+        rows = self._run(query, {"tids": target_ids, "limit": max(1, int(limit))})
         return [_row_to_edge_record(r) for r in rows]
 
     def get_callees(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
         """Reverse of :meth:`get_callers` — outgoing `calls` edges FROM symbol."""
-        source_id = self._resolve_symbol_id(symbol)
-        if source_id is None:
+        source_ids = self._resolve_symbol_ids(symbol)
+        if not source_ids:
             return []
         query = (
             """
-            MATCH (s:Node {id: $sid})-[r:RELATES {relation: 'calls'}]->(d:Node)
-            WHERE true"""
+            MATCH (s:Node)-[r:RELATES {relation: 'calls'}]->(d:Node)
+            WHERE s.id IN $sids"""
             + self._pw("s")
             + self._pw("d")
             + """
@@ -1857,7 +1857,7 @@ class Neo4jRepository:
             LIMIT $limit
             """
         )
-        rows = self._run(query, {"sid": source_id, "limit": max(1, int(limit))})
+        rows = self._run(query, {"sids": source_ids, "limit": max(1, int(limit))})
         return [_row_to_edge_record(r) for r in rows]
 
     @cached_query(labels=frozenset({"Node"}))
@@ -2375,13 +2375,13 @@ class Neo4jRepository:
         and the implementation's labels respectively (test -> target is
         the direction `resolve_test_edges` writes, same as `calls`'
         caller-to-callee convention). Unknown symbol -> empty list."""
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         query = (
             """
-            MATCH (t:Node)-[r:RELATES {relation: 'TESTS'}]->(s:Node {id: $sid})
-            WHERE true"""
+            MATCH (t:Node)-[r:RELATES {relation: 'TESTS'}]->(s:Node)
+            WHERE s.id IN $sids"""
             + self._pw("t")
             + self._pw("s")
             + """
@@ -2391,7 +2391,7 @@ class Neo4jRepository:
             LIMIT $limit
             """
         )
-        rows = self._run(query, {"sid": target_id, "limit": max(1, int(limit))})
+        rows = self._run(query, {"sids": target_ids, "limit": max(1, int(limit))})
         return [_row_to_edge_record(r) for r in rows]
 
     def _resolve_symbol_id(self, symbol: str) -> Optional[str]:
@@ -2421,6 +2421,45 @@ class Neo4jRepository:
             "method": NodeKind.METHOD.value,
         })
         return rows[0]["id"] if rows else None
+
+    def _resolve_symbol_ids(self, symbol: str) -> list[str]:
+        """Every node whose label EXACTLY matches `symbol` (case-
+        insensitive) — the ambiguous-name fix from docs/
+        competitor-benchmarks.md's Task 2 (found 2026-08-28): a bare name
+        can legitimately name multiple distinct definitions (two
+        different classes each with their own same-named method), and
+        `get_callers`/`get_callees`/`test_map`/`actual_callers` below need
+        to see edges from ALL of them — `_resolve_symbol_id`'s `LIMIT 1`
+        silently picked just one, producing a confident-looking but
+        incomplete result (verified against real grep ground truth: 126
+        real call sites split across two `_post` methods, `_resolve_
+        symbol_id` surfaced only whichever one node id it happened to
+        rank first).
+
+        Falls back to `_resolve_symbol_id`'s single substring-match
+        result when there is no EXACT match at all, so an unambiguous
+        name's behavior — the overwhelmingly common case — is unchanged.
+        """
+        needle = symbol.lower()
+        query = (
+            """
+            MATCH (n:Node)
+            WHERE toLower(n.label) = $needle"""
+            + self._pw("n")
+            + """
+            RETURN n.id AS id
+            ORDER BY CASE WHEN n.kind IN [$func, $method] THEN 0 ELSE 1 END, n.label, n.id
+            """
+        )
+        rows = self._run(query, {
+            "needle": needle,
+            "func": NodeKind.FUNC.value,
+            "method": NodeKind.METHOD.value,
+        })
+        if rows:
+            return [r["id"] for r in rows]
+        single = self._resolve_symbol_id(symbol)
+        return [single] if single is not None else []
 
     def _resolve_test_node_id(self, test_identifier: str) -> Optional[str]:
         """Map a pytest-style identifier to its graph node id, or None.

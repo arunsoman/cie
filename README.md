@@ -111,8 +111,8 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
   where it didn't win).
 - [Competitor benchmarks](docs/competitor-benchmarks.md) — the same real
   codebase indexed and queried with CodeGraphContext and Serena actually
-  installed and run (not estimated), including a real bug this digging
-  uncovered and diagnosed precisely in cie's own symbol resolution.
+  installed and run (not estimated), including a real ambiguous-name
+  resolution bug this digging uncovered, diagnosed precisely, and fixed.
 
 ## License
 

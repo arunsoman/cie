@@ -147,3 +147,92 @@ def test_embedded_toolservice_task_tools_fail_fast_not_silently(tmp_path):
     envelope = service.list_pending_tasks()
     assert envelope["ok"] is False
     assert "task tracking is not part of the zero-config" in envelope["error"]["message"]
+
+
+# --------------------------------------------------------------------------
+# Ambiguous-name resolution fix — docs/competitor-benchmarks.md's Task 2
+# (found 2026-08-28 while benchmarking against CodeGraphContext, fixed here)
+# --------------------------------------------------------------------------
+
+def _ambiguous_name_graph():
+    """Two distinct classes (A, B) each define their own `helper` method,
+    called once from within their own class and once more from an
+    unrelated free function — deliberately reproducing the real
+    `docs/competitor-benchmarks.md` scenario (two classes each with their
+    own `_post` method) at a scale small enough to hand-verify."""
+    nodes = [
+        {"id": "f.py::A", "label": "A", "kind": "class", "source_file": "f.py"},
+        {"id": "f.py::A.helper@2", "label": "helper", "kind": "method", "source_file": "f.py", "line_start": 2},
+        {"id": "f.py::A.caller@3", "label": "caller", "kind": "method", "source_file": "f.py", "line_start": 3},
+        {"id": "f.py::B", "label": "B", "kind": "class", "source_file": "f.py"},
+        {"id": "f.py::B.helper@6", "label": "helper", "kind": "method", "source_file": "f.py", "line_start": 6},
+        {"id": "f.py::B.caller@7", "label": "caller", "kind": "method", "source_file": "f.py", "line_start": 7},
+        {"id": "f.py::B.other_caller@8", "label": "other_caller", "kind": "method", "source_file": "f.py", "line_start": 8},
+    ]
+    edges = [
+        {"source": "f.py::A.caller@3", "target": "f.py::A.helper@2", "relation": "calls", "confidence": "EXTRACTED"},
+        {"source": "f.py::B.caller@7", "target": "f.py::B.helper@6", "relation": "calls", "confidence": "EXTRACTED"},
+        {"source": "f.py::B.other_caller@8", "target": "f.py::B.helper@6", "relation": "calls", "confidence": "EXTRACTED"},
+    ]
+    return nodes, edges
+
+
+def test_resolve_symbol_ids_returns_every_exact_match(tmp_path):
+    repo = EmbeddedRepository(tmp_path / "graph.db")
+    nodes, edges = _ambiguous_name_graph()
+    repo.load_extraction(nodes, edges)
+
+    ids = repo._resolve_symbol_ids("helper")
+    assert set(ids) == {"f.py::A.helper@2", "f.py::B.helper@6"}
+
+
+def test_resolve_symbol_ids_falls_back_to_single_match_when_unambiguous(tmp_path):
+    repo = EmbeddedRepository(tmp_path / "graph.db")
+    nodes, edges = _ambiguous_name_graph()
+    repo.load_extraction(nodes, edges)
+
+    # "caller" is deliberately ambiguous too (both A and B define one) —
+    # "other_caller" is the one genuinely unique name in this fixture.
+    ids = repo._resolve_symbol_ids("other_caller")
+    assert ids == ["f.py::B.other_caller@8"]
+
+
+def test_get_callers_aggregates_across_every_ambiguous_definition(tmp_path):
+    """The actual bug: get_callers("helper") used to see only ONE of the
+    two `helper` methods and silently miss the other's callers entirely.
+    Ground truth here is 3 real callers across both definitions."""
+    repo = EmbeddedRepository(tmp_path / "graph.db")
+    nodes, edges = _ambiguous_name_graph()
+    repo.load_extraction(nodes, edges)
+
+    callers = repo.get_callers("helper", limit=30)
+    assert len(callers) == 3
+    caller_ids = {er.edge.source for er in callers}
+    assert caller_ids == {"f.py::A.caller@3", "f.py::B.caller@7", "f.py::B.other_caller@8"}
+
+
+def test_get_callees_aggregates_across_every_ambiguous_definition(tmp_path):
+    """Same bug, the other direction: two distinct 'caller' methods
+    (in A and B) each call their own class's 'helper' — get_callees
+    must see both, not just one class's outgoing call."""
+    repo = EmbeddedRepository(tmp_path / "graph.db")
+    nodes, edges = _ambiguous_name_graph()
+    repo.load_extraction(nodes, edges)
+
+    callees = repo.get_callees("caller", limit=30)
+    targets = {er.edge.target for er in callees}
+    assert targets == {"f.py::A.helper@2", "f.py::B.helper@6"}
+
+
+def test_toolservice_callers_ambiguous_name_end_to_end(tmp_path):
+    """Same fix, exercised through the real ToolService envelope (not the
+    Repository directly) — this is what an MCP caller actually sees."""
+    repo = EmbeddedRepository(tmp_path / ".cie" / "graph.db")
+    nodes, edges = _ambiguous_name_graph()
+    repo.load_extraction(nodes, edges)
+
+    service = build_tool_service_embedded(tmp_path)
+    envelope = service.callers("helper")
+    assert envelope["ok"] is True
+    assert envelope["total"] == 3
+    assert envelope["truncated"] is False

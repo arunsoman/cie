@@ -71,24 +71,12 @@ class InMemoryRepository:
         return self._nodes[nid].label if nid in self._nodes else nid
 
     def _resolve_symbol_id(self, symbol: str) -> Optional[str]:
-        """Exact label matches win over substrings; func/method beat other kinds.
-
-        KNOWN LIMITATION (found via docs/competitor-benchmarks.md's Task
-        2, 2026-08-28): when `symbol` exactly matches TWO OR MORE distinct
-        definitions (e.g. two different classes each defining their own
-        `_post` method), this picks exactly one candidate via the tie-break
-        above and callers (`get_callers`/`get_callees`/etc.) then only see
-        edges touching that one node — silently, with no indication the
-        name was ambiguous or that other real definitions exist.
-        `cie.callgraph.resolve_call_edges` itself was verified correct in
-        that investigation (all 126/126 real call sites in a real
-        ambiguous-name test case resolved to the RIGHT one of two
-        targets) — this is a bug in bare-name lookup one layer up, not in
-        call-graph resolution. Fix direction: either aggregate across
-        every exact-name match (what CodeGraphContext does for the same
-        case) or surface an explicit ambiguity result instead of a
-        confident-looking partial one — not fixed here, filed as found.
-        """
+        """Exact label matches win over substrings; func/method beat other
+        kinds. Picks exactly ONE node — safe for a single best-guess
+        lookup, but NOT for "every edge touching this name": see
+        `_resolve_symbol_ids` below for the ambiguous-name fix
+        (`get_callers`/`get_callees`/`test_map`/`actual_callers` all use
+        that instead, not this)."""
         needle = symbol.lower()
         candidates = [
             (
@@ -104,6 +92,41 @@ class InMemoryRepository:
             return None
         candidates.sort()
         return candidates[0][3]
+
+    def _resolve_symbol_ids(self, symbol: str) -> list[str]:
+        """Every node whose label EXACTLY matches `symbol` (case-
+        insensitive) — the ambiguous-name fix from docs/
+        competitor-benchmarks.md's Task 2 (found 2026-08-28, fixed here):
+        a bare name can legitimately name multiple distinct definitions
+        (two different classes each with their own same-named method),
+        and `get_callers`/`get_callees`/`test_map`/`actual_callers` need
+        to see edges from ALL of them — `_resolve_symbol_id`'s single
+        pick silently returned only whichever one node id happened to
+        rank first, a confident-looking but incomplete result (verified
+        against real grep ground truth: 126 real call sites split across
+        two `_post` methods, only 2 of which `_resolve_symbol_id`-based
+        lookup surfaced).
+
+        `cie.callgraph.resolve_call_edges` itself was already verified
+        correct in that investigation (all 126/126 real call sites
+        resolved to the right one of the two targets) — this fixes the
+        bare-name lookup layer above it, not the call-graph resolver.
+
+        Falls back to `_resolve_symbol_id`'s single substring-match
+        result when there is no EXACT match at all, so an unambiguous
+        name's behavior — the overwhelmingly common case — is unchanged.
+        """
+        needle = symbol.lower()
+        exact = [nid for nid, n in self._nodes.items() if n.label.lower() == needle]
+        if exact:
+            exact.sort(key=lambda nid: (
+                0 if self._nodes[nid].kind in (NodeKind.FUNC.value, NodeKind.METHOD.value) else 1,
+                self._nodes[nid].label,
+                nid,
+            ))
+            return exact
+        single = self._resolve_symbol_id(symbol)
+        return [single] if single is not None else []
 
     def _resolve_test_node_id(self, test_identifier: str) -> Optional[str]:
         """Mirrors Neo4jRepository._resolve_test_node_id's ranking rules."""
@@ -424,11 +447,12 @@ class InMemoryRepository:
         return ""
 
     def get_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         out = [
             EdgeRecord(edge=e, source_label=self._label(e.source), target_label=self._label(e.target))
+            for target_id in target_ids
             for _, e in self._adj.get(target_id, [])
             if e.relation == "calls" and e.target == target_id
         ]
@@ -436,11 +460,12 @@ class InMemoryRepository:
         return out[: max(1, int(limit))]
 
     def get_callees(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
-        source_id = self._resolve_symbol_id(symbol)
-        if source_id is None:
+        source_ids = self._resolve_symbol_ids(symbol)
+        if not source_ids:
             return []
         out = [
             EdgeRecord(edge=e, source_label=self._label(e.source), target_label=self._label(e.target))
+            for source_id in source_ids
             for _, e in self._adj.get(source_id, [])
             if e.relation == "calls" and e.source == source_id
         ]
@@ -779,11 +804,12 @@ class InMemoryRepository:
 
     def test_map(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
         """Mirrors Neo4jRepository.test_map: reverse `TESTS`-edge lookup."""
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         out = [
             EdgeRecord(edge=e, source_label=self._label(e.source), target_label=self._label(e.target))
+            for target_id in target_ids
             for _, e in self._adj.get(target_id, [])
             if e.relation == "TESTS" and e.target == target_id
         ]
@@ -995,11 +1021,12 @@ class InMemoryRepository:
 
     def actual_callers(self, symbol: str, limit: int = 30) -> list[EdgeRecord]:
         """Mirrors Neo4jRepository.actual_callers: reverse ACTUAL_CALL lookup."""
-        target_id = self._resolve_symbol_id(symbol)
-        if target_id is None:
+        target_ids = self._resolve_symbol_ids(symbol)
+        if not target_ids:
             return []
         out = [
             EdgeRecord(edge=e, source_label=self._label(e.source), target_label=self._label(e.target))
+            for target_id in target_ids
             for _, e in self._adj.get(target_id, [])
             if e.relation == "ACTUAL_CALL" and e.target == target_id
         ]
