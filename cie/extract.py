@@ -30,6 +30,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
+from cie import lang_adapter
 from cie.models import CallSite, Confidence, ImportRecord, NodeKind
 
 
@@ -161,9 +162,15 @@ class Extraction:
 
 
 def supported_suffix(path: Path) -> Optional[str]:
-    """Return the matching suffix for a supported language, or None."""
+    """Return the matching suffix for a supported language, or None.
+
+    Routes through the language-adapter registry (`cie.lang_adapter`) —
+    the built-in `TreeSitterAdapter` below covers `.py`/`.js`/`.jsx`/
+    `.mjs`/`.cjs`/`.ts`/`.tsx`/`.java`; a host project registers its own
+    adapter for any other language (see `cie.lang_adapter`'s module
+    docstring) and this function picks it up with no change here."""
     suffix = path.suffix.lower()
-    return suffix if suffix in _LANG_LOADERS else None
+    return suffix if suffix in lang_adapter.all_supported_suffixes() else None
 
 
 def _language_for(suffix: str):
@@ -1114,14 +1121,15 @@ def _collect_call_sites(root, file_id: str, language: str,
     _visit(root)
 
 
-def extract_file(path: Path) -> Extraction:
-    """Parse a single supported source file and return its extraction.
-
-    Unsupported files (unknown suffix, binary, unreadable) raise ValueError.
+def _tree_sitter_extract_file(path: Path) -> Extraction:
+    """Tree-sitter parse + walk for a single file — `TreeSitterAdapter`'s
+    implementation (Python/JS/TS/Java). `path.suffix` must already be a
+    member of `_LANG_LOADERS`; callers go through `TreeSitterAdapter.
+    extract_file` or the registry-routed `extract_file` below, not this
+    directly. This is the original body of `extract_file` before it
+    became adapter-routed — behavior for these 4 languages is unchanged.
     """
-    suffix = supported_suffix(path)
-    if suffix is None:
-        raise ValueError(f"unsupported file type: {path.suffix}")
+    suffix = path.suffix.lower()
     try:
         source = path.read_bytes()
     except OSError as exc:
@@ -1138,6 +1146,38 @@ def extract_file(path: Path) -> Extraction:
     )
 
 
+class TreeSitterAdapter:
+    """Built-in `cie.lang_adapter.LanguageAdapter` wrapping this module's
+    tree-sitter extraction (Python/JS/TS/Java) — registered as cie's
+    default adapter (see the bottom of this module) so `extract_file`/
+    `extract_many`/`extract_tree` keep working unchanged for these
+    languages while leaving the registry open for a host project to add
+    its own adapter for any other language, without editing this file.
+    """
+
+    def supported_suffixes(self) -> set[str]:
+        return set(_LANG_LOADERS.keys())
+
+    def extract_file(self, path: Path) -> Extraction:
+        return _tree_sitter_extract_file(path)
+
+
+def extract_file(path: Path) -> Extraction:
+    """Parse a single supported source file and return its extraction.
+
+    Unsupported files (unknown suffix, binary, unreadable) raise ValueError.
+    Dispatches through the language-adapter registry (`cie.lang_adapter`)
+    — `TreeSitterAdapter` for `.py`/`.js`/`.ts`/`.java`, or a
+    host-registered adapter for anything else. Callers don't need to know
+    which adapter served a given suffix.
+    """
+    suffix = path.suffix.lower()
+    adapter = lang_adapter.get_adapter_for(suffix)
+    if adapter is None:
+        raise ValueError(f"unsupported file type: {path.suffix}")
+    return adapter.extract_file(path)
+
+
 def parse_file(path: Path) -> Optional[tuple]:
     """Parse `path` and return its raw ``(tree, source_bytes)`` tree-sitter
     pair, or ``None`` for an unsupported suffix.
@@ -1146,12 +1186,18 @@ def parse_file(path: Path) -> Optional[tuple]:
     (`cie.source_analysis`, backing CI-01/02 clone detection and CI-06/07
     performance analysis) — `extract_file` above only exposes the WALKED
     result (nodes/edges/imports), never the tree itself. Reuses the exact
-    same `_LANG_LOADERS`/`_parser_for` resolution as `extract_file` so a
-    language added there is automatically available here too, with no
+    same `_LANG_LOADERS`/`_parser_for` resolution `TreeSitterAdapter` does,
+    so a language added there is automatically available here too, with no
     second place to keep in sync.
+
+    Deliberately checks `_LANG_LOADERS` directly rather than
+    `supported_suffix()` — the latter now also reports suffixes owned by
+    non-tree-sitter adapters (`cie.lang_adapter`), which have no raw tree
+    to hand back here. Callers that need a tree only ever get one for the
+    same 4 languages `extract_file` always supported.
     """
-    suffix = supported_suffix(path)
-    if suffix is None:
+    suffix = path.suffix.lower()
+    if suffix not in _LANG_LOADERS:
         return None
     try:
         source = path.read_bytes()
@@ -1216,3 +1262,12 @@ def extract_tree(root: Path) -> Extraction:
     for per_file in extract_many(root):
         out.merge(per_file)
     return out
+
+
+# Register the built-in tree-sitter adapter at import time so extract_file/
+# extract_many/extract_tree/supported_suffix keep their pre-registry
+# behavior for .py/.js/.jsx/.mjs/.cjs/.ts/.tsx/.java with zero call-site
+# changes. A host project's own adapter, registered after this module is
+# first imported (or discovered via the `cie.language_adapters` entry-point
+# group — see cie.lang_adapter), simply adds more suffixes to the registry.
+lang_adapter.register_adapter(TreeSitterAdapter())

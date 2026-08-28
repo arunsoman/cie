@@ -793,6 +793,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "stop_watch": _service_tool("stop_watch"),
     # -- write tools --
     "write_file": _service_tool("write_file"),
+    "write_files_atomic": _service_tool("write_files_atomic"),
     "edit_file": _service_tool("edit_file"),
     "delete_file": _service_tool("delete_file"),
     # Tier 3: task supply + write-back + validation

@@ -141,6 +141,7 @@ class ToolService:
         root: Path,
         allowed_root: Optional[Path] = None,
         project: str = "",
+        max_file_size_bytes: int = _view.DEFAULT_MAX_FILE_SIZE_BYTES,
     ) -> None:
         self._engine = engine
         self._task_repo = task_repo
@@ -148,6 +149,11 @@ class ToolService:
         self._allowed_root = (
             Path(allowed_root) if allowed_root is not None else self._root
         )
+        # Threaded into view_file/write_file/edit_file/write_files_atomic
+        # below (docs/plans/cie-standalone-any-project-plan.md Phase 4) —
+        # per-instance so a caller that genuinely needs a bigger ceiling
+        # (or a smaller one) doesn't have to pass it on every single call.
+        self._max_file_size_bytes = max_file_size_bytes
         # This service's own project namespace — threaded into every
         # write_file/edit_file/delete_file/reindex_file's reindex_file()
         # call below, matching the project-scoping every READ query in
@@ -374,7 +380,10 @@ class ToolService:
                 _symbol_to_node(s) for s in self._heuristic_fallback().index.in_file(path)
             ]
         try:
-            result = _view.view_file(self._root, path, start, end, skeleton)
+            result = _view.view_file(
+                self._root, path, start, end, skeleton,
+                max_file_size_bytes=self._max_file_size_bytes,
+            )
         except Exception as exc2:  # noqa: BLE001 - converted to envelope
             return self._guard(tool, started, exc2)
         window = result["window"]
@@ -2906,11 +2915,44 @@ class ToolService:
         tool = "write_file"
         started = time.monotonic()
         try:
-            result = _edit.write_file(self._root, path, content)
+            result = _edit.write_file(
+                self._root, path, content,
+                max_file_size_bytes=self._max_file_size_bytes,
+            )
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         result, hint = self._sync_graph_after_write(path, result)
         return self._ok(tool, [result], started, hint=hint)
+
+    def write_files_atomic(self, files: dict) -> dict:
+        """Write every path in ``files`` (path -> content), all-or-nothing
+        (docs/plans/cie-standalone-any-project-plan.md Phase 4) — snapshot
+        + rollback on partial failure, see ``cie.tools.edit.
+        write_files_atomic``'s own docstring for the exact guarantee.
+
+        Keeps the graph in sync for every successfully-written file in the
+        SAME call (see ``write_file``); a per-file reindex failure only
+        downgrades that file's entry hint, same as ``write_file``'s own
+        best-effort reindex — it does not trigger a filesystem rollback,
+        since the write itself already landed and rolling back a
+        successful disk write over a reindex-only failure would be worse
+        than a stale graph entry.
+        """
+        tool = "write_files_atomic"
+        started = time.monotonic()
+        try:
+            results = _edit.write_files_atomic(
+                self._root, files, max_file_size_bytes=self._max_file_size_bytes,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        failed_reindex: list[str] = []
+        for path in list(results):
+            results[path], file_hint = self._sync_graph_after_write(path, results[path])
+            if file_hint:
+                failed_reindex.append(f"{path}: {file_hint}")
+        hint = "; ".join(failed_reindex) if failed_reindex else None
+        return self._ok(tool, [{"files": results}], started, hint=hint)
 
     def edit_file(
         self, path: str, old_string: str, new_string: str,
@@ -2925,6 +2967,7 @@ class ToolService:
         try:
             result = _edit.edit_file(
                 self._root, path, old_string, new_string, replace_all,
+                max_file_size_bytes=self._max_file_size_bytes,
             )
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)

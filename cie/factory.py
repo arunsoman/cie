@@ -117,14 +117,50 @@ def build_tool_service(
     root: Path,
     allowed_root: Optional[Path] = None,
     cfg: Optional[Neo4jConfig] = None,
+    max_file_size_bytes: Optional[int] = None,
 ) -> ToolService:
-    """A ToolService scoped to one project namespace and one filesystem root."""
+    """A ToolService scoped to one project namespace and one filesystem root.
+
+    `max_file_size_bytes` (docs/plans/cie-standalone-any-project-plan.md
+    Phase 4) is optional here — `None` lets `ToolService.__init__` use its
+    own default rather than this function needing to know that default.
+    """
+    kwargs: dict = {}
+    if max_file_size_bytes is not None:
+        kwargs["max_file_size_bytes"] = max_file_size_bytes
     return ToolService(
         get_engine(project, cfg),
         get_task_repo(project, cfg),
         root=Path(root),
         allowed_root=Path(allowed_root) if allowed_root is not None else None,
         project=project,
+        **kwargs,
+    )
+
+
+def build_tool_service_from_config(config: "CieConfig") -> ToolService:
+    """One-call, no-env-vars-required bootstrap for an external ("any
+    project") caller — see `cie.config.CieConfig`.
+
+    Bundles what `build_tool_service` above already exposed as separate
+    args, plus registering `config.language_adapters` (Phase 1) into the
+    process-wide registry before building the engine, so a host project's
+    own adapter is live for this call and every later one in this
+    process — `cie.lang_adapter.register_adapter` is itself already a
+    process-wide registry, not per-ToolService state, so this is the
+    correct place to apply it once, not something `ToolService.__init__`
+    itself should do.
+    """
+    from cie import lang_adapter
+
+    for adapter in config.language_adapters:
+        lang_adapter.register_adapter(adapter)
+    return build_tool_service(
+        config.project,
+        config.project_root,
+        allowed_root=config.allowed_root,
+        cfg=config.neo4j,
+        max_file_size_bytes=config.max_file_size_bytes,
     )
 
 

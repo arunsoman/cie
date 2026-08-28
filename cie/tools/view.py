@@ -18,6 +18,18 @@ from cie.models import Node
 #: Default window size in lines (integration spec §0.2: ~100 lines per call).
 DEFAULT_WINDOW = 100
 
+#: Default per-file ceiling for every file tool (view/write/edit) —
+#: docs/plans/cie-standalone-any-project-plan.md Phase 4. `[from src/new]`'s
+#: rejected facade design picked the same 5 MB default for the same reason:
+#: these tools hand a file's full content to an LLM tool-calling loop (or,
+#: for view_file, at least read it fully into `_read_lines_cached` before
+#: windowing — see that function) — a stray multi-GB binary or dataset in a
+#: host project's tree should never be handed through whole. Callers that
+#: genuinely need a bigger ceiling pass their own via each function's
+#: `max_file_size_bytes` parameter (`ToolService.__init__`'s own
+#: `max_file_size_bytes` threads through to all three).
+DEFAULT_MAX_FILE_SIZE_BYTES = 5_242_880  # 5 MB
+
 #: path -> (mtime_ns, size, lines). Keyed by (mtime, size) rather than a
 #: plain path->lines cache with explicit invalidation calls from
 #: write_file/edit_file/delete_file: a forge run's agent loop calls
@@ -98,6 +110,7 @@ def view_file(
     start: int = 1,
     end: int = DEFAULT_WINDOW,
     skeleton: Sequence[Node] = (),
+    max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
 ) -> dict:
     """Return a windowed, line-numbered view of one file.
 
@@ -110,6 +123,10 @@ def view_file(
         skeleton: Symbol nodes for this file (from
             ``QueryEngine.get_file_skeleton``); nodes whose line range
             intersects the window appear in ``symbol_index``.
+        max_file_size_bytes: Refuse to view a file bigger than this —
+            ``_read_lines_cached`` reads the WHOLE file before windowing,
+            so an unbounded file here means an unbounded read regardless
+            of how small ``start``/``end`` are.
 
     Returns:
         A dict ``{path, total_lines, window: {start, end}, content,
@@ -118,13 +135,21 @@ def view_file(
         and is ``None`` once the window reaches end-of-file.
 
     Raises:
-        ValueError: If ``path`` escapes ``root``.
+        ValueError: If ``path`` escapes ``root``, or the file is over
+            ``max_file_size_bytes``.
         FileNotFoundError: If the file does not exist (the surface layer
             converts this into an error envelope with a hint).
     """
     resolved = _jail(root, path)
     if not resolved.is_file():
         raise FileNotFoundError(f"no such file under project root: {path}")
+    size = resolved.stat().st_size
+    if size > max_file_size_bytes:
+        raise ValueError(
+            f"{path!r} is {size} bytes, over the {max_file_size_bytes}-byte "
+            "view ceiling; this tool is for source files, not large "
+            "binaries/datasets"
+        )
 
     lines = _read_lines_cached(resolved)
     total = len(lines)

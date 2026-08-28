@@ -26,18 +26,115 @@ into. Wiring a decomposition-engine-generated hint into that real
 lifecycle (turning a hint into an actual pushable AtomicTask, prose
 filled in by the Requirement-Miner per the spec's own framing) is a
 separate, later integration.
+
+Pluggable HTML walker / element detector (docs/plans/
+cie-standalone-any-project-plan.md Phase 3): neither `features.
+design_studio.layout_fingerprint.MockupHTMLWalker` nor `features.
+design_studio.interactive_elements.detect_interactive_elements` is
+imported at module level anymore — a bare `import cie.decompose` (and
+transitively `import cie.tools`) no longer requires `features/` to be on
+the path at all, which it did before this note. `_get_html_walker_factory`/
+`_get_interactive_element_detector` below fall back to a LAZY import of
+those exact be-v2 implementations (same standalone-shim style
+`cie/hierarchy.py` and `cie/tasks.py` already use for their own be-v2-
+optional imports), so behavior inside be-v2 is unchanged. A host project
+with no `features/design_studio` at all — or that wants different
+HTML-walking/element-detection semantics — registers its own via
+`register_html_walker_factory`/`register_interactive_element_detector`
+instead. Fails fast (`RuntimeError`, not a silent no-op) when neither the
+override nor the lazy default resolves.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
-from typing import Sequence
-
-from features.design_studio.interactive_elements import detect_interactive_elements
-from features.design_studio.layout_fingerprint import MockupHTMLWalker
+from typing import Callable, Optional, Protocol, Sequence, runtime_checkable
 
 from cie.models import EdgeRecord, Node, NodeKind
+
+
+@runtime_checkable
+class _HtmlWalker(Protocol):
+    """What `extract_pages` needs from an HTML walker: `feed(html)`, then
+    read `.elements` as `(depth, tag, attrs_list)` tuples — matched
+    structurally against `MockupHTMLWalker`'s own shape so this module
+    never has to import that class to type against it."""
+
+    elements: list[tuple[int, str, list[tuple[str, str]]]]
+
+    def feed(self, html: str) -> None: ...
+
+
+@runtime_checkable
+class _InteractiveElement(Protocol):
+    kind: str
+    selector_hint: str
+    derived_task_hints: Sequence[str]
+
+
+HtmlWalkerFactory = Callable[[], _HtmlWalker]
+InteractiveElementDetector = Callable[[str], Sequence[_InteractiveElement]]
+
+_html_walker_factory: Optional[HtmlWalkerFactory] = None
+_interactive_element_detector: Optional[InteractiveElementDetector] = None
+
+
+def register_html_walker_factory(factory: HtmlWalkerFactory) -> None:
+    """Override the HTML walker `extract_pages` uses (default: be-v2's own
+    `MockupHTMLWalker`, lazily imported on first use). A host project with
+    no `features/design_studio` on its path — or that wants different
+    DOM-walking semantics — registers its own here."""
+    global _html_walker_factory
+    _html_walker_factory = factory
+
+
+def register_interactive_element_detector(detector: InteractiveElementDetector) -> None:
+    """Override the detector `extract_elements` uses (default: be-v2's own
+    `detect_interactive_elements`, lazily imported on first use)."""
+    global _interactive_element_detector
+    _interactive_element_detector = detector
+
+
+def _lazy_default_html_walker_factory() -> Optional[HtmlWalkerFactory]:
+    try:
+        from features.design_studio.layout_fingerprint import MockupHTMLWalker
+
+        return MockupHTMLWalker
+    except Exception:
+        return None
+
+
+def _lazy_default_interactive_element_detector() -> Optional[InteractiveElementDetector]:
+    try:
+        from features.design_studio.interactive_elements import detect_interactive_elements
+
+        return detect_interactive_elements
+    except Exception:
+        return None
+
+
+def _get_html_walker_factory() -> HtmlWalkerFactory:
+    factory = _html_walker_factory or _lazy_default_html_walker_factory()
+    if factory is None:
+        raise RuntimeError(
+            "no HTML walker available for cie.decompose.extract_pages — "
+            "register one via cie.decompose.register_html_walker_factory, "
+            "or run inside be-v2 with features/design_studio importable"
+        )
+    return factory
+
+
+def _get_interactive_element_detector() -> InteractiveElementDetector:
+    detector = _interactive_element_detector or _lazy_default_interactive_element_detector()
+    if detector is None:
+        raise RuntimeError(
+            "no interactive-element detector available for "
+            "cie.decompose.extract_elements — register one via "
+            "cie.decompose.register_interactive_element_detector, or run "
+            "inside be-v2 with features/design_studio importable"
+        )
+    return detector
 
 #: A small vocabulary of icon-button class/aria-label substrings that
 #: imply a destination page — settings gear, profile avatar, etc. Not
@@ -79,7 +176,7 @@ def extract_pages(html: str, screen_id: str) -> tuple[list[dict], list[dict]]:
     rendered_on_edges)`; ids are content-hashed, so re-extracting the
     same HTML is idempotent.
     """
-    walker = MockupHTMLWalker()
+    walker = _get_html_walker_factory()()
     walker.feed(html)
 
     pages: dict[str, dict] = {}
@@ -114,7 +211,7 @@ def extract_elements(html: str, page_id: str) -> tuple[list[dict], list[dict]]:
     """DE-02: wrap `detect_interactive_elements` (already fully built,
     see module docstring) into graph `InteractiveElement` nodes +
     `HAS_ELEMENT` edges. No detection logic lives in this function."""
-    found = detect_interactive_elements(html)
+    found = _get_interactive_element_detector()(html)
     nodes: list[dict] = []
     edges: list[dict] = []
     for i, el in enumerate(found):

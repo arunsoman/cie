@@ -16,7 +16,12 @@ graph — set them only if you actually want that split.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from cie.lang_adapter import LanguageAdapter
 
 
 @dataclass(frozen=True)
@@ -106,3 +111,42 @@ class Neo4jConfig:
             "max_connection_pool_size": self.max_pool_size,
             "connection_acquisition_timeout": self.connection_acquisition_timeout_s,
         }
+
+
+@dataclass
+class CieConfig:
+    """One explicit bootstrap object for an external ("any project")
+    caller — docs/plans/cie-standalone-any-project-plan.md Phase 5.
+
+    `Neo4jConfig` above was already fully explicit-constructible (its
+    `from_env()` is a convenience, not the only path — a caller could
+    already pass `Neo4jConfig(uri=..., user=..., password=...)` straight
+    into `cie.factory.build_tool_service`'s own `cfg` param with zero env
+    vars involved). What was still missing was ONE object bundling every
+    knob `cie.factory.build_tool_service_from_config` needs, instead of a
+    caller having to know that function's separate positional args exist
+    at all — this is that object, plus Phase 1's language-adapter
+    registration and Phase 4's file-size ceiling folded in alongside the
+    Neo4j settings, so a fresh caller reads one dataclass, not four
+    different modules' constructors.
+
+    Deliberately has NO "disable the jail" toggle, unlike `src/new/cie`'s
+    rejected `CieConfig.jail_enabled` — cie's file tools jail
+    unconditionally (`cie.tools.view._jail`) and nothing in this real
+    codebase exposes a way to turn that off; adding one here would be a
+    net-new security-relevant escape hatch nobody asked for, not a
+    faithful port of an existing capability.
+    """
+
+    project_root: Path
+    project: str = ""
+    neo4j: Optional[Neo4jConfig] = None
+    allowed_root: Optional[Path] = None
+    max_file_size_bytes: int = 5_242_880  # cie.tools.view.DEFAULT_MAX_FILE_SIZE_BYTES
+    language_adapters: tuple["LanguageAdapter", ...] = field(default_factory=tuple)
+
+    @classmethod
+    def from_env(cls, project_root: Path, project: str = "") -> "CieConfig":
+        """Convenience constructor matching `Neo4jConfig.from_env()`'s own
+        env-var convention — still fully optional; nothing requires it."""
+        return cls(project_root=Path(project_root), project=project, neo4j=Neo4jConfig.from_env())
