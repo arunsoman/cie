@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.env
+uv.lock
+# Runtime cache/state a running ToolService writes under a project root
+# it's pointed at — leaked into a commit once from running tests at the
+# repo root without a scratch project dir; never should be tracked.
+forge_workspaces/
+.forge/
+*.db

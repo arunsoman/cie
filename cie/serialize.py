@@ -1,0 +1,92 @@
+"""JSON-ready dict converters shared by cie.routes (HTTP) and
+cie.cli (--json).
+
+Split out of the former cie/server.py so the CLI doesn't have to
+import FastAPI (and the whole routes module) just to serialize a Node.
+"""
+
+from __future__ import annotations
+
+from cie.tasks import AtomicTask
+
+
+def node_to_dict(n) -> dict:
+    """JSON-ready dict for a graph Node (all Wave A fields included).
+
+    `extracted_at`/`extractor_version`/`source_ref` (IN-08 provenance) are
+    included here too — the whole point of stamping them at write time is
+    queryable provenance, not just written-and-orphaned Neo4j properties;
+    this is the ONE place every node-returning tool/route serializes
+    through, so adding them here surfaces them everywhere at once (class_
+    hierarchy, entity_context, search_symbol, file_skeleton, ...).
+    """
+    return {
+        "id": n.id,
+        "label": n.label,
+        "source_file": n.source_file,
+        "source_location": n.source_location,
+        "file_type": n.file_type,
+        "community": n.community,
+        "kind": n.kind,
+        "signature": n.signature,
+        "line_start": getattr(n, "line_start", 0),
+        "line_end": getattr(n, "line_end", 0),
+        "docstring": getattr(n, "docstring", ""),
+        "project": getattr(n, "project", ""),
+        "extracted_at": getattr(n, "extracted_at", ""),
+        "extractor_version": getattr(n, "extractor_version", ""),
+        "source_ref": getattr(n, "source_ref", ""),
+        # Section 13 analysis-node extras (CloneCluster's member_count/
+        # consolidation_target, AntiPattern's severity/suggested_fix,
+        # DriftFinding's drift_type/detail, ...) — {} for every other
+        # node kind. See Node.properties's docstring.
+        "properties": dict(getattr(n, "properties", {}) or {}),
+    }
+
+
+def edge_record_to_dict(rec) -> dict:
+    """JSON-ready dict for an EdgeRecord (edge + endpoint labels)."""
+    return {
+        "source": rec.edge.source,
+        "target": rec.edge.target,
+        "relation": rec.edge.relation,
+        "confidence": rec.edge.confidence.value,
+        "source_label": rec.source_label,
+        "target_label": rec.target_label,
+        "extracted_at": getattr(rec.edge, "extracted_at", ""),
+        "extractor_version": getattr(rec.edge, "extractor_version", ""),
+        "source_ref": getattr(rec.edge, "source_ref", ""),
+        "properties": dict(getattr(rec.edge, "properties", {}) or {}),
+    }
+
+
+def task_to_dict(t: AtomicTask) -> dict:
+    return {
+        "id": t.id,
+        "name": t.name,
+        "userstory_id": t.userstory_id,
+        "parent_feature": t.parent_feature,
+        "task_type": t.task_type,
+        "layer": t.layer,
+        "action": t.action,
+        "file_path": t.file_path,
+        "description": t.description,
+        "exact_imports": list(t.exact_imports),
+        "function_signatures": list(t.function_signatures),
+        "step_by_step_implementation": list(t.step_by_step_implementation),
+        "dependencies": list(t.dependencies),
+        "api_spec": t.api_spec.model_dump() if t.api_spec else None,
+        "test_triad": t.test_triad.model_dump() if t.test_triad else None,
+    }
+
+
+def signature_to_dict(sig) -> dict:
+    return {
+        "name": sig.name,
+        "parameters": list(sig.parameters),
+        "return_type": sig.return_type,
+        "enclosing_class": sig.enclosing_class,
+        "source_file": sig.node.source_file,
+        "source_location": sig.node.source_location,
+        "signature": sig.node.signature,
+    }
