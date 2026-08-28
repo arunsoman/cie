@@ -1,9 +1,25 @@
 [project]
 name = "cie"
-version = "0.1.0"
-description = "Code Insight Engine — a pluggable, language-agnostic code-graph, task, and LLM-tool surface backed by Neo4j."
+version = "0.1.0a1"
+description = "Code Insight Engine — a pluggable, language-agnostic code graph + LLM tool surface (MCP/HTTP/CLI) with an embedded SQLite or Neo4j backend."
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Arun Soman", email = "aarunsoman@gmail.com"}]
+keywords = ["code-graph", "call-graph", "mcp", "llm-tools", "tree-sitter", "neo4j", "code-intelligence"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "neo4j>=5.0.0",
     "pydantic>=2.7.0",
@@ -34,12 +50,28 @@ mcp = ["mcp>=2.0.0"]
 cie = "cie.cli:main"
 cie-mcp = "cie.mcp_server:main"
 
+[project.urls]
+Homepage = "https://github.com/arunsoman/cie"
+Repository = "https://github.com/arunsoman/cie"
+"Bug Tracker" = "https://github.com/arunsoman/cie/issues"
+Changelog = "https://github.com/arunsoman/cie/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/arunsoman/cie/blob/main/docs/language-agnostic-design.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["cie"]
+
+[tool.pytest.ini_options]
+# Scope collection to tests/ only. NOTE: do NOT run bare `pytest` with
+# default discovery — cie/test_orchestration.py and cie/test_synthesis.py
+# are *feature modules* (not tests) whose names start with `test_`; they
+# import a host-project `core.llm` that isn't on the path in a standalone
+# checkout, so collecting them errors. testpaths keeps `pytest` (no args)
+# correct.
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = ["pytest>=8"]

@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel a superseded in-flight run for the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install cie + test deps
+        # [mcp] for tests/test_mcp_server.py (importorskip-guarded),
+        # [http] for tests/test_tool_surface_invariants.py (imports cie.routes -> fastapi).
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[mcp,http]" pytest
+
+      - name: Run tests
+        # Scoped to tests/ via pyproject [tool.pytest.ini_options] testpaths.
+        # Do NOT use bare `pytest` with default discovery: cie/test_*.py are
+        # feature modules (not tests) that import a host-project `core.llm`
+        # absent in a standalone checkout.
+        run: pytest -q
+
+      - name: Smoke-check the MCP server actually starts
+        # Real stdio initialize + tools/list handshake, proving the server
+        # runs end-to-end (guards against the mcpserver.MCPServer -> FastMCP
+        # class of regression).
+        run: |
+          python - <<'PY'
+          import json, subprocess, sys, threading, time
+          proc = subprocess.Popen(
+              [sys.executable, "-m", "cie.mcp_server", ".", "--embedded", "--policy", "readonly"],
+              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+              text=True, bufsize=1,
+          )
+          out = []
+          threading.Thread(target=lambda: [out.append(l) for l in proc.stdout], daemon=True).start()
+          time.sleep(1.0)
+          def send(o):
+              proc.stdin.write(json.dumps(o) + "\n"); proc.stdin.flush()
+          send({"jsonrpc":"2.0","id":1,"method":"initialize",
+                "params":{"protocolVersion":"2024-11-05","capabilities":{},
+                          "clientInfo":{"name":"ci","version":"1"}}})
+          time.sleep(0.5)
+          send({"jsonrpc":"2.0","method":"notifications/initialized"})
+          time.sleep(0.2)
+          send({"jsonrpc":"2.0","id":2,"method":"tools/list"})
+          time.sleep(1.0)
+          proc.stdin.close()
+          try: proc.wait(timeout=5)
+          except subprocess.TimeoutExpired: proc.kill()
+          tools = None
+          for line in out:
+              if line.strip().startswith("{") and f'"id":2' in line:
+                  tools = json.loads(line)["result"]["tools"]
+          assert tools and len(tools) > 50, f"tools/list returned {len(tools) if tools else 0} tools"
+          names = {t["name"] for t in tools}
+          assert "view_file" in names, "read tool missing under readonly policy"
+          assert "write_file" not in names and "run" not in names, "write tool leaked under readonly policy"
+          print(f"OK: MCP handshake returned {len(tools)} read-only tools")
+          PY

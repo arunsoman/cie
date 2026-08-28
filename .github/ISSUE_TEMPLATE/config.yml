@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/arunsoman/cie/security
+    about: |
+      For security vulnerabilities, do NOT open a public issue. See
+      SECURITY.md and email aarunsoman@gmail.com with "[cie security]" in
+      the subject.
+  - name: Design doc / boundary question
+    url: https://github.com/arunsoman/cie/blob/main/docs/language-agnostic-design.md
+    about: |
+      Unsure whether a change fits cie's essence (understand + answer, not
+      build/run)? Read the language-agnostic design doc first.

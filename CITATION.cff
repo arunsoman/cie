@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If cie helps your work, a citation is appreciated."
+title: "cie — Code Insight Engine"
+abstract: >-
+  A pluggable, language-agnostic code graph that an LLM coding agent can
+  actually use. Index a project and serve symbol search, call-graph
+  traversal, and file skeletons to Claude Code, Cursor, or any MCP client.
+  For teams on Neo4j, cie adds task/QA traceability and continuous
+  quality-governance over the live graph.
+authors:
+  - given-names: Arun
+    family-names: Soman
+    email: aarunsoman@gmail.com
+keywords:
+  - code-graph
+  - call-graph
+  - mcp
+  - llm-tools
+  - tree-sitter
+  - neo4j
+  - code-intelligence
+license: MIT
+repository-code: "https://github.com/arunsoman/cie"
+version: 0.1.0a1
+date-released: 2026-08-28

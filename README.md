@@ -1,22 +1,41 @@
-# cie — Code Insight Engine
+# cie — a code graph your AI coding agent can actually use.
 
-**A code graph for any language — even ones with no LSP and no
-tree-sitter grammar — that an LLM coding agent can actually use.** Index
-a project and serve symbol search, call-graph traversal, and file
-skeletons to Claude Code, Cursor, or any MCP client. For teams on Neo4j,
-cie adds the one thing no other code graph has: it tracks which tasks and
-tests actually implement which code, with continuous quality-governance
-(clone/drift detection, confidence, traceability) over the live graph.
+[![CI](https://github.com/arunsoman/cie/actions/workflows/ci.yml/badge.svg)](https://github.com/arunsoman/cie/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/arunsoman/cie?include_prereleases&label=release)](https://github.com/arunsoman/cie/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
+[![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
+[![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
+[![Tests](https://img.shields.io/badge/tests-38%20passing-success.svg)](tests/)
+[![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
+
+[![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)
+[![PRs](https://img.shields.io/github/issues-pr/arunsoman/cie?logo=github&label=PRs)](https://github.com/arunsoman/cie/pulls)
+[![Contributors](https://img.shields.io/github/contributors/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/graphs/contributors)
+[![Stars](https://img.shields.io/github/stars/arunsoman/cie?style=social&logo=github)](https://github.com/arunsoman/cie/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/commits/main)
+[![Commit activity](https://img.shields.io/github/commit-activity/y/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/commits/main)
+[![Code size](https://img.shields.io/github/languages/code-size/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie)
+[![Repo size](https://img.shields.io/github/repo-size/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](#install)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/arunsoman/cie/releases)
+
+*Code Insight Engine.* Index any project — even a language with no LSP
+and no tree-sitter grammar — and serve symbol search, call-graph
+traversal, and file skeletons to Claude Code, Cursor, or any MCP client in
+two commands, no server to run. For teams on Neo4j, cie adds the one thing
+no other code graph has: it tracks which tasks and tests actually
+implement which code, with continuous quality-governance (clone/drift
+detection, confidence, traceability) over the live graph.
 
 Zero-config to try: index a project into a local SQLite file and serve it
 to Claude Code, Cursor, or any MCP client in two commands, no server to
 run. Point it at Neo4j instead when you need it for a real team/project.
 
-Originally built inside [protobox](https://github.com/arunsoman/protobox)'s
-`be-v2` backend and carved out here as its own package — see protobox's
-`be-v2/docs/plans/cie-standalone-any-project-plan.md` for the design
-history, and [`docs/competitive-landscape.md`](docs/competitive-landscape.md)
-for how it compares to CodeGraph, CodeGraphContext, Serena, and others.
+See [`docs/competitive-landscape.md`](docs/competitive-landscape.md) for how
+cie compares to CodeGraph, CodeGraphContext, Serena, and others — and
+where it's honestly behind.
 
 ## Quickstart (zero-config, no Neo4j)
 
@@ -430,5 +449,7 @@ tests/                # test_standalone_smoke / test_mcp_server / test_embedded_
 
 ## License
 
-No license file yet — add one before treating this as open for others to
-use (public visibility alone doesn't grant reuse rights).
+cie is released under the [MIT License](LICENSE).
+
+By contributing, you agree your contributions are licensed under the same
+MIT license — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
