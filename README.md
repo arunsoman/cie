@@ -55,6 +55,12 @@ service.reindex()                       # index the project
 print(service.search_symbol("main"))     # query it
 ```
 
+## Docs
+
+- [Competitive landscape](docs/competitive-landscape.md) — nearest
+  competitors (CodeGraphContext, CodeGraph, Serena, and others), where cie
+  differs, and where it's honestly behind.
+
 ## License
 
 No license file yet — add one before treating this as open for others to
