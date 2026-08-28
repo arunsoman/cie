@@ -61,18 +61,25 @@ from cie.models import Node, NodeKind
 
 
 def to_urn(node: Node) -> str:
-    """A globally-unique, stable URI/URN for a node: `urn:protobox:
+    """A globally-unique, stable URI/URN for a node: `urn:cie:
     {project}:{kind}:{id}`. `project` defaults to `"default"` when the
     node carries no project namespace, so the URN is still well-formed
-    (an empty path segment `urn:protobox::function:x` is a malformed
-    URN, not just an ugly one)."""
+    (an empty path segment `urn:cie::function:x` is a malformed URN, not
+    just an ugly one).
+
+    Identity note: this was `urn:protobox:` when cie was embedded in the
+    protobox/be-v2 backend; renamed to `urn:cie:` when cie became a
+    standalone package. It is a one-time identity migration — cie only
+    *emits* URNs (nothing parses them back), so there is no read-side
+    compatibility shim; any external consumer keyed on the old form must
+    reindex."""
     project = node.project or "default"
-    return f"urn:protobox:{project}:{node.kind}:{node.id}"
+    return f"urn:cie:{project}:{node.kind}:{node.id}"
 
 
 # -- DM-01: RDF export (Turtle) ----------------------------------------------
 
-_TURTLE_PREFIX = "@prefix prb: <urn:protobox:predicate:> .\n\n"
+_TURTLE_PREFIX = "@prefix cie: <urn:cie:predicate:> .\n\n"
 
 
 def _turtle_literal(value: str) -> str:
@@ -97,9 +104,9 @@ def export_rdf(nodes: Sequence[Node], edges, fmt: str = "turtle") -> str:
     for n in nodes:
         subject = f"<{to_urn(n)}>"
         lines.append(
-            f"{subject} prb:label {_turtle_literal(n.label)} ;\n"
-            f"    prb:kind {_turtle_literal(n.kind)} ;\n"
-            f"    prb:sourceFile {_turtle_literal(n.source_file)} ."
+            f"{subject} cie:label {_turtle_literal(n.label)} ;\n"
+            f"    cie:kind {_turtle_literal(n.kind)} ;\n"
+            f"    cie:sourceFile {_turtle_literal(n.source_file)} ."
         )
     for er in edges:
         edge = getattr(er, "edge", er)
@@ -108,7 +115,7 @@ def export_rdf(nodes: Sequence[Node], edges, fmt: str = "turtle") -> str:
         if not src_urn or not tgt_urn:
             continue
         predicate = re.sub(r"[^a-zA-Z0-9_]", "_", edge.relation or "relates")
-        lines.append(f"<{src_urn}> prb:{predicate} <{tgt_urn}> .")
+        lines.append(f"<{src_urn}> cie:{predicate} <{tgt_urn}> .")
     return "\n".join(lines) + "\n"
 
 

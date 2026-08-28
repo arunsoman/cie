@@ -4,16 +4,16 @@ writes (memory -> local disk -> Neo4j).
 Implements docs/plans/graph-write-behind-cache-plan.md phases 1-2: this
 module builds the two cache shapes (entity cache for by-id property
 writes, query cache for traversal/search reads) and is not wired into
-anything by importing it alone — see cie/task_repository.py,
-forge/reporter.py, and cie/neo4j_repository.py for the actual call sites
-(plan phases 3-5).
+anything by importing it alone — see cie/task_repository.py and
+cie/neo4j_repository.py for the actual call sites (plan phases 3-5).
 
 Both caches share the same three physical layers:
   L1 - a per-process dict (exact, in-memory, fastest).
   L2 - one SQLite file per project, WAL mode + busy_timeout so concurrent
        threads don't hit "database is locked" (plan §7 Q1) -
-       `forge_workspaces/<project>/.forge/graph_cache.db`, the same
-       directory forge/trajectory.py already uses.
+       `<workspace>/<project>/.cie/graph_cache.db` (cie's own on-disk cache
+       location; was ``.forge/`` when cie reused a host pipeline's workspace
+       layout — see ``CIE_WORKSPACE_ROOT``).
   L3 - the real Neo4j database.
 """
 from __future__ import annotations
@@ -34,9 +34,16 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 #: Overridable for tests so a project's cache never touches the real repo
-#: root's forge_workspaces/ directory — mirrors CHECKPOINT_DB_PATH's role
-#: in core/checkpoint_store.py.
-WORKSPACE_ROOT = Path(os.environ.get("FORGE_WORKSPACE_ROOT", "./forge_workspaces"))
+#: root's cie workspace directory.
+#:
+#: ``FORGE_WORKSPACE_ROOT`` is still read as a deprecated back-compat alias
+#: (cie was once embedded in the forge pipeline and reused its workspace
+#: layout); new deployments should set ``CIE_WORKSPACE_ROOT``.
+_env_ws = (
+    os.environ.get("CIE_WORKSPACE_ROOT")
+    or os.environ.get("FORGE_WORKSPACE_ROOT")
+)
+WORKSPACE_ROOT = Path(_env_ws or "./.cie_workspaces")
 
 DEFAULT_FLUSH_INTERVAL_S = 3.0
 DEFAULT_FLUSH_THRESHOLD = 20
@@ -49,9 +56,10 @@ def _warn(msg: str) -> None:
 
 
 def default_cache_db_path(project: str) -> Path:
-    """`forge_workspaces/<project>/.forge/graph_cache.db` — same directory
-    forge/trajectory.py already uses for that project's trajectory.jsonl."""
-    return WORKSPACE_ROOT / (project or "_default") / ".forge" / "graph_cache.db"
+    """`<workspace>/<project>/.cie/graph_cache.db` — cie's own on-disk cache
+    location (was ``.forge/`` when cie reused a host pipeline's workspace
+    layout; moved to a cie-owned path)."""
+    return WORKSPACE_ROOT / (project or "_default") / ".cie" / "graph_cache.db"
 
 
 # ---------------------------------------------------------------------------

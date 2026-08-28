@@ -5,18 +5,25 @@ Closes the single gap named as the highest-leverage next move in
 did not speak MCP, so it couldn't plug into Claude Code / Cursor / Codex /
 any MCP host the turnkey way every competitor in that research does.
 
-Wraps `cie.tools.ToolService` (~123 methods) as MCP tools using the
-official `mcp` SDK's `MCPServer`, filtered by a `cie.tool_policy.
-ToolPolicy` so a connecting MCP client only ever sees — and can only ever
-call — the tools that policy permits. This is server-enforced, not left
-to the client's own settings, matching `competitive-landscape.md`'s
-differentiator #4 ("every competitor leaves write-permission entirely to
-the MCP client"). Each tool's JSON Schema is derived by the SDK's own
-introspection of the bound `ToolService` method — the exact same type
-hints `cie.tool_schema` already reads — so there is one source of truth
-for a tool's shape, not two schema-translation layers that could drift.
+Wraps `cie.tools.ToolService` (~121 methods) as MCP tools using the
+official `mcp` SDK's `FastMCP` high-level server, filtered by a
+`cie.tool_policy.ToolPolicy` so a connecting MCP client only ever sees
+— and can only ever call — the tools that policy permits. This is
+server-enforced, not left to the client's own settings, matching
+`competitive-landscape.md`'s differentiator #4 ("every competitor leaves
+write-permission entirely to the MCP client"). Each tool's JSON Schema is
+derived by the SDK's own introspection of the bound `ToolService` method
+— the exact same type hints `cie.tool_schema` already reads — so there is
+one source of truth for a tool's shape, not two schema-translation layers
+that could drift.
 
 Requires the optional `mcp` dependency: ``pip install "cie[mcp]"``.
+
+SDK note: this targets `mcp.server.fastmcp.FastMCP`, the high-level server
+shipped by current `mcp` SDK versions (``add_tool`` / ``list_tools`` /
+``call_tool`` / ``run(transport=...)``). An earlier revision targeted a
+``mcp.server.mcpserver.MCPServer`` class that does not exist in any
+released `mcp` wheel; ``FastMCP`` is the real, supported equivalent.
 """
 
 from __future__ import annotations
@@ -28,31 +35,40 @@ from typing import TYPE_CHECKING
 from cie.tool_policy import AgentType, ToolPolicy
 
 if TYPE_CHECKING:
-    from mcp.server.mcpserver import MCPServer
+    from mcp.server.fastmcp import FastMCP
 
     from cie.tools import ToolService
 
 #: Named policies a caller can select via `--policy` — see
-#: `cie.tool_policy` for what each actually permits. `forge`/
-#: `orchestrator` are full read+write (this codebase's own trusted
-#: in-process callers); `miner`/`inspector` are read-only, the shape an
-#: external/less-trusted MCP client should usually get.
+#: `cie.tool_policy` for what each actually permits.
+#:
+#: Canonical names are ``full`` (read+write) and ``readonly`` (read-only).
+#: The historical names ``forge``/``orchestrator`` (read+write) and
+#: ``miner``/``inspector`` (read-only) are kept as deprecated back-compat
+#: aliases — cie is no longer shaped around any one host pipeline, but
+#: existing scripts that pass ``--policy forge`` keep working.
+_FULL = ToolPolicy(AgentType.FORGE, allow_write=True)
+_READONLY = ToolPolicy(AgentType.INSPECTOR, allow_write=False)
 POLICIES_BY_NAME: dict[str, ToolPolicy] = {
-    "forge": ToolPolicy(AgentType.FORGE, allow_write=True),
-    "orchestrator": ToolPolicy(AgentType.ORCHESTRATOR, allow_write=True),
-    "miner": ToolPolicy(AgentType.REQUIREMENT_MINER, allow_write=False),
-    "inspector": ToolPolicy(AgentType.INSPECTOR, allow_write=False),
+    # canonical
+    "full": _FULL,
+    "readonly": _READONLY,
+    # deprecated aliases (same permission level as their canonical name)
+    "forge": _FULL,
+    "orchestrator": _FULL,
+    "miner": _READONLY,
+    "inspector": _READONLY,
 }
 
 
-def build_mcp_server(service: "ToolService", policy: ToolPolicy, *, name: str = "cie") -> "MCPServer":
-    """Build an `MCPServer` exposing every tool `policy` permits on
+def build_mcp_server(service: "ToolService", policy: ToolPolicy, *, name: str = "cie") -> "FastMCP":
+    """Build a `FastMCP` server exposing every tool `policy` permits on
     `service`. Tools `policy` denies are never registered at all — an MCP
     client's own `tools/list` response never names them, not merely
     refuses to run them."""
-    from mcp.server.mcpserver import MCPServer
+    from mcp.server.fastmcp import FastMCP
 
-    server = MCPServer(name=name)
+    server = FastMCP(name=name)
     for tool_name in sorted(vars(type(service))):
         if tool_name.startswith("_") or tool_name == "describe":
             continue
@@ -87,8 +103,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("project_root", type=Path, help="Project root to serve tools against.")
     parser.add_argument("--project", default="", help="cie project namespace (default: unscoped).")
     parser.add_argument(
-        "--policy", default="forge", choices=sorted(POLICIES_BY_NAME),
-        help="Which ToolPolicy to enforce (default: forge — full read+write).",
+        "--policy", default="full", choices=sorted(POLICIES_BY_NAME),
+        help="Which ToolPolicy to enforce (default: full — read+write). "
+             "Read-only clients should use 'readonly'. Historical aliases "
+             "'forge'/'orchestrator'/'miner'/'inspector' still work.",
     )
     parser.add_argument(
         "--embedded", action="store_true",

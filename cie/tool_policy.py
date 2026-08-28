@@ -1,14 +1,13 @@
 """Per-agent-type authorization over cie's LLM tool surface (ToolService).
 
 Every `ToolService` method has always been uniformly callable by whatever
-holds a reference to the instance — fine for forge/requirement-miner
-running in-process inside be-v2's own trusted process, not fine once CIE
-is handed to a less-trusted external caller (docs/plans/
+holds a reference to the instance — fine for a trusted in-process caller,
+not fine once cie is handed to a less-trusted external caller (docs/plans/
 cie-standalone-any-project-plan.md, Pillar A gap 2). This module adds a
 thin policy layer OVER `ToolService` — it does not change `ToolService` or
 any of its ~123 methods, and nothing calls into this module yet (adopting
-it at a real call site — forge's tool dispatch, or an external HTTP
-caller — is separate follow-up work, not part of this file).
+it at a real call site — a trusted driver's tool dispatch, or an external
+HTTP/MCP caller — is separate follow-up work, not part of this file).
 
 `WRITE_TOOLS` below is a hand-curated classification — every method's
 docstring (and body, where the docstring alone was ambiguous) was read

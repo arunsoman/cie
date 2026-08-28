@@ -2792,36 +2792,6 @@ class ToolService:
             return self._guard(tool, started, exc)
         return self._ok(tool, [{"regression": regression}], started)
 
-    def resolve_api_route(self, path: str) -> dict:
-        """Frontend API call path -> backend route(s) that serve it, with
-        file/line and which service (be-v2 vs backend) actually handles it
-        today per `frontend/vite.config.js`'s dev-proxy rules — the one
-        HTTP-API-boundary question AST extraction alone can't answer (see
-        `cie.api_routes` module docstring)."""
-        tool = "resolve_api_route"
-        started = time.monotonic()
-        try:
-            from cie import api_routes
-
-            repo_root = api_routes.find_repo_root(self._root)
-            results = api_routes.resolve_api_route(path, repo_root)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
-        if not results:
-            return self._ok(
-                tool, results, started,
-                hint=f"no backend route matches '{path}'; check the path "
-                     "template or that the route file was scanned "
-                     "(be-v2/src and backend/src only)",
-            )
-        return self._ok(
-            tool, results, started,
-            hint="a result with is_forwarding_shim=true is backend/'s "
-                 "bev2_proxy.py reverse-proxy handler, not the real "
-                 "implementation — see its forwards_to for the be-v2 "
-                 "route that actually runs",
-        )
-
     def graph_diff(self, before_path: str, after_path: str) -> dict:
         """RQ-12: pure filesystem diff between two directory trees'
         extractions (e.g. two git worktrees, or a before/after of the
@@ -2846,28 +2816,6 @@ class ToolService:
         if summary["added"] == summary["removed"] == summary["modified"] == 0:
             hint = "no differences found between the two trees"
         return self._ok(tool, [payload], started, hint=hint)
-
-    def api_call_sites(self, route: str) -> dict:
-        """Backend route (path template, e.g. '/api/tasks/{task_id}/kill',
-        or a handler function name) -> frontend call site(s) that hit it.
-        Reverse of `resolve_api_route`."""
-        tool = "api_call_sites"
-        started = time.monotonic()
-        try:
-            from cie import api_routes
-
-            repo_root = api_routes.find_repo_root(self._root)
-            results = api_routes.api_call_sites(route, repo_root)
-        except Exception as exc:  # noqa: BLE001
-            return self._guard(tool, started, exc)
-        if not results:
-            return self._ok(
-                tool, results, started,
-                hint=f"no frontend call site matches '{route}'; pass either "
-                     "the exact backend path template or the handler "
-                     "function name",
-            )
-        return self._ok(tool, results, started)
 
     # -- execution / indexing tools ------------------------------------------
 
@@ -3024,15 +2972,17 @@ class ToolService:
         """Drop `cie.api_routes`'s per-repo-root route/call-site index after
         any write under the project root.
 
-        That cache (resolve_api_route/api_call_sites — a regex scan of
-        FastAPI route decorators + frontend fetch call sites, entirely
-        separate from the Neo4j code graph) never invalidated itself: a
-        forge session that generates or edits a route file and then later
-        in the SAME run calls resolve_api_route/api_call_sites would get a
-        stale answer from before its own edit. Cheap to over-invalidate
-        (a write to an unrelated file just costs one extra rebuild on the
-        NEXT resolve_api_route/api_call_sites call, not on this write) —
-        far cheaper than a wrong answer.
+        That cache (a regex scan of FastAPI route decorators + frontend
+        fetch call sites, entirely separate from the Neo4j code graph) is
+        consumed by the internal analysis passes that still use it —
+        `cie.drift_detect`'s API-contract-drift check (CI-11) and
+        `cie.test_orchestration`'s API-endpoint test plan — neither of
+        which is a user-facing tool anymore. It never invalidated itself:
+        a run that generates or edits a route file and then later in the
+        SAME run runs one of those passes would get a stale answer from
+        before its own edit. Cheap to over-invalidate (a write to an
+        unrelated file just costs one extra rebuild on the NEXT pass, not
+        on this write) — far cheaper than a wrong answer.
         """
         from cie import api_routes
 

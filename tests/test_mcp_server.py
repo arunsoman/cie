@@ -63,8 +63,14 @@ def test_forge_policy_registers_write_tools():
 def test_call_tool_dispatches_to_the_real_method():
     server = build_mcp_server(_FakeService(), POLICIES_BY_NAME["forge"])
     result = _run(server.call_tool("get_task", {"name": "t-1"}))
-    assert result.is_error is False
-    assert '"name": "t-1"' in result.content[0].text
+    # FastMCP.call_tool returns a list of ContentBlock (TextContent); the
+    # tool's dict return value is JSON-serialized into the first block's
+    # text. (An earlier mcp SDK returned a CallToolResult envelope with
+    # .is_error/.content; that class does not exist in current mcp wheels.)
+    assert isinstance(result, list) and result
+    text = getattr(result[0], "text", None)
+    assert text is not None
+    assert '"name": "t-1"' in text
 
 
 def test_denied_tool_is_not_even_registered_not_just_refused():
