@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a new capability or an improvement to an existing one
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that cie doesn't let you do today?
+      placeholder: "I want an LLM coding agent to answer X about my codebase, but cie has no tool for it."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you'd expect cie to do. A tool name / MCP call shape / CLI command is great if you have one in mind.
+      placeholder: "A `foo_bar(...)` tool on ToolService that returns ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways you tried to get this done, and why they fell short.
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where should this live?
+      description: See docs/language-agnostic-design.md for the boundary.
+      options:
+        - Core code graph / analysis (essence — understand + answer)
+        - Execution / test / coverage (descriptor-driven, invokes the project's commands)
+        - Capability-gated source heuristic (language-specific, no-ops without the capability)
+        - Task / PRD-hierarchy layer (Neo4j team tier)
+        - New extraction LanguageAdapter (a language cie can't parse today)
+        - Not sure / open to discussion
+    validations:
+      required: false
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Design boundary check
+      description: cie's essence is understand + answer — it is NOT a build system, compiler, or test runner.
+      options:
+        - label: This proposal keeps cie a thin intelligence layer over the project's own toolchain (it doesn't ask cie to implement compile/build).
+          required: false

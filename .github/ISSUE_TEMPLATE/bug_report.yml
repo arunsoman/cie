@@ -1,0 +1,64 @@
+name: Bug report
+description: Report something in cie that is broken or behaves wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. A reproducible example
+        helps a lot. **For security vulnerabilities, do NOT use this form —
+        see SECURITY.md and email aarunsoman@gmail.com instead.**
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect, and what actually happened?
+      placeholder: "When I ran `cie search-symbol foo` against my project, I got ..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The smallest set of steps (and/or a tiny project) that triggers it.
+      placeholder: |
+        1. `pip install -e ".[mcp,http]"`
+        2. `cie index ./my-project`
+        3. `cie-mcp ./my-project --embedded --policy readonly`
+        4. ... 
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cie version
+      description: Output of `cie --version` or the git commit you're on.
+      placeholder: "0.1.0 / commit 938e045"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, and whether you're using the embedded SQLite path or Neo4j.
+      placeholder: "Ubuntu 24.04, Python 3.13, embedded (--embedded)"
+    validations:
+      required: false
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - Embedded (SQLite, zero-config)
+        - Neo4j
+        - Not sure / not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      description: Relevant stderr or `--json` envelope output. Paste verbatim; redact anything sensitive.
+      render: shell
+    validations:
+      required: false
