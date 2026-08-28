@@ -51,7 +51,12 @@ from __future__ import annotations
 
 import json
 import re
-import tomllib
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ModuleNotFoundError:  # Python 3.10 — use the `tomli` backport,
+    # declared as a conditional dependency in pyproject.toml
+    # (`tomli; python_version < "3.11"`)
+    import tomli as tomllib
 from pathlib import Path
 from typing import Optional, Sequence
 

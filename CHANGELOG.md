@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   envelope vs 1.x `list[ContentBlock]`). Verified on both: 38/38 tests pass
   on mcp 1.x *and* mcp 2.x, plus a real stdio JSON-RPC handshake on each
   (`tools/list` under `--policy readonly` → 81 tools, write tools absent).
+- **Python 3.10 actually works.** `cie/data_model.py` did `import tomllib`
+  unconditionally, but `tomllib` is Python 3.11+ stdlib, so the module
+  failed to import on 3.10 — contradicting `requires-python = ">=3.10"`.
+  Now uses a `tomli` backport fallback (`tomli; python_version < "3.11"`
+  conditional dependency). Verified: 38/38 tests pass on Python 3.10.20.
 
 ## [0.1.0a1] - 2026-08-28 — first alpha
 
