@@ -63,12 +63,18 @@ def test_forge_policy_registers_write_tools():
 def test_call_tool_dispatches_to_the_real_method():
     server = build_mcp_server(_FakeService(), POLICIES_BY_NAME["forge"])
     result = _run(server.call_tool("get_task", {"name": "t-1"}))
-    # FastMCP.call_tool returns a list of ContentBlock (TextContent); the
-    # tool's dict return value is JSON-serialized into the first block's
-    # text. (An earlier mcp SDK returned a CallToolResult envelope with
-    # .is_error/.content; that class does not exist in current mcp wheels.)
-    assert isinstance(result, list) and result
-    text = getattr(result[0], "text", None)
+    # mcp 2.x's MCPServer.call_tool returns a CallToolResult envelope
+    # (.is_error, .content: list[ContentBlock]); mcp 1.x's FastMCP.call_tool
+    # returns the list[ContentBlock] directly. Normalize both so the test
+    # passes against either installed major version of the SDK.
+    if isinstance(result, list):
+        blocks, is_error = result, False
+    else:
+        blocks = getattr(result, "content", None) or []
+        is_error = getattr(result, "is_error", False)
+    assert is_error is False
+    assert blocks, "call_tool returned no content blocks"
+    text = getattr(blocks[0], "text", None)
     assert text is not None
     assert '"name": "t-1"' in text
 

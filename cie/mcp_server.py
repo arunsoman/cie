@@ -19,11 +19,19 @@ that could drift.
 
 Requires the optional `mcp` dependency: ``pip install "cie[mcp]"``.
 
-SDK note: this targets `mcp.server.fastmcp.FastMCP`, the high-level server
-shipped by current `mcp` SDK versions (``add_tool`` / ``list_tools`` /
-``call_tool`` / ``run(transport=...)``). An earlier revision targeted a
-``mcp.server.mcpserver.MCPServer`` class that does not exist in any
-released `mcp` wheel; ``FastMCP`` is the real, supported equivalent.
+SDK note — version-agnostic: the high-level server class moved between
+mcp major versions. **mcp 2.x** ships ``mcp.server.mcpserver.MCPServer``
+(``FastMCP`` was renamed to ``MCPServer``; importing ``mcp.server.fastmcp``
+raises a stub ``ModuleNotFoundError`` pointing at the migration guide).
+**mcp 1.x** ships ``mcp.server.fastmcp.FastMCP`` (and has no
+``mcp.server.mcpserver`` at all). Both expose the same surface this module
+relies on — ``add_tool(fn, name=, description=)`` / ``list_tools()`` /
+``call_tool(name, arguments)`` / ``run(transport=...)`` / ``__init__(name=)``
+— so ``_mcp_server_class()`` below prefers 2.x and falls back to 1.x, and
+the same code runs against either installed major version. The one
+difference callers see is ``call_tool``'s return: 2.x returns a
+``CallToolResult`` envelope (``.is_error``/``.content``), 1.x returns a
+``list[ContentBlock]`` directly; tests normalize both.
 """
 
 from __future__ import annotations
@@ -35,9 +43,14 @@ from typing import TYPE_CHECKING
 from cie.tool_policy import AgentType, ToolPolicy
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from typing import Any
 
     from cie.tools import ToolService
+
+    # The concrete class is mcp.server.mcpserver.MCPServer (mcp 2.x) or
+    # mcp.server.fastmcp.FastMCP (mcp 1.x); both share the surface used
+    # here. Kept as a loose alias so type-checking resolves on either SDK.
+    McpServer = Any
 
 #: Named policies a caller can select via `--policy` — see
 #: `cie.tool_policy` for what each actually permits.
@@ -61,14 +74,32 @@ POLICIES_BY_NAME: dict[str, ToolPolicy] = {
 }
 
 
-def build_mcp_server(service: "ToolService", policy: ToolPolicy, *, name: str = "cie") -> "FastMCP":
-    """Build a `FastMCP` server exposing every tool `policy` permits on
+def _mcp_server_class():
+    """Return the high-level MCP server class for the installed `mcp` SDK.
+
+    Prefer mcp 2.x's ``mcp.server.mcpserver.MCPServer``; fall back to mcp
+    1.x's ``mcp.server.fastmcp.FastMCP`` when 2.x isn't installed. Both
+    expose the same ``add_tool``/``list_tools``/``call_tool``/``run``/
+    ``__init__(name=)`` surface this module uses. Importing lazily (here,
+    not at module top) keeps `mcp` optional: this module imports fine with
+    no `mcp` installed; only calling ``build_mcp_server`` requires it.
+    """
+    try:
+        from mcp.server.mcpserver import MCPServer  # mcp 2.x
+
+        return MCPServer
+    except ModuleNotFoundError:
+        from mcp.server.fastmcp import FastMCP  # mcp 1.x
+
+        return FastMCP
+
+
+def build_mcp_server(service: "ToolService", policy: ToolPolicy, *, name: str = "cie") -> "McpServer":
+    """Build an MCP server exposing every tool `policy` permits on
     `service`. Tools `policy` denies are never registered at all — an MCP
     client's own `tools/list` response never names them, not merely
     refuses to run them."""
-    from mcp.server.fastmcp import FastMCP
-
-    server = FastMCP(name=name)
+    server = _mcp_server_class()(name=name)
     for tool_name in sorted(vars(type(service))):
         if tool_name.startswith("_") or tool_name == "describe":
             continue
