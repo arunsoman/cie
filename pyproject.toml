@@ -75,4 +75,4 @@ packages = ["cie"]
 testpaths = ["tests"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=9.1.1"]
