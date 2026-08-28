@@ -44,7 +44,7 @@ dependencies = [
 # growth-plan.md Phase 0) — optional since not every use of cie needs an
 # MCP server; `pip install cie[mcp]`.
 [project.optional-dependencies]
-http = ["fastapi>=0.111.0", "uvicorn[standard]>=0.30.0"]
+http = ["fastapi>=0.141.1", "uvicorn[standard]>=0.30.0"]
 mcp = ["mcp>=2.0.0"]
 
 [project.scripts]
