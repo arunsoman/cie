@@ -60,6 +60,9 @@ print(service.search_symbol("main"))     # query it
 - [Competitive landscape](docs/competitive-landscape.md) — nearest
   competitors (CodeGraphContext, CodeGraph, Serena, and others), where cie
   differs, and where it's honestly behind.
+- [Growth plan](docs/growth-plan.md) — how CodeGraph reached 47k+ stars in
+  under 5 months, and what has to be true of cie before that playbook
+  applies here.
 
 ## License
 
