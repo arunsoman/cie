@@ -25,8 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/test_embedded_repository.py` to cover the new default and the
   `task_tracking=False` opt-out; full suite now 58 tests.
   The separate PRD-hierarchy tree (`cie.hierarchy`) remains Neo4j-only —
-  not in scope for this change. See `docs/growth-plan.md` Phase 0.5
-  workstream B.
+  not in scope for this change.
 - **Go and Rust extraction** (`cie/extract.py`) — function/method
   declarations, signatures, and receiver/impl-method call resolution,
   each verified against a real tree-sitter parse. Two honest, documented
@@ -35,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including a call-site test asserting the receiver name specifically
   does NOT leak in as the called name (the real bug the naive version of
   this change would have shipped). Core dependency count: `tree-sitter`
-  grammars 4 → 6. See `docs/growth-plan.md` Phase 0.5 workstream D.
+  grammars 4 → 6.
 - **Four new test files** for previously-zero-coverage areas:
   `tests/test_clone_detect.py` (quality-governance, 7 tests),
   `tests/test_lang_adapter.py` (the language-adapter registry, 11
@@ -76,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a five-capability list; `docs/competitive-landscape.md` now leads
   with "where cie genuinely excels" instead of the competitor comparison
   table. `CONTRIBUTING.md` gained a "becoming a second maintainer"
-  section. See `docs/growth-plan.md` Phase 0.5.
+  section.
 
 ## [0.1.0a2] - 2026-08-28 — corrected alpha
 

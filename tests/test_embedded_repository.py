@@ -1,5 +1,5 @@
 """Tests for cie.embedded_repository — the zero-config, no-Neo4j-required
-graph backend (Phase 0 of docs/growth-plan.md).
+graph backend.
 """
 
 from __future__ import annotations
@@ -166,8 +166,8 @@ def test_embedded_toolservice_search_symbol_and_callers_work_end_to_end(tmp_path
 
 
 def test_embedded_toolservice_task_tools_work_by_default(tmp_path):
-    """Since docs/growth-plan.md Phase 0.5 workstream B: task tracking is
-    no longer a NullTaskRepository fail-fast case in the default embedded
+    """Since the embedded backend's default now includes task tracking:
+    it is no longer a NullTaskRepository fail-fast case in the default embedded
     ToolService — see test_build_tool_service_embedded_task_tracking_false_uses_null_repo
     above for the explicit opt-out this test used to be the only path."""
     service = build_tool_service_embedded(tmp_path)

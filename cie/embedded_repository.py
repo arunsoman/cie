@@ -1,6 +1,6 @@
 """Zero-config, embedded graph backend — no Neo4j required.
 
-Phase 0 of `docs/growth-plan.md`: cie's Neo4j requirement is real setup
+cie's Neo4j requirement is real setup
 friction competitors in `docs/competitive-landscape.md` don't have
 (CodeGraph: a single local SQLite file, nothing to configure).
 `EmbeddedRepository` closes that gap for the "try it in one command"
@@ -130,7 +130,7 @@ class NullTaskRepository:
     that passes `task_tracking=False` to `build_tool_service_embedded`
     (or `--no-task-tracking` to `cie-mcp --embedded`) and wants the
     smallest possible footprint with no `tasks.db` file at all. The
-    embedded backend's *default* since `docs/growth-plan.md` Phase 0.5 is
+    embedded backend's *default* is
     `cie.embedded_task_repository.EmbeddedTaskRepository`, a real
     SQLite-backed implementation — this class is no longer what most
     callers get. Still fails fast and clearly on every method rather than

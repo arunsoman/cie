@@ -462,9 +462,6 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
 - [Competitive landscape](docs/competitive-landscape.md) — nearest
   competitors (CodeGraphContext, CodeGraph, Serena, and others), where cie
   differs, and where it's honestly behind.
-- [Growth plan](docs/growth-plan.md) — how CodeGraph reached 47k+ stars in
-  under 5 months, and what has to be true of cie before that playbook
-  applies here.
 - [Benchmarks — psf/requests](docs/benchmarks-requests.md) — the same
   methodology re-run on a well-known public repo this project didn't
   write, not a self-referential proof case; a real win and a real recall

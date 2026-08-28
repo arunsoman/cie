@@ -3,14 +3,13 @@
 **Run:** 2026-08-29. `docs/benchmarks.md`'s dataset was one repo
 (`protobox`'s `forge/`, not public) and its hook proof case
 (`docs/competitive-landscape.md`'s strength #1) is Nirdosha, a
-from-scratch language by this project's own author — a fair critique
-(see `docs/growth-plan.md` Phase 0.5, the note under workstream A) is
+from-scratch language by this project's own author — a fair critique is
 that neither is proof on code a skeptical reader already runs. This is
 that second data point: a well-known, widely-used public repo, indexed
 and queried for real, same methodology as `docs/benchmarks.md`. Treat
 both documents together as the current evidence, not this one alone —
-one repo still isn't a distribution, and that gap is named honestly in
-`docs/growth-plan.md` rather than closed by this file.
+one repo still isn't a distribution, and that gap is named honestly here
+rather than closed by this file.
 
 ## Methodology
 
@@ -56,8 +55,7 @@ ambiguous, large file), then reported as found.
   went unresolved, silently absent from the result rather than flagged
   as unresolved). That's a real recall gap in the receiver-type
   heuristic on this codebase, not present in the first benchmark's
-  cleaner 2-file case. Filed as a known gap, not fixed here — see
-  `docs/growth-plan.md`'s open items.
+  cleaner 2-file case. Filed as a known gap, not fixed here.
 - **Task 3 (large file): a clear win, the opposite of the first
   benchmark's loss on this exact task shape.** `models.py` skeletonizes
   to 43% of its raw size (and every other file checked in this repo —

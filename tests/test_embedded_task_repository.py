@@ -1,5 +1,5 @@
 """Tests for cie.embedded_task_repository — the zero-config, no-Neo4j
-task/QA repository (docs/growth-plan.md Phase 0.5, workstream B).
+task/QA repository.
 
 Every test exercises the SQLite-backed implementation directly (no mocks
 for the storage layer) so a real bug in the SQL/serialization round trip

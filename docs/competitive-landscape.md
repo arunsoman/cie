@@ -31,8 +31,7 @@ open-ended language-extension model.
    chains — they're pure retrieval/navigation tools. cie can answer
    "which files implement this task, and are they tested" as one graph
    query — over Neo4j or the zero-config embedded SQLite backend alike
-   (`cie.embedded_task_repository.EmbeddedTaskRepository`, since
-   `docs/growth-plan.md` Phase 0.5).
+   (`cie.embedded_task_repository.EmbeddedTaskRepository`).
 
 3. **A real quality-governance layer, not just retrieval.** Clone
    detection, drift detection (code vs. spec/architecture), per-code-node
@@ -53,14 +52,14 @@ open-ended language-extension model.
    it" mapped onto real git semantics.
 
 6. **Speaks real MCP, with a zero-config path.** Closed since this table
-   was first drafted (`docs/growth-plan.md` Phase 0): a real MCP server
+   was first drafted: a real MCP server
    (`cie-mcp`) and an embedded SQLite backend needing no Neo4j setup — the
    comparison below is left as originally researched, but MCP and setup
    friction are no longer open gaps the way rows 5–6 of the table still
    describe them.
 
 7. **6 tree-sitter languages out of the box, up from 4.** Go and Rust
-   added (`docs/growth-plan.md` Phase 0.5 workstream D) — function/method
+   added — function/method
    extraction, signatures, and receiver/impl-method call resolution, each
    verified against a real parse, not assumed from grammar docs. Still
    well behind the 21–40+ every competitor here ships (row below), and
@@ -111,8 +110,8 @@ Honest gaps, not hedged:
 - **Out-of-box language breadth.** cie ships 6 tree-sitter languages
   today (Python/JS/TS/Java/Go/Rust) vs. 21–40+ for every competitor. The
   architecture doesn't cap language support, but shipped coverage is
-  still far behind — narrowed, not closed, by `docs/growth-plan.md`
-  Phase 0.5 workstream D.
+  still far behind — narrowed, but not closed, by the recent Go/Rust
+  additions.
 - **Adoption and battle-testing.** CodeGraph and Serena have tens of
   thousands of users and independently-verified performance benchmarks
   (token/cost reduction numbers). cie has zero external users and two
@@ -126,9 +125,8 @@ Honest gaps, not hedged:
   GraphRAG/embedding layer (`cie/graphrag.py`, `cie/embed.py`) exists but
   is unbenchmarked.
 - **Maturity signals.** Alpha (`0.1.0a2`), single-author commit history —
-  real gaps, not just optics; see `docs/growth-plan.md` Phase 0.5
-  workstream C. (Test-suite depth specifically improved this same
-  workstream: 4 files/38 tests → 10 files/99 tests, covering task/QA,
+  real gaps, not just optics. (Test-suite depth specifically improved:
+  4 files/38 tests → 10 files/99 tests, covering task/QA,
   quality-governance, and the language-adapter registry areas that had
   zero coverage before — narrowed, not the same gap it started as.)
 
@@ -140,8 +138,7 @@ to — the MCP adapter, the task/QA-traceability Neo4j gate, and the
 addressed; re-prioritized against what's still open.)* Out-of-box
 language breadth (6 tree-sitter languages vs. 21–40+ for every
 competitor here) is still the largest remaining gap in this table
-specifically — `docs/growth-plan.md`
-Phase 0.5 workstream D. The single highest-leverage item overall,
+specifically. The single highest-leverage item overall,
 though, is maturity (workstream C): an alpha days old with a single
 author and thin test coverage is what makes every other row in this
 table harder to trust at face value, competitive or not.

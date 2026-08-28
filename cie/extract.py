@@ -7,8 +7,7 @@ calls). Each function and method node carries a `signature` string so the
 querying engine can answer "what is the signature of method X" without
 re-reading the file.
 
-Go and Rust support (added docs/growth-plan.md Phase 0.5 workstream D)
-covers function/method declarations, calls (including receiver-method
+Go and Rust support covers function/method declarations, calls (including receiver-method
 calls — `pkg.Func`/`recv.Method` for Go, `recv.method` for Rust), and
 signatures — each verified against a real parse before being wired in,
 not assumed from grammar documentation. Two things it deliberately does
@@ -85,8 +84,8 @@ _LANG_LOADERS = {
 
 
 # Node types that represent a class declaration, per language. Go and Rust
-# have no class construct (structs + free/receiver functions instead — see
-# docs/growth-plan.md Phase 0.5 workstream D), so neither adds an entry
+# have no class construct (structs + free/receiver functions instead), so
+# neither adds an entry
 # here; their `type_declaration`/`struct_item` nodes are simply invisible
 # to class-node extraction, same as any language's non-class constructs
 # already are.
@@ -105,8 +104,7 @@ _FUNCTION_TYPES = {
 
 # Node types that hold parameters. Go's function/method declarators expose
 # a 'parameter_list' where JS/TS/Python/Java/Rust expose 'parameters' —
-# verified against real tree-sitter-go output (see
-# docs/growth-plan.md Phase 0.5 workstream D), not assumed from the
+# verified against real tree-sitter-go output, not assumed from the
 # grammar's docs.
 _PARAM_TYPES = {"parameters", "formal_parameters", "parameter_list"}
 
@@ -117,8 +115,7 @@ _TYPE_ANNOTATION = "type_annotation"
 # both use "call_expression" for a plain/method call (verified against
 # real parses) — no new entry needed here; Rust macro invocations
 # (`println!(...)`) are a distinct `macro_invocation` node type and are
-# NOT covered — a real, documented gap, not a silent one (see
-# docs/growth-plan.md Phase 0.5 workstream D).
+# NOT covered — a real, documented gap, not a silent one.
 _CALL_TYPES = {"call", "call_expression", "method_invocation"}
 
 # Node types that wrap the callable being invoked (attribute/member access).
@@ -1266,8 +1263,8 @@ def parse_file(path: Path) -> Optional[tuple]:
     `supported_suffix()` — the latter now also reports suffixes owned by
     non-tree-sitter adapters (`cie.lang_adapter`), which have no raw tree
     to hand back here. Callers that need a tree only ever get one for the
-    languages in `_LANG_LOADERS` (Python/JS/TS/Java/Go/Rust as of
-    docs/growth-plan.md Phase 0.5), same set `extract_file` supports.
+    languages in `_LANG_LOADERS` (Python/JS/TS/Java/Go/Rust), same set
+    `extract_file` supports.
     """
     suffix = path.suffix.lower()
     if suffix not in _LANG_LOADERS:

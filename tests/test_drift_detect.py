@@ -1,6 +1,5 @@
-"""Tests for cie.drift_detect — quality-governance analysis pass
-(docs/growth-plan.md Phase 0.5 workstream C: zero test coverage before
-this file, same gap test_clone_detect.py closed for its neighbor
+"""Tests for cie.drift_detect — quality-governance analysis pass (zero
+test coverage before this file, same gap test_clone_detect.py closed for its neighbor
 module).
 
 requirement_gap and architecture_drift are pure functions (no LLM, no

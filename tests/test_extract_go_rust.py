@@ -1,5 +1,4 @@
-"""Tests for Go and Rust support added to cie.extract
-(docs/growth-plan.md Phase 0.5 workstream D — out-of-box language
+"""Tests for Go and Rust support added to cie.extract (out-of-box language
 breadth was cie's largest documented gap vs. every competitor surveyed
 in docs/competitive-landscape.md).
 

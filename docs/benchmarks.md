@@ -1,8 +1,8 @@
 # Benchmarks
 
 **Run:** 2026-08-28, one pass, one target codebase. This is a first real
-measurement, not a mature benchmark suite — `docs/growth-plan.md` Phase 0
-called for "real benchmarks, published honestly," not a marketing number.
+measurement, not a mature benchmark suite — published honestly, not as a
+marketing number.
 Treat this as a starting point to extend, not a final claim, and re-run
 before citing these numbers anywhere that matters.
 
@@ -52,7 +52,7 @@ cherry-picked for the best number.
   densely-documented 692-line file with many small methods, where the
   JSON envelope (per-symbol docstrings, signatures, line ranges, a
   symbol index) outweighs the source it's describing. This is exactly the
-  kind of result `docs/growth-plan.md` committed to publishing honestly
+  kind of result this project committed to publishing honestly
   rather than only reporting the favorable cases — CodeGraph's own
   published numbers included the same kind of disclosure ("near
   break-even on response-heavy ones"), which is part of what made that

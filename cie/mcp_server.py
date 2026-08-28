@@ -1,8 +1,7 @@
 """Real Model Context Protocol server over cie's existing tool surface.
 
 Closes the single gap named as the highest-leverage next move in
-`docs/competitive-landscape.md` and Phase 0 of `docs/growth-plan.md`: cie
-did not speak MCP, so it couldn't plug into Claude Code / Cursor / Codex /
+`docs/competitive-landscape.md`: cie did not speak MCP, so it couldn't plug into Claude Code / Cursor / Codex /
 any MCP host the turnkey way every competitor in that research does.
 
 Wraps `cie.tools.ToolService` (~121 methods) as MCP tools using the
@@ -141,8 +140,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--embedded", action="store_true",
-        help="Zero-config: use a local SQLite graph (docs/growth-plan.md "
-             "Phase 0) instead of Neo4j — run `cie index PROJECT_ROOT` "
+        help="Zero-config: use a local SQLite graph instead of Neo4j "
+             "— run `cie index PROJECT_ROOT` "
              "first. Task/QA tracking (Phase 0.5) is included via a second "
              "local SQLite file — see --no-task-tracking to disable it.",
     )

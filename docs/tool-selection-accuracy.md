@@ -1,8 +1,8 @@
 # Does a bigger tool surface hurt tool-selection accuracy?
 
-**Run:** 2026-08-29, one pass. Raised directly by a fair pushback on this
-project's own earlier framing: `docs/growth-plan.md`'s critique-response
-called cie's 121 tools a "kitchen sink" that's hard to market — but that
+**Run:** 2026-08-29, one pass. Raised directly by a fair pushback on the
+project's own earlier framing, which called cie's 121 tools a "kitchen sink"
+that's hard to market — but that
 argument is about a human reading a README, not about the actual user of
 a tool surface: an agent picking which tool to call. A large, specific
 tool surface could just as easily be a real capability edge (the model

@@ -92,8 +92,7 @@ Reference the issue/PR where relevant. Example shape is in `git log`.
 
 ## Becoming a second maintainer
 
-cie is currently a single-author project — a real bus-factor risk the
-project's own `docs/growth-plan.md` flags as a known failure mode in this
+cie is currently a single-author project — a real bus-factor risk in this
 category, not something to leave unaddressed here. If you want to grow
 into a second maintainer rather than a one-off contributor:
 

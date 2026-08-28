@@ -194,8 +194,8 @@ Generic execution oracle: `run` (already language-agnostic — keep as-is).
   graph + ~121 tools over MCP/HTTP/CLI) is what a solo dev / first-time
   visitor tries; the task/QA traceability + quality-governance layer is
   the "when your team is on Neo4j" upgrade that makes cie worth keeping
-  installed past week one (the retention story `docs/growth-plan.md`
-  Phase 2 names as cie's differentiator vs. pure code graphs).
+  installed past week one (cie's retention differentiator vs. pure code
+  graphs).
 - This resolves the 17-MCP-missing-tools question by positioning, not by
   code: those write-back tools stay HTTP/CLI-only (driven by a trusted
   in-process orchestrator), and the MCP surface stays the code-graph +

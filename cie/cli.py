@@ -422,7 +422,7 @@ def cli(ctx, json: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Embedded backend (zero-config, no Neo4j) — docs/growth-plan.md Phase 0
+# Embedded backend (zero-config, no Neo4j)
 # ---------------------------------------------------------------------------
 
 

@@ -1,6 +1,5 @@
-"""Tests for cie.clone_detect — quality-governance analysis pass
-(docs/growth-plan.md Phase 0.5 workstream C: this area had zero test
-coverage before this file).
+"""Tests for cie.clone_detect — quality-governance analysis pass (this
+area had zero test coverage before this file).
 
 Exercises the token/AST signals (find_token_ast_clones), union-find
 fusion (resolve_clone_clusters), and the full analyze() entry point

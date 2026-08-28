@@ -1,7 +1,7 @@
 """Zero-config, embedded task/QA repository — SQLite-backed, no Neo4j.
 
-`docs/growth-plan.md` Phase 0.5, workstream B: task/QA traceability
-(`cie.task_repository.TaskRepository`) was Neo4j-only, so the one
+Task/QA traceability (`cie.task_repository.TaskRepository`) was Neo4j-only,
+so the one
 capability `docs/competitive-landscape.md` names as unmatched by any
 competitor was unreachable from the same two-command zero-config
 quickstart that makes cie's code graph itself try-able with no server.

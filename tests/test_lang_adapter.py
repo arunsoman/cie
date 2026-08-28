@@ -1,6 +1,6 @@
 """Tests for cie.lang_adapter — the pluggable LanguageAdapter registry
-(docs/growth-plan.md Phase 0.5 workstream C: zero test coverage before
-this file, despite being the mechanism the "extends to any language, no
+(zero test coverage before this file, despite being the mechanism the
+"extends to any language, no
 tree-sitter grammar or LSP required" claim in
 docs/competitive-landscape.md actually rests on).
 

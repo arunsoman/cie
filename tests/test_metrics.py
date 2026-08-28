@@ -1,6 +1,5 @@
-"""Tests for cie.metrics — quality-governance aggregate scoring
-(docs/growth-plan.md Phase 0.5 workstream C: zero test coverage before
-this file).
+"""Tests for cie.metrics — quality-governance aggregate scoring (zero
+test coverage before this file).
 
 metrics.compute() reads whatever clone_detect/drift_detect already
 wrote — so these tests run the real upstream passes first (against

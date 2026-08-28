@@ -1,6 +1,6 @@
 """An in-memory Repository — both a test double AND the query/traversal
-engine `cie.embedded_repository.EmbeddedRepository` (Phase 0 of
-docs/growth-plan.md, the zero-config graph backend) wraps for real,
+engine `cie.embedded_repository.EmbeddedRepository` (the zero-config
+graph backend) wraps for real,
 persistent, no-Neo4j-required use.
 
 Implements the `cie.repository.Repository` protocol over plain Python

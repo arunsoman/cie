@@ -177,8 +177,7 @@ def build_tool_service_embedded(
     `cie.embedded_repository.EmbeddedRepository` (a local SQLite file,
     default `<root>/.cie/graph.db`) instead of `Neo4jRepository`.
 
-    Task/QA tracking (`docs/growth-plan.md` Phase 0.5, workstream B) is
-    now available here too: `cie.embedded_task_repository.
+    Task/QA tracking is now available here too: `cie.embedded_task_repository.
     EmbeddedTaskRepository`, a second local SQLite file (default
     `<root>/.cie/tasks.db`), the same `TaskRepository` protocol
     `Neo4jTaskRepository` implements. Pass `task_tracking=False` to fall

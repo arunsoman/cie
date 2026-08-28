@@ -1,5 +1,5 @@
-"""Tests for cie.mcp_server — the real MCP protocol adapter (Phase 0 of
-docs/growth-plan.md, closing the gap named in docs/competitive-landscape.md).
+"""Tests for cie.mcp_server — the real MCP protocol adapter, closing the
+gap named in docs/competitive-landscape.md.
 """
 
 from __future__ import annotations
