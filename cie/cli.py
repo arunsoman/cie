@@ -409,7 +409,7 @@ def _render_signature(sig) -> None:
 
 
 @click.group()
-@click.version_option(package_name="protobox-be-v2")
+@click.version_option(package_name="cie")
 @click.option(
     "--json/--no-json", default=False,
     help="Output the SPEC §0 JSON envelope instead of human-formatted tables.",
@@ -419,6 +419,73 @@ def cli(ctx, json: bool) -> None:
     """cie: query a knowledge graph stored in Neo4j."""
     ctx.ensure_object(dict)
     ctx.obj["json"] = json
+
+
+# ---------------------------------------------------------------------------
+# Embedded backend (zero-config, no Neo4j) — docs/growth-plan.md Phase 0
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument(
+    "path", type=click.Path(exists=True, file_okay=False, path_type=Path), default=".",
+)
+@click.option(
+    "--db", type=click.Path(path_type=Path), default=None,
+    help="SQLite graph file (default: <path>/.cie/graph.db).",
+)
+@click.pass_context
+def index(ctx, path: Path, db: Optional[Path]) -> None:
+    """Index PATH into a local, zero-config SQLite graph — no Neo4j.
+
+    Runs the same two-pass loader `cie load` uses against Neo4j (pass 1:
+    extract files/classes/functions/methods; pass 2: resolve call sites
+    into confidence-tagged `calls` edges, plus inheritance and test-link
+    edges) — see `cie load`'s own docstring for the full contract this
+    mirrors. `search-symbol`/`callers`/etc. need a resolved call graph to
+    answer correctly, not just the structural `contains`/`defines` edges
+    a single-pass extraction alone would produce.
+
+    \b
+        cie index .
+        cie-mcp . --embedded   # serve the index just built, no Neo4j
+    """
+    from cie.callgraph import (
+        resolve_call_edges,
+        resolve_inheritance_edges,
+        synthesize_external_class_nodes,
+    )
+    from cie.embedded_repository import EmbeddedRepository
+    from cie.extract import extract_many
+    from cie.testlink import resolve_test_edges
+
+    resolved = Path(path).resolve()
+    db_path = db or (resolved / ".cie" / "graph.db")
+    with ToolTimer() as timer:
+        per_file = extract_many(resolved)
+        nodes = [n for ext in per_file for n in ext.nodes]
+        edges = [e for ext in per_file for e in ext.edges]
+        call_edges = resolve_call_edges(per_file)
+        inheritance_edges = resolve_inheritance_edges(per_file)
+        known_ids = {n["id"] for n in nodes}
+        external_nodes = synthesize_external_class_nodes(inheritance_edges, known_ids)
+        nodes = nodes + external_nodes
+        test_edges = resolve_test_edges(per_file, call_edges)
+        all_edges = edges + call_edges + inheritance_edges + test_edges
+
+        repo = EmbeddedRepository(db_path)
+        written = repo.load_extraction(nodes, all_edges)
+    payload = {
+        "path": str(resolved), "db": str(db_path),
+        "files_scanned": len(per_file),
+        "nodes_written": written, "edges": len(all_edges),
+        "call_edges": len(call_edges),
+    }
+    if _emit(ctx, "index", payload, timer=timer):
+        return
+    console.print(f"[green]indexed[/green] {payload['files_scanned']} files -> {db_path}")
+    console.print(f"  nodes: {written}   edges: {payload['edges']} ({payload['call_edges']} calls)")
+    console.print(f"  try: [bold]cie-mcp {resolved} --embedded[/bold] to serve this over MCP")
 
 
 # ---------------------------------------------------------------------------

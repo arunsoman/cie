@@ -53,7 +53,7 @@ class AgentType(str, Enum):
 # tools that store or change something are.
 WRITE_TOOLS: frozenset[str] = frozenset({
     # filesystem
-    "write_file", "edit_file", "delete_file",
+    "write_file", "write_files_atomic", "edit_file", "delete_file",
     # execution / process side effects
     "run", "run_tests", "start_watch", "stop_watch",
     "start_mock_server", "stop_mock_server", "install_git_hook",

@@ -22,11 +22,17 @@ dependencies = [
 # query engine, extraction, task/hierarchy repos, ToolService itself) has
 # no HTTP dependency at all. Pull this extra in only if you actually mount
 # cie's routes or use its mock server; `pip install cie[http]`.
+#
+# mcp_server.py is the real Model Context Protocol adapter (docs/
+# growth-plan.md Phase 0) — optional since not every use of cie needs an
+# MCP server; `pip install cie[mcp]`.
 [project.optional-dependencies]
 http = ["fastapi>=0.111.0", "uvicorn[standard]>=0.30.0"]
+mcp = ["mcp>=2.0.0"]
 
 [project.scripts]
 cie = "cie.cli:main"
+cie-mcp = "cie.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
