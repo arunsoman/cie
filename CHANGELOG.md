@@ -36,14 +36,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does NOT leak in as the called name (the real bug the naive version of
   this change would have shipped). Core dependency count: `tree-sitter`
   grammars 4 → 6. See `docs/growth-plan.md` Phase 0.5 workstream D.
-- **Three new test files** for previously-zero-coverage areas:
+- **Four new test files** for previously-zero-coverage areas:
   `tests/test_clone_detect.py` (quality-governance, 7 tests),
   `tests/test_lang_adapter.py` (the language-adapter registry, 11
-  tests). Full suite: 4 files/38 tests → 8 files/85 tests.
+  tests), `tests/test_drift_detect.py` (8 tests, including a real
+  extracted+resolved circular-dependency fixture, not a hand-built one),
+  `tests/test_metrics.py` (6 tests, aggregate scoring against clone/
+  drift passes actually run, not hand-inserted analysis nodes). Full
+  suite: 4 files/38 tests → 10 files/99 tests.
 - **Worked "add a language" example** — `docs/adding-a-language.md` +
   `examples/adapters/toy_regex_adapter.py`, a complete, runnable
   `LanguageAdapter` for a language cie has never seen (no tree-sitter
   grammar, no LSP).
+- **A second benchmark dataset** (`docs/benchmarks-requests.md`) — the
+  same tool-call/response-size methodology re-run on `psf/requests` (a
+  well-known public repo, not this project's own code), addressing a
+  fair critique that the first benchmark's proof case was
+  self-referential. A real win (43% smaller skeleton on a 1,184-line
+  file) and a real miss (the ambiguous-caller query resolved only 3 of 6
+  real call sites on this repo, vs. a cleaner precision-only result on
+  the first dataset) — published as found, not adjusted.
+
+- **A real demo asset** — `demo.svg` (animated terminal recording,
+  embedded at the top of the README) + `demo.cast` (the raw asciinema
+  recording), reproducible via `scripts/record_demo.sh`: a real
+  `cie-mcp --embedded` server, real MCP stdio JSON-RPC, a real
+  `callers("close")` call against `psf/requests`, contrasted with the
+  grep a naive agent would run for the same question.
+
+- **A second README hook**: ~121 specific tools doesn't cost an agent
+  tool-selection accuracy, measured against cie's own hardest
+  near-duplicate cases (`docs/tool-selection-accuracy.md` — 14/14
+  correct, full 81-tool surface vs. a 14-tool subset, one run). Added to
+  the README right after the benchmark paragraph, and to
+  `docs/competitive-landscape.md`'s strengths list.
 
 ### Changed
 - README leads with a one-sentence hook (task/QA traceability) instead

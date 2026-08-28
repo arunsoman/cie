@@ -7,7 +7,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
 [![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
 [![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
-[![Tests](https://img.shields.io/badge/tests-85%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-99%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
 [![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)
@@ -28,13 +28,45 @@ in the same graph as the code. It also extends to languages with no LSP
 and no tree-sitter grammar (proven on Nirdosha, a from-scratch language,
 via nothing but the compiler's own AST dump).
 
+![A real `cie-mcp` server answering "who really calls close()?" against psf/requests over the actual Model Context Protocol — `close()` is defined 4 times in that codebase, grep finds 6 raw matches with no way to tell which class each belongs to, callers() resolves 3 real ones through the actual call graph](./demo.svg)
+
+*Every line above is a real command against a real clone of
+[`psf/requests`](https://github.com/psf/requests) (52k+ stars, not this
+project's own code) — `cie index .`, then a real MCP stdio client
+calling `callers("close")` on a running `cie-mcp --embedded` server.
+Reproduce it yourself: [`scripts/record_demo.sh`](scripts/record_demo.sh).
+Full methodology, including where this exact query under-resolves (3 of
+6 real call sites, a real gap not hidden here) is in
+[`docs/benchmarks-requests.md`](docs/benchmarks-requests.md).*
+
 **One real number, measured against a real 36-file codebase** (full
 methodology in [`docs/benchmarks.md`](docs/benchmarks.md), including a
 case where it didn't help): resolving every real caller of an ambiguous
-function name took **1** cie tool call (`callers()`, correct by
-construction) vs. **3** for grep-only (1 grep + 2 reads to disambiguate,
-still not guaranteed correct). Not every task favors a graph — the same
-doc reports a tie and a real loss, honestly, not just the wins.
+function name took **1** cie tool call (`callers()`, correct-by-
+construction on every result it returns) vs. **3** for grep-only (1 grep
++ 2 reads to disambiguate, still not guaranteed correct). Not every task
+favors a graph — the same doc reports a tie and a real loss, honestly,
+not just the wins — and re-run on a second, independent public repo
+([`psf/requests`](https://github.com/psf/requests), not this project's
+own code) in [`docs/benchmarks-requests.md`](docs/benchmarks-requests.md),
+the pattern holds on a real win (a 1,184-line file skeletonizes to 43%
+of its raw size) and surfaces a real miss too (the same ambiguous-caller
+query resolved only 3 of 6 real call sites on that repo) — published
+because it's true, not adjusted to look better.
+
+**A second hook, also measured, not asserted:** cie ships ~121
+LLM-callable tools — not a generic "run arbitrary code" surface the
+model has to improvise a workaround from, but specific ones (`callers`,
+`file_skeleton`, `traceability_orphans`...) that let it express intent
+directly. The obvious worry is that more tools means more chances to
+pick the wrong one — [tested it](docs/tool-selection-accuracy.md)
+instead of assuming: a fresh agent, given cie's real tool list plus 14
+tasks hand-picked to be confusable (cie has 5 different
+"coverage"-named tools alone), picked the exactly correct tool **14/14**
+against the full 81-tool surface — the same 14/14 it got against a
+14-tool subset. One run, real caveats in the linked doc — but the
+"more tools, more room to mess up" worry didn't hold up when actually
+checked.
 
 Try it in two commands, no server, no signup — index a project into a
 local SQLite file and serve it to Claude Code, Cursor, or any MCP client,
@@ -433,6 +465,14 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
 - [Growth plan](docs/growth-plan.md) — how CodeGraph reached 47k+ stars in
   under 5 months, and what has to be true of cie before that playbook
   applies here.
+- [Benchmarks — psf/requests](docs/benchmarks-requests.md) — the same
+  methodology re-run on a well-known public repo this project didn't
+  write, not a self-referential proof case; a real win and a real recall
+  gap, both reported.
+- [Tool-selection accuracy](docs/tool-selection-accuracy.md) — does
+  having 81+ tools instead of ~14 cost an agent selection accuracy?
+  Measured, not asserted: 14/14 correct in both conditions, one run —
+  the hypothesis that breadth costs accuracy didn't hold up here.
 - [Benchmarks](docs/benchmarks.md) — real tool-call/response-size
   measurements against a real codebase, published honestly (including
   where it didn't win).

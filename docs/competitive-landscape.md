@@ -68,6 +68,18 @@ open-ended language-extension model.
    no import-edge extraction, no docstring extraction (`cie/extract.py`'s
    module docstring).
 
+8. **~121 tools vs. 14 (CodeGraphContext) doesn't cost selection
+   accuracy — measured, not assumed.** The obvious worry about a large,
+   specific tool surface is that an agent picks the wrong one more
+   often; `docs/tool-selection-accuracy.md` tested that directly (14
+   tasks, deliberately including cie's own confusable near-duplicates —
+   5 "coverage"-named tools, `callers` vs `actual_callers`) against the
+   full 81-tool readonly surface and a 14-tool subset. Result: 14/14
+   correct, both conditions, one run. Real caveats apply (N=1, ceiling
+   effect, tool-name-only — see the doc), but the number-of-tools table
+   row below is now backed by evidence that breadth is a capability
+   edge here, not just a marketing liability to manage around.
+
 ## Comparison
 
 *(Context for the claims above, not the headline — read those first.)*
@@ -103,9 +115,12 @@ Honest gaps, not hedged:
   Phase 0.5 workstream D.
 - **Adoption and battle-testing.** CodeGraph and Serena have tens of
   thousands of users and independently-verified performance benchmarks
-  (token/cost reduction numbers). cie has zero external users and one
-  small first-pass benchmark (`docs/benchmarks.md`) — real, but nowhere
-  near their scale of verification.
+  (token/cost reduction numbers). cie has zero external users and two
+  small first-pass benchmarks (`docs/benchmarks.md`,
+  `docs/benchmarks-requests.md` — the second added specifically because
+  the first's proof case was one non-public repo) — real, and now on one
+  well-known public repo too, but still two datasets, nowhere near
+  CodeGraph's 7-repo published range or Serena's scale of verification.
 - **Semantic/vector search maturity.** claude-context and grepai have
   dedicated, independently-benchmarked embedding retrieval; cie's
   GraphRAG/embedding layer (`cie/graphrag.py`, `cie/embed.py`) exists but
@@ -113,7 +128,7 @@ Honest gaps, not hedged:
 - **Maturity signals.** Alpha (`0.1.0a2`), single-author commit history —
   real gaps, not just optics; see `docs/growth-plan.md` Phase 0.5
   workstream C. (Test-suite depth specifically improved this same
-  workstream: 4 files/38 tests → 8 files/85 tests, covering task/QA,
+  workstream: 4 files/38 tests → 10 files/99 tests, covering task/QA,
   quality-governance, and the language-adapter registry areas that had
   zero coverage before — narrowed, not the same gap it started as.)
 
