@@ -13,3 +13,4 @@ uv.lock
 forge_workspaces/
 .forge/
 *.db
+examples/adapters/hello.toy

@@ -90,7 +90,7 @@ def test_load_graph_helper_matches_save_graph_round_trip(tmp_path):
 
 def test_null_task_repository_fails_fast_with_a_clear_message():
     task_repo = NullTaskRepository()
-    with pytest.raises(RuntimeError, match="task tracking is not part of the zero-config"):
+    with pytest.raises(RuntimeError, match="task tracking was disabled"):
         task_repo.list_pending()
     with pytest.raises(RuntimeError, match="get_task"):
         task_repo.get_task("t-1")
@@ -114,9 +114,32 @@ def test_build_tool_service_embedded_needs_no_neo4j_no_env_vars(tmp_path):
 
 def test_build_tool_service_embedded_custom_db_path(tmp_path):
     custom_db = tmp_path / "somewhere" / "custom.db"
-    build_tool_service_embedded(tmp_path, db_path=custom_db)
+    # task_tracking=False so this test isolates the *graph* db_path override
+    # — task tracking's own db_path is covered by
+    # test_build_tool_service_embedded_custom_task_db_path below.
+    build_tool_service_embedded(tmp_path, db_path=custom_db, task_tracking=False)
     assert custom_db.exists()
     assert not (tmp_path / ".cie").exists()
+
+
+def test_build_tool_service_embedded_task_tracking_on_by_default(tmp_path):
+    build_tool_service_embedded(tmp_path)
+    assert (tmp_path / ".cie" / "graph.db").exists()
+    assert (tmp_path / ".cie" / "tasks.db").exists()
+
+
+def test_build_tool_service_embedded_custom_task_db_path(tmp_path):
+    custom_task_db = tmp_path / "elsewhere" / "tasks.db"
+    build_tool_service_embedded(tmp_path, task_db_path=custom_task_db)
+    assert custom_task_db.exists()
+
+
+def test_build_tool_service_embedded_task_tracking_false_uses_null_repo(tmp_path):
+    service = build_tool_service_embedded(tmp_path, task_tracking=False)
+    envelope = service.list_pending_tasks()
+    assert envelope["ok"] is False
+    assert "task tracking was disabled" in envelope["error"]["message"]
+    assert not (tmp_path / ".cie" / "tasks.db").exists()
 
 
 def test_embedded_toolservice_search_symbol_and_callers_work_end_to_end(tmp_path):
@@ -142,11 +165,15 @@ def test_embedded_toolservice_search_symbol_and_callers_work_end_to_end(tmp_path
     assert callers["total"] == 1
 
 
-def test_embedded_toolservice_task_tools_fail_fast_not_silently(tmp_path):
+def test_embedded_toolservice_task_tools_work_by_default(tmp_path):
+    """Since docs/growth-plan.md Phase 0.5 workstream B: task tracking is
+    no longer a NullTaskRepository fail-fast case in the default embedded
+    ToolService — see test_build_tool_service_embedded_task_tracking_false_uses_null_repo
+    above for the explicit opt-out this test used to be the only path."""
     service = build_tool_service_embedded(tmp_path)
     envelope = service.list_pending_tasks()
-    assert envelope["ok"] is False
-    assert "task tracking is not part of the zero-config" in envelope["error"]["message"]
+    assert envelope["ok"] is True
+    assert envelope["results"] == []
 
 
 # --------------------------------------------------------------------------

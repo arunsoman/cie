@@ -1,6 +1,6 @@
 """Pluggable language-adapter registry for `cie.extract`.
 
-`cie/extract.py`'s tree-sitter based extraction (Python/JS/TS/Java) is one
+`cie/extract.py`'s tree-sitter based extraction (Python/JS/TS/Java/Go/Rust) is one
 `LanguageAdapter` implementation among possibly many — see
 `extract.TreeSitterAdapter`, registered as the built-in default at the
 bottom of that module. A host project whose language has no tree-sitter

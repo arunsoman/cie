@@ -114,24 +114,29 @@ def save_graph(db_path: Path, nodes: list[Node], edges: list[Edge]) -> None:
 class _TaskTrackingUnavailable(RuntimeError):
     def __init__(self, method: str):
         super().__init__(
-            f"cie.tools.ToolService.{method}: task tracking is not part of "
-            "the zero-config embedded backend (docs/growth-plan.md Phase 0 "
-            "scoped this to the graph backend only) — configure Neo4j "
-            "(cie.factory.build_tool_service_from_config with a CieConfig."
-            "neo4j) to use task/QA tracking."
+            f"cie.tools.ToolService.{method}: task tracking was disabled "
+            "for this embedded ToolService (build_tool_service_embedded"
+            "(..., task_tracking=False), or --no-task-tracking on cie-mcp) "
+            "— drop that flag to get cie.embedded_task_repository."
+            "EmbeddedTaskRepository instead, or configure Neo4j "
+            "(cie.factory.build_tool_service_from_config with a "
+            "CieConfig.neo4j) for the full multi-project store."
         )
 
 
 class NullTaskRepository:
     """A `TaskRepository` (`cie.task_repository.TaskRepository`) that fails
-    fast and clearly on every method, for `build_tool_service_embedded`
-    below — `ToolService` requires a task_repo positionally, and the
-    embedded backend deliberately doesn't ship one yet (see
-    `_TaskTrackingUnavailable`'s message). This is not a stub pretending
-    to work; every call raises immediately, by design, per this
-    codebase's own fail-fast convention (see e.g. `cie.decompose`'s
-    registration seam) rather than silently returning empty results a
-    caller could mistake for "no tasks exist yet"."""
+    fast and clearly on every method — the explicit opt-out for a caller
+    that passes `task_tracking=False` to `build_tool_service_embedded`
+    (or `--no-task-tracking` to `cie-mcp --embedded`) and wants the
+    smallest possible footprint with no `tasks.db` file at all. The
+    embedded backend's *default* since `docs/growth-plan.md` Phase 0.5 is
+    `cie.embedded_task_repository.EmbeddedTaskRepository`, a real
+    SQLite-backed implementation — this class is no longer what most
+    callers get. Still fails fast and clearly on every method rather than
+    silently returning empty results a caller could mistake for "no tasks
+    exist yet", per this codebase's own fail-fast convention (see e.g.
+    `cie.decompose`'s registration seam)."""
 
     def __getattr__(self, name: str):
         if name.startswith("_"):

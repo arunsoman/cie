@@ -143,11 +143,21 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--embedded", action="store_true",
         help="Zero-config: use a local SQLite graph (docs/growth-plan.md "
              "Phase 0) instead of Neo4j — run `cie index PROJECT_ROOT` "
-             "first. Task/QA tracking tools are unavailable in this mode.",
+             "first. Task/QA tracking (Phase 0.5) is included via a second "
+             "local SQLite file — see --no-task-tracking to disable it.",
     )
     parser.add_argument(
         "--db", type=Path, default=None,
         help="With --embedded: SQLite graph file (default: <project_root>/.cie/graph.db).",
+    )
+    parser.add_argument(
+        "--task-db", type=Path, default=None,
+        help="With --embedded: SQLite task/QA file (default: <project_root>/.cie/tasks.db).",
+    )
+    parser.add_argument(
+        "--no-task-tracking", action="store_true",
+        help="With --embedded: fail fast on task/QA tool calls instead of "
+             "creating a tasks.db (pre-Phase-0.5 behavior).",
     )
     parser.add_argument("--neo4j-uri", default=None)
     parser.add_argument("--neo4j-user", default=None)
@@ -169,6 +179,7 @@ def main(argv: list[str] | None = None) -> None:
 
         service = build_tool_service_embedded(
             args.project_root, db_path=args.db, project=args.project,
+            task_db_path=args.task_db, task_tracking=not args.no_task_tracking,
         )
     else:
         from cie.config import CieConfig, Neo4jConfig

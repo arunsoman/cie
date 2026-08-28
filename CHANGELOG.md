@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`EmbeddedTaskRepository`** (`cie/embedded_task_repository.py`) —
+  SQLite-backed, full `TaskRepository` protocol implementation. Task/QA
+  tracking (push/list/status, artifacts, repair events, dependency
+  traceability, cycle/coverage/API-contract validation) now works on the
+  zero-config `cie-mcp --embedded` path, not just Neo4j —
+  `build_tool_service_embedded` constructs it by default (`.cie/tasks.db`);
+  `task_tracking=False` / `cie-mcp --no-task-tracking` keeps the old
+  fail-fast `NullTaskRepository` behavior for callers that want it.
+  Reuses `cie.task_repository.plan_push` (the same validation function
+  `Neo4jTaskRepository` calls) so acceptance/rejection rules can't drift
+  between backends. 17 new tests
+  (`tests/test_embedded_task_repository.py`), plus 3 updated/added in
+  `tests/test_embedded_repository.py` to cover the new default and the
+  `task_tracking=False` opt-out; full suite now 58 tests.
+  The separate PRD-hierarchy tree (`cie.hierarchy`) remains Neo4j-only —
+  not in scope for this change. See `docs/growth-plan.md` Phase 0.5
+  workstream B.
+- **Go and Rust extraction** (`cie/extract.py`) — function/method
+  declarations, signatures, and receiver/impl-method call resolution,
+  each verified against a real tree-sitter parse. Two honest, documented
+  gaps for these two languages specifically: no import-edge extraction,
+  no docstring extraction. `tests/test_extract_go_rust.py` (9 tests),
+  including a call-site test asserting the receiver name specifically
+  does NOT leak in as the called name (the real bug the naive version of
+  this change would have shipped). Core dependency count: `tree-sitter`
+  grammars 4 → 6. See `docs/growth-plan.md` Phase 0.5 workstream D.
+- **Three new test files** for previously-zero-coverage areas:
+  `tests/test_clone_detect.py` (quality-governance, 7 tests),
+  `tests/test_lang_adapter.py` (the language-adapter registry, 11
+  tests). Full suite: 4 files/38 tests → 8 files/85 tests.
+- **Worked "add a language" example** — `docs/adding-a-language.md` +
+  `examples/adapters/toy_regex_adapter.py`, a complete, runnable
+  `LanguageAdapter` for a language cie has never seen (no tree-sitter
+  grammar, no LSP).
+
+### Changed
+- README leads with a one-sentence hook (task/QA traceability) instead
+  of a five-capability list; `docs/competitive-landscape.md` now leads
+  with "where cie genuinely excels" instead of the competitor comparison
+  table. `CONTRIBUTING.md` gained a "becoming a second maintainer"
+  section. See `docs/growth-plan.md` Phase 0.5.
+
 ## [0.1.0a2] - 2026-08-28 — corrected alpha
 
 ### Fixed

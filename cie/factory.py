@@ -169,20 +169,25 @@ def build_tool_service_embedded(
     db_path: Optional[Path] = None,
     project: str = "",
     max_file_size_bytes: Optional[int] = None,
+    task_db_path: Optional[Path] = None,
+    task_tracking: bool = True,
 ) -> ToolService:
     """Zero-config `ToolService`, no Neo4j required — the other half of
     `build_tool_service`/`build_tool_service_from_config` above, backed by
     `cie.embedded_repository.EmbeddedRepository` (a local SQLite file,
     default `<root>/.cie/graph.db`) instead of `Neo4jRepository`.
 
-    Task/QA tracking is NOT available on the returned `ToolService` — see
-    `cie.embedded_repository.NullTaskRepository`'s docstring; every
-    task-tracking tool call fails fast with a clear message rather than
-    silently degrading. Everything else (search, traversal, call graph,
-    file skeleton, the virtual filesystem) works exactly as it does over
-    Neo4j — same `Repository` protocol, same `ToolService` on top of it.
+    Task/QA tracking (`docs/growth-plan.md` Phase 0.5, workstream B) is
+    now available here too: `cie.embedded_task_repository.
+    EmbeddedTaskRepository`, a second local SQLite file (default
+    `<root>/.cie/tasks.db`), the same `TaskRepository` protocol
+    `Neo4jTaskRepository` implements. Pass `task_tracking=False` to fall
+    back to `cie.embedded_repository.NullTaskRepository` (fail-fast on
+    every task call) instead — e.g. for a caller that wants the smallest
+    possible footprint and never touches task tools.
     """
     from cie.embedded_repository import EmbeddedRepository, NullTaskRepository
+    from cie.embedded_task_repository import EmbeddedTaskRepository
     from cie.query import QueryEngine
 
     resolved_root = Path(root)
@@ -191,8 +196,16 @@ def build_tool_service_embedded(
     kwargs: dict = {}
     if max_file_size_bytes is not None:
         kwargs["max_file_size_bytes"] = max_file_size_bytes
+    if task_tracking:
+        resolved_task_db = (
+            Path(task_db_path) if task_db_path is not None
+            else resolved_root / ".cie" / "tasks.db"
+        )
+        task_repo = EmbeddedTaskRepository(resolved_task_db, project=project)
+    else:
+        task_repo = NullTaskRepository()
     return ToolService(
-        engine, NullTaskRepository(), root=resolved_root, project=project, **kwargs,
+        engine, task_repo, root=resolved_root, project=project, **kwargs,
     )
 
 

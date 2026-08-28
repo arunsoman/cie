@@ -170,6 +170,203 @@ but the docs a returning user actually reads should surface traceability
 and quality reports quickly, since that's the reason to keep it installed
 past week one.
 
+## Phase 0.5 — hook, framing, and trust gaps (status: planned, 2026-08-29)
+
+Phase 0 closed the three structural gaps (MCP, zero-config, benchmarks).
+It did not fix *how the project presents itself* once someone actually
+lands on the README — a harsher self-read of the current state surfaced
+10 specific problems, grouped below into 5 workstreams. Ordered by
+leverage: the pitch/framing fixes are near-free and should ship first;
+the trust and coverage fixes take longer and don't block a launch, but
+do block a *good* launch.
+
+### A. The pitch itself (critique #1, #2)
+
+The opening line is still a capability list ("a code graph your AI coding
+agent can actually use" → five bullets), and the very next doc a reader
+is pointed to studies a 47k-star competitor cie explicitly can't catch
+yet. Neither is a hook.
+
+1. **Rewrite the README's first line to one sentence, one pain point** —
+   Phase 0 item 4 already named the two real candidates and never acted
+   on them. Pick one:
+   - *"The only code graph that works on a language with no LSP and no
+     tree-sitter grammar."* (proven — the nirdosha adapter)
+   - *"The only code graph that also tracks which tasks and tests
+     actually implement which code."* (proven — task/QA traceability)
+   Move the current five-bullet pitch to *after* the hook, where
+   `competitive-landscape.md` already puts the fuller comparison.
+2. **Stop opening with the CodeGraph gap-analysis framing.** The
+   47k-vs-0-stars table is real research and should stay, but not as the
+   first thing a prospective user or contributor reads. Move
+   `competitive-landscape.md`'s "honestly behind" table below the "where
+   cie genuinely excels" section (currently the opposite order), and
+   drop the direct 47k-stars comparison from the README's top-level
+   pitch entirely — it belongs in the linked doc, not the headline.
+
+### B. The retention story is behind a database (critique #3) — status: done (2026-08-29)
+
+Was: task/QA traceability — the one differentiator no competitor has —
+was Neo4j-only, and the two-command zero-config quickstart explicitly
+couldn't show it (`NullTaskRepository` failed fast). Fixed:
+
+3. **Shipped `cie.embedded_task_repository.EmbeddedTaskRepository`** —
+   SQLite-backed, the full `TaskRepository` protocol (not a subset):
+   push/list/status/QA-status, dependency traversal (the actual
+   traceability query), artifacts, repair events, deletion, and all
+   three consistency validators (cycles, coverage, API contracts).
+   Reuses `cie.task_repository.plan_push` — the exact validation
+   function `Neo4jTaskRepository.push_tasks` calls — so acceptance/
+   rejection semantics can't quietly drift between the two backends.
+   `build_tool_service_embedded` now constructs this by default (a
+   second local file, `.cie/tasks.db`); `task_tracking=False` (or
+   `cie-mcp --no-task-tracking`) still gets the old fail-fast
+   `NullTaskRepository` for callers that want the smaller footprint.
+   17 new tests (`tests/test_embedded_task_repository.py`), including
+   the actual "which files implement task X, are they tested" query and
+   a cycle-detection case that bypasses push-time prevention to test the
+   validator itself, plus 3 tests updated/added in
+   `tests/test_embedded_repository.py` for the new default and the
+   `task_tracking=False` opt-out. Full suite (58 tests) verified green.
+   **Deliberately not in scope**: `cie.hierarchy`'s separate PRD tree
+   (Module/Feature/Workflow/UseCase/UserStory) and its three tools
+   (`prd_coverage`/`prd_orphans`/`prd_traceability_chain`) are still
+   Neo4j-only — they call `cie.factory.get_hierarchy_repo` directly,
+   independent of which backend built the `ToolService`. That's a
+   separate, larger piece of work, not silently folded into this one.
+
+### C. Trust signals undercut the pitch (critique #4, #5, #6)
+
+Alpha, one day old, solo author, 4 test files for a 28k-line/121-tool
+surface — all true, all already disclosed in the repo's own docs, which
+is good practice but doesn't make a due-diligence reader more willing to
+bet on it. None of this is fixable by launch day; it's fixable by not
+launching *before* it's less true.
+
+5. **Don't coordinate a launch-day push (Phase 1) until there's a 0.1.0
+   stable, not an alpha two days old.** Let the alpha sit through real
+   dogfooding first — the a1→a2 fix (MCP SDK version mismatch caught by
+   CI, not by a user) is exactly the kind of bug a launch-day crowd would
+   hit publicly instead.
+6. **Grow the test suite before growing the audience.** Correction on
+   verification: `cie/test_orchestration.py` and `cie/test_synthesis.py`
+   don't crash pytest today — `pyproject.toml`'s `testpaths` already
+   scopes collection to `tests/` specifically to avoid it (confirmed by
+   running `pytest --collect-only`: 38 tests, no error). The warning
+   lives in a `pyproject.toml` comment, not the README as first assumed —
+   worth fixing that comment's visibility (a stray `pytest` with no args
+   run from outside the documented flow, e.g. by a new contributor, is
+   still one `git mv`/rename away from breaking), but it is not an open
+   bug. — **status: done (2026-08-29).** Three new test files added:
+   `tests/test_embedded_task_repository.py` (17 tests, covers B's new
+   task/QA layer), `tests/test_clone_detect.py` (7 tests, quality-
+   governance — zero coverage before), `tests/test_lang_adapter.py` (11
+   tests, the language-adapter registry — zero coverage before, despite
+   being the mechanism the "extends to any language" claim rests on).
+   Plus `tests/test_extract_go_rust.py` (9 tests) for workstream D below.
+   Suite: 4 files/38 tests → 8 files/85 tests.
+7. **Bus factor is a docs problem right now, not just a people problem.**
+   `CONTRIBUTING.md` should say explicitly what's needed to become a
+   second maintainer (which modules are safe entry points, what review
+   bar applies) — cheap to write, and it's the honest next step given the
+   growth-plan already flags this same risk in CodeGraph and would
+   otherwise be pointing at itself without an answer. — **status: done
+   (2026-08-29).** "Becoming a second maintainer" section added.
+
+### D. Language ceiling (critique #7)
+
+"Works with no tree-sitter grammar" is true but requires the user to
+write a `LanguageAdapter`. Every competitor's larger out-of-box language
+count wins the "index my repo right now" moment cie currently loses.
+
+8. **Add 2-3 more tree-sitter grammars that are near-free** (tree-sitter
+   already has grammars for Go, Rust, C/C++, Ruby — the extraction layer
+   is already grammar-agnostic per-language, so this is adapter-writing,
+   not architecture work). Target languages by what's actually common in
+   the repos people will test against first, not exhaustive coverage. —
+   **status: Go and Rust done (2026-08-29), C explicitly deferred.**
+   Both added to `_LANG_LOADERS` with real, verified extraction: function/
+   method declarations, signatures (return-type field names differ per
+   grammar — Go's `result`, Rust's `return_type`, neither literally
+   `"type"` the way Java's does — checked against real parses, not
+   assumed), and receiver/impl-method call resolution (Go's
+   `selector_expression`, Rust's `field_expression` — each uses yet
+   another field-naming convention for the same "obj.member" shape;
+   `_call_target` generalized rather than special-cased per language). A
+   real bug caught before it shipped: the naive fix (just adding these
+   node types to `_ATTRIBUTE_TYPES`) would have silently returned the
+   *receiver* as the called name instead of the real method for both
+   languages — `tests/test_extract_go_rust.py`'s call-site tests assert
+   the receiver name is specifically absent from resolved call names, not
+   just that the correct name is present. Two honest, documented gaps for
+   Go/Rust specifically (not silently glossed): no import-edge extraction
+   (`_collect_imports` dispatches by language name with no Go/Rust
+   branch) and no docstring extraction (`//` comments aren't scanned).
+   Receiver/impl methods surface as `kind=FUNC` not `METHOD` (neither
+   language has a `_CLASS_TYPES` match — Go structs and Rust `impl`
+   blocks aren't classes) — still fully searchable/callable/signature-
+   correct, just a coarser classification than Java/Python/JS methods
+   get. **C was evaluated and explicitly not attempted**: `tree-sitter-c`
+   parses a function's name/params two levels deep inside a
+   `function_declarator`, not exposed via a direct `name`/`parameters`
+   field the way every other supported language is — `_declared_name`/
+   `_params_text`'s existing field-based lookups would silently return
+   `""`/`"()"` instead of a real name/params (an empty name means the
+   function gets skipped entirely, not partially extracted — see
+   `_emit_function`'s `if not name: return`) rather than working, and
+   fixing that needs real bespoke declarator-unwrapping logic. That's
+   meaningfully
+   more work than Go/Rust's shared-mechanism fit, and shipping it
+   unverified risked exactly the "looks wired up, silently extracts
+   nothing" failure mode this whole plan exists to avoid — better
+   scoped as its own follow-up than rushed here.
+9. **Or, cheaper: ship one worked example of a from-scratch adapter** (a
+   "add support for language X in an afternoon" doc/video) so the
+   long-tail argument becomes something people can *see* done once,
+   rather than a claim they have to take on faith before trying it
+   themselves.
+
+### E. Nothing to quote, nothing to share (critique #8, #9, #10)
+
+`docs/benchmarks.md` exists and is honest, but it's not where a
+skimming reader or a second-hand sharer will ever see it. There is no
+image, video, or listing anywhere — the repo is currently un-shareable
+by design, not just by omission.
+
+10. **Put the one real number in the README, above the fold.** From
+    `docs/benchmarks.md`: *"1 tool call instead of 3, and correct by
+    construction, for ambiguous-name lookups a grep-only agent can't
+    disambiguate"* is the one honestly-earned quotable line today — use
+    it, with the same "here's where it didn't help" honesty already in
+    the doc, not a cherry-picked headline number.
+11. **One real artifact**: a terminal-cast or short GIF of the actual MCP
+    handshake in Claude Code (`tools/list` returning the real tool count)
+    — this is Phase 0's already-verified behavior, just never captured
+    on screen. Cheapest possible distribution asset given the work is
+    already done.
+12. **Directory listings** (Phase 1 item 1) can move earlier — they're
+    independent of the alpha/test-coverage concerns above and cost
+    nothing to do now.
+13. **Re-sequence `competitive-landscape.md`** per item 2 above — same
+    fix, listed here again because it's specifically what makes the doc
+    an adoption deterrent rather than a trust-builder: lead with section
+    "Where cie genuinely excels," follow with the honest gaps, not the
+    reverse.
+
+### What this changes about Phase 1
+
+Phase 1 (launch mechanics: directory listings, Show HN, community posts,
+coordinated launch day) stays blocked — not on Phase 0's four items,
+which are done, but on **workstream C1 specifically**: a maturity bar
+past "alpha, days old." A/B/C2/C4/D have all landed (2026-08-29): the
+hook isn't a feature list anymore, the retention story is triable in the
+zero-config path, the test suite covers what it didn't, and language
+breadth grew from 4 to 6. What's left gating Phase 1 is a real 0.1.0
+stable release (C1) and, separately, E's launch-asset work (a GIF, the
+directory listings themselves) — see E below, explicitly excluded from
+this pass. Item 12/E3 (directory listings) is the one Phase 1 item safe
+to do early regardless, since it doesn't depend on any of the above.
+
 ## Open question this plan deliberately doesn't answer
 
 CodeGraph's free tier is a funnel for a hosted commercial product
