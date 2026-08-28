@@ -1,10 +1,33 @@
 """Tree-sitter source extractor.
 
-Parses Python, JavaScript, and TypeScript source files with tree-sitter and
-emits a cie-compatible extraction dict: a set of nodes (files, classes,
-functions, methods) and edges (contains, defines, calls). Each function and
-method node carries a `signature` string so the querying engine can answer
-"what is the signature of method X" without re-reading the file.
+Parses Python, JavaScript, TypeScript, Java, Go, and Rust source files
+with tree-sitter and emits a cie-compatible extraction dict: a set of
+nodes (files, classes, functions, methods) and edges (contains, defines,
+calls). Each function and method node carries a `signature` string so the
+querying engine can answer "what is the signature of method X" without
+re-reading the file.
+
+Go and Rust support (added docs/growth-plan.md Phase 0.5 workstream D)
+covers function/method declarations, calls (including receiver-method
+calls — `pkg.Func`/`recv.Method` for Go, `recv.method` for Rust), and
+signatures — each verified against a real parse before being wired in,
+not assumed from grammar documentation. Two things it deliberately does
+NOT cover, honestly, not silently: import-edge extraction (`_collect_imports`
+dispatches by language name and has no Go/Rust branch — imports list stays
+empty for these two, same graceful no-op as any other unhandled language)
+and Rust macro invocations (`println!`/`format!` parse as a distinct
+`macro_invocation` node type, not `call_expression`, so they're invisible
+to call-site extraction). Go/Rust files have no docstring extraction
+either (`_docstring` falls back to the JSDoc-comment scan, which finds
+nothing for `//`-style comments) — every function still extracts with a
+correct name/signature/call graph, just an empty `docstring` field.
+One more deliberate scope limit: neither language gets a CLASS node
+(`_CLASS_TYPES` has no Go/Rust entry — see that set's own comment), so a
+Go receiver method (`func (s *Server) Greet()`) or a Rust `impl` block's
+method has no enclosing class to attach to and surfaces as `kind=FUNC`,
+not `METHOD` — still fully searchable, callable, and signature-correct
+(the receiver is visible in the signature text itself), just a coarser
+kind classification than Java/Python/JS class methods get.
 
 During the SAME parse the extractor also records the inputs for the pass-2
 call-graph resolver (see cie.callgraph):
@@ -56,33 +79,54 @@ _LANG_LOADERS = {
     ".ts": "tree_sitter_typescript.language_typescript",
     ".tsx": "tree_sitter_typescript.language_tsx",
     ".java": "tree_sitter_java.language",
+    ".go": "tree_sitter_go.language",
+    ".rs": "tree_sitter_rust.language",
 }
 
 
-# Node types that represent a class declaration, per language.
+# Node types that represent a class declaration, per language. Go and Rust
+# have no class construct (structs + free/receiver functions instead — see
+# docs/growth-plan.md Phase 0.5 workstream D), so neither adds an entry
+# here; their `type_declaration`/`struct_item` nodes are simply invisible
+# to class-node extraction, same as any language's non-class constructs
+# already are.
 _CLASS_TYPES = {"class_definition", "class_declaration"}
 
 # Node types that represent a function or method declaration, per language.
 _FUNCTION_TYPES = {
     "function_definition",       # python
-    "function_declaration",      # js/ts
+    "function_declaration",      # js/ts, go (top-level func)
     "method_definition",        # js/ts class methods
     "function_expression",       # js anonymous (named via parent assignment)
     "arrow_function",            # js/ts arrow
-    "method_declaration",        # java (distinct from js/ts's method_definition)
+    "method_declaration",        # java, go (distinct from js/ts's method_definition)
+    "function_item",             # rust (both free functions and impl-block methods)
 }
 
-# Node types that hold parameters.
-_PARAM_TYPES = {"parameters", "formal_parameters"}
+# Node types that hold parameters. Go's function/method declarators expose
+# a 'parameter_list' where JS/TS/Python/Java/Rust expose 'parameters' —
+# verified against real tree-sitter-go output (see
+# docs/growth-plan.md Phase 0.5 workstream D), not assumed from the
+# grammar's docs.
+_PARAM_TYPES = {"parameters", "formal_parameters", "parameter_list"}
 
 # Node type for a type annotation (ts return/param types).
 _TYPE_ANNOTATION = "type_annotation"
 
-# Node types that represent a call expression, per language.
+# Node types that represent a call expression, per language. Go and Rust
+# both use "call_expression" for a plain/method call (verified against
+# real parses) — no new entry needed here; Rust macro invocations
+# (`println!(...)`) are a distinct `macro_invocation` node type and are
+# NOT covered — a real, documented gap, not a silent one (see
+# docs/growth-plan.md Phase 0.5 workstream D).
 _CALL_TYPES = {"call", "call_expression", "method_invocation"}
 
 # Node types that wrap the callable being invoked (attribute/member access).
-_ATTRIBUTE_TYPES = {"attribute", "member_expression"}
+_ATTRIBUTE_TYPES = {
+    "attribute", "member_expression",
+    "selector_expression",  # go: pkg.Func / recv.Method
+    "field_expression",     # rust: recv.method
+}
 
 # JSX tag node types (JS/TSX only) — `<Foo .../>` / `<Foo>...</Foo>` never
 # parses as a call_expression, so without this a component's usage site
@@ -223,7 +267,7 @@ def _declared_name(node) -> str:
     RETURN TYPE before the method name whenever the return type isn't
     void (confirmed by parsing a real Spring method) — `child_by_field_
     name("name")` sidesteps this and is available on every named
-    class/function/method node across Python/JS/TS/Java; only JS/TS
+    class/function/method node across Python/JS/TS/Java/Go/Rust; only JS/TS
     arrow functions and function expressions expose no `name` field at
     all, which is exactly the scan's fallback case (their name comes
     from the enclosing variable_declarator instead, handled by the
@@ -260,6 +304,19 @@ def _return_type_text(node) -> str:
     # none of those expose a 'type' field on a function/method node.
     rt = node.child_by_field_name("type")
     if rt is not None:
+        return rt.text.decode("utf-8", errors="replace").strip()
+    # Go exposes its return type via a 'result' field, Rust via
+    # 'return_type' (both verified against real parses — neither uses a
+    # node literally typed "type" the way Python's does, nor Java's
+    # 'type' field name).
+    rt = node.child_by_field_name("result")
+    if rt is not None:
+        return rt.text.decode("utf-8", errors="replace").strip()
+    rt = node.child_by_field_name("return_type")
+    if rt is not None:
+        # The field's own text is just the type (e.g. "i32") — the "->"
+        # token is a separate anonymous sibling, verified against a real
+        # parse, so no stripping needed here.
         return rt.text.decode("utf-8", errors="replace").strip()
     return ""
 
@@ -1036,10 +1093,24 @@ def _call_target(node) -> tuple[str, str]:
     if fn.type in ("identifier", "property_identifier"):
         return _text(fn), ""
     if fn.type in _ATTRIBUTE_TYPES:
+        # Field names differ per language for the same "obj.member" shape
+        # (JS/TS/Python: object/attribute or object/property; Go's
+        # selector_expression: operand/field; Rust's field_expression:
+        # value/field — each verified against a real parse, not assumed).
+        # Every field-name lookup below is a plain child_by_field_name
+        # call, which returns None (not an error) for a field name a
+        # given grammar doesn't define, so this stays a no-op extension
+        # for the languages that already worked.
         obj = fn.child_by_field_name("object")
+        if obj is None:
+            obj = fn.child_by_field_name("operand")
+        if obj is None:
+            obj = fn.child_by_field_name("value")
         attr = fn.child_by_field_name("attribute")
         if attr is None:
             attr = fn.child_by_field_name("property")
+        if attr is None:
+            attr = fn.child_by_field_name("field")
         if attr is None:
             # structural fallback: last identifier-ish child
             ids = [
@@ -1148,11 +1219,12 @@ def _tree_sitter_extract_file(path: Path) -> Extraction:
 
 class TreeSitterAdapter:
     """Built-in `cie.lang_adapter.LanguageAdapter` wrapping this module's
-    tree-sitter extraction (Python/JS/TS/Java) — registered as cie's
-    default adapter (see the bottom of this module) so `extract_file`/
-    `extract_many`/`extract_tree` keep working unchanged for these
-    languages while leaving the registry open for a host project to add
-    its own adapter for any other language, without editing this file.
+    tree-sitter extraction (Python/JS/TS/Java/Go/Rust) — registered as
+    cie's default adapter (see the bottom of this module) so
+    `extract_file`/`extract_many`/`extract_tree` keep working unchanged
+    for these languages while leaving the registry open for a host
+    project to add its own adapter for any other language, without
+    editing this file.
     """
 
     def supported_suffixes(self) -> set[str]:
@@ -1194,7 +1266,8 @@ def parse_file(path: Path) -> Optional[tuple]:
     `supported_suffix()` — the latter now also reports suffixes owned by
     non-tree-sitter adapters (`cie.lang_adapter`), which have no raw tree
     to hand back here. Callers that need a tree only ever get one for the
-    same 4 languages `extract_file` always supported.
+    languages in `_LANG_LOADERS` (Python/JS/TS/Java/Go/Rust as of
+    docs/growth-plan.md Phase 0.5), same set `extract_file` supports.
     """
     suffix = path.suffix.lower()
     if suffix not in _LANG_LOADERS:

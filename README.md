@@ -1,4 +1,4 @@
-# cie — a code graph your AI coding agent can actually use.
+# cie — the only code graph that knows which tasks and tests actually implement your code.
 
 [![CI](https://github.com/arunsoman/cie/actions/workflows/ci.yml/badge.svg)](https://github.com/arunsoman/cie/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/arunsoman/cie?include_prereleases&label=release)](https://github.com/arunsoman/cie/releases)
@@ -7,7 +7,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
 [![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
 [![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
-[![Tests](https://img.shields.io/badge/tests-38%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-85%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
 [![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)
@@ -21,21 +21,29 @@
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](#install)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/arunsoman/cie/releases)
 
-*Code Insight Engine.* Index any project — even a language with no LSP
-and no tree-sitter grammar — and serve symbol search, call-graph
-traversal, and file skeletons to Claude Code, Cursor, or any MCP client in
-two commands, no server to run. For teams on Neo4j, cie adds the one thing
-no other code graph has: it tracks which tasks and tests actually
-implement which code, with continuous quality-governance (clone/drift
-detection, confidence, traceability) over the live graph.
+*Code Insight Engine.* No other surveyed code-graph tool can answer
+"which files implement this task, and are they tested?" as one query —
+they're all pure retrieval. cie can, because task/QA traceability lives
+in the same graph as the code. It also extends to languages with no LSP
+and no tree-sitter grammar (proven on Nirdosha, a from-scratch language,
+via nothing but the compiler's own AST dump).
 
-Zero-config to try: index a project into a local SQLite file and serve it
-to Claude Code, Cursor, or any MCP client in two commands, no server to
-run. Point it at Neo4j instead when you need it for a real team/project.
+**One real number, measured against a real 36-file codebase** (full
+methodology in [`docs/benchmarks.md`](docs/benchmarks.md), including a
+case where it didn't help): resolving every real caller of an ambiguous
+function name took **1** cie tool call (`callers()`, correct by
+construction) vs. **3** for grep-only (1 grep + 2 reads to disambiguate,
+still not guaranteed correct). Not every task favors a graph — the same
+doc reports a tie and a real loss, honestly, not just the wins.
 
-See [`docs/competitive-landscape.md`](docs/competitive-landscape.md) for how
-cie compares to CodeGraph, CodeGraphContext, Serena, and others — and
-where it's honestly behind.
+Try it in two commands, no server, no signup — index a project into a
+local SQLite file and serve it to Claude Code, Cursor, or any MCP client,
+task/QA traceability included. Point it at Neo4j instead for a real
+team/multi-project setup (see Quickstart below for what's in each mode).
+
+See [`docs/competitive-landscape.md`](docs/competitive-landscape.md) for
+the full comparison against CodeGraph, CodeGraphContext, Serena, and
+others, including where cie is honestly behind.
 
 ## Quickstart (zero-config, no Neo4j)
 
@@ -53,12 +61,13 @@ your project's real call graph, indexed locally in `.cie/graph.db`.
 
 `--policy inspector` (read-only) is available if you want the connecting
 client to only ever see read tools — see
-[`cie/tool_policy.py`](cie/tool_policy.py). Task/QA tracking isn't part
-of the zero-config path (see below); everything else is.
+[`cie/tool_policy.py`](cie/tool_policy.py). Task/QA tracking works here
+too, backed by a second local SQLite file (`.cie/tasks.db`, via
+`cie.embedded_task_repository.EmbeddedTaskRepository`) — pass
+`--no-task-tracking` to `cie-mcp` if you'd rather skip creating it.
 
-See [`docs/benchmarks.md`](docs/benchmarks.md) for what this actually
-buys you, measured against a real codebase, including a case where it
-didn't help.
+See "What it is — three layers" below for the full breakdown (structural
+extraction, ~121 tools, the task/QA layer).
 
 ## Install
 
@@ -69,7 +78,7 @@ pip install "cie[http]"     # + the HTTP tool-mount / mock server (cie/routes.py
 ```
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
-tree-sitter (+ Python/JS/TS/Java grammars), watchdog, Click, Rich.
+tree-sitter (+ Python/JS/TS/Java/Go/Rust grammars), watchdog, Click, Rich.
 Requires Python ≥ 3.10. Only `routes.py` / `mock_server.py` pull in
 FastAPI/uvicorn (the `[http]` extra); only `mcp_server.py` pulls in the
 MCP SDK (the `[mcp]` extra). The query engine, extraction, task/hierarchy
@@ -82,7 +91,11 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
 - **A generic code graph.** Structural extraction (symbols, call graph,
   imports, inheritance, test links) via pluggable `LanguageAdapter`s —
   ships with tree-sitter support for **Python / JavaScript / TypeScript
-  / Java** out of the box; add your own adapter for any other language
+  / Java / Go / Rust** out of the box (Go/Rust: function+method
+  extraction, signatures, and receiver/impl-method call resolution;
+  import-edge extraction and docstrings are a documented gap for these
+  two — see `cie/extract.py`'s module docstring); add your own adapter
+  for any other language
   (wrapping a compiler's own AST dump, an LSP server, or a tree-sitter
   grammar) via `cie.lang_adapter.register_adapter` or the
   `cie.language_adapters` entry-point group, **no code change to this
@@ -99,10 +112,17 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   Context Protocol (`cie.mcp_server`, `cie-mcp`).
 - **A task / PRD-hierarchy layer** (`cie.task_repository`,
   `cie.hierarchy`) for tracking atomic dev/QA tasks and (optionally) a
-  project's PRD decomposition tree — **Neo4j only**; not part of the
-  zero-config embedded path (see
-  `cie.embedded_repository.NullTaskRepository`, which fails fast with a
-  clear message rather than silently degrading).
+  project's PRD decomposition tree. Task/QA CRUD and traceability
+  (`cie.task_repository.TaskRepository` — push/list/status, dependency
+  traversal, coverage/cycle/API-contract validation) works zero-config
+  too, via `cie.embedded_task_repository.EmbeddedTaskRepository`
+  (SQLite, `.cie/tasks.db`; pass `task_tracking=False` to
+  `build_tool_service_embedded`, or `--no-task-tracking` to `cie-mcp`,
+  for `cie.embedded_repository.NullTaskRepository`'s fail-fast behavior
+  instead). The separate PRD-decomposition tree (`cie.hierarchy`,
+  `prd_coverage`/`prd_orphans`/`prd_traceability_chain`) is **still
+  Neo4j only** — those three tools call `cie.factory.get_hierarchy_repo`
+  directly regardless of which backend built the `ToolService`.
 
 ## Capabilities (grounded in the code)
 
@@ -169,7 +189,9 @@ the HTTP routes.
 - `factory.py` builds `ToolService` three ways: `build_tool_service`
   (Neo4j, per-project cached engines/task-repos sharing one driver),
   `build_tool_service_from_config` (one-call, no env vars), and
-  `build_tool_service_embedded` (SQLite, `NullTaskRepository`).
+  `build_tool_service_embedded` (SQLite graph +
+  `EmbeddedTaskRepository` by default, `NullTaskRepository` opt-in via
+  `task_tracking=False`).
 
 ### Tool surface — `ToolService` (`cie/tools/__init__.py`, ~121 methods)
 Every method returns the standard SPEC §0 envelope (`ok`/`tool`/`results`/
@@ -313,15 +335,20 @@ in-memory `SymbolIndex` by walking+parsing the project tree, so
 unindexed or partially-indexed tree — same result-shaping code path as
 the graph-backed path.
 
-### Task & PRD-hierarchy layer (`tasks.py`, `task_repository.py`, `hierarchy.py`) — Neo4j only
+### Task & PRD-hierarchy layer (`tasks.py`, `task_repository.py`, `embedded_task_repository.py`, `hierarchy.py`)
 - `AtomicTask` / `AtomicTaskBatch` (pydantic, schema-versioned at ingest),
   with status/attempts write-back, artifacts, repair events, dependency
   cycles validation, coverage validation, API-contract validation.
-- `Neo4jTaskRepository` with a real write-behind entity cache
-  (`cie.graph_cache`); `NullTaskRepository` for the embedded path.
+- `Neo4jTaskRepository` (real write-behind entity cache, `cie.graph_cache`)
+  or `EmbeddedTaskRepository` (SQLite, zero-config — same
+  `TaskRepository` protocol, same `plan_push` validation code, no Neo4j)
+  — `NullTaskRepository` remains available as an explicit opt-out.
 - `hierarchy.py`: stores/traverses a PRD tree (Module → Feature →
   Workflow → UseCase → UserStory → `REALIZED_BY` AtomicTask), APOC-free
-  Cypher. CLI: `hierarchy:push`, `hierarchy:children`, `hierarchy:lineage`.
+  Cypher — **Neo4j only**, not yet ported to the embedded backend (its
+  three tools — `prd_coverage`/`prd_orphans`/`prd_traceability_chain` —
+  call `cie.factory.get_hierarchy_repo` directly). CLI: `hierarchy:push`,
+  `hierarchy:children`, `hierarchy:lineage`.
 
 ### Three front-ends, one envelope
 - **MCP** (`cie.mcp_server` / `cie-mcp`): real Model Context Protocol over
@@ -413,6 +440,9 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
   codebase indexed and queried with CodeGraphContext and Serena actually
   installed and run (not estimated), including a real ambiguous-name
   resolution bug this digging uncovered, diagnosed precisely, and fixed.
+- [Adding a language](docs/adding-a-language.md) — a complete, verified
+  `LanguageAdapter` for a language cie has never seen, no tree-sitter
+  grammar or LSP involved.
 
 ## Project layout
 
@@ -424,7 +454,7 @@ cie/
   in_memory_repository.py  # reference test double + embedded query/traversal logic
   embedded_repository.py   # zero-config SQLite backend
   query.py             # QueryEngine (backend-agnostic orchestration)
-  extract.py           # tree-sitter extraction (Python/JS/TS/Java)
+  extract.py           # tree-sitter extraction (Python/JS/TS/Java/Go/Rust)
   callgraph.py         # pass-2 calls/inheritance edge resolution
   testlink.py          # TESTS edge resolution
   lang_adapter.py      # pluggable language-adapter registry + entry points

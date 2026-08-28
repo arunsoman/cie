@@ -14,31 +14,7 @@ SQLite). cie's real differentiation isn't "better code search" — every
 competitor here is optimized purely for that one job. It's scope: cie is
 the only one that fuses a code graph, task/QA traceability, and
 continuous quality governance into one system with a genuinely
-open-ended language-extension model. The most significant gap, and the
-single highest-leverage thing to fix, is that **cie does not speak the
-Model Context Protocol** — every competitor listed here does.
-
-## Comparison
-
-| | **cie** | **CodeGraphContext** | **CodeGraph** | **Serena** |
-|---|---|---|---|---|
-| Graph backend | Neo4j | Neo4j / FalkorDB / KuzuDB / LadybugDB (pluggable) | Embedded SQLite + FTS5 | None — wraps LSP servers live |
-| Adoption | New, 0 stars | Community project | 47.4k stars in 5 months — category leader | 25.2k stars, 170+ contributors |
-| Languages out-of-box | 4 (tree-sitter) | 23 (tree-sitter/SCIP) | 21 (tree-sitter) | 40+ (via LSP) |
-| Extending to a new language | Register any `LanguageAdapter` — no grammar or LSP required | Needs a tree-sitter grammar or SCIP indexer | Needs a tree-sitter grammar | Needs a working LSP server |
-| Tool count | ~123 | 14 | not disclosed; MCP-native | many, LSP-backed |
-| Task/QA tracking | Yes — AtomicTask/QA CRUD, traceability chains | No | No | No |
-| Quality/drift/test intelligence | Yes — clone detection, drift detection, confidence scoring, contracts/invariants, state-machine validation, tech-debt reports | No (has `manage_adr`, not the same thing) | No | No |
-| Per-agent tool policy | Yes — `ToolPolicy`/`WRITE_TOOLS`, server-enforced | No (left to the MCP client) | No | No |
-| Speculative-vs-canonical graph state tied to git commits | Yes — promote/revert/ast-delta | `detect_changes` (live sync only) | file-watcher sync only | No (LSP is always live) |
-| MCP protocol | **No** — own ToolService + HTTP convention | Yes | Yes | Yes |
-
-Runners-up not detailed above, for context: **GitNexus** (41,958 stars,
-zero-server browser-based graph, 16 MCP tools + resources + skills — the
-most "batteries-included" MCP integration in the category) and
-**claude-context** / **grepai** (dedicated, independently-benchmarked
-embedding/semantic search — a narrower but more mature slice than cie's
-own GraphRAG layer).
+open-ended language-extension model.
 
 ## Where cie genuinely excels
 
@@ -54,7 +30,9 @@ own GraphRAG layer).
    the surveyed tools track tasks, QA cycles, or spec-to-file-to-test
    chains — they're pure retrieval/navigation tools. cie can answer
    "which files implement this task, and are they tested" as one graph
-   query.
+   query — over Neo4j or the zero-config embedded SQLite backend alike
+   (`cie.embedded_task_repository.EmbeddedTaskRepository`, since
+   `docs/growth-plan.md` Phase 0.5).
 
 3. **A real quality-governance layer, not just retrieval.** Clone
    detection, drift detection (code vs. spec/architecture), per-code-node
@@ -74,39 +52,84 @@ own GraphRAG layer).
    has an equivalent to "propose a graph change, then commit or discard
    it" mapped onto real git semantics.
 
+6. **Speaks real MCP, with a zero-config path.** Closed since this table
+   was first drafted (`docs/growth-plan.md` Phase 0): a real MCP server
+   (`cie-mcp`) and an embedded SQLite backend needing no Neo4j setup — the
+   comparison below is left as originally researched, but MCP and setup
+   friction are no longer open gaps the way rows 5–6 of the table still
+   describe them.
+
+7. **6 tree-sitter languages out of the box, up from 4.** Go and Rust
+   added (`docs/growth-plan.md` Phase 0.5 workstream D) — function/method
+   extraction, signatures, and receiver/impl-method call resolution, each
+   verified against a real parse, not assumed from grammar docs. Still
+   well behind the 21–40+ every competitor here ships (row below), and
+   two things are an honest, documented gap for these two specifically:
+   no import-edge extraction, no docstring extraction (`cie/extract.py`'s
+   module docstring).
+
+## Comparison
+
+*(Context for the claims above, not the headline — read those first.)*
+
+| | **cie** | **CodeGraphContext** | **CodeGraph** | **Serena** |
+|---|---|---|---|---|
+| Graph backend | Neo4j, or embedded SQLite (zero-config) | Neo4j / FalkorDB / KuzuDB / LadybugDB (pluggable) | Embedded SQLite + FTS5 | None — wraps LSP servers live |
+| Adoption | New, 0 stars | Community project | 47.4k stars in 5 months — category leader | 25.2k stars, 170+ contributors |
+| Languages out-of-box | 6 (tree-sitter: Python/JS/TS/Java/Go/Rust) | 23 (tree-sitter/SCIP) | 21 (tree-sitter) | 40+ (via LSP) |
+| Extending to a new language | Register any `LanguageAdapter` — no grammar or LSP required | Needs a tree-sitter grammar or SCIP indexer | Needs a tree-sitter grammar | Needs a working LSP server |
+| Tool count | ~123 | 14 | not disclosed; MCP-native | many, LSP-backed |
+| Task/QA tracking | Yes — AtomicTask/QA CRUD, traceability chains (Neo4j or zero-config SQLite) | No | No | No |
+| Quality/drift/test intelligence | Yes — clone detection, drift detection, confidence scoring, contracts/invariants, state-machine validation, tech-debt reports | No (has `manage_adr`, not the same thing) | No | No |
+| Per-agent tool policy | Yes — `ToolPolicy`/`WRITE_TOOLS`, server-enforced | No (left to the MCP client) | No | No |
+| Speculative-vs-canonical graph state tied to git commits | Yes — promote/revert/ast-delta | `detect_changes` (live sync only) | file-watcher sync only | No (LSP is always live) |
+| MCP protocol | Yes — `cie-mcp` (real `mcp` SDK) | Yes | Yes | Yes |
+
+Runners-up not detailed above, for context: **GitNexus** (41,958 stars,
+zero-server browser-based graph, 16 MCP tools + resources + skills — the
+most "batteries-included" MCP integration in the category) and
+**claude-context** / **grepai** (dedicated, independently-benchmarked
+embedding/semantic search — a narrower but more mature slice than cie's
+own GraphRAG layer).
+
 ## Where competitors are genuinely ahead
 
 Honest gaps, not hedged:
 
-- **No MCP protocol implementation.** Every competitor found speaks the
-  actual Model Context Protocol; cie speaks its own `ToolService`/HTTP
-  convention. This is the single biggest concrete gap — without an MCP
-  adapter, cie can't plug into Claude Code, Cursor, or any other MCP host
-  the turnkey way these competitors do.
-- **Out-of-box language breadth.** cie ships 4 tree-sitter languages
-  today vs. 21–40+ for every competitor. The architecture doesn't cap
-  language support, but shipped coverage is far behind.
+- **Out-of-box language breadth.** cie ships 6 tree-sitter languages
+  today (Python/JS/TS/Java/Go/Rust) vs. 21–40+ for every competitor. The
+  architecture doesn't cap language support, but shipped coverage is
+  still far behind — narrowed, not closed, by `docs/growth-plan.md`
+  Phase 0.5 workstream D.
 - **Adoption and battle-testing.** CodeGraph and Serena have tens of
   thousands of users and independently-verified performance benchmarks
-  (token/cost reduction numbers). cie has zero external users and no
-  benchmarks run against it — any performance claim here would be
-  unverified.
-- **Setup friction.** CodeGraph's single-SQLite-file, no-server design is
-  far lower-friction than cie's Neo4j requirement — a real cost for
-  casual/local use in exchange for the multi-hop graph query power
-  SQLite+FTS5 doesn't have.
+  (token/cost reduction numbers). cie has zero external users and one
+  small first-pass benchmark (`docs/benchmarks.md`) — real, but nowhere
+  near their scale of verification.
 - **Semantic/vector search maturity.** claude-context and grepai have
   dedicated, independently-benchmarked embedding retrieval; cie's
   GraphRAG/embedding layer (`cie/graphrag.py`, `cie/embed.py`) exists but
   is unbenchmarked.
+- **Maturity signals.** Alpha (`0.1.0a2`), single-author commit history —
+  real gaps, not just optics; see `docs/growth-plan.md` Phase 0.5
+  workstream C. (Test-suite depth specifically improved this same
+  workstream: 4 files/38 tests → 8 files/85 tests, covering task/QA,
+  quality-governance, and the language-adapter registry areas that had
+  zero coverage before — narrowed, not the same gap it started as.)
 
 ## If prioritizing one next move for competitiveness
 
-An MCP protocol adapter over the existing `ToolService`/`tool_schema`/
-`tool_policy` surface (see `cie/tool_schema.py`, `cie/tool_policy.py`) —
-the tool definitions and per-agent authorization already exist in a
-shape close to what MCP needs; the gap is the wire protocol, not the
-underlying capability.
+*(Updated 2026-08-29 — the three items this section previously pointed
+to — the MCP adapter, the task/QA-traceability Neo4j gate, and the
+4-tree-sitter-language ceiling — have each been at least partly
+addressed; re-prioritized against what's still open.)* Out-of-box
+language breadth (6 tree-sitter languages vs. 21–40+ for every
+competitor here) is still the largest remaining gap in this table
+specifically — `docs/growth-plan.md`
+Phase 0.5 workstream D. The single highest-leverage item overall,
+though, is maturity (workstream C): an alpha days old with a single
+author and thin test coverage is what makes every other row in this
+table harder to trust at face value, competitive or not.
 
 ## Sources
 

@@ -90,6 +90,29 @@ merely refused) is a load-bearing security property; keep it.
 Conventional, descriptive. A short subject line + a body explaining *why*.
 Reference the issue/PR where relevant. Example shape is in `git log`.
 
+## Becoming a second maintainer
+
+cie is currently a single-author project — a real bus-factor risk the
+project's own `docs/growth-plan.md` flags as a known failure mode in this
+category, not something to leave unaddressed here. If you want to grow
+into a second maintainer rather than a one-off contributor:
+
+- **Start with a self-contained module**, not the core graph. Good entry
+  points: a single `LanguageAdapter` (`cie/lang_adapter.py`'s registry —
+  bounded scope, a clear "does it parse this fixture correctly" test),
+  one analysis pass (`clone_detect.py`, `drift_detect.py`, `metrics.py` —
+  each is independent, on-demand, and doesn't touch the two-pass loader),
+  or a `tests/` file for a capability area that doesn't have one yet.
+- **Avoid `extract.py`, `callgraph.py`, `query.py`, and `tool_policy.py`
+  as a first PR** — these are load-bearing for every other module; get
+  familiar with the design boundary above first.
+- **The review bar**: same as any PR here (tests pass, the design
+  boundary above holds, the change is explained) — there's no separate,
+  higher bar for a would-be maintainer's first few PRs, just a track
+  record building up over several of them.
+- If you've landed a handful of substantive PRs and want commit access,
+  open an issue saying so — there's no other process gating it right now.
+
 ## Reporting issues
 
 Open a GitHub issue. For security vulnerabilities, see
