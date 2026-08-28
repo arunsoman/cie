@@ -9,7 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a2] - 2026-08-28 — corrected alpha
+
+### Fixed
+- **The MCP server now runs on both mcp 1.x and 2.x.** `0.1.0a1`'s
+  `build_mcp_server` targeted only `mcp.server.fastmcp.FastMCP` (the mcp
+  1.x class); on CI — which installs `mcp>=2` — `mcp.server.fastmcp` is a
+  stub that raises `ModuleNotFoundError` (in mcp 2.x, `FastMCP` was renamed
+  to `MCPServer` at `mcp.server.mcpserver`), so every `test_mcp_server`
+  test failed. `build_mcp_server` is now version-agnostic: it prefers mcp
+  2.x's `MCPServer` and falls back to mcp 1.x's `FastMCP`, and the
+  `call_tool` test normalizes the two return shapes (2.x `CallToolResult`
+  envelope vs 1.x `list[ContentBlock]`). Verified on both: 38/38 tests pass
+  on mcp 1.x *and* mcp 2.x, plus a real stdio JSON-RPC handshake on each
+  (`tools/list` under `--policy readonly` → 81 tools, write tools absent).
+
 ## [0.1.0a1] - 2026-08-28 — first alpha
+
+> ⚠️ **Superseded by 0.1.0a2.** This tag's MCP server only ran on mcp 1.x;
+  on mcp 2.x (what `pip install "cie[mcp]"` resolves to today) the tests
+  fail to import. Use 0.1.0a2.
 
 First (alpha) release of cie — Code Insight Engine: a pluggable,
 language-agnostic code graph + LLM tool surface (MCP / HTTP / CLI) with an
@@ -69,12 +88,15 @@ embedded SQLite or Neo4j backend.
   doesn't mis-collect the `cie/test_*.py` *feature modules*).
 
 ### Fixed
-- **The MCP server now actually runs.** `build_mcp_server` targeted
-  `mcp.server.mcpserver.MCPServer`, a class that does not exist in any
-  released `mcp` wheel; re-targeted to the real, supported
+- **The MCP server now actually runs** (mcp 1.x only — see 0.1.0a2 for
+  the cross-version fix). `build_mcp_server` targeted
+  `mcp.server.mcpserver.MCPServer`, a class absent from the mcp 1.x wheel
+  on the developer's machine; re-targeted to mcp 1.x's
   `mcp.server.fastmcp.FastMCP`. Verified with a real stdio JSON-RPC
-  handshake (`initialize` + `tools/list` under `--policy readonly` → 81
-  tools, every write tool correctly absent).
+  handshake on mcp 1.x (`initialize` + `tools/list` under
+  `--policy readonly` → 81 tools, every write tool correctly absent).
+  ⚠️ This broke on mcp 2.x (where `fastmcp` is a stub and `MCPServer` is the
+  real class); fixed in 0.1.0a2.
 
 ### Removed
 - Cut the be-v2-hardwired `resolve_api_route` / `api_call_sites` from
@@ -91,5 +113,6 @@ embedded SQLite or Neo4j backend.
   server, so a client's `tools/list` never even names it — not merely
   refused at call time.
 
-[Unreleased]: https://github.com/arunsoman/cie/compare/v0.1.0a1...HEAD
+[Unreleased]: https://github.com/arunsoman/cie/compare/v0.1.0a2...HEAD
+[0.1.0a2]: https://github.com/arunsoman/cie/releases/tag/v0.1.0a2
 [0.1.0a1]: https://github.com/arunsoman/cie/releases/tag/v0.1.0a1

@@ -1,6 +1,6 @@
 [project]
 name = "cie"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Code Insight Engine — a pluggable, language-agnostic code graph + LLM tool surface (MCP/HTTP/CLI) with an embedded SQLite or Neo4j backend."
 readme = "README.md"
 requires-python = ">=3.10"
