@@ -678,8 +678,6 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "path_between": _service_tool("path_between"),
     "failing_context": _service_tool("failing_context"),
     "affected_by": _service_tool("affected_by"),
-    "resolve_api_route": _service_tool("resolve_api_route"),
-    "api_call_sites": _service_tool("api_call_sites"),
     "class_hierarchy": _service_tool("class_hierarchy"),
     "test_map": _service_tool("test_map"),
     "actual_callers": _service_tool("actual_callers"),
@@ -1362,7 +1360,7 @@ def get_blast_radius(
 READ_ONLY_CIE_TOOLS: frozenset[str] = frozenset({
     "view_file", "search_symbol", "resolve_import", "semantic_search",
     "callers", "callees", "file_skeleton", "path_between", "failing_context",
-    "affected_by", "resolve_api_route", "api_call_sites", "class_hierarchy",
+    "affected_by", "class_hierarchy",
     "test_map", "actual_callers", "dead_code_confirm", "hybrid_search",
     "entity_context", "qa", "blame_history",
     "clone_clusters", "clone_find",

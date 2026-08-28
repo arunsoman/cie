@@ -27,11 +27,10 @@ Edges:
     (:AtomicTask)-[:HAS_EVENT]->(:RepairEvent)
     (:AtomicTask)-[:PARENT_OF]->(:AtomicTask)            # from parent_ids/child_ids
 
-GraphBaseModel/bind_link below are be-v2's own (core.graph.base), imported
-softly here — the one place the usual cie/be-v2 dependency direction
-flips, because this specific base class belongs to be-v2, not cie
-(see core-boundaries-migration-plan.md §A.6). Falls back to a standalone
-shim so this package still installs and runs without be-v2 on the path.
+``GraphBaseModel``/``bind_link`` below are cie's own standalone shim
+(once a soft import of a host project's ``core.graph.base``, retained now
+only as a cie-local base class) — this package installs and runs with no
+host project on the path.
 """
 
 from __future__ import annotations
@@ -48,22 +47,21 @@ from pydantic import BaseModel, Field
 SCHEMA_VERSION = "1.0.0"
 
 
-try:  # be-v2's real base class, when cie is running embedded in be-v2
-    from core.graph.base import GraphBaseModel, bind_link  # type: ignore
-except Exception:  # standalone shim — cie installs without be-v2 on the path
-    class GraphBaseModel(BaseModel):  # type: ignore
-        """Minimal stand-in for core.graph.base.GraphBaseModel."""
+class GraphBaseModel(BaseModel):
+    """cie's own graph-node base class: an id plus a bidirectional
+    parent/child id list, the shape AtomicTask nodes store in Neo4j."""
 
-        id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-        parent_ids: List[str] = Field(default_factory=list)
-        child_ids: List[str] = Field(default_factory=list)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    parent_ids: List[str] = Field(default_factory=list)
+    child_ids: List[str] = Field(default_factory=list)
 
-    def bind_link(parent: "GraphBaseModel", child: "GraphBaseModel") -> None:
-        """Create a bi-directional link between a parent and a child object."""
-        if parent.id not in child.parent_ids:
-            child.parent_ids.append(parent.id)
-        if child.id not in parent.child_ids:
-            parent.child_ids.append(child.id)
+
+def bind_link(parent: "GraphBaseModel", child: "GraphBaseModel") -> None:
+    """Create a bi-directional link between a parent and a child object."""
+    if parent.id not in child.parent_ids:
+        child.parent_ids.append(parent.id)
+    if child.id not in parent.child_ids:
+        parent.child_ids.append(child.id)
 
 
 class ApiSpec(BaseModel):
