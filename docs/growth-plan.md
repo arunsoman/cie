@@ -58,7 +58,42 @@ actually plug it into the agent I use" — the CodeGraph playbook depends
 on the opposite of all three. Phase 0 exists to fix that before Phase 1
 spends any attention on it.
 
-## Phase 0 — prerequisites (do before any launch push)
+## Phase 0 — status: done (2026-08-28)
+
+All four items shipped and verified end-to-end, not just unit-tested:
+
+1. **MCP adapter** (`cie/mcp_server.py`, `cie-mcp`) — real official `mcp`
+   SDK, per-agent-type policy enforced by never registering a denied
+   tool. Caught and fixed a real bug while wiring it up:
+   `write_files_atomic` had never been added to `WRITE_TOOLS` — a
+   read-only policy could have called it. Verified with a real stdio
+   JSON-RPC handshake from a completely fresh `pip install "cie[mcp] @
+   git+https://github.com/arunsoman/cie.git"` — `tools/list` returned 84
+   tools under `--policy inspector`, correctly excluding every write
+   tool.
+2. **Zero-config embedded backend** (`cie/embedded_repository.py`,
+   `cie index`, `cie-mcp --embedded`) — one local SQLite file, full
+   `Repository` protocol via a wrapped, already-verified in-memory
+   implementation (adapted from protobox's own test fixture). Indexed a
+   real 12K-line codebase (36 files) in 0.87s using the same two-pass
+   loader (`cie load`'s own contract) — structural extraction plus real
+   call/inheritance/test-edge resolution, not a simplified version.
+   Task/QA tracking explicitly unavailable in this mode, fails fast with
+   a clear message rather than silently degrading.
+3. **Real benchmarks** (`docs/benchmarks.md`) — 3 tasks against that same
+   real codebase, published honestly per this plan's own commitment: one
+   tie, one clear win (`callers()` resolves correctly where grep is
+   ambiguous), one real loss (`file_skeleton`'s response was larger than
+   the raw file for one target) reported as found.
+4. **Pitch + README** — rewritten to lead with a one-line hook and a
+   genuinely-correct zero-config quickstart (verified against the actual
+   commands, including the real MCP handshake above) instead of assuming
+   Neo4j.
+
+Phase 1 (launch mechanics) and Phase 2 (retention story) below are not
+started — Phase 0 was scoped as the prerequisite, not the launch itself.
+
+## Phase 0 — original prerequisites (do before any launch push)
 
 1. **Ship an MCP protocol adapter over the existing tool surface.**
    `cie/tool_schema.py` and `cie/tool_policy.py` already produce
