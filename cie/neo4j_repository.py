@@ -26,8 +26,10 @@ from typing import TYPE_CHECKING, Optional, Sequence
 
 from neo4j import Driver, GraphDatabase, Query
 
-from core.llm.embed_text import embed_text
-from cie.embed import compute_embeddings
+# embed_text imported from cie.embed (not core.llm.embed_text directly) so
+# there is exactly one lazy-import/standalone-shim point for it — see
+# cie.embed's module docstring and register_embed_functions.
+from cie.embed import compute_embeddings, embed_text
 from cie.extract import EXTRACTOR_VERSION, Extraction
 from cie.graph_cache import cached_query
 from cie.timeouts import Neo4jOperationTimeout, run_with_timeout

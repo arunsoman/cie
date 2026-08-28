@@ -15,9 +15,66 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 import math
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
-from core.llm.embed_text import embed_text, embed_texts
+try:  # be-v2's real embedding client, when cie runs embedded in be-v2
+    from core.llm.embed_text import embed_text as _real_embed_text  # type: ignore
+    from core.llm.embed_text import embed_texts as _real_embed_texts  # type: ignore
+except Exception:  # standalone shim — cie installs without be-v2 on the path
+    _real_embed_text = None
+    _real_embed_texts = None
+
+
+def embed_text(text: str, model_name: Optional[str] = None, input_type: str = "passage") -> list[float]:
+    """Dispatches to be-v2's real `core.llm.embed_text.embed_text` when
+    available, else to whatever `register_embed_functions` registered,
+    else raises. A stable function object (unlike rebinding this name
+    directly) so `from cie.embed import embed_text` elsewhere in this
+    package — `cie.neo4j_repository` imports it this way rather than
+    duplicating this shim — keeps working even if an override is
+    registered AFTER that import already ran.
+
+    No literal-duplicate stand-in makes sense here (embed_text is a real
+    HTTP call to an embeddings provider, not a small pure value like
+    hierarchy.py's rel_type_union) — every call site already wraps its
+    embed_text/embed_texts call in `try/except Exception: degrade to []`
+    (see e.g. `Neo4jRepository.semantic_search`), so raising here just
+    feeds that existing degrade-gracefully path instead of failing
+    `import cie.embed` itself.
+    """
+    if _real_embed_text is None:
+        raise RuntimeError(
+            "no embed_text implementation available — core.llm is not on "
+            "the path and no override was registered via "
+            "cie.embed.register_embed_functions"
+        )
+    return _real_embed_text(text, model_name=model_name, input_type=input_type)
+
+
+def embed_texts(
+    texts: Sequence[str], model_name: Optional[str] = None, input_type: str = "passage",
+) -> list[list[float]]:
+    """Batch form — see `embed_text`'s docstring for the dispatch/shim
+    contract, identical here."""
+    if _real_embed_texts is None:
+        raise RuntimeError(
+            "no embed_texts implementation available — core.llm is not on "
+            "the path and no override was registered via "
+            "cie.embed.register_embed_functions"
+        )
+    return _real_embed_texts(texts, model_name=model_name, input_type=input_type)
+
+
+def register_embed_functions(single, batch) -> None:
+    """Override the embedding functions `embed_text`/`embed_texts` above
+    dispatch to — for a host project with no `core.llm` on its path that
+    still wants real embeddings. `single(text, model_name=None,
+    input_type="passage") -> list[float]`, `batch(texts, model_name=None,
+    input_type="passage") -> list[list[float]]`, matching
+    `core.llm.embed_text`'s own signatures."""
+    global _real_embed_text, _real_embed_texts
+    _real_embed_text = single
+    _real_embed_texts = batch
 
 logger = logging.getLogger("cie.embed")
 
