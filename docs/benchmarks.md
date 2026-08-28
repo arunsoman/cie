@@ -58,6 +58,11 @@ cherry-picked for the best number.
   break-even on response-heavy ones"), which is part of what made that
   research treat their numbers as credible in the first place.
 
+See [`competitor-benchmarks.md`](competitor-benchmarks.md) for the same
+codebase indexed and queried with CodeGraphContext and Serena actually
+installed and run — including a real bug this comparison surfaced in
+cie's own ambiguous-name resolution, diagnosed precisely.
+
 ## What this benchmark does not yet cover
 
 - No token counts (byte counts are a proxy, not the same thing) and no

@@ -71,7 +71,24 @@ class InMemoryRepository:
         return self._nodes[nid].label if nid in self._nodes else nid
 
     def _resolve_symbol_id(self, symbol: str) -> Optional[str]:
-        """Exact label matches win over substrings; func/method beat other kinds."""
+        """Exact label matches win over substrings; func/method beat other kinds.
+
+        KNOWN LIMITATION (found via docs/competitor-benchmarks.md's Task
+        2, 2026-08-28): when `symbol` exactly matches TWO OR MORE distinct
+        definitions (e.g. two different classes each defining their own
+        `_post` method), this picks exactly one candidate via the tie-break
+        above and callers (`get_callers`/`get_callees`/etc.) then only see
+        edges touching that one node — silently, with no indication the
+        name was ambiguous or that other real definitions exist.
+        `cie.callgraph.resolve_call_edges` itself was verified correct in
+        that investigation (all 126/126 real call sites in a real
+        ambiguous-name test case resolved to the RIGHT one of two
+        targets) — this is a bug in bare-name lookup one layer up, not in
+        call-graph resolution. Fix direction: either aggregate across
+        every exact-name match (what CodeGraphContext does for the same
+        case) or surface an explicit ambiguity result instead of a
+        confident-looking partial one — not fixed here, filed as found.
+        """
         needle = symbol.lower()
         candidates = [
             (
