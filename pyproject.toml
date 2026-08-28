@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "neo4j>=5.0.0",
+    "neo4j>=6.2.0",
     "pydantic>=2.7.0",
     "tree-sitter>=0.26.0",
     "tree-sitter-python>=0.25.0",
