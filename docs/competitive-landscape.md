@@ -67,7 +67,7 @@ open-ended language-extension model.
    friction are no longer open gaps the way rows 5–6 of the table still
    describe them.
 
-7. **7 tree-sitter languages out of the box (R12: C added).** Go and Rust
+7. **9 tree-sitter languages out of the box (R12: C; R13: C++/C#).** Go and Rust
    added — function/method
    extraction, signatures, and receiver/impl-method call resolution, each
    verified against a real parse, not assumed from grammar docs. Still
@@ -118,7 +118,7 @@ mature slice than cie's own GraphRAG layer).
 
 Honest gaps, not hedged:
 
-- **Out-of-box language breadth.** cie ships 7 tree-sitter languages
+- **Out-of-box language breadth.** cie ships 9 tree-sitter languages
   today (Python/JS/TS/Java/Go/Rust) vs. 21–40+ for every competitor. The
   architecture doesn't cap language support, but shipped coverage is
   still far behind — narrowed, but not closed, by the recent Go/Rust
@@ -147,7 +147,7 @@ Honest gaps, not hedged:
 to — the MCP adapter, the task/QA-traceability Neo4j gate, and the
 4-tree-sitter-language ceiling — have each been at least partly
 addressed; re-prioritized against what's still open.)* Out-of-box
-language breadth (7 tree-sitter languages vs. 21–40+ for every
+language breadth (9 tree-sitter languages vs. 21–40+ for every
 competitor here) is still the largest remaining gap in this table
 specifically. The single highest-leverage item overall,
 though, is maturity (workstream C): an alpha days old with a single

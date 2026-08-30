@@ -184,7 +184,8 @@ pip install "cie[http]"     # + the HTTP tool-mount / mock server (cie/routes.py
 ```
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
-tree-sitter (+ Python/JS/TS/Java/Go/Rust/C grammars), watchdog, Click, Rich.
+tree-sitter (+ Python/JS/TS/Java/Go/Rust/C/C++/C# grammars), watchdog, Click,
+Rich.
 Requires Python ≥ 3.10. Only `routes.py` / `mock_server.py` pull in
 FastAPI/uvicorn (the `[http]` extra); only `mcp_server.py` pulls in the
 MCP SDK (the `[mcp]` extra). The query engine, extraction, task/hierarchy
@@ -591,7 +592,7 @@ cie/
   in_memory_repository.py  # reference test double + embedded query/traversal logic
   embedded_repository.py   # zero-config SQLite backend
   query.py             # QueryEngine (backend-agnostic orchestration)
-  extract.py           # tree-sitter extraction (Python/JS/TS/Java/Go/Rust/C)
+  extract.py           # tree-sitter extraction (Python/JS/TS/Java/Go/Rust/C/C++/C#)
   callgraph.py         # pass-2 calls/inheritance edge resolution
   testlink.py          # TESTS edge resolution
   lang_adapter.py      # pluggable language-adapter registry + entry points

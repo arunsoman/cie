@@ -85,7 +85,20 @@ _LANG_LOADERS = {
     # FUNC nodes: the definition carries graph identity, and duplicating
     # it would fork same-name resolution. Documented v1 scope).
     ".c": "tree_sitter_c.language",
-    ".h": "tree_sitter_c.language",
+    ".h": "tree_sitter_c.language",  # C headers; C++ headers use .hpp/.hh — a C++
+    #     `namespace` block is invalid C and mis-trees under the C grammar
+    #     (found live by the R13 tests), so the .h suffix stays C-scoped.
+    # R13: C++ (headers + sources; named classes/structs WITH bodies are
+    # CLASS nodes; methods ride the shared declarator unwrap with
+    # field_identifier inside class bodies and qualified_identifier's
+    # name part for out-of-class definitions) and C# (Java-shaped:
+    # `name` fields everywhere, base_list for bases).
+    ".cpp": "tree_sitter_cpp.language",
+    ".cc": "tree_sitter_cpp.language",
+    ".cxx": "tree_sitter_cpp.language",
+    ".hpp": "tree_sitter_cpp.language",
+    ".hh": "tree_sitter_cpp.language",
+    ".cs": "tree_sitter_c_sharp.language",
 }
 
 
@@ -96,6 +109,16 @@ _LANG_LOADERS = {
 # to class-node extraction, same as any language's non-class constructs
 # already are.
 _CLASS_TYPES = {"class_definition", "class_declaration"}
+
+# C++/C# class shapes (R13). C++ needs a language gate on the WALKER (not
+# here) because `.c` files share the grammar node types: a C `struct_
+# specifier` must stay invisible to class extraction (test-pinned), while
+# a C++ one with a body + name is a real CLASS. `interface_declaration`/
+# `struct_declaration` are C#'s.
+_CPP_CLASS_TYPES = {"class_specifier", "struct_specifier"}
+_CSHARP_CLASS_TYPES = {
+    "class_declaration", "interface_declaration", "struct_declaration",
+}
 
 # Node types that represent a function or method declaration, per language.
 _FUNCTION_TYPES = {
@@ -133,15 +156,27 @@ _DECLARATOR_TYPES = {
 
 
 def _c_declarator_name(declarator) -> str:
-    """Innermost identifier of a C declarator chain, EXCLUDING anything
+    """Innermost identifier of a C/C++ declarator chain, EXCLUDING anything
     inside a parameter_list: its parameter names are identifiers too, and
     the naive 'first identifier anywhere' would return the first PARAM
     name — a wrong-but-plausible answer (asserted against in
-    tests/test_extract_c.py, the naive-skip bug class in mirror form)."""
+    tests/test_extract_c.py, the naive-skip bug class in mirror form).
+
+    C++ extensions (R13): class-member declarators name the function via
+    `field_identifier` (not `identifier`), and out-of-class definitions
+    use `qualified_identifier` (Cpp `HttpClient::send`) — its `name`
+    FIELD is the unqualified method name, which is what gets linked; the
+    scope is intentionally dropped (the enclosing-class heuristic works
+    on the node's context, not on the lexical qualifier)."""
+    identifier_types = {"identifier", "field_identifier"}
     current = declarator
     for _ in range(64):  # defensive: malformed chains never loop
-        if current.type == "identifier":
+        if current.type in identifier_types:
             return current.text.decode("utf-8", errors="replace")
+        if current.type == "qualified_identifier":
+            name_part = current.child_by_field_name("name")
+            if name_part is not None:
+                return name_part.text.decode("utf-8", errors="replace")
         named = current.child_by_field_name("declarator")
         if named is not None:
             current = named
@@ -150,7 +185,7 @@ def _c_declarator_name(declarator) -> str:
         for c in current.children:
             if c.type == "parameter_list":
                 continue
-            if c.type in _DECLARATOR_TYPES or c.type == "identifier":
+            if c.type in _DECLARATOR_TYPES or c.type in identifier_types:
                 inner = c
                 break
         if inner is None:
@@ -206,13 +241,16 @@ _TYPE_ANNOTATION = "type_annotation"
 # real parses) — no new entry needed here; Rust macro invocations
 # (`println!(...)`) are a distinct `macro_invocation` node type and are
 # NOT covered — a real, documented gap, not a silent one.
-_CALL_TYPES = {"call", "call_expression", "method_invocation"}
+_CALL_TYPES = {
+    "call", "call_expression", "method_invocation",
+    "invocation_expression",  # csharp (R13)
+}
 
 # Node types that wrap the callable being invoked (attribute/member access).
 _ATTRIBUTE_TYPES = {
-    "attribute", "member_expression",
+    "attribute", "member_expression", "member_access_expression",  # csharp
     "selector_expression",  # go: pkg.Func / recv.Method
-    "field_expression",     # rust: recv.method
+    "field_expression",     # rust + c++: recv.method
 }
 
 # JSX tag node types (JS/TSX only) — `<Foo .../>` / `<Foo>...</Foo>` never
@@ -759,6 +797,53 @@ def _java_class_bases(node) -> list[tuple[str, str]]:
     return out
 
 
+def _cpp_class_bases(node) -> list[tuple[str, str]]:
+    """C++ `base_class_clause`: every non-access, non-punct child that
+    names a type is a base (`public Base`, `private Logger`, `virtual
+    Iface`) — all become `extends` (C++ has single inheritance + multiple
+    interface-ish bases; the access specifier is a visibility detail the
+    graph doesn't model). Verified against a real parse
+    (`class HttpClient : public Base, private Logger`)."""
+    heritage = node.child_by_field_name("base_class_clause")
+    if heritage is None:
+        for child in node.children:
+            if child.type == "base_class_clause":
+                heritage = child
+                break
+    if heritage is None:
+        return []
+    out: list[tuple[str, str]] = []
+    for child in heritage.children:
+        if child.type in ("type_identifier", "qualified_identifier"):
+            text = child.text.decode("utf-8", errors="replace")
+            out.append((text.split("::")[-1], "extends"))
+    return out
+
+
+def _csharp_class_bases(node) -> list[tuple[str, str]]:
+    """C# `base_list`: ONE clause carries both the base class and the
+    implemented interfaces — first named type is `extends`, the REST are
+    `implements` (C#'s single-inheritance/multi-interface reality,
+    verified against a real parse: `class UserService : IUserService,
+    IDisposable` would make UserService extend IUserService and
+    implement IDisposable — the first-position rule, stated here, is the
+    documented convention)."""
+    heritage = None
+    for child in node.children:
+        if child.type == "base_list":
+            heritage = child
+            break
+    if heritage is None:
+        return []
+    out: list[tuple[str, str]] = []
+    for child in heritage.children:
+        if child.type in ("identifier", "qualified_name"):
+            text = child.text.decode("utf-8", errors="replace")
+            relation = "extends" if not out else "implements"
+            out.append((text, relation))
+    return out
+
+
 def _class_bases_for(node, language: str) -> list[tuple[str, str]]:
     """Dispatch to the per-language base-class/interface finder.
     Returns `(raw_name, relation)` pairs, `relation` one of
@@ -767,6 +852,10 @@ def _class_bases_for(node, language: str) -> list[tuple[str, str]]:
         return _python_class_bases(node)
     if language == "java":
         return _java_class_bases(node)
+    if language == "cpp":
+        return _cpp_class_bases(node)
+    if language in ("cs", "csharp"):  # key = suffix (`.cs` -> "cs")
+        return _csharp_class_bases(node)
     return _ts_class_bases(node)
 
 
@@ -813,6 +902,23 @@ def _walk_file(
     })
 
     def _is_class(n) -> bool:
+        if language == "c":
+            # R12 v1 scope: C structs are NOT classes (documented + pinned
+            # by tests/test_extract_c.py's structs test).
+            return False
+        if language == "cpp":
+            # R13: a C++ class/struct counts only when NAMED and has a
+            # field_declaration_list body — forward declarations
+            # (`struct X;`) and anonymous bodies are not graph classes.
+            if n.type not in _CPP_CLASS_TYPES:
+                return False
+            named = n.child_by_field_name("name")
+            return (
+                named is not None
+                and any(c.type == "field_declaration_list" for c in n.children)
+            )
+        if language in ("cs", "csharp"):  # key = suffix (`.cs` -> "cs")
+            return n.type in _CSHARP_CLASS_TYPES
         return n.type in _CLASS_TYPES
 
     def _is_function(n) -> bool:
@@ -825,11 +931,13 @@ def _walk_file(
             name = _declared_name(n.parent)
             if name:
                 return name
-        if language == "c":
-            # R12: the declarator chain — `_declared_name`'s `name`-field
+        if language in ("c", "cpp"):
+            # R12/R13: the declarator chain — `_declared_name`'s `name`-field
             # read finds nothing (function_definition exposes no `name`),
             # and the generic first-identifier scan would return the
-            # declaration specifiers; the unwrap knows the shape.
+            # declaration specifiers; the unwrap knows the shape (C++:
+            # field_identifier inside class bodies, qualified_identifier
+            # for out-of-class definitions).
             return _c_function_name(n)
         return _declared_name(n)
 
@@ -841,9 +949,11 @@ def _walk_file(
         node_id = f"{file_id}::{name}"
         # disambiguate overloads by start line
         node_id = f"{node_id}@{n.start_point[0] + 1}"
-        params = _c_params_text(n) if language == "c" else _params_text(n)
+        params = (
+            _c_params_text(n) if language in ("c", "cpp") else _params_text(n)
+        )
         rtype = (
-            _c_return_type_text(n) if language == "c"
+            _c_return_type_text(n) if language in ("c", "cpp")
             else _return_type_text(n)
         )
         signature = _build_signature(name, params, rtype)
@@ -914,10 +1024,11 @@ def _walk_file(
 
     def _walk(node, enclosing_class_id: Optional[str]) -> None:
         if _is_class(node):
-            class_id = _emit_class(node)
-            # recurse into the class body with this class as enclosing scope
+            class_id = _emit_class(node) or None
+            # recurse into the class body; anonymous C++ class bodies
+            # (no name -> no node) keep the outer scope instead
             for child in node.children:
-                _walk(child, class_id)
+                _walk(child, class_id or enclosing_class_id)
             return
         if _is_function(node):
             _emit_function(node, enclosing_class_id)
@@ -1208,9 +1319,13 @@ def _call_target(node) -> tuple[str, str]:
             obj = fn.child_by_field_name("operand")
         if obj is None:
             obj = fn.child_by_field_name("value")
+        if obj is None:
+            obj = fn.child_by_field_name("expression")  # csharp member_access
         attr = fn.child_by_field_name("attribute")
         if attr is None:
             attr = fn.child_by_field_name("property")
+        if attr is None:
+            attr = fn.child_by_field_name("name")  # csharp member_access
         if attr is None:
             attr = fn.child_by_field_name("field")
         if attr is None:

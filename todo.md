@@ -820,7 +820,17 @@ file parses in conformance-style spot-check.
 
 ---
 
-### [ ] R13 · Languages #8–9: C++ and C# (M)
+### [x] R13 · Languages #8–9: C++ and C# (M) — DONE 2026-08-30
+
+*(Implementation summary: C++ — `_CPP_CLASS_TYPES` + body/name gate on
+the walker (C's struct-invisibility stays pinned for `.c`),
+`field_identifier`/`qualified_identifier` extensions to `_c_declarator_name`,
+base_class_clause bases; C# — `_CSHARP_CLASS_TYPES`,
+`_csharp_class_bases` (base_list first=extends/rest=implements,
+documented), `invocation_expression`+`member_access_expression` in the
+call pipeline; `.h` re-scoped to C headers with the mis-tree finding;
+10 tests across both languages; counts 7→9 (README, landscape,
+pyproject).)*
 
 **State today (verified).** Same tables as R12; C++ and C# each reuse
 R12's declarator path but diverge exactly where the roadmap says:
@@ -1211,5 +1221,9 @@ footnoted to its measured source; nothing published from vibes.
 - **2026-08-30 (implementation pass 10)** — R12 done: C language #7
   (declarator unwrap + mirror-bug pin + guard suite); suite 246 → 254.
   Committed.
+- **2026-08-30 (implementation pass 11)** — R13 done: C++ (#8) + C# (#9);
+  two live-found fixes (`.h` mis-tree under C grammar for C++ —
+  re-scoped with docs; `cs`-vs-`csharp` language-key mismatch); suite
+  254 → 264. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

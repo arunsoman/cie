@@ -215,12 +215,25 @@ effort S/M/L is a guess, treated as a guess.
       prototypes stay out (the definition carries graph identity —
       duplicating them would fork same-name resolution, pinned by a
       test). Suite 254/254.
-- [ ] **R13 · Languages #8–9: C++ and C#** (M). Share the R12
+- [x] **R13 · Languages #8–9: C++ and C#** (M). Share the R12
       declarator path; inheritance/impl resolution differs per language.
       Narrow but does not close the 6-vs-21-40+ gap — say so in the
       landscape doc, don't round up.
       **Verify:** same bar as R12, per language; README/landscape/
       pyproject updated in the same pass (the no-stale-docs rule).
+      *Done 2026-08-30 (counts now 9-vs-21-40+, stated as such).*
+      C++: `.cpp/.cc/.cxx/.hpp/.hh` loaders; named class/struct bodies
+      are CLASS + base_class_clause bases (access stripped, all
+      `extends`); member methods via field_identifier in class bodies;
+      out-of-class definitions via qualified_identifier's name part;
+      inline-only emit (no prototype fork, matching C's decision).
+      C#: `.cs`; class/interface/struct declarations; base_list first=
+      extends/rest=implements (the documented C# convention);
+      invocation_expression + member_accessExpression calls.
+      Found+fixed live: `.h` stays C-scoped (a C++ namespace block
+      mis-trees under the C grammar — caught by the R13 tests); the
+      `cs`-vs-`csharp` language-key mismatch (caught by the interface
+      test). 10 tests; suite 254 → 264.
 - [x] **R14 · PRD-hierarchy port to embedded SQLite** (M). The last
       Neo4j-only feature (`cie.hierarchy`) — offered and not selected in
       session 3, still true. Completes "everything works on the default
