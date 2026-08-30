@@ -1160,7 +1160,16 @@ from README in ≤2 clicks; C4's path verified as true by walking it.
 
 ---
 
-### [ ] R20 · Launch post, drafted but gated (S + timing)
+### [ ] R20 · Launch post, drafted but gated (S + timing) — draft DONE 2026-08-31
+
+*(Steps 1–2 complete: `docs/launch-post-draft.md` holds the Show HN +
+r/LocalLLaMA variants and the claim-by-claim table — 14 rows, every one
+footnoted to its measured source (file + section + date), losses kept
+in the post body per critique #10 (the 3-of-6 / 28-of-40 recall gaps,
+per-question MRR misses, vendor-claims labeling rule). Publish gates
+§D: 1–3 satisfied; 4 (re-run the measurable rows on the publishing
+commit), 5 (explicit go-ahead), 6 (HN timing) remain. Nothing has been
+published from here.)*
 
 **State today (verified).** All raw material exists and is measured:
 demo (recorded), benchmarks (2 docs + R9's third), tool-selection
