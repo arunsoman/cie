@@ -13,8 +13,11 @@ this repo doesn't otherwise need it.
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import logging
 import math
+import os
+import urllib.request
 from typing import List, Optional, Sequence
 
 try:  # be-v2's real embedding client, when cie runs embedded in be-v2
@@ -23,6 +26,130 @@ try:  # be-v2's real embedding client, when cie runs embedded in be-v2
 except Exception:  # standalone shim — cie installs without be-v2 on the path
     _real_embed_text = None
     _real_embed_texts = None
+
+
+# ---------------------------------------------------------------------------
+# First-party OpenAI-compatible fallback (stdlib-only, env-gated).
+#
+# Dispatch order (strongest wins):
+#   1. `core.llm` (be-v2's client) — when cie runs inside the host.
+#   2. `register_embed_functions` override — a host explicitly handing
+#      cie its own impl beats everything config-derived.
+#   3. THIS env-gated first-party client — stdlib urllib POST to any
+#      OpenAI-compatible `/embeddings` endpoint. The benchmark harness
+#      (scripts/benchmark_semantic.py) documents the resolved config.
+#   4. Raise — every call site already wraps its embed call in
+#      `try/except Exception: degrade to []` (see e.g.
+#      `Neo4jRepository.semantic_search`), so raising feeds that
+#      documented degrade path.
+#
+# Deliberate no-accidental-network rule: the fallback is active ONLY
+# when `CIE_EMBED_DSN` is explicitly set AND a key is available
+# (`CIE_EMBED_API_KEY`, else `NVIDIA_API_KEY`). Setting a bare API key
+# with no DSN never turns network calls on — the default DSN (NIM) is
+# only substituted once the user has pointed cie at a endpoint by
+# setting the DSN at all. This keeps `pytest -q` and any CI run free of
+# surprise HTTP even on a machine whose shell carries a provider key.
+
+#: NVIDIA NIM's OpenAI-compatible embeddings base URL — the same API
+#: shape core.llm targets when cie runs in the host environment.
+_DEFAULT_OPENAI_COMPATIBLE_DSN = "https://integrate.api.nvidia.com/v1"
+
+#: Default model. NVIDIA's retrieval-optimized embedding (nv-embedqa
+#: family) honors OpenAI's input-format while additionally requiring the
+#: `input_type` field ("query" vs "passage") — which the existing call
+#: sites already pass through (see `embedded_repository.hybrid_search`).
+_DEFAULT_OPENAI_COMPATIBLE_MODEL = "nvidia/nv-embedqa-e5-v5"
+
+
+def _env_fallback_config() -> Optional[tuple[str, str, str]]:
+    """Resolve the env-gated fallback config, or None when not active.
+
+    Returns ``(dsn, api_key, model)``. Read lazily at call time (not
+    import time) so tests and benchmark scripts can set/clear the env
+    freely. See the block comment above for the deliberate gating rule:
+    `CIE_EMBED_DSN` must be set; the key may come from `CIE_EMBED_API_KEY`
+    or fall back to `NVIDIA_API_KEY`.
+    """
+    dsn = (os.environ.get("CIE_EMBED_DSN") or "").strip().rstrip("/")
+    if not dsn:
+        return None
+    api_key = (
+        os.environ.get("CIE_EMBED_API_KEY") or os.environ.get("NVIDIA_API_KEY") or ""
+    ).strip()
+    if not api_key:
+        return None
+    model = (
+        os.environ.get("CIE_EMBED_MODEL") or _DEFAULT_OPENAI_COMPATIBLE_MODEL
+    ).strip()
+    return dsn, api_key, model
+
+
+def _post_embeddings(
+    dsn: str, api_key: str, model: str,
+    texts: Sequence[str], input_type: str,
+) -> list[list[float]]:
+    """One POST to `<dsn>/embeddings` via stdlib urllib — no client
+    dependency. Returns vectors in the same order as `texts` (the API
+    indexes each item; we re-sort in case the server reorders).
+
+    Raises on any HTTP/JSON/failure-path problem so the caller's
+    existing degrade-or-retry handling stays in charge.
+    """
+    req = urllib.request.Request(
+        f"{dsn}/embeddings",
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        data=json.dumps({
+            "input": list(texts),
+            "model": model,
+            "input_type": input_type,  # nv-embedqa family requires it
+            "encoding_format": "float",
+        }).encode("utf-8"),
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    # OpenAI-compatible shape: {"data": [{"index": i, "embedding": [...]}, ...]}
+    entries = sorted(body.get("data", []), key=lambda e: e.get("index", 0))
+    vectors = [list(map(float, e["embedding"])) for e in entries]
+    if len(vectors) != len(texts):
+        raise RuntimeError(
+            f"embeddings endpoint returned {len(vectors)} vectors for "
+            f"{len(texts)} inputs"
+        )
+    return vectors
+
+
+def _openai_compatible_embed_texts(
+    texts: Sequence[str], input_type: str = "passage",
+) -> list[list[float]]:
+    """Env-fallback batch entry — dispatch tier 3. Raises RuntimeError
+    when the env gate isn't satisfied (caller falls through to the
+    raising shim, or handles per its own degrade contract)."""
+    cfg = _env_fallback_config()
+    if cfg is None:
+        raise RuntimeError(
+            "no first-party embeddings fallback configured — set CIE_EMBED_DSN "
+            "(+ CIE_EMBED_API_KEY or NVIDIA_API_KEY) to enable the "
+            "OpenAI-compatible client, or register an override via "
+            "cie.embed.register_embed_functions"
+        )
+    return _post_embeddings(*cfg, texts=texts, input_type=input_type)
+
+
+def supports_embeddings() -> bool:
+    """True when some embeddings implementation is available for real
+    HTTP-free-vs-HTTP decisions at load time — `core.llm` present, an
+    override registered, or the env-gated first-party client configured.
+    Mirrors the gate `Neo4jRepository._maybe_compute_embeddings` uses.
+    """
+    if _real_embed_texts is not None:
+        return True
+    return _env_fallback_config() is not None
 
 
 def embed_text(text: str, model_name: Optional[str] = None, input_type: str = "passage") -> list[float]:
@@ -42,13 +169,18 @@ def embed_text(text: str, model_name: Optional[str] = None, input_type: str = "p
     feeds that existing degrade-gracefully path instead of failing
     `import cie.embed` itself.
     """
-    if _real_embed_text is None:
+    if _real_embed_text is not None:
+        return _real_embed_text(text, model_name=model_name, input_type=input_type)
+    try:
+        return _openai_compatible_embed_texts([text], input_type=input_type)[0]
+    except RuntimeError:
         raise RuntimeError(
             "no embed_text implementation available — core.llm is not on "
-            "the path and no override was registered via "
-            "cie.embed.register_embed_functions"
-        )
-    return _real_embed_text(text, model_name=model_name, input_type=input_type)
+            "the path, no override was registered via "
+            "cie.embed.register_embed_functions, and no first-party "
+            "OpenAI-compatible endpoint is configured (set CIE_EMBED_DSN "
+            "+ CIE_EMBED_API_KEY / NVIDIA_API_KEY"
+        ) from None
 
 
 def embed_texts(
@@ -56,13 +188,18 @@ def embed_texts(
 ) -> list[list[float]]:
     """Batch form — see `embed_text`'s docstring for the dispatch/shim
     contract, identical here."""
-    if _real_embed_texts is None:
+    if _real_embed_texts is not None:
+        return _real_embed_texts(texts, model_name=model_name, input_type=input_type)
+    try:
+        return _openai_compatible_embed_texts(texts, input_type=input_type)
+    except RuntimeError:
         raise RuntimeError(
             "no embed_texts implementation available — core.llm is not on "
-            "the path and no override was registered via "
-            "cie.embed.register_embed_functions"
-        )
-    return _real_embed_texts(texts, model_name=model_name, input_type=input_type)
+            "the path, no override was registered via "
+            "cie.embed.register_embed_functions, and no first-party "
+            "OpenAI-compatible endpoint is configured (set CIE_EMBED_DSN "
+            "+ CIE_EMBED_API_KEY / NVIDIA_API_KEY"
+        ) from None
 
 
 def register_embed_functions(single, batch) -> None:

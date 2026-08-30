@@ -1,8 +1,8 @@
 {
   "tool_count": 135,
   "summary": {
-    "verified": 100,
-    "graceful": 26,
+    "verified": 101,
+    "graceful": 25,
     "unavailable-by-design": 5,
     "backend-down": 4
   },
@@ -389,7 +389,7 @@
     },
     "install_git_hook": {
       "status": "graceful",
-      "detail": "validation: /tmp/tmp.0hw67cXjhS is not a git repository (no .git directory)",
+      "detail": "validation: /tmp/cie-surface-sandbox is not a git repository (no .git directory)",
       "attempts": 1,
       "args": {
         "cie_url": "alpha"
@@ -691,8 +691,8 @@
       }
     },
     "semantic_diff": {
-      "status": "graceful",
-      "detail": "not_found: unknown symbol 'app.py'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "spec_text": "alpha",

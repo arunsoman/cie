@@ -29,10 +29,20 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from core.llm import LlmAgent, Prompt, ask
 from cie.models import HybridMatch
 from cie.query import QueryEngine
 from cie import query_plan
+
+# `core.llm` (LlmAgent/Prompt/ask) is imported LAZILY inside the two
+# functions that make LLM calls (`rerank` below, and the answer step of
+# `qa()`), not here: importing this module must stay possible standalone
+# (no core.llm on the path) so the pipeline's pure layers — retrieval,
+# expansion, `_assemble_context` — remain testable/benchmarkable without
+# the host. `ToolService.qa` still resolves to an honest
+# `unavailable[OPTIONAL_BACKEND_MISSING:core]` envelope standalone: the
+# ModuleNotFoundError now surfaces inside the LLM-call functions instead
+# of at module import, and the guard classifies it identically (R5's
+# playbook, embedded-tools edition).
 
 # AI-06: per-query-type token budgets from spec item AI-06's own table
 # ("GraphRAG context <= 4K tokens"). Token count is APPROXIMATED as
@@ -100,34 +110,39 @@ class QaResult:
     faithfulness_score: Optional[float] = None
 
 
-@dataclass(frozen=True)
-class QaPrompt(Prompt[QaLlmOutput]):
-    question: str
-    context: str
+def _qa_prompt_and_agent(question: str, context: str):
+    """QaPrompt (core.llm.Prompt subclass) + its promise/agent pair, built
+    lazily inside qa()'s answer step (see the import note at the top of
+    this module) — keeps the module-level import free of core.llm."""
+    from core.llm import LlmAgent, Prompt
 
-    def system_prompt(self) -> str:
-        return (
-            "You are a code-grounded question-answering assistant for a "
-            "software codebase's knowledge graph. Answer the question "
-            "using ONLY the retrieved context provided below — every "
-            "symbol, file, and relationship you reference must come from "
-            "that context. If the context does not contain enough "
-            "information to answer confidently, say so explicitly rather "
-            "than guessing or inventing file paths, function names, or "
-            "behavior not shown in the context. Do not include citations "
-            "or file/line references in your answer text — those are "
-            "attached separately by the caller from the same retrieved "
-            "data; just answer the question in plain prose."
-        )
+    class QaPrompt(Prompt[QaLlmOutput]):
+        question: str
+        context: str
 
-    def render(self) -> str:
-        return (
-            f"## Question\n{self.question}\n\n"
-            f"## Retrieved context\n{self.context}"
-        )
+        def system_prompt(self) -> str:
+            return (
+                "You are a code-grounded question-answering assistant for a "
+                "software codebase's knowledge graph. Answer the question "
+                "using ONLY the retrieved context provided below — every "
+                "symbol, file, and relationship you reference must come from "
+                "that context. If the context does not contain enough "
+                "information to answer confidently, say so explicitly rather "
+                "than guessing or inventing file paths, function names, or "
+                "behavior not shown in the context. Do not include citations "
+                "or file/line references in your answer text — those are "
+                "attached separately by the caller from the same retrieved "
+                "data; just answer the question in plain prose."
+            )
 
+        def render(self) -> str:
+            return (
+                f"## Question\n{self.question}\n\n"
+                f"## Retrieved context\n{self.context}"
+            )
 
-AGENT = LlmAgent(name="cie_graphrag_qa", prompt_type=QaPrompt, output_type=QaLlmOutput)
+    agent = LlmAgent(name="cie_graphrag_qa", prompt_type=QaPrompt, output_type=QaLlmOutput)
+    return QaPrompt(question=question, context=context), agent
 
 
 class RerankLlmOutput(BaseModel):
@@ -138,31 +153,6 @@ class RerankLlmOutput(BaseModel):
     grounding-integrity discipline as `QaLlmOutput`."""
 
     ranked_node_ids: list[str]
-
-
-@dataclass(frozen=True)
-class RerankPrompt(Prompt[RerankLlmOutput]):
-    question: str
-    candidates: str
-
-    def system_prompt(self) -> str:
-        return (
-            "You are a relevance-ranking assistant for a code knowledge "
-            "graph. Given a question and a list of candidate symbols "
-            "(each with an id), return `ranked_node_ids`: the candidates' "
-            "ids reordered from MOST to LEAST relevant to answering the "
-            "question. You may drop candidates that are clearly "
-            "irrelevant, but only return ids that appeared in the "
-            "candidate list — never invent a new id."
-        )
-
-    def render(self) -> str:
-        return f"## Question\n{self.question}\n\n## Candidates\n{self.candidates}"
-
-
-RERANK_AGENT = LlmAgent(
-    name="cie_graphrag_rerank", prompt_type=RerankPrompt, output_type=RerankLlmOutput,
-)
 
 
 def _render_candidates(matches: list[HybridMatch]) -> str:
@@ -188,7 +178,34 @@ async def rerank(question: str, matches: list[HybridMatch], top_k: Optional[int]
     if len(matches) <= 1:
         return matches[: top_k or len(matches)]
     try:
-        output = await ask(RerankPrompt(
+        from core.llm import LlmAgent, Prompt, ask
+
+        class _RerankPrompt(Prompt[RerankLlmOutput]):
+            question: str
+            candidates: str
+
+            def system_prompt(self) -> str:
+                return (
+                    "You are a relevance-ranking assistant for a code knowledge "
+                    "graph. Given a question and a list of candidate symbols "
+                    "(each with an id), return `ranked_node_ids`: the candidates' "
+                    "ids reordered from MOST to LEAST relevant to answering the "
+                    "question. You may drop candidates that are clearly "
+                    "irrelevant, but only return ids that appeared in the "
+                    "candidate list — never invent a new id."
+                )
+
+            def render(self) -> str:
+                return f"## Question\n{self.question}\n\n## Candidates\n{self.candidates}"
+
+        # Same LlmAgent wiring as the pre-decoupling module-level constant
+        # (ask() derives its backend from the prompt type; the agent object
+        # stays for parity with core.llm's standard shape).
+        LlmAgent(
+            name="cie_graphrag_rerank",
+            prompt_type=_RerankPrompt, output_type=RerankLlmOutput,
+        )
+        output = await ask(_RerankPrompt(
             question=question, candidates=_render_candidates(matches),
         ))
         by_id = {m.node.id: m for m in matches}
@@ -414,6 +431,13 @@ async def qa(
     strategy was cut for scope (a wrong deterministic guess would be
     worse than the existing broad-retrieval default).
     """
+    # Availability gate, unchanged from the pre-decoupling contract (R5's
+    # pinned registry): qa is the LLM-backed GraphRAG question-answering
+    # tool — every call requires core.llm — so the import runs at call
+    # START (mirroring when the old module-level import used to fail),
+    # not just before the answer step. The pure pipeline below stays
+    # importable/testable standalone as a whole module.
+    from core.llm import ask
     if not question or not question.strip():
         return QaResult(answer="", citations=(), retrieved_node_ids=())
     question = question.strip()

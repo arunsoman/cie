@@ -173,6 +173,29 @@ class EmbeddedRepository(InMemoryRepository):
     def _flush(self) -> None:
         save_graph(self._db_path, list(self._nodes.values()), list(self._edges))
 
+    def load_extraction(self, nodes, edges, project: str = "") -> int:
+        """Embedded edition of `Neo4jRepository._maybe_compute_embeddings`:
+        when an embeddings implementation is available (host `core.llm`,
+        a `register_embed_functions` override, or the env-gated
+        OpenAI-compatible fallback — see `cie.embed.supports_embeddings`),
+        enrich the incoming extraction node dicts with real vectors
+        BEFORE they become persistent `Node`s; the post-call flush then
+        persists them like any other write. When nothing is configured,
+        rows skip embedding computation entirely (no network, no error)
+        — same guard, embedded backend."""
+        from cie.embed import compute_embeddings, supports_embeddings
+
+        if supports_embeddings() and nodes:
+            try:
+                compute_embeddings(list(nodes))
+            except Exception:  # noqa: BLE001 - de-embed, never fail the load
+                logging.getLogger("cie.embedded_repository").warning(
+                    "embedding enrichment failed for %d node(s); "
+                    "indexing continues without vectors", len(nodes),
+                    exc_info=True,
+                )
+        return super().load_extraction(nodes, edges, project)
+
     def __getattribute__(self, name: str) -> Any:
         attr = object.__getattribute__(self, name)
         if name.startswith("_") or not callable(attr):

@@ -64,17 +64,18 @@ def test_core_is_genuinely_absent_in_standalone():
 
 @pytest.mark.parametrize("module", ZOMBIE_LLM_MODULES)
 def test_fixed_modules_now_import_standalone(module):
-    """The R5 fix, pinned: four of the five former zombie modules import
-    standalone with NO `core.llm` on the path (their LLM use is deferred
-    to the one call site per module that actually asks). `cie.graphrag`
-    is the deliberate stays-zipped exception — its `qa` pipeline's
-    ask/rerank layers are genuinely LLM-bound end to end."""
+    """The R5 fix, pinned: the former zombie modules import standalone
+    with NO `core.llm` on the path (their LLM use is deferred to the one
+    call site per module that actually asks). R10 extended this to
+    `cie.graphrag` itself: the pure pipeline layers (retrieval →
+    expansion → `_assemble_context`) now import standalone so the
+    semantic benchmark can drive them; the LLM bound moved to call time
+    — `qa()`'s availability gate at call START (preserving R5's
+    `unavailable[OPTIONAL_BACKEND_MISSING:core]` envelope exactly) and
+    `rerank()`'s degrade-to-original-order path (pinned separately
+    below)."""
     import sys
     sys.modules.pop(module, None)
-    if module == "cie.graphrag":
-        with pytest.raises(ModuleNotFoundError, match="core"):
-            importlib.import_module(module)
-        return
     importlib.import_module(module)
 
 
@@ -89,6 +90,36 @@ def test_deferred_llm_entry_points_still_fail_only_at_call_time():
 
     with pytest.raises(ModuleNotFoundError, match="core"):
         __import__("asyncio").run(contracts.extract_contracts("retries <= 3"))
+
+
+def test_graphrag_llm_bound_is_call_time_not_import_time():
+    """R10's refinement of the graphrag contract, both halves pinned:
+
+    - import: `cie.graphrag` imports standalone (its pure retrieval +
+      context-assembly layers are benchmarkable without the host — the
+      R10 semantic benchmark depends on that).
+    - call: `ToolService.qa` still resolves to the exact R5 envelope
+      (`unavailable[OPTIONAL_BACKEND_MISSING:core]` — pinned in
+      test_unavailable_reasons.py) because its availability gate runs at
+      call start; `rerank` degrades to the hybrid order instead of
+      raising (its own degraded-by-design path)."""
+    import asyncio
+
+    import cie.graphrag as graphrag
+    from cie.models import HybridMatch, Node
+
+    node = Node(id="x", label="x", kind="FUNC", source_file="x.py")
+    match = HybridMatch(node=node, score=1.0, lexical_score=1.0,
+                        dense_score=0.0, graph_score=0.0)
+
+    # rerank degrades (never raises) without core.llm:
+    ranked = asyncio.run(graphrag.rerank("q", [match, match]))
+    assert [m.node.id for m in ranked] == ["x", "x"]  # order preserved
+
+    # qa raises at call time (NOT import time) — the pipeline-level half
+    # of the envelope contract:
+    with pytest.raises(ModuleNotFoundError, match="core"):
+        asyncio.run(graphrag.qa("anything"))
 
 
 def test_error_kind_unavailable_is_registered_in_the_spec():
