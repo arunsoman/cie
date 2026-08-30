@@ -2259,6 +2259,49 @@ def serve() -> None:
     sys.exit(1)
 
 
+@cli.command(name="export-html")
+@click.argument("path", required=False, default=None,
+               type=click.Path(file_okay=False, path_type=Path))
+@click.option("--out", "out", type=click.Path(dir_okay=False, path_type=Path),
+              default=None, help="Output file (default: <root>/export.html).")
+@click.option("--max-chains", type=int, default=50,
+              help="Cap on rendered task/test chains (the export is a snapshot, "
+                   "not the whole graph — raise it for big projects).")
+@click.option("--max-files", type=int, default=100)
+@click.pass_context
+def export_html(ctx, path: Optional[Path], out: Optional[Path],
+                max_chains: int, max_files: int) -> None:
+    """Render a self-contained, read-only HTML snapshot of the project
+    graph (task->file->test chains, orphans, tasks, files).
+
+    One static file — no server, no network access, opens via file://.
+    Data comes from the same ToolService envelopes the MCP/HTTP surfaces
+    serve, so the export can't exceed their read side (roadmap R8).
+    """
+    from cie.export_html import export_html as _export
+
+    root = (Path(path) if path else Path.cwd()).resolve()
+    out_path = out or (Path.cwd() / "export.html")
+    # the export is rooted at the given path, exactly like the embedded
+    # index (both files sit under <root>/.cie)
+    from cie.factory import build_tool_service_embedded
+
+    service = build_tool_service_embedded(root)
+    with ToolTimer() as timer:
+        written, summary = _export(
+            service, root, out_path, max_chains=max_chains, max_files=max_files,
+        )
+    payload = {"out": str(written), **summary}
+    if _emit(ctx, "export_html", payload, timer=timer):
+        return
+    console.print(
+        f"[green]wrote {written}[/green] — "
+        f"{summary['files']} files, {summary['tasks']} tasks, "
+        f"{summary['chains']} chains, {summary['orphans']} orphans.\n"
+        "  open it directly in a browser (file://) — no server needed."
+    )
+
+
 def main() -> None:
     """Entry point for the `cie` console script."""
     try:

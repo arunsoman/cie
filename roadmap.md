@@ -141,7 +141,7 @@ effort S/M/L is a guess, treated as a guess.
       path IS the other surface); live-verified on psf/requests —
       `resolution {19 total, 16 unresolved, 3 resolved}`, matching the
       published 3-resolved. Suite 239/239.
-- [ ] **R8 · `cie export-html` — the shareable artifact** (M). Static,
+- [x] **R8 · `cie export-html` — the shareable artifact** (M). Static,
       read-only, self-contained HTML of a project's graph centered on
       what nobody else can render: task→file→test chains
       (`traceability_chain`/`_orphans`), plus callers/file_skeleton
@@ -150,6 +150,14 @@ effort S/M/L is a guess, treated as a guess.
       artifact joins demo.svg via a script, not a one-off.
       **Verify:** export psf/requests, open via `file://` with zero
       deps, capture through the same record-then-commit pattern.
+      *Done 2026-08-30.* `cie/export_html.py` + CLI `export-html`;
+      data from read-only envelopes + the same repo reads the
+      traceability tools use; zero-external-refs asserted in tests
+      (plus XSS-escape pins); live: psf/requests export = 37 files / 34
+      chains / 680 orphans / 215KB single file / **0 external
+      references**; screenshots captured straight from `file://` via
+      `scripts/record_export_html.sh` (committed: docs/images/
+      export-{snapshot,chains}.png). Suite 241 → 246.
 - [ ] **R9 · Benchmark harness + third independent repo** (M). Turn
       docs/benchmarks-requests.md's methodology into
       `scripts/benchmark.sh` (reproducible like `record_demo.sh` is the

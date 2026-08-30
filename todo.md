@@ -554,7 +554,16 @@ benchmark's 3-of-6 for `close()` — the claim and the tool agree.
 
 ---
 
-### [ ] R8 · `cie export-html` — the shareable artifact (M)
+### [x] R8 · `cie export-html` — the shareable artifact (M) — DONE 2026-08-30
+
+*(Implementation summary: `cie/export_html.py` — read-only composition
+through ToolService envelopes + one project_graph fetch for chains
+(node-id-exact matching); CLI `cie export-html [PATH] --out`; XSS/blob
+escape tests; zero-external-reference tests; real psf/requests export
+(37 files/34 chains/680 orphans/215KB/0 external refs); screenshots
+committed from `file://` via scripts/record_export_html.sh. Found+fixed
+en route: the JS view-activation bug the first screenshot caught
+(Overview never activated).)*
 
 **State today (verified).** Nothing HTML-export exists; the pieces it
 composes do: `traceability_chain`/`traceability_orphans` (ToolService,
@@ -1180,5 +1189,8 @@ footnoted to its measured source; nothing published from vibes.
   doc's 6-site framing); suite 235 → 239. Committed.
 - **2026-08-30 (implementation pass 7)** — R11 done: streamable-http
   end to end (wiring + harness + docs); suite 239 → 241. Committed.
+- **2026-08-30 (implementation pass 8)** — R8 done: export-html feature
+  (CLI + module + tests), psf/requests artifact + screenshots recorded
+  via the script; suite 241 → 246. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R8 — `cie export-html`: the shareable artifact.** One static,
+  self-contained HTML snapshot of a project's graph, centered on what no
+  competitor renders: task→file→test chains (real TESTS edges from the
+  index pass), orphan symbols, the atomic-task list, indexed files, and
+  a text filter — no server, no auth surface, no network access, opens
+  via `file://` (zero external references asserted in tests).
+  `scripts/record_export_html.sh` reproduces end to end: clone psf/
+  requests at the pinned commit → index → export → headless-Chrome
+  screenshots straight from `file://` (committed to `docs/images/`).
+  CLI: `cie export-html [PATH] --out FILE [--max-chains N]`.
+
+### Added
+
 - **R11 — streamable-HTTP transport for `cie-mcp`.** The `--transport
   streamable-http` choice is now actually usable end to end: `--host`
   (default `127.0.0.1`) / `--port` (8000) kwargs wired into the SDK's

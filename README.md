@@ -117,6 +117,20 @@ too, backed by a second local SQLite file (`.cie/tasks.db`, via
 The hierarchy store is `--no-hierarchy`-optional the same way
 (`.cie/hierarchy.db` by default).
 
+### Share it: one static HTML file
+
+```bash
+cie export-html /path/to/project --out snapshot.html
+```
+
+One self-contained file (task→file→test chains, orphan symbols, the
+task list, indexed files) — no server, no auth surface, no network
+calls; open it via `file://` and share it. The zero-external-reference
+contract is asserted by tests and re-proven by
+[`scripts/record_export_html.sh`](scripts/record_export_html.sh)
+(screenshots in `docs/images/`). This is the *safe slice* of a viewer:
+a snapshot, not an app.
+
 ### Serving over HTTP instead of stdio
 
 ```bash
