@@ -89,10 +89,11 @@ def classify(raw: str, is_error: bool) -> tuple[str, str]:
         return "verified", ""
     err = env.get("error") or {}
     kind = env.get("error", {}).get("kind", "?" if not env.get("ok") else "?")
+    reason = err.get("reason")  # machine-readable slug (R5), when present
     msg = str(err.get("message", ""))[:110]
     hint = str(env.get("hint", ""))[:60]
     if kind == "unavailable":
-        return "unavailable-by-design", msg
+        return "unavailable-by-design", (f"reason={reason}; " if reason else "") + msg
     if kind in ("validation", "not_found"):
         return "graceful", f"{kind}: {msg}"
     if kind == "internal":

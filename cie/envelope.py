@@ -91,6 +91,7 @@ def err_envelope(
     *,
     hint: Optional[str] = None,
     elapsed_ms: int = 0,
+    reason: Optional[str] = None,
 ) -> dict:
     """Build the standard error envelope for a failed tool call.
 
@@ -101,16 +102,24 @@ def err_envelope(
         message: Human/agent-readable description of what went wrong.
         hint: What to try next. MANDATORY — failures must be self-describing.
         elapsed_ms: Wall time until the failure in milliseconds.
+        reason: Machine-readable cause slug for ``unavailable`` errors
+            (R5) — e.g. ``"OPTIONAL_BACKEND_MISSING:core.llm"`` or
+            ``"HOST_PLUGIN_MISSING:decompose-detector"``. Optional;
+            callers that can classify their failure should always supply
+            it so harnesses can assert against a slug instead of prose.
 
     Returns:
         The error envelope dict, JSON-serializable as-is.
     """
     if kind not in ERROR_KINDS:
         kind = "internal"
+    error: dict = {"kind": kind, "message": message}
+    if reason is not None:
+        error["reason"] = reason
     return {
         "ok": False,
         "tool": tool,
-        "error": {"kind": kind, "message": message},
+        "error": error,
         "hint": hint,
         "elapsed_ms": elapsed_ms,
     }

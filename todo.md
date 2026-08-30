@@ -338,7 +338,17 @@ internal link resolves.
 
 ---
 
-### [ ] R5 · Shrink the unavailable-by-design surface (M)
+### [x] R5 · Shrink the unavailable-by-design surface (M) — DONE 2026-08-30
+
+*(Implementation summary: lazy `core.llm` in 4 modules → 13 tools
+un-503'd; `err` envelope gains optional `error.reason` slug; `_guard`
+classifies ModuleNotFoundError/DetectorUnavailable into
+`OPTIONAL_BACKEND_MISSING:*` / `HOST_PLUGIN_MISSING:*` slugs; registry
+pinned in `tests/test_unavailable_reasons.py` incl. a regrowth gate;
+conformance harness carries reason into `surface_results.json` — live
+run: 132 tools / 100 verified / 23 graceful / 5 unavailable. Real crash
+found+fixed en route: `failing_context("")` IsADirectoryError via the
+heuristic fallback.)*
 
 **State today (verified).** The 18-tool unavailable bucket decomposes,
 by module, to exactly six root causes — all module-level imports of the
@@ -1118,5 +1128,9 @@ footnoted to its measured source; nothing published from vibes.
   id; a fresh-id re-push with the same name creates a second row (both
   backends; plan_push rejects duplicate names within one batch only).
   Documented by test. Suite 186 → 205. Committed.
+- **2026-08-30 (implementation pass 4)** — R5 done: 18 → 5 unavailable,
+  all with reason slugs; 13 tools now run purely standalone; bucket
+  scan caught and fixed `failing_context("")` IsADirectoryError;
+  conformance 100/23/5/4, 0 crashes; suite 205 → 212. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

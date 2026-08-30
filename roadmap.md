@@ -87,7 +87,7 @@ effort S/M/L is a guess, treated as a guess.
       copy); goal.md gains a Provenance section, all 11 references now
       carry folded language, tombstone `docs/growth-plan.md` added for
       old deep links. Verify re-run clean.
-- [ ] **R5 · Shrink the unavailable-by-design surface** (M). 18 of 126
+- [x] **R5 · Shrink the unavailable-by-design surface** (M). 18 of 132
       tools 503 (`unavailable`) in a standalone install from zombie
       `core.llm` protobox imports (session-7/8 conformance). Decouple
       them or move genuinely host-only tools behind an explicit plugin
@@ -95,7 +95,16 @@ effort S/M/L is a guess, treated as a guess.
       readable reason string.
       **Verify:** `tool-test-lab/surface_conformance.py` re-run:
       unavailable bucket 18 → ≤6, each with its reason asserted in the
-      harness; README's "~126 tools" gains the honest footnote.
+      harness; README's "~132 tools" gains the honest footnote.
+      *Done 2026-08-30 (decouple option).* Module-level `core.llm`
+      imports deferred to the LLM call sites in 4 modules → 13 tools now
+      run standalone; the remaining 5 (`qa`, `contracts_run`,
+      `state_machine_run`, `community_summarize_run`, `decompose_page`)
+      503 with `error.reason` slugs, pinned by a hand-curated registry
+      test + a bucket-size gate; envelope `reason` field added;
+      failing_context("") crash found & fixed en route. Conformance:
+      100 verified / 23 graceful / 5 unavailable / 4 backend-gated / 0
+      crashes. Suite 212/212.
 - [ ] **R6 · Cut 0.1.0 stable — the C1 gate** (S once R1–R5 close).
       Release checklist: final suite + conformance green, R3 counts
       accurate, CHANGELOG 0.1.0 section dated, version bump, GH release

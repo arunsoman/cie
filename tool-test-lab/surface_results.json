@@ -1,9 +1,9 @@
 {
   "tool_count": 132,
   "summary": {
-    "verified": 88,
-    "graceful": 22,
-    "unavailable-by-design": 18,
+    "verified": 100,
+    "graceful": 23,
+    "unavailable-by-design": 5,
     "backend-down": 4
   },
   "results": {
@@ -133,14 +133,14 @@
       }
     },
     "community_detect_run": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
     "community_search": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "query": "alpha"
@@ -148,7 +148,7 @@
     },
     "community_summarize_run": {
       "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "detail": "reason=OPTIONAL_BACKEND_MISSING:core; ModuleNotFoundError: No module named 'core'",
       "attempts": 1,
       "args": {}
     },
@@ -173,22 +173,22 @@
       }
     },
     "contracts": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
     "contracts_run": {
       "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "detail": "reason=OPTIONAL_BACKEND_MISSING:core; ModuleNotFoundError: No module named 'core'",
       "attempts": 1,
       "args": {
         "text": "def alpha():\n    return 1\n"
       }
     },
     "coverage_gaps": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
@@ -200,7 +200,7 @@
     },
     "decompose_page": {
       "status": "unavailable-by-design",
-      "detail": "DetectorUnavailable: no interactive-element detector available for cie.decompose.extract_elements \u2014 register o",
+      "detail": "reason=HOST_PLUGIN_MISSING:decompose-detector; DetectorUnavailable: no interactive-element detector available for cie.decompose.extract_elements \u2014 register o",
       "attempts": 1,
       "args": {
         "html": "alpha",
@@ -308,8 +308,8 @@
       "args": {}
     },
     "fsm_validate": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "graceful",
+      "detail": "not_found: no state machine named 'alpha'",
       "attempts": 1,
       "args": {
         "entity_name": "alpha"
@@ -367,8 +367,8 @@
       "args": {}
     },
     "inject_assertions": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "code": "alpha",
@@ -377,7 +377,7 @@
     },
     "install_git_hook": {
       "status": "graceful",
-      "detail": "validation: /tmp/tmp.a5RkYVoslb is not a git repository (no .git directory)",
+      "detail": "validation: /tmp/tmp.U3ZnTjDe1b is not a git repository (no .git directory)",
       "attempts": 1,
       "args": {
         "cie_url": "alpha"
@@ -456,8 +456,8 @@
       }
     },
     "nook_and_corner_test": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
@@ -560,7 +560,7 @@
     },
     "qa": {
       "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "detail": "reason=OPTIONAL_BACKEND_MISSING:core; ModuleNotFoundError: No module named 'core'",
       "attempts": 1,
       "args": {
         "question": "alpha"
@@ -648,8 +648,8 @@
       }
     },
     "run_tests": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "test_type": "alpha",
@@ -715,7 +715,7 @@
     },
     "state_machine_run": {
       "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "detail": "reason=OPTIONAL_BACKEND_MISSING:core; ModuleNotFoundError: No module named 'core'",
       "attempts": 1,
       "args": {
         "text": "def alpha():\n    return 1\n"
@@ -734,8 +734,8 @@
       "args": {}
     },
     "strip_assertions": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "code": "alpha"
@@ -849,14 +849,14 @@
       }
     },
     "test_plan": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
     "test_results": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
@@ -909,8 +909,8 @@
       "args": {}
     },
     "unified_coverage_report": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {}
     },
@@ -923,8 +923,8 @@
       }
     },
     "validate_types": {
-      "status": "unavailable-by-design",
-      "detail": "ModuleNotFoundError: No module named 'core'",
+      "status": "verified",
+      "detail": "",
       "attempts": 1,
       "args": {
         "domain_types": {}

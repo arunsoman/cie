@@ -37,7 +37,6 @@ from typing import Optional, Sequence
 
 from pydantic import BaseModel
 
-from core.llm import LlmAgent, Prompt, ask
 from cie.models import Node, NodeKind
 
 
@@ -89,6 +88,13 @@ def generate_test_plan(
 
 
 # -- TE-01, follow-up: PRD error scenarios (LLM) ------------------------------
+#
+# R5: `core.llm` (the host project's LLM layer) is imported HERE, at the
+# one call site that needs it — a module-level import of `core.llm` (and
+# the Prompt subclass + LlmAgent module global it fed) made THIS ENTIRE
+# module unimportable in a standalone install, which 503'd six
+# otherwise-pure tools (`test_plan`, `run_tests`, `test_results`,
+# `coverage_gaps`, `nook_and_corner_test`, `unified_coverage_report`).
 
 class ErrorScenarioItem(BaseModel):
     description: str
@@ -100,34 +106,6 @@ class ErrorScenarioLlmOutput(BaseModel):
     scenarios: list[ErrorScenarioItem]
 
 
-@dataclass(frozen=True)
-class ErrorScenarioPrompt(Prompt[ErrorScenarioLlmOutput]):
-    text: str
-
-    def system_prompt(self) -> str:
-        return (
-            "You extract ERROR SCENARIOS from product requirement text: "
-            "situations where something goes wrong (invalid input, a "
-            "downstream failure, a permission denial, a timeout, a "
-            "race condition) that the described function/endpoint must "
-            "handle. For each, name the function/class/endpoint it "
-            "applies to (as literally named or clearly implied in the "
-            "text), the triggering condition, and a one-sentence "
-            "description of the scenario. If the text describes no "
-            "error handling requirement, return an empty scenarios "
-            "list. Never invent a scenario not grounded in the text."
-        )
-
-    def render(self) -> str:
-        return f"## Requirement text\n{self.text}"
-
-
-AGENT = LlmAgent(
-    name="cie_error_scenario_extractor", prompt_type=ErrorScenarioPrompt,
-    output_type=ErrorScenarioLlmOutput,
-)
-
-
 async def extract_error_scenarios(text: str) -> list[dict]:
     """TE-01 follow-up: LLM-based extraction of error scenarios from
     requirement text — the same `core.llm` `Prompt`/`ask` pattern CF-01's
@@ -135,6 +113,36 @@ async def extract_error_scenarios(text: str) -> list[dict]:
     short-circuits to `[]` without an LLM call."""
     if not text.strip():
         return []
+    from core.llm import LlmAgent, Prompt, ask  # deferred: see the R5 note above
+
+    @dataclass(frozen=True)
+    class ErrorScenarioPrompt(Prompt[ErrorScenarioLlmOutput]):
+        """Prompt built here (not module scope) — its base class lives in
+        the host project's optional `core.llm` layer."""
+
+        text: str
+
+        def system_prompt(self) -> str:
+            return (
+                "You extract ERROR SCENARIOS from product requirement text: "
+                "situations where something goes wrong (invalid input, a "
+                "downstream failure, a permission denial, a timeout, a "
+                "race condition) that the described function/endpoint must "
+                "handle. For each, name the function/class/endpoint it "
+                "applies to (as literally named or clearly implied in the "
+                "text), the triggering condition, and a one-sentence "
+                "description of the scenario. If the text describes no "
+                "error handling requirement, return an empty scenarios "
+                "list. Never invent a scenario not grounded in the text."
+            )
+
+        def render(self) -> str:
+            return f"## Requirement text\n{self.text}"
+
+    agent = LlmAgent(
+        name="cie_error_scenario_extractor", prompt_type=ErrorScenarioPrompt,
+        output_type=ErrorScenarioLlmOutput,
+    )
     output = await ask(ErrorScenarioPrompt(text=text))
     return [item.model_dump() for item in output.scenarios]
 

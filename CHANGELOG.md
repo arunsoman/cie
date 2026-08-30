@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R5 — the 503 surface shrinks 18 → 5, each with a machine-readable
+  reason.** The four protobox-leftover modules
+  (`cie/community_detect.py`, `cie/contracts.py`, `cie/state_machine.py`,
+  `cie/test_orchestration.py`) no longer import `core.llm` at module
+  level: the import (and the `Prompt`/`LlmAgent` definitions it fed)
+  moved into the one function per module that actually calls the LLM.
+  Everything whose logic was pure now runs standalone —
+  `community_detect_run` (label propagation), `community_search`,
+  `contracts` (query), `validate_types`, `inject_assertions`,
+  `strip_assertions`, `test_plan`, `run_tests`, `test_results`,
+  `coverage_gaps`, `nook_and_corner_test`, `unified_coverage_report` —
+  no shell LLM dependency at all. The five tools that genuinely need a host-only
+  backend (`qa`, `contracts_run`, `state_machine_run`,
+  `community_summarize_run`, `decompose_page`) now 503 with
+  `error.reason` slugs (`OPTIONAL_BACKEND_MISSING:core` /
+  `HOST_PLUGIN_MISSING:decompose-detector`) instead of prose — the error
+  envelope grows the optional `reason` field, the conformance
+  harness surfaces it, and `tests/test_unavailable_reasons.py`
+  pins the registry + a no-quiet-regrowth gate. Found and fixed en
+  route by the new bucket scan: `failing_context("")` crashed
+  (IsADirectoryError) through the heuristic fallback — now an honest
+  validation-hint envelope. Live conformance: 132 tools, **100
+  verified / 23 graceful / 5 unavailable / 4 backend-gated / 0
+  crashes** (`tool-test-lab/surface_results.json`, fresh artifact).
+
 - **MCP write-side parity for the task/QA layer (roadmap R1).** The six
   task/QA write-back tools — `push_tasks`, `set_task_status`,
   `link_artifact`, `append_repair_events`, `record_coverage`,

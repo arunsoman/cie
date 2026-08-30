@@ -42,10 +42,14 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from core.llm import LlmAgent, Prompt, ask
-from core.llm.embed_text import embed_text
 from cie.models import EdgeRecord, Node, NodeKind, SemanticMatch
 from cie.repository import Repository
+
+# (R5) `core.llm` imports are deferred into the two LLM/embedding call
+# sites below: a module-level import of `core.llm` made this whole module
+# unimportable in a standalone install, and 503'd three tools of which
+# `community_detect_run` (label propagation — PURE) and `community_search`
+# (lexical-fallback search — PURE) have no LLM dependency at all.
 
 # Members shown to the LLM per community — a community can have hundreds
 # of members; the prompt only needs enough to characterize the theme; a
@@ -136,33 +140,6 @@ class CommunitySummaryLlmOutput(BaseModel):
     summary: str
 
 
-@dataclass(frozen=True)
-class CommunitySummaryPrompt(Prompt[CommunitySummaryLlmOutput]):
-    members_text: str
-
-    def system_prompt(self) -> str:
-        return (
-            "You are summarizing one COMMUNITY (a structurally-connected "
-            "cluster) of code symbols from a knowledge graph, for use in "
-            "thematic search later. Given a sample of the community's "
-            "member symbols (name, kind, file, and docstring/signature "
-            "when available), write a SHORT (1-3 sentence) summary of "
-            "the theme or responsibility this group of code shares — "
-            "e.g. 'Authentication and session management: login, "
-            "logout, and token refresh handlers.' Do not list every "
-            "member by name; characterize the group's PURPOSE."
-        )
-
-    def render(self) -> str:
-        return f"## Community members\n{self.members_text}"
-
-
-COMMUNITY_SUMMARY_AGENT = LlmAgent(
-    name="cie_community_summary", prompt_type=CommunitySummaryPrompt,
-    output_type=CommunitySummaryLlmOutput,
-)
-
-
 def _render_members(members: list[Node]) -> str:
     sample = members[:_MAX_MEMBERS_IN_PROMPT]
     lines = []
@@ -193,6 +170,36 @@ async def generate_community_summaries(repo: Repository, project: str = "") -> d
     if not community_counts:
         repo.replace_analysis_nodes(NodeKind.COMMUNITY_SUMMARY.value, [], [], project=project)
         return {"summarized": 0}
+
+    from core.llm import LlmAgent, Prompt, ask  # deferred: see the module R5 note
+
+    @dataclass(frozen=True)
+    class CommunitySummaryPrompt(Prompt[CommunitySummaryLlmOutput]):
+        """Prompt built here (not module scope) — its base class lives in
+        the host project's optional `core.llm` layer."""
+
+        members_text: str
+
+        def system_prompt(self) -> str:
+            return (
+                "You are summarizing one COMMUNITY (a structurally-connected "
+                "cluster) of code symbols from a knowledge graph, for use in "
+                "thematic search later. Given a sample of the community's "
+                "member symbols (name, kind, file, and docstring/signature "
+                "when available), write a SHORT (1-3 sentence) summary of "
+                "the theme or responsibility this group of code shares — "
+                "e.g. 'Authentication and session management: login, "
+                "logout, and token refresh handlers.' Do not list every "
+                "member by name; characterize the group's PURPOSE."
+            )
+
+        def render(self) -> str:
+            return f"## Community members\n{self.members_text}"
+
+    agent = LlmAgent(
+        name="cie_community_summary", prompt_type=CommunitySummaryPrompt,
+        output_type=CommunitySummaryLlmOutput,
+    )
 
     summary_nodes: list[dict] = []
     failures: list[int] = []
@@ -232,8 +239,10 @@ async def generate_community_summaries(repo: Repository, project: str = "") -> d
 
 def _maybe_embed(text: str) -> list[float]:
     """Best-effort embedding for a community summary — degrades to `[]`
-    on any embedding failure (unreachable API, no key configured), same
-    "queryable nice-to-have, never a hard dependency" convention
+    on any embedding failure (unreachable API, no key configured, or the
+    host project's `core.llm` layer absent entirely — R5: the import is
+    HERE, with its absence treated like any other embedding failure),
+    same "queryable nice-to-have, never a hard dependency" convention
     `Neo4jRepository._maybe_compute_embeddings` already uses for the
     structural load path. A summary without an embedding still gets
     written and is still findable via `community_search`'s lexical
@@ -241,6 +250,8 @@ def _maybe_embed(text: str) -> list[float]:
     vector leg.
     """
     try:
+        from core.llm.embed_text import embed_text  # deferred: see the R5 note
+
         return list(embed_text(text, input_type="passage"))
     except Exception:  # noqa: BLE001
         return []

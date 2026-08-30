@@ -164,7 +164,7 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   [`cie/patch.py`](cie/patch.py) and the changelog),
   all self-describing (`ToolService.describe()`), exposable as typed
   JSON-Schema tool definitions (`cie.tool_schema`) with per-agent-type
-  authorization (`cie.tool_policy`), and servable over the real Model
+  authorization (`cie.tool_policy`), servable over the real Model
   Context Protocol (`cie.mcp_server`, `cie-mcp`).
 - **A task / PRD-hierarchy layer** (`cie.task_repository`,
   `cie.hierarchy`) for tracking atomic dev/QA tasks and (optionally) a
@@ -179,6 +179,16 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   `prd_coverage`/`prd_orphans`/`prd_traceability_chain`) is **still
   Neo4j only** — those three tools call `cie.factory.get_hierarchy_repo`
   directly regardless of which backend built the `ToolService`.
+- **Honest degradation, machine-readable** (post-R5): tools whose logic
+  is pure run standalone — the 2026-08-30 lazy-`core.llm` refactor
+  un-503'd 13 of the 18 previously unavailable tools — and the 5 that
+  genuinely need a host-only backend (`qa`, `contracts_run`,
+  `state_machine_run`, `community_summarize_run`: the host's LLM layer;
+  `decompose_page`: a decompose plugin) return `kind="unavailable"`
+  **with a stable `error.reason` slug** (e.g.
+  `OPTIONAL_BACKEND_MISSING:core`), pinned by
+  `tests/test_unavailable_reasons.py`, plus a machine-checked gate that
+  the unavailable bucket can't quietly regrow.
 
 ## Capabilities (grounded in the code)
 

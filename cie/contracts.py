@@ -27,9 +27,14 @@ from typing import Sequence
 
 from pydantic import BaseModel
 
-from core.llm import LlmAgent, Prompt, ask
 from cie.data_model import _parse_signature_types, _clean_type_name
 from cie.models import Node, NodeKind
+
+# (R5) `core.llm` imports are deferred into the one LLM call site that
+# needs them (`extract_contracts`): a module-level import made this whole
+# module unimportable in a standalone install, and 503'd four tools of
+# which `contracts` (query), `validate_types`, `inject_assertions`, and
+# `strip_assertions` are all PURE logic with no LLM dependency.
 
 # -- CF-01: ContractExtractor --------------------------------------------------
 
@@ -45,43 +50,45 @@ class ContractLlmOutput(BaseModel):
     contracts: list[ContractLlmItem]
 
 
-@dataclass(frozen=True)
-class ContractExtractPrompt(Prompt[ContractLlmOutput]):
-    text: str
-
-    def system_prompt(self) -> str:
-        return (
-            "You extract FORMAL, VERIFIABLE contracts from product "
-            "requirement text: pre-conditions, post-conditions, "
-            "invariants, and guards. Each contract must name the "
-            "function/class/endpoint it applies to (as literally named or "
-            "clearly implied in the text) and express the rule as a "
-            "single Python boolean expression suitable for "
-            "`assert <expression>` (e.g. `retries <= 3`, "
-            "`email is not None and '@' in email`). Only reference names "
-            "that would plausibly be local variables/parameters in that "
-            "function — never invent object attribute chains you cannot "
-            "know exist. If the text states no verifiable rule, return an "
-            "empty contracts list. Never invent a contract not grounded "
-            "in the text."
-        )
-
-    def render(self) -> str:
-        return f"## Requirement text\n{self.text}"
-
-
-AGENT = LlmAgent(
-    name="cie_contract_extractor", prompt_type=ContractExtractPrompt,
-    output_type=ContractLlmOutput,
-)
-
-
 async def extract_contracts(text: str) -> list[dict]:
     """CF-01: LLM-based extraction of formal contracts from requirement
     text. `text.strip() == ""` short-circuits to `[]` without an LLM
     call (nothing to extract)."""
     if not text.strip():
         return []
+    from core.llm import LlmAgent, Prompt, ask  # deferred: see the R5 note
+
+    @dataclass(frozen=True)
+    class ContractExtractPrompt(Prompt[ContractLlmOutput]):
+        """Prompt built here (not module scope) — its base class lives in
+        the host project's optional `core.llm` layer."""
+
+        text: str
+
+        def system_prompt(self) -> str:
+            return (
+                "You extract FORMAL, VERIFIABLE contracts from product "
+                "requirement text: pre-conditions, post-conditions, "
+                "invariants, and guards. Each contract must name the "
+                "function/class/endpoint it applies to (as literally named or "
+                "clearly implied in the text) and express the rule as a "
+                "single Python boolean expression suitable for "
+                "`assert <expression>` (e.g. `retries <= 3`, "
+                "`email is not None and '@' in email`). Only reference names "
+                "that would plausibly be local variables/parameters in that "
+                "function — never invent object attribute chains you cannot "
+                "know exist. If the text states no verifiable rule, return an "
+                "empty contracts list. Never invent a contract not grounded "
+                "in the text."
+            )
+
+        def render(self) -> str:
+            return f"## Requirement text\n{self.text}"
+
+    agent = LlmAgent(
+        name="cie_contract_extractor", prompt_type=ContractExtractPrompt,
+        output_type=ContractLlmOutput,
+    )
     output = await ask(ContractExtractPrompt(text=text))
     return [
         {

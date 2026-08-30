@@ -17,8 +17,13 @@ from typing import Optional, Sequence
 
 from pydantic import BaseModel
 
-from core.llm import LlmAgent, Prompt, ask
 from cie.models import Node, NodeKind
+
+# (R5) `core.llm` imports are deferred into the one LLM call site that
+# needs them (`extract_state_machine`): a module-level import made this
+# whole module unimportable in a standalone install, and 503'd
+# `fsm_validate`/`state_machine` — which operate on already-stored FSMs,
+# no LLM needed — alongside their genuinely LLM-only sibling.
 
 # -- CF-06: StateMachineBuilder ------------------------------------------------
 
@@ -41,30 +46,6 @@ class FsmLlmOutput(BaseModel):
     transitions: list[TransitionItem]
 
 
-@dataclass(frozen=True)
-class FsmExtractPrompt(Prompt[FsmLlmOutput]):
-    text: str
-
-    def system_prompt(self) -> str:
-        return (
-            "You extract a FORMAL finite state machine for ONE stateful "
-            "entity described in product requirement text: its states, "
-            "and every valid transition between them (trigger + optional "
-            "guard condition). If the text describes no stateful entity "
-            "with distinct states, return an empty states list and an "
-            "empty entity_name. Never invent a state or transition not "
-            "grounded in the text."
-        )
-
-    def render(self) -> str:
-        return f"## Requirement text\n{self.text}"
-
-
-AGENT = LlmAgent(
-    name="cie_fsm_builder", prompt_type=FsmExtractPrompt, output_type=FsmLlmOutput,
-)
-
-
 async def extract_state_machine(text: str) -> Optional[dict]:
     """CF-06: LLM-based FSM extraction. Returns None when the text
     describes nothing stateful (empty states list) rather than an
@@ -72,6 +53,33 @@ async def extract_state_machine(text: str) -> Optional[dict]:
     `fsm["states"]` itself to know whether extraction found anything."""
     if not text.strip():
         return None
+    from core.llm import LlmAgent, Prompt, ask  # deferred: see the R5 note
+
+    @dataclass(frozen=True)
+    class FsmExtractPrompt(Prompt[FsmLlmOutput]):
+        """Prompt built here (not module scope) — its base class lives in
+        the host project's optional `core.llm` layer."""
+
+        text: str
+
+        def system_prompt(self) -> str:
+            return (
+                "You extract a FORMAL finite state machine for ONE stateful "
+                "entity described in product requirement text: its states, "
+                "and every valid transition between them (trigger + optional "
+                "guard condition). If the text describes no stateful entity "
+                "with distinct states, return an empty states list and an "
+                "empty entity_name. Never invent a state or transition not "
+                "grounded in the text."
+            )
+
+        def render(self) -> str:
+            return f"## Requirement text\n{self.text}"
+
+    agent = LlmAgent(
+        name="cie_fsm_builder", prompt_type=FsmExtractPrompt,
+        output_type=FsmLlmOutput,
+    )
     output = await ask(FsmExtractPrompt(text=text))
     if not output.states:
         return None

@@ -296,18 +296,28 @@ class ToolService:
         started: float,
         *,
         hint: Optional[str] = None,
+        reason: Optional[str] = None,
     ) -> dict:
-        """Build the SPEC §0 error envelope."""
+        """Build the SPEC §0 error envelope (see err_envelope for the
+        machine-readable `reason` slug convention added in R5)."""
+        error: dict = {"kind": kind, "message": message}
+        if reason is not None:
+            error["reason"] = reason
         return {
             "ok": False,
             "tool": tool,
-            "error": {"kind": kind, "message": message},
+            "error": error,
             "hint": hint,
             "elapsed_ms": _elapsed_ms(started),
         }
 
     def _guard(self, tool: str, started: float, exc: Exception) -> dict:
-        """Convert tool exceptions into error envelopes."""
+        """Convert tool exceptions into error envelopes.
+
+        Failure classification candidates here carry a machine-readable
+        `reason` slug (R5) so harnesses (`tool-test-lab/surface_conformance.py`,
+        the reason-registry test) can assert against a stable string
+        instead of parsing prose."""
         if isinstance(exc, FileNotFoundError):
             return self._err(tool, "not_found", str(exc), started,
                              hint="check the path with search_symbol or file_skeleton")
@@ -321,6 +331,7 @@ class ToolService:
             missing = getattr(exc, "name", "") or str(exc)
             return self._err(
                 tool, "unavailable", f"{type(exc).__name__}: {exc}", started,
+                reason=f"OPTIONAL_BACKEND_MISSING:{(exc.name or 'unknown-module')}",
                 hint=f"optional module '{missing}' is not installed in this standalone "
                      "package; this tool needs the full (protobox) environment to work",
             )
@@ -333,6 +344,7 @@ class ToolService:
             # detector) — same "installation property" semantics.
             return self._err(
                 tool, "unavailable", f"{type(exc).__name__}: {exc}", started,
+                reason="HOST_PLUGIN_MISSING:decompose-detector",
                 hint="register a decompose plugin entry-point (see the message) "
                      "or run inside the full be-v2 environment",
             )

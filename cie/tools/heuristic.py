@@ -267,6 +267,16 @@ class HeuristicToolSet:
         `test` value that isn't a real path is resolved as a bare class
         name against the symbol index instead, before giving up."""
         test_path = test.split("::")[0]
+        # ''/blank and directory-valued inputs resolved to the project_root
+        # itself (Path('') is cwd; a root IS 'exists') and then crashed on
+        # read_text — found live by R5's unavailable-bucket scan. A blank
+        # test identifier is a validation miss, not a crash.
+        if not test_path:
+            return _envelope(
+                "failing_context", [], ok=False,
+                hint="empty test identifier; pass the test file path "
+                     "(optionally 'path::test_name') from the failing test run",
+            )
         f = self.project_dir / test_path
         if not f.exists():
             by_name = next((s for s in self.index.symbols
@@ -274,8 +284,13 @@ class HeuristicToolSet:
             if by_name is not None:
                 test_path = by_name.file
                 f = self.project_dir / test_path
-        if not f.exists():
-            return _envelope("failing_context", [], ok=False, hint=f"no such test file: {test_path}")
+        if not f.is_file():
+            hint = (
+                f"no such test file: {test_path}"
+                if not f.exists()
+                else f"'{test_path}' is a directory; pass the test FILE path"
+            )
+            return _envelope("failing_context", [], ok=False, hint=hint)
         text = f.read_text(errors="replace")
         results, seen = [], set()
         # distance 1: symbols directly referenced in the test

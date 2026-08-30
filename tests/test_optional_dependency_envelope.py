@@ -1,6 +1,9 @@
 """Optional-dependency degradation: zombie `core.*` imports (protobox era)
 must produce SPEC §0 `kind="unavailable"` envelopes, not 500-style
-"internal" crashes.
+"internal" crashes — and after R5 (2026-08-30): the four FIXABLE modules
+no longer import `core.llm` at module level at all, so their pure tools
+actually RUN standalone; only genuinely LLM-only entry points degrade,
+with machine-readable `reason` slugs.
 
 Found by dogfooding `cie-mcp --embedded` against this repo (2026-08-30):
 `coverage_gaps()` crashed with `ModuleNotFoundError: No module named 'core'`
@@ -8,13 +11,15 @@ and shipped a bare "unexpected tool failure; report this" envelope — even
 though `coverage_gaps` itself is pure Python; only a module-level import in
 `cie/test_orchestration.py` (one of 5 protobox leftovers: community_detect,
 contracts, graphrag, state_machine, test_orchestration) drags `core.llm` in.
-Five affected modules are imported lazily per tool call, so the crash fired
-at call time on the live read-only surface.
+The lazy-import stop-gap (this file's original tests) routed the crash to a
+graceful `unavailable` envelope — roadmap R5 then did the real fix: module
+imports deferred into the LLM call sites (community_detect, contracts,
+state_machine, test_orchestration), leaving graphrag's `qa` and the other
+call-time-only LLM users as intentional `unavailable[OPTIONAL_BACKEND_MISSING]`.
 
-Contract after the fix: `ToolService._guard` (the single funnel behind every
-MCP tool result) and the HTTP tool dispatch both map `ModuleNotFoundError`
-to a NEW error kind `unavailable` (503 on HTTP) — an expected property of
-THIS installation, not a reportable crash.
+Contract now: pure tools RUN standalone; genuinely LLM-only tools return
+`kind="unavailable"` (503 on HTTP) WITH `error.reason` — an expected
+property of THIS installation, not a reportable crash.
 """
 
 from __future__ import annotations
@@ -58,15 +63,32 @@ def test_core_is_genuinely_absent_in_standalone():
 
 
 @pytest.mark.parametrize("module", ZOMBIE_LLM_MODULES)
-def test_zombie_modules_still_not_importable_standalone(module):
-    """Honest documentation of the current state: these modules fail to
-    import standalone. The FIX being tested is that tools route through
-    this failure as a graceful `unavailable` envelope — not that the
-    modules import (full `core.llm` decoupling is a separate workstream)."""
+def test_fixed_modules_now_import_standalone(module):
+    """The R5 fix, pinned: four of the five former zombie modules import
+    standalone with NO `core.llm` on the path (their LLM use is deferred
+    to the one call site per module that actually asks). `cie.graphrag`
+    is the deliberate stays-zipped exception — its `qa` pipeline's
+    ask/rerank layers are genuinely LLM-bound end to end."""
     import sys
     sys.modules.pop(module, None)
+    if module == "cie.graphrag":
+        with pytest.raises(ModuleNotFoundError, match="core"):
+            importlib.import_module(module)
+        return
+    importlib.import_module(module)
+
+
+def test_deferred_llm_entry_points_still_fail_only_at_call_time():
+    """The remaining LLM-only functions raise the honest ModuleNotFoundError
+    AT CALL TIME (never at import) — `_guard` converts that to
+    `unavailable[OPTIONAL_BACKEND_MISSING]` (see
+    tests/test_unavailable_reasons.py for the reason-slug registry)."""
+    import asyncio
+
+    import cie.contracts as contracts
+
     with pytest.raises(ModuleNotFoundError, match="core"):
-        importlib.import_module(module)
+        __import__("asyncio").run(contracts.extract_contracts("retries <= 3"))
 
 
 def test_error_kind_unavailable_is_registered_in_the_spec():
@@ -89,13 +111,23 @@ def test_guard_maps_module_not_found_error_to_unavailable(service):
     assert "core" in env["hint"]
 
 
-def test_coverage_gaps_crash_becomes_graceful_envelope(service):
-    """The exact tool that crashed live through the MCP surface. It imports
-    `cie.test_orchestration` lazily inside its own try, so the whole
-    failure path (lazy import → ModuleNotFoundError → _guard) runs for
-    real here."""
-    env = service.coverage_gaps()
-    assert env["ok"] is False
+@pytest.fixture(scope="module")
+def embedded_service(tmp_path_factory):
+    """A zero-config embedded service for the now-pure tools (no Neo4j, no
+    `core.llm` — the exact environment the original crash happened in)."""
+    from cie.factory import build_tool_service_embedded
+
+    root = tmp_path_factory.mktemp("puretools")
+    (root / "app.py").write_text("def alpha():\n    return 1\n")
+    return build_tool_service_embedded(root)
+
+
+def test_coverage_gaps_refactored_to_actually_run(embedded_service):
+    """The tool that crashed live through the MCP surface in the original
+    dogfood. After R5 (lazy `core.llm` in cie.test_orchestration now only
+    wraps the LLM path), `coverage_gaps` IS pure and RUNS: empty graph ->
+    ok envelope with the plan-first hint, no unavailable, no crash."""
+    env = embedded_service.coverage_gaps()
+    assert env["ok"] is True
     assert env["tool"] == "coverage_gaps"
-    assert env["error"]["kind"] == "unavailable"
-    assert "core" in env["error"]["message"] or "core" in (env.get("hint") or "")
+    assert "test_plan first" in (env.get("hint") or "")
