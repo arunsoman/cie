@@ -252,12 +252,21 @@ effort S/M/L is a guess, treated as a guess.
 
 ## P2 — adoption & launch mechanics (gated on R6)
 
-- [ ] **R15 · `cie init` one-command onboarding** (M). Detect installed
+- [x] **R15 · `cie init` one-command onboarding** (M). Detect installed
       MCP clients (Claude Code/Cursor/Codex), register the stdio server,
       write context files (GitNexus's AGENTS.md/CLAUDE.md and CodeGraph's
       installer are the exemplars; delta S2).
       **Verify:** fresh clone → `cie init` → client lists cie tools with
       zero manual config; captured for the demo cast.
+      *Done 2026-08-30.* `cie/init.py` + CLI: auto-detect (Claude Code
+      via project `.mcp.json`, Cursor via home config; Codex detected +
+      snippet printed, never auto-edited), guarded JSON merges (existing
+      entries byte-preserved, invalid JSON refused), managed context
+      blocks (append/refresh-in-place), readonly-by-default (explicit
+      `--policy full` opt-in). Verified: the registered entry handshakes
+      over real stdio → 85 read tools, zero write tools visible
+      (`scripts/record_init.sh` + `tool-test-lab/dogfood_mcp_stdio_list.py`);
+      13 tests.
 - [x] **R16 · `run`-tool isolation story made explicit** (M). `run` is
       already policy-gated (WRITE_TOOLS → 403 under the default read-only
       HTTP surface, this session) but the jail is cwd+timeout, "no

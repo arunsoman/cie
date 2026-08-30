@@ -2302,6 +2302,53 @@ def export_html(ctx, path: Optional[Path], out: Optional[Path],
     )
 
 
+@cli.command()
+@click.argument("path", required=False, default=None,
+               type=click.Path(file_okay=False, path_type=Path))
+@click.option("--client", "clients", multiple=True,
+              type=click.Choice(["claude-code", "cursor", "codex"]),
+              help="Register for specific clients (default: auto-detect installed "
+                   "ones by config presence).")
+@click.option("--policy", default="readonly", show_default=True,
+              type=click.Choice(["readonly", "full"]),
+              help="ToolPolicy for the registered server (readonly-until-chosen "
+                   "default — writes require an explicit --policy full).")
+@click.option("--no-context", "no_context", is_flag=True,
+              help="Skip writing the AGENTS.md/CLAUDE.md context blocks.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the report as JSON.")
+@click.pass_context
+def init(ctx, path: Optional[Path], clients: tuple[str, ...], policy: str,
+         no_context: bool, as_json: bool) -> None:
+    """One-command onboarding: detect installed MCP clients, register
+    cie's stdio server, and write the agent context files (AGENTS.md /
+    CLAUDE.md managed blocks). Idempotent — safe to re-run (R15).
+    """
+    from cie.init import run_init
+
+    root = (Path(path) if path else Path.cwd()).resolve()
+    home = Path.home()
+    report = run_init(
+        root, home,
+        clients=list(clients) if clients else None,
+        policy=policy,
+        context=not no_context,
+    )
+    if as_json or ctx.obj.get("json"):
+        _echo_json({"ok": True, "tool": "init", "results": report.merged()})
+        return
+    for a in report.actions:
+        console.print(f"[green]+[/green] {a}")
+    for s in report.skipped:
+        console.print(f"[dim]=[/dim] {s}")
+    for h in report.human_actions:
+        console.print(f"[yellow]![/yellow] {h}")
+    if not report.human_actions:
+        console.print(
+            "\n[dim]Restart your MCP client and cie's tools should be "
+            "listed — zero manual config.[/dim]"
+        )
+
+
 def main() -> None:
     """Entry point for the `cie` console script."""
     try:

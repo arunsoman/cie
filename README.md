@@ -91,7 +91,19 @@ estimate is ever cited without its label):
 
 Try it in two commands, no server, no signup — index a project into a
 local SQLite file and serve it to Claude Code, Cursor, or any MCP client,
-task/QA traceability included. Point it at Neo4j instead for a real
+task/QA traceability included. Or one command to do all of it:
+
+```bash
+cie init /path/to/your/project
+```
+
+Detects installed MCP clients (Claude Code via project `.mcp.json`,
+Cursor via `~/.cursor/mcp.json`), registers the stdio server
+(idempotent, existing entries untouched), and writes managed context
+blocks into `AGENTS.md`/`CLAUDE.md`. Default policy is **readonly** —
+the client gets the read tools until you pass `--policy full` (the
+opt-in, not the default). Codex is detected and the exact TOML snippet
+printed (never auto-edited). Point it at Neo4j instead for a real
 team/multi-project setup (see Quickstart below for what's in each mode).
 
 See [`docs/competitive-landscape.md`](docs/competitive-landscape.md) for

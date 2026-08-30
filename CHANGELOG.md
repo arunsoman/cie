@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R15 — `cie init`: one-command onboarding.** Detects installed MCP
+  clients (Claude Code / Cursor by config presence; Codex detected and
+  given the exact TOML snippet — never auto-edited), registers cie's
+  stdio server idempotently (existing entries byte-preserved; invalid
+  JSON refused, not 'fixed'), writes managed context blocks into
+  `AGENTS.md`/`CLAUDE.md` (`cie:init` markers, user content outside
+  them untouched, re-run = refresh-in-place), and defaults the client's
+  policy to **readonly** — writes are an explicit `--policy full` opt-
+  in, not an onboarding side effect. Verified end to end: the
+  registered entry, spawned exactly as a client would, handshakes over
+  real stdio and lists 85 read tools with zero write tools
+  (`scripts/record_init.sh` + `tool-test-lab/dogfood_mcp_stdio_list.py`).
+  13 tests.
+
+### Added
+
 - **R16 — the `run`-tool isolation story made explicit.** New
   `docs/security.md` states the threat model precisely: the cwd jail +
   hard-timeout/process-group kill + bounded output that IS there, and

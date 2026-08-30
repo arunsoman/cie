@@ -945,7 +945,7 @@ round-trips a real tree; docs carry no "Neo4j-only" hierarchy caveat
 
 ## P2 — adoption & launch mechanics (gated on R6)
 
-### [ ] R15 · `cie init` one-command onboarding (M)
+### [x] R15 · `cie init` one-command onboarding (M) — DONE 2026-08-30
 
 **State today (verified).** No `init` command exists; README's
 quickstart (L85–107) ends with "add it to Claude Code / Cursor / Codex
@@ -1229,5 +1229,9 @@ footnoted to its measured source; nothing published from vibes.
   gate + approved_surface.json + fixture; one collection leak fixed);
   R16 done (docs/security.md + CIE_RUN_WRAPPER seam + spawn-guard test);
   suite 264 → 266. Committed in two commits.
+- **2026-08-30 (implementation pass 13)** — R15 done: cie init
+  (detection + guarded merges + managed context blocks + readonly-by-
+  default), verified via a real stdio handshake on the registered entry;
+  suite 266 → 279. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).
