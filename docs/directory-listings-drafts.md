@@ -22,7 +22,7 @@ from the shipped README on this commit.)
 | Transport | stdio (default) and streamable-HTTP (`--transport streamable-http --host 127.0.0.1 --port 8000`, localhost-only default) |
 | Policy note | Server-side `ToolPolicy` (`--policy readonly` default; writes 403'd server-side per tool — machine-checked, docs/security.md) |
 | Repository | https://github.com/kannamma-labs/cie |
-| Docs / benchmarks | docs/benchmarks-requests.md, docs/benchmarks-urllib3.md, docs/competitor-benchmarks.md (each includes its published misses) |
+| Docs / benchmarks | docs/benchmarks-requests.md, docs/benchmarks-urllib3.md, docs/benchmarks.md (each includes its published misses); the competitor head-to-head doc is maintainer-local, not linked |
 
 Screenshot candidates: `demo.svg` (real MCP stdio transcript) and the
 `docs/images/` export-html captures (`file://`, zero external requests).

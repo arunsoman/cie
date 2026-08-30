@@ -106,9 +106,9 @@ opt-in, not the default). Codex is detected and the exact TOML snippet
 printed (never auto-edited). Point it at Neo4j instead for a real
 team/multi-project setup (see Quickstart below for what's in each mode).
 
-See [`docs/competitive-landscape.md`](docs/competitive-landscape.md) for
-the full comparison against CodeGraph, CodeGraphContext, Serena, and
-others, including where cie is honestly behind.
+The competitive-scan docs (`docs/competitive-landscape.md`,
+`docs/competitor-benchmarks.md`) are maintainer-local and are not part of
+this public tree.
 
 ## Quickstart (zero-config, no Neo4j)
 
@@ -353,7 +353,7 @@ vector + graph-centrality, with per-component scores), `entity_context`,
 Embeddings: host `core.llm`, or the first-party OpenAI-compatible
 fallback (`CIE_EMBED_DSN` + key, stdlib — R10), or a registered
 override; first-party retrieval measured at recall@8 = 1.0 on two
-corpora (docs/competitor-benchmarks.md, 2026-08-31).
+corpora (2026-08-31; comparison doc maintained locally).
 
 **GraphRAG Q&A** — `qa` (`cie.graphrag`): a real pipeline —
 `query_plan.classify` picks a retrieval strategy, `hybrid_search`
@@ -590,9 +590,8 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
 - [Security model](docs/security.md) — the `run` tool's jail, timeout,
   and (optional) container seam, stated as a threat model: what is
   isolated, what is NOT, and which surface refuses what by default.
-- [Competitive landscape](docs/competitive-landscape.md) — nearest
-  competitors (CodeGraphContext, CodeGraph, Serena, and others), where cie
-  differs, and where it's honestly behind.
+- [Benchmarks — urllib3](docs/benchmarks-urllib3.md) — the third dataset,
+  fully regenerable from [`scripts/benchmark.sh`](scripts/benchmark.sh).
 - [Benchmarks — psf/requests](docs/benchmarks-requests.md) — the same
   methodology re-run on a well-known public repo this project didn't
   write, not a self-referential proof case; a real win and a real recall
@@ -605,11 +604,10 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
   the hypothesis that breadth costs accuracy didn't hold up here.
 - [Benchmarks](docs/benchmarks.md) — real tool-call/response-size
   measurements against a real codebase, published honestly (including
-  where it didn't win).
-- [Competitor benchmarks](docs/competitor-benchmarks.md) — the same real
-  codebase indexed and queried with CodeGraphContext and Serena actually
-  installed and run (not estimated), including a real ambiguous-name
-  resolution bug this digging uncovered, diagnosed precisely, and fixed.
+  where it didn't win). *(The competitor head-to-head — CodeGraphContext/Serena
+  actually installed and run — is maintained locally by the author and is
+  not part of this public tree; its published claims are footnoted in the
+  remaining benchmark docs.)*
 - [Adding a language](docs/adding-a-language.md) — a complete, verified
   `LanguageAdapter` for a language cie has never seen, no tree-sitter
   grammar or LSP involved.

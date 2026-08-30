@@ -18,3 +18,5 @@ forge_workspaces/
 .pi/
 *.db
 examples/adapters/hello.toy
+docs/competitive-landscape.md
+docs/competitor-benchmarks.md

@@ -5,6 +5,13 @@
 > footnoted to a measured artifact, and the losses stay in the post**
 > (the session-3 critique #10 rule). This file is the claim-audit walk:
 > the Count Contract's last walk before an audience sees the numbers.
+>
+> **Note (2026-08-31):** `docs/competitive-landscape.md` and
+> `docs/competitor-benchmarks.md` are maintainer-local now (untracked by
+> the public tree) — the audit table still cites them as SOURCES OF
+> RECORD for the author, but the published post must not link to those
+> paths on GitHub; link only public artifacts (benchmark docs, scripts,
+> test suite).
 
 ---
 

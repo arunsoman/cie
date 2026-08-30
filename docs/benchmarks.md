@@ -58,10 +58,12 @@ cherry-picked for the best number.
   break-even on response-heavy ones"), which is part of what made that
   research treat their numbers as credible in the first place.
 
-See [`competitor-benchmarks.md`](competitor-benchmarks.md) for the same
-codebase indexed and queried with CodeGraphContext and Serena actually
-installed and run — including a real bug this comparison surfaced in
-cie's own ambiguous-name resolution, diagnosed precisely and since fixed.
+The competitor head-to-head companion doc (`competitor-benchmarks.md` —
+the same codebase indexed and queried with CodeGraphContext and Serena
+actually installed and run, including the real ambiguous-name resolution
+bug this comparison surfaced in cie's own tree, diagnosed precisely and
+since fixed) is maintained locally by the author and is not part of this
+public tree.
 
 ## What this benchmark does not yet cover
 

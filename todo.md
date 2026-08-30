@@ -1320,3 +1320,13 @@ footnoted to its measured source; nothing published from vibes.
   runs with the maintainer's PyPI token or trusted-publisher workflow
   (no credentials available in this environment — handoff noted in the
   release notes). Next update appends here.
+- **2026-08-31 (implementation pass 19)** — competitive-scan docs made
+  maintainer-local per the owner's request: `docs/competitive-
+  landscape.md` + `docs/competitor-benchmarks.md` untracked
+  (`git rm --cached`; gitignore + working-tree copies retained), .gitignore
+  entries added, live click-through references in README + docs/
+  benchmarks.md R18/R20 drafts rewritten to point at the public
+  benchmark docs instead (frozen dated records keep their path
+  mentions per convention). NOTE: the files remain visible in git
+  HISTORY (old commits); a purge would need a history rewrite + force-
+  push — not done. Next update appends here.
