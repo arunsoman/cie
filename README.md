@@ -7,7 +7,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
 [![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
 [![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
-[![Tests](https://img.shields.io/badge/tests-155%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
 [![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)
@@ -61,12 +61,28 @@ model has to improvise a workaround from, but specific ones (`callers`,
 directly. The obvious worry is that more tools means more chances to
 pick the wrong one — [tested it](docs/tool-selection-accuracy.md)
 instead of assuming: a fresh agent, given cie's real tool list plus 14
-tasks hand-picked to be confusable (cie has 5 different
-"coverage"-named tools alone), picked the exactly correct tool **14/14**
-against the full 81-tool surface — the same 14/14 it got against a
-14-tool subset. One run, real caveats in the linked doc — but the
+tasks hand-picked to be confusable (5 different "coverage"-named tools
+alone),
+picked the exactly correct tool **14/14** — against the full read-only
+surface measured that run (81 tools at the 2026-08-30 snapshot; the
+surface has since grown — today 132 ToolService tools / 83 read-only
+under the `inspector` policy) and the same 14/14 it got against a 14-tool
+subset. One run, real caveats in the linked doc — but the
 "more tools, more room to mess up" worry didn't hold up when actually
 checked.
+
+**Tool-count labels — one convention, introspection-derived** (no prose
+estimate is ever cited without its label):
+
+- **132 ToolService tools** — every public `ToolService` method minus
+  `describe`; what `cie-mcp` serves under `--policy full` and what
+  `POST /tools/{tool}` accepts.
+- **83 read-only tools** — the `--policy inspector` (default HTTP) view;
+  132 minus the 49 `WRITE_TOOLS` members (pinned in `tests/
+  test_tool_surface_invariants.py`).
+- Historical snapshots (81/121/etc.) are dated record — CHANGELOG keeps
+  them labeled; live cuts re-measure from introspection, never edit
+  history.
 
 Try it in two commands, no server, no signup — index a project into a
 local SQLite file and serve it to Claude Code, Cursor, or any MCP client,
@@ -438,7 +454,8 @@ the graph-backed path.
   CSRF-to-localhost vector), unless the origin is listed in
   `CIE_HTTP_ALLOWED_ORIGINS`. `GET /tools` discovery is filtered to
   match — a read-only caller can't even see a tool it can't call.
-- **CLI** (`cie.cli`, 49 commands): human Rich tables by default; every
+- **CLI** (`cie.cli`, 47 commands, `cie index` included): human Rich
+  tables by default; every
   command honors `--json` (group-level, before the subcommand) emitting
   the **same** SPEC §0 envelope as the HTTP surface, so an agent can drive
   cie entirely over JSON. Commands mirror the tools above (`search`,

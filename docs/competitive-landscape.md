@@ -82,7 +82,9 @@ open-ended language-extension model.
    often; `docs/tool-selection-accuracy.md` tested that directly (14
    tasks, deliberately including cie's own confusable near-duplicates —
    5 "coverage"-named tools, `callers` vs `actual_callers`) against the
-   full 81-tool readonly surface and a 14-tool subset. Result: 14/14
+   full read-only surface measured at the 08-30 snapshot (81 tools then;
+   83 read-only today under `inspector` — labels per README's convention)
+   and a 14-tool subset. Result: 14/14
    correct, both conditions, one run. Real caveats apply (N=1, ceiling
    effect, tool-name-only — see the doc), but the number-of-tools table
    row below is now backed by evidence that breadth is a capability

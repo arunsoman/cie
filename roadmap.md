@@ -67,15 +67,21 @@ effort S/M/L is a guess, treated as a guess.
       db fails fast with a not_found envelope. Verified: fresh venv →
       psf/requests index → all query commands answer from .cie/graph.db,
       `callers("close")` = the benchmark's 3 resolved. Suite 184/184.
-- [ ] **R3 · Stale-surface sync, repo-wide** (S). README badge says
-      "tests-155 passing" (suite is 171); README and
-      `docs/tool-selection-accuracy.md` say "81-tool surface" where the
-      live full surface measures 126 (session-7 flagged, unfixed). Fix
-      every count, and add the surface-label convention used in the
-      changelog (126 ToolService / 88 read-only console / 83 inspector).
+- [x] **R3 · Stale-surface sync, repo-wide** (S). README badge said
+      "tests-155 passing" (suite is now 213); README and
+      `docs/tool-selection-accuracy.md` said "81-tool surface" where
+      labels now distinguish dated snapshots from live counts.
       **Verify:** `grep` sweep for "81-tool|tests-155|~121"; every cited
       number matches `pytest -q` and
       `tool-test-lab/surface_results.json` on the same commit.
+      *Done 2026-08-30 (post-R1/R2/R5, the final counts pass):* badge
+      155→213 (~z measured at this commit); 81-tool citations converted
+      to dated-snapshot labels (08-30 run, 83 read-only today); README
+      gains the durable tool-count-label convention block
+      (132 ToolService / 83 inspector, introspection-derived); competitive-
+      landscape + language-agnostic-design counts updated; CLI command
+      count corrected 49→47 (verified by click tree walk). Dated
+      CHANGELOG/competitive-delta records stay frozen per convention.
 - [x] **R4 · Reconstruct the provenance of this repo's own plan docs** (S).
       `goal.md` derives from `docs/growth-plan.md` Phase 0.5 — that file
       doesn't exist (only goal.md references it). Either restore it from

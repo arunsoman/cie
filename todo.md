@@ -266,7 +266,16 @@ all, proven by `--db` pointing into an empty dir and zero sockets).
 
 ---
 
-### [ ] R3 · Stale-surface sync, repo-wide (S — with a sequencing note)
+### [x] R3 · Stale-surface sync, repo-wide (S) — DONE 2026-08-30
+
+*(Done as the post-R1/R2/R5 final counts pass: badge 155→213; live
+citations re-measured (132/83, introspection + conformance artifact);
+dated snapshots labeled per the convention; durable tool-count-label
+block added to README; competitive-landscape and language-agnostic-
+design counts updated; CLI command count corrected 49→47, verified by
+walking the real click tree; grep sweep clean — remaining "81" mentions
+are explicitly dated snapshot labels; dated CHANGELOG/competitive-delta
+records stay frozen per convention.)*
 
 **State today (verified).** Live stale spots: README L10 badge
 `tests-155 passing`; README L66 `81-tool surface` hook paragraph;
@@ -304,7 +313,7 @@ count and `tool-test-lab/surface_results.json`.
 
 ---
 
-### [x] R4 · Reconstruct the provenance of the plan docs (S)
+### [x] R4 · Reconstruct the provenance of the plan docs (S) — DONE 2026-08-30
 
 **State today (verified).** `docs/growth-plan.md` does not exist and has
 **no git history** (checked `git log --all --diff-filter=A`).
