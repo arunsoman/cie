@@ -44,7 +44,7 @@ HINT_EMPTY_FAILING_CONTEXT = "test node not indexed; load/reindex the test file 
 #: is not importable. Distinct from "internal": it is an expected, permanent
 #: property of this installation, not a crash — the fix is installing the
 #: optional dependency, not reporting a bug.
-ERROR_KINDS = ("not_found", "validation", "internal", "unavailable")
+ERROR_KINDS = ("not_found", "validation", "unavailable", "forbidden", "internal")
 
 
 def envelope(
@@ -96,7 +96,8 @@ def err_envelope(
 
     Args:
         tool: Tool name as the agent invoked it.
-        kind: One of ``"not_found"``, ``"validation"``, ``"internal"``.
+        kind: One of ``"not_found"``, ``"validation"``, ``"forbidden"``,
+        ``"unavailable"``, ``"internal"``.
         message: Human/agent-readable description of what went wrong.
         hint: What to try next. MANDATORY — failures must be self-describing.
         elapsed_ms: Wall time until the failure in milliseconds.

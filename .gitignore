@@ -12,5 +12,9 @@ uv.lock
 # repo root without a scratch project dir; never should be tracked.
 forge_workspaces/
 .forge/
+# cie's own runtime state when pointed at this repo (.cie/*.db), and
+# the user-local pi-agent skill dir — neither is product code.
+.cie/
+.pi/
 *.db
 examples/adapters/hello.toy

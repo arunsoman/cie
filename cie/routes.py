@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -57,6 +57,15 @@ from cie.tasks import (
     HierarchyNode,
     RepairEvent,
     TaskStatus,
+)
+from cie.tool_policy import (
+    INSPECTOR_POLICY,
+    ORCHESTRATOR_POLICY,
+    REQUIREMENT_MINER_POLICY,
+    WRITE_TOOLS,
+    ToolNotPermitted,
+    ToolPolicy,
+    authorize,
 )
 from cie.tools import ToolService
 
@@ -119,6 +128,114 @@ def get_tool_service(project: str = "") -> ToolService:
                     project, root=root, allowed_root=allowed_root
                 )
     return _tool_services[project]
+
+
+# ---------------------------------------------------------------------------
+# HTTP tool policy — the real adoption of cie.tool_policy at an external
+# (less-trusted) caller boundary, which that module's own docstring named
+# as its intended follow-up work.
+# ---------------------------------------------------------------------------
+
+#: POST /tools/{tool} handlers that mutate the task/hierarchy/coverage
+#: repository but are NOT ToolService methods (bespoke ``_tool_*``
+#: handlers, invisible to `ToolService.describe()` and therefore absent
+#: from `WRITE_TOOLS`, which is keyed to ToolService method names). The
+#: unified dispatcher must treat these exactly like WRITE_TOOLS tools.
+HTTP_WRITE_ALIASES: frozenset[str] = frozenset({
+    "push_tasks", "set_task_status", "link_artifact", "append_repair_events",
+    "record_coverage", "record_coverage_snapshot", "push_hierarchy",
+})
+
+
+def _http_policy() -> ToolPolicy:
+    """The ToolPolicy governing this HTTP surface.
+
+    Read-only by default (INSPECTOR) — a browser tab or drive-by POST
+    must never be able to mutate files or the graph. ``CIE_HTTP_POLICY``
+    selects the policy explicitly (inspector | miner | orchestrator);
+    ``CIE_HTTP_ALLOW_WRITE=1`` is the shorter escape hatch to
+    orchestrator. Mutating requests are additionally subject to the
+    cross-origin guard (see `_origin_allowed` / `_write_guard`).
+    """
+    name = os.environ.get("CIE_HTTP_POLICY", "inspector").strip().lower()
+    if os.environ.get("CIE_HTTP_ALLOW_WRITE", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }:
+        name = "orchestrator"
+    return {
+        "inspector": INSPECTOR_POLICY,
+        "miner": REQUIREMENT_MINER_POLICY,
+        "orchestrator": ORCHESTRATOR_POLICY,
+    }.get(name, INSPECTOR_POLICY)
+
+
+def _authorize_http_tool(tool: str) -> ToolPolicy:
+    """Policy gate for ONE HTTP tool dispatch — ToolService methods via
+    `authorize()` (against WRITE_TOOLS), the bespoke alias handlers via
+    the allow_write flag (`HTTP_WRITE_ALIASES` names aren't ToolService
+    methods, so WRITE_TOOLS can't cover them). Raises ToolNotPermitted.
+    """
+    policy = _http_policy()
+    if tool in HTTP_WRITE_ALIASES:
+        if not policy.allow_write:
+            raise ToolNotPermitted(tool, policy)
+    else:
+        authorize(policy, tool)
+    return policy
+
+
+def _is_write_tool(tool: str) -> bool:
+    return tool in WRITE_TOOLS or tool in HTTP_WRITE_ALIASES
+
+
+def _origin_allowed(request: Request) -> bool:
+    """True for non-browser callers (no ``Origin`` header at all) and for
+    same-origin browser callers.
+
+    A cross-origin ``Origin`` on a MUTATING request is the
+    CSRF-to-localhost vector: a ``text/plain`` POST needs no CORS
+    preflight to have side effects server-side (reading the response is
+    what CORS blocks, not sending). It must therefore be either the
+    request's own Host or listed in ``CIE_HTTP_ALLOWED_ORIGINS``
+    (comma-separated)."""
+    origin = request.headers.get("origin", "")
+    if not origin:
+        return True
+    host = request.headers.get("host", "")
+    if host and origin.rstrip("/") in (f"http://{host}", f"https://{host}"):
+        return True
+    allowed = {
+        o.strip().rstrip("/")
+        for o in os.environ.get("CIE_HTTP_ALLOWED_ORIGINS", "").split(",")
+        if o.strip()
+    }
+    return origin.rstrip("/") in allowed
+
+
+def _write_guard(request: Request) -> None:
+    """FastAPI dependency for legacy REST routes that mutate state (task
+    push/status/artifact/event, reindex, sync ingestion, telemetry):
+    write policy required — the default read-only surface rejects them —
+    plus the same cross-origin guard the tool dispatcher applies to its
+    write tools."""
+    if not _http_policy().allow_write:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "mutating endpoint: the HTTP surface is read-only by "
+                "default (CIE_HTTP_POLICY=inspector); set "
+                "CIE_HTTP_POLICY=orchestrator or CIE_HTTP_ALLOW_WRITE=1 "
+                "to enable writes"
+            ),
+        )
+    if not _origin_allowed(request):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "cross-origin write request rejected; add this origin to "
+                "CIE_HTTP_ALLOWED_ORIGINS if it is intentional"
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -207,8 +324,27 @@ def list_tools(project: str = Query("")) -> dict:
     from what `POST /tools/{tool}` will actually accept. Callers (forge's
     scaffold phase) call this ONCE at run initialization and cache the
     result; see `forge/tools.py::ToolBackend.describe()` and
-    `forge/agent.py`'s module docstring."""
-    return get_tool_service(project).describe()
+    `forge/agent.py`'s module docstring.
+
+    The manifest is filtered through `_http_policy()`: under the default
+    read-only policy, write tools (WRITE_TOOLS + HTTP_WRITE_ALIASES) are
+    dropped from discovery exactly as `POST /tools/{tool}` itself would
+    reject them — a caller can't even see a tool it isn't authorized
+    for, same guarantee `filter_tool_schemas` gives the MCP path."""
+    policy = _http_policy()
+    manifest = get_tool_service(project).describe()
+    if not policy.allow_write:
+        manifest["results"] = [
+            t for t in manifest.get("results", [])
+            if not _is_write_tool(str(t.get("name", "")))
+        ]
+        if "tool_count" in manifest:
+            manifest["tool_count"] = len(manifest["results"])
+    manifest["http_policy"] = {
+        "agent_type": policy.agent_type.value,
+        "allow_write": policy.allow_write,
+    }
+    return manifest
 
 
 @router.get("/schema-version")
@@ -829,7 +965,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
 }
 
 #: error kind -> HTTP status for failed tool envelopes.
-_ERROR_STATUS = {"not_found": 404, "validation": 422, "unavailable": 503, "internal": 500}
+_ERROR_STATUS = {"not_found": 404, "validation": 422, "unavailable": 503, "forbidden": 403, "internal": 500}
 
 
 @router.post("/tools/{tool}")
@@ -858,6 +994,39 @@ async def run_tool(tool: str, request: Request) -> JSONResponse:
             content=err_envelope(
                 tool, "not_found", f"unknown tool '{tool}'",
                 hint=f"valid tools: {', '.join(sorted(TOOLS))}",
+            ),
+        )
+    # Policy gate BEFORE any dispatch (see _http_policy): the HTTP surface
+    # is read-only by default, so a write tool here is a server-side 403 —
+    # enforced in this surface, not left to the connecting client's
+    # settings. This is what cie's per-agent-policy differentiator claim
+    # promises; `tool_policy.py` named "an external HTTP caller" as its
+    # intended adopter.
+    try:
+        _authorize_http_tool(tool)
+    except ToolNotPermitted as exc:
+        return JSONResponse(
+            status_code=403,
+            content=err_envelope(
+                tool, "forbidden", str(exc),
+                hint="the HTTP surface is read-only by default; set "
+                     "CIE_HTTP_POLICY=orchestrator (or CIE_HTTP_ALLOW_WRITE=1) "
+                     "to allow mutating tools",
+            ),
+        )
+    # A write-capable tool called cross-origin from a browser page is the
+    # CSRF-to-localhost vector (a text/plain POST needs no CORS preflight
+    # to HAVE side effects) — reject before any handler runs. GET /tools
+    # discovery is filtered to match (see list_tools).
+    if _is_write_tool(tool) and not _origin_allowed(request):
+        return JSONResponse(
+            status_code=403,
+            content=err_envelope(
+                tool, "forbidden",
+                "cross-origin write request rejected",
+                hint="same-origin requests (or origins listed in "
+                     "CIE_HTTP_ALLOWED_ORIGINS) are required for "
+                     "mutating tools",
             ),
         )
     try:
@@ -938,7 +1107,8 @@ def list_pending_tasks(project: str = Query("")) -> list[dict]:
 
 
 @router.post("/tasks")
-def submit_tasks(batch: AtomicTaskBatch, project: str = Query("")) -> dict:
+def submit_tasks(batch: AtomicTaskBatch, project: str = Query(""),
+                 _policy: None = Depends(_write_guard)) -> dict:
     repo = factory.get_task_repo(_resolve_project(project))
     try:
         count = repo.submit_batch(batch)
@@ -968,7 +1138,8 @@ def get_task_dependencies(name: str, project: str = Query("")) -> list[str]:
 
 
 @router.put("/tasks/{name}/status")
-def set_task_status(name: str, update: StatusUpdateModel, project: str = Query("")) -> dict:
+def set_task_status(name: str, update: StatusUpdateModel, project: str = Query(""),
+                    _policy: None = Depends(_write_guard)) -> dict:
     try:
         status = TaskStatus(update.status)
     except ValueError:
@@ -981,7 +1152,8 @@ def set_task_status(name: str, update: StatusUpdateModel, project: str = Query("
 
 
 @router.post("/tasks/{name}/artifacts")
-def add_artifact(name: str, artifact: Artifact, project: str = Query("")) -> dict:
+def add_artifact(name: str, artifact: Artifact, project: str = Query(""),
+                 _policy: None = Depends(_write_guard)) -> dict:
     repo = factory.get_task_repo(_resolve_project(project))
     if not repo.add_artifact(name, artifact):
         raise HTTPException(status_code=404, detail=f"task '{name}' not found")
@@ -989,7 +1161,8 @@ def add_artifact(name: str, artifact: Artifact, project: str = Query("")) -> dic
 
 
 @router.post("/tasks/{name}/events")
-def add_event(name: str, event: RepairEvent, project: str = Query("")) -> dict:
+def add_event(name: str, event: RepairEvent, project: str = Query(""),
+              _policy: None = Depends(_write_guard)) -> dict:
     repo = factory.get_task_repo(_resolve_project(project))
     if not repo.add_event(name, event):
         raise HTTPException(status_code=404, detail=f"task '{name}' not found")
@@ -1067,7 +1240,8 @@ def code_path(
 
 
 @router.post("/code/reload")
-def code_reload(path: str = Query(...), project: str = Query("")) -> dict:
+def code_reload(path: str = Query(...), project: str = Query(""),
+                _policy: None = Depends(_write_guard)) -> dict:
     from cie.extract import extract_tree
 
     p = Path(path)
@@ -1470,7 +1644,8 @@ class GraphSyncEventModel(BaseModel):
 
 
 @router.post("/sync/event")
-def sync_event(event: GraphSyncEventModel, project: str = Query(...)) -> dict:
+def sync_event(event: GraphSyncEventModel, project: str = Query(...),
+               _policy: None = Depends(_write_guard)) -> dict:
     """PS-14 webhook receiver. Routes via `cie.sync.classify_event`:
     FILE_SAVE -> speculative reindex (no gate), COMMIT -> the full 4-stage
     gate per file, CI_COMPLETE -> promote speculative into canonical,
@@ -1518,7 +1693,8 @@ def sync_event(event: GraphSyncEventModel, project: str = Query(...)) -> dict:
 
 
 @router.post("/telemetry/otlp")
-async def ingest_telemetry(request: Request, project: str = Query(...)) -> JSONResponse:
+async def ingest_telemetry(request: Request, project: str = Query(...),
+                           _policy: None = Depends(_write_guard)) -> JSONResponse:
     """Real OTel span ingestion from a live deployment's own SDK — an
     external exporter's raw `ExportTraceServiceRequest` body (OTLP/HTTP
     JSON encoding), not cie's own `{project, ...kwargs}` tool envelope,

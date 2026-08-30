@@ -397,6 +397,16 @@ the graph-backed path.
   `GET /tools`, `GET /health`, `GET /schema-version`, plus dedicated
   `POST /tasks`, `GET /tasks/{name}`, `GET /tasks/pending`,
   `POST /hierarchy`, `POST /telemetry/otlp`, etc.
+  **Read-only by default, enforced server-side** through the same
+  `ToolPolicy` the MCP path uses: write tools and mutating legacy REST
+  routes (`POST /tasks`, `POST /code/reload`, `POST /sync/event`,
+  `POST /telemetry/otlp`, …) are 403 (`forbidden` envelope kind) unless
+  `CIE_HTTP_POLICY=orchestrator` (or `CIE_HTTP_ALLOW_WRITE=1`; also
+  `miner` for read-only-by-name). Mutating requests carrying a
+  cross-origin `Origin` are rejected even when writes are allowed (the
+  CSRF-to-localhost vector), unless the origin is listed in
+  `CIE_HTTP_ALLOWED_ORIGINS`. `GET /tools` discovery is filtered to
+  match — a read-only caller can't even see a tool it can't call.
 - **CLI** (`cie.cli`, 49 commands): human Rich tables by default; every
   command honors `--json` (group-level, before the subcommand) emitting
   the **same** SPEC §0 envelope as the HTTP surface, so an agent can drive

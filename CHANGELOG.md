@@ -128,6 +128,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   labelled as such.
 
 ### Fixed
+- **The HTTP surface now enforces cie's own `ToolPolicy` — read-only by
+  default, server-side.** `POST /tools/{tool}` previously dispatched
+  every write tool (`edit_file`, `delete_file`, `apply_patch`, `run`,
+  `reindex`, `sync_*`, every `*_run` pass) straight to `ToolService` with
+  no authorization — while per-agent-type authorization was advertised as
+  a differentiator and `tool_policy.py`'s own docstring named "an
+  external HTTP caller" as its intended adopter. Worse, the 17
+  task/hierarchy/coverage alias handlers — of which seven mutate
+  (`push_tasks`, `set_task_status`, `link_artifact`,
+  `append_repair_events`, `record_coverage`, `record_coverage_snapshot`,
+  `push_hierarchy`) — are bespoke handlers, not `ToolService` methods, so
+  `WRITE_TOOLS` could never have seen them: mutating tools invisible to
+  the policy layer. `run_tool` now authorizes every dispatch against
+  `_http_policy()` (INSPECTOR by default;
+  `CIE_HTTP_POLICY={inspector,miner,orchestrator}` or
+  `CIE_HTTP_ALLOW_WRITE=1` to opt into writes), the mutating aliases are
+  treated as write tools via the new `routes.HTTP_WRITE_ALIASES`,
+  mutating legacy REST routes (`POST /tasks`, `PUT /tasks/{name}/status`,
+  artifacts/events, `POST /code/reload`, `POST /sync/event`,
+  `POST /telemetry/otlp`) get a `_write_guard` dependency, a cross-origin
+  `Origin` on any mutating request is rejected even when writes are
+  allowed (the CSRF-to-localhost vector — a `text/plain` POST needs no
+  CORS preflight to have side effects; whitelist via
+  `CIE_HTTP_ALLOWED_ORIGINS`), `GET /tools` discovery is policy-filtered
+  so a read-only caller can't even see a tool it can't call, and
+  `POST /api/cie-tools/{tool}` inherits the gate through `run_tool`.
+  `err_envelope` gained the `forbidden` error kind (403). Tests: **+16**
+  (`tests/test_http_policy.py`); suite 155 → **171**.
 - **`cie index` no longer indexes virtualenvs / dependency / cache /
   build / VCS directories** (`cie/extract.py`). Found by dogfooding
   `cie index .` on this repo: the sole directory walk behind `cie

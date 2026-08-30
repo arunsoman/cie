@@ -5,9 +5,13 @@ holds a reference to the instance — fine for a trusted in-process caller,
 not fine once cie is handed to a less-trusted external caller (docs/plans/
 cie-standalone-any-project-plan.md, Pillar A gap 2). This module adds a
 thin policy layer OVER `ToolService` — it does not change `ToolService` or
-any of its ~123 methods, and nothing calls into this module yet (adopting
-it at a real call site — a trusted driver's tool dispatch, or an external
-HTTP/MCP caller — is separate follow-up work, not part of this file).
+any of its ~123 methods. Adopted at one real call site so far (2026-08-30):
+the HTTP surface (`cie/routes.py`) routes every `POST /tools/{tool}`
+dispatch through `authorize()` (its mutating task/hierarchy alias handlers
+via the `HTTP_WRITE_ALIASES` set, read-only by default with
+``CIE_HTTP_POLICY`` choosing otherwise), and its mutating legacy REST
+routes through the `_write_guard` dependency. The MCP server and forge's
+direct method calls are still future adopters.
 
 `WRITE_TOOLS` below is a hand-curated classification — every method's
 docstring (and body, where the docstring alone was ambiguous) was read
@@ -141,9 +145,11 @@ def execute(service: object, policy: ToolPolicy, tool_name: str, kwargs: dict) -
 
     The recommended call site for anything other than a fully trusted
     in-process caller — see docs/plans/cie-standalone-any-project-plan.md
-    Pillar A gap 2. Not yet wired into any real call site (forge still
-    calls `ToolService` methods directly); this is the mechanism, adopting
-    it is separate follow-up work.
+    Pillar A gap 2. Not yet wired into any real call site itself: forge
+    still calls `ToolService` methods directly, and `cie.routes` uses the
+    finer-grained `authorize()` / `ToolPolicy` objects directly. Kept as
+    the one-call helper for the next adopter (e.g. the MCP dispatch
+    path).
     """
     authorize(policy, tool_name)
     method = getattr(service, tool_name, None)

@@ -1,6 +1,9 @@
 # Competitive landscape
 
-**Last researched:** 2026-08-28. This is a snapshot, not a living
+**Last researched:** 2026-08-30 (numbers refreshed live via the
+competitive-delta agent; full per-competitor reasoning in
+[`docs/competitive-delta-2026-08-30.md`](competitive-delta-2026-08-30.md)).
+This is a snapshot, not a living
 benchmark — the category (code-graph / code-intelligence engines for AI
 coding agents) is moving fast; re-verify claims before citing them
 somewhere that matters.
@@ -9,8 +12,14 @@ somewhere that matters.
 
 cie's nearest neighbors are **CodeGraphContext** (the only other
 Neo4j-backed, pluggable-graph-backend tool in the category) and
-**CodeGraph** (the category's adoption leader, 47.4k stars, embedded
-SQLite). cie's real differentiation isn't "better code search" — every
+**CodeGraph** (the category's adoption leader, 68.7k stars, embedded
+SQLite). Since the 08-28 snapshot three MCP-native code-graph entries
+outscale CodeGraphContext: **Graphify** (112.5k stars — code + docs +
+SQL + PDFs into one graph, shareable HTML artifact),
+**codebase-memory-mcp** (41.2k — arXiv-paper'd KG server, 162 languages
+[vendor claim]) and **code-review-graph** (31.0k — local-first, published
+reproducible benchmarks); all remain pure retrieval/navigation [scan:
+`.cie/competitive/snapshot-2026-08-30.json`]. cie's real differentiation isn't "better code search" — every
 competitor here is optimized purely for that one job. It's scope: cie is
 the only one that fuses a code graph, task/QA traceability, and
 continuous quality governance into one system with a genuinely
@@ -67,7 +76,7 @@ open-ended language-extension model.
    no import-edge extraction, no docstring extraction (`cie/extract.py`'s
    module docstring).
 
-8. **~121 tools vs. 14 (CodeGraphContext) doesn't cost selection
+8. **126 tools vs. 14 (CodeGraphContext) doesn't cost selection
    accuracy — measured, not assumed.** The obvious worry about a large,
    specific tool surface is that an agent picks the wrong one more
    often; `docs/tool-selection-accuracy.md` tested that directly (14
@@ -86,22 +95,22 @@ open-ended language-extension model.
 | | **cie** | **CodeGraphContext** | **CodeGraph** | **Serena** |
 |---|---|---|---|---|
 | Graph backend | Neo4j, or embedded SQLite (zero-config) | Neo4j / FalkorDB / KuzuDB / LadybugDB (pluggable) | Embedded SQLite + FTS5 | None — wraps LSP servers live |
-| Adoption | New, 0 stars | Community project | 47.4k stars in 5 months — category leader | 25.2k stars, 170+ contributors |
+| Adoption | New, 0 stars | Community project | 68.7k stars — category leader | 28.6k stars, 170+ contributors |
 | Languages out-of-box | 6 (tree-sitter: Python/JS/TS/Java/Go/Rust) | 23 (tree-sitter/SCIP) | 21 (tree-sitter) | 40+ (via LSP) |
 | Extending to a new language | Register any `LanguageAdapter` — no grammar or LSP required | Needs a tree-sitter grammar or SCIP indexer | Needs a tree-sitter grammar | Needs a working LSP server |
-| Tool count | ~123 | 14 | not disclosed; MCP-native | many, LSP-backed |
+| Tool count | 126 | 14 | not disclosed; MCP-native | many, LSP-backed |
 | Task/QA tracking | Yes — AtomicTask/QA CRUD, traceability chains (Neo4j or zero-config SQLite) | No | No | No |
 | Quality/drift/test intelligence | Yes — clone detection, drift detection, confidence scoring, contracts/invariants, state-machine validation, tech-debt reports | No (has `manage_adr`, not the same thing) | No | No |
 | Per-agent tool policy | Yes — `ToolPolicy`/`WRITE_TOOLS`, server-enforced | No (left to the MCP client) | No | No |
 | Speculative-vs-canonical graph state tied to git commits | Yes — promote/revert/ast-delta | `detect_changes` (live sync only) | file-watcher sync only | No (LSP is always live) |
 | MCP protocol | Yes — `cie-mcp` (real `mcp` SDK) | Yes | Yes | Yes |
 
-Runners-up not detailed above, for context: **GitNexus** (41,958 stars,
+Runners-up not detailed above, for context: **GitNexus** (46.5k stars,
 zero-server browser-based graph, 16 MCP tools + resources + skills — the
 most "batteries-included" MCP integration in the category) and
-**claude-context** / **grepai** (dedicated, independently-benchmarked
-embedding/semantic search — a narrower but more mature slice than cie's
-own GraphRAG layer).
+**claude-context** (12.5k) / **grepai** (1.8k) (dedicated,
+independently-benchmarked embedding/semantic search — a narrower but more
+mature slice than cie's own GraphRAG layer).
 
 ## Where competitors are genuinely ahead
 
