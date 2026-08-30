@@ -60,13 +60,17 @@ effort S/M/L is a guess, treated as a guess.
       **Verify:** `grep` sweep for "81-tool|tests-155|~121"; every cited
       number matches `pytest -q` and
       `tool-test-lab/surface_results.json` on the same commit.
-- [ ] **R4 · Reconstruct the provenance of this repo's own plan docs** (S).
+- [x] **R4 · Reconstruct the provenance of this repo's own plan docs** (S).
       `goal.md` derives from `docs/growth-plan.md` Phase 0.5 — that file
       doesn't exist (only goal.md references it). Either restore it from
       history/sessions or fold its live content into `roadmap.md` +
       `goal.md` and repoint every dangling link.
       **Verify:** `grep -rn "growth-plan"` returns only text that says
       it was folded/restored, with links resolving.
+      *Done 2026-08-30:* folded (not restored — `git log --all` has no
+      copy); goal.md gains a Provenance section, all 11 references now
+      carry folded language, tombstone `docs/growth-plan.md` added for
+      old deep links. Verify re-run clean.
 - [ ] **R5 · Shrink the unavailable-by-design surface** (M). 18 of 126
       tools 503 (`unavailable`) in a standalone install from zombie
       `core.llm` protobox imports (session-7/8 conformance). Decouple

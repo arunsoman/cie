@@ -283,13 +283,15 @@ count and `tool-test-lab/surface_results.json`.
 
 ---
 
-### [ ] R4 · Reconstruct the provenance of the plan docs (S)
+### [x] R4 · Reconstruct the provenance of the plan docs (S)
 
 **State today (verified).** `docs/growth-plan.md` does not exist and has
 **no git history** (checked `git log --all --diff-filter=A`).
-`goal.md` references it at L3, L12, L61, L77, L100, L192, L216, L222,
-L230, L249, L259, L276 — and `roadmap.md` L8 cites it too. Conclusion:
-**fold, don't restore** — there's nothing to restore from history.
+`goal.md` referenced it at 11 places and `roadmap.md` L8 cites it too.
+Conclusion: **fold, don't restore** — there's nothing to restore from
+history. *DONE 2026-08-30:* tombstone written; goal.md gained a
+Provenance section; every reference rewritten with folded language.
+(Plan body below retained for the record.)
 
 **Plan.**
 1. Deep-read the remaining live content goal.md actually inherited (its
@@ -1078,5 +1080,8 @@ footnoted to its measured source; nothing published from vibes.
   in-memory fake is missing on disk; surface_conformance.py has a
   machine-local PYTHONPATH hardcode (blocks R17 until fixed);
   `ToolService` measures exactly 126 public methods on this commit.
+- **2026-08-30 (implementation pass 1)** — R4 done: fold executed
+  (tombstone + goal.md Provenance section + 11 reference rewrites),
+  verified clean. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

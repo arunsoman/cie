@@ -1,6 +1,8 @@
 # cie — launch-readiness goal
 
 > Tracking doc · 29 Aug 2026 · derived from `docs/growth-plan.md` Phase 0.5
+> (**folded into this doc on 2026-08-30** — see Provenance below; that
+> file now exists only as a tombstone).
 
 **Goal:** close the 5 workstreams (A–E) that stand between "Phase 0 done"
 and "safe to run Phase 1 launch mechanics" — a real hook instead of a
@@ -9,8 +11,21 @@ alpha's actual age, an honest language-coverage story, and something
 quotable/shareable. Each item below is done when verified against the
 real repo, not when written — same bar the rest of this project holds
 itself to. Status is kept current here; don't let this drift from what's
-actually true (see `docs/growth-plan.md` Phase 0.5 for the full rationale
-behind each item).
+actually true. Each item's rationale is its own text below — the plan
+that used to live in `docs/growth-plan.md` Phase 0.5 was folded into
+this file on 2026-08-30 (see Provenance next).
+
+## Provenance — `docs/growth-plan.md` folded here (R4, 2026-08-30)
+
+`docs/growth-plan.md` Phase 0.5 was the launch-readiness plan this doc
+derived from, and its live content is fully carried by the workstreams
+A–E below; C1's "Open question" rationale — the one piece referenced
+only by path — is preserved in C1's own text. The file never existed in
+this repo's git history (checked `git log --all` before folding), so it
+was folded, not restored: body references now point at this doc, and a
+tombstone at `docs/growth-plan.md` keeps old deep links from 404-ing.
+Roadmap item R4; done when `grep -rn growth-plan` returns only folded-
+language text and all links resolve.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
 
@@ -57,8 +72,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
 - [ ] **C1. Don't run Phase 1 (launch mechanics) until 0.1.0 stable ships**
       — stays open until that release exists; not a doc change. **Cannot
       be closed by further editing** — cutting a "stable" release is an
-      outward-facing trust claim and a real business decision (see
-      docs/growth-plan.md's own "Open question" section), not something
+      outward-facing trust claim and a real business decision (the folded
+      growth-plan's "Open question" rationale, preserved in this item's
+      own text), not something
       to fake by bumping a version string. Left open on purpose; see the
       Log below.
 - [x] **C2. Grow test coverage** — one test file per major capability
@@ -73,8 +89,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
       visibility** — verified it's accurate (no actual crash today,
       `testpaths` already guards it, `pytest --collect-only` → 38 tests,
       0 errors); the original critique's attribution to a README warning
-      was wrong (it's a `pyproject.toml` comment) — fixed in
-      `docs/growth-plan.md`.
+      was wrong (it's a `pyproject.toml` comment) — the fix's status
+      note lives here now (the growth-plan.md text this fix was logged
+      against was folded into this doc on 2026-08-30).
 - [x] **C4. `CONTRIBUTING.md`: name a path to a second maintainer** —
       added: safe entry-point modules, modules to avoid as a first PR,
       the actual review bar, how to ask for commit access.
@@ -97,7 +114,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
       rather than partially work; real declarator-unwrapping logic is
       needed and wasn't attempted rather than shipped unverified.
       Language count: 4 → 6 out-of-box (competitive-landscape.md's
-      table, growth-plan.md, README, pyproject.toml core deps all
+      table, growth-plan.md (since folded into this doc), README,
+      pyproject.toml core deps all
       updated to match).
 - [x] **D2. Worked "add a language" doc + real adapter example.**
       `docs/adding-a-language.md` + `examples/adapters/toy_regex_adapter.py`
@@ -189,7 +207,8 @@ this audit.
 ## Log
 
 - **2026-08-29 (session 1)** — Goal file created from
-  `docs/growth-plan.md` Phase 0.5. Executed and verified: A1, A2, C3, C4,
+  `docs/growth-plan.md` Phase 0.5 (that file was folded into this doc
+  on 2026-08-30). Executed and verified: A1, A2, C3, C4,
   D2, E1. Found and fixed a stale claim: `competitive-landscape.md`'s
   "next move" section still recommended the MCP adapter, already shipped
   since Phase 0.
@@ -213,7 +232,8 @@ this audit.
     the verification test first, not after. C evaluated and explicitly
     deferred (real, different scope — see D1 above), not silently
     skipped.
-  - Every doc (README, growth-plan.md, competitive-landscape.md,
+  - Every doc (README, growth-plan.md — since folded into this doc,
+    competitive-landscape.md,
     CHANGELOG.md, CONTRIBUTING.md, pyproject.toml) updated in the same
     pass as the code, per this project's own no-stale-docs standard —
     not batched at the end.
@@ -227,7 +247,8 @@ this audit.
 
 - **2026-08-29 (session 3, second critique pass — 10 more points)** —
   Found and fixed a real doc bug first: workstream A (session 1's work)
-  was actually done but `docs/growth-plan.md` never got a "status: done"
+  was actually done but the tracking doc (then the growth-plan.md that
+  would later be folded into this file) never got a "status: done"
   marker for it, so the doc itself read as if the pitch rewrite was
   still outstanding — exactly what critique points #5/#9 flagged.
   Categorized the other 9 points into real-engineering / time-gated /
@@ -246,8 +267,8 @@ this audit.
     ambiguous-caller query resolved only 3 of 6 real call sites on this
     repo, a genuine receiver-type-heuristic recall gap not present in
     the first benchmark's cleaner case) — published both, not just the
-    win. README/growth-plan/competitive-landscape all updated to
-    reference it.
+    win. README/growth-plan (since folded)/competitive-landscape all
+    updated to reference it.
   - **Grow test coverage further**: `tests/test_drift_detect.py` (8
     tests, real extracted+resolved circular-dependency fixture) and
     `tests/test_metrics.py` (6 tests, exercised against clone/drift
@@ -256,7 +277,8 @@ this audit.
     `tech_debt_report()`'s actual keys) rather than leaving guessed
     field names in committed tests.
   - Full suite: **10 files/99 tests, 99/99 passing** — every doc updated
-    to match in the same pass (README, growth-plan.md,
+    to match in the same pass (README, growth-plan.md — since folded
+    into this doc,
     competitive-landscape.md, CHANGELOG.md).
   - **Not attempted, named honestly rather than silently skipped**: the
     PRD-hierarchy embedded port (offered, not selected), and everything
@@ -274,7 +296,7 @@ this audit.
      payoff, not a tour of 121 tools.
   Explicitly deferred, per the plan's own "outward-facing, needs
   go-ahead" framing: directory listings (E3) and any Show HN / community
-  post. `docs/growth-plan.md` workstream E updated to done for items
+  post. The folded growth-plan's workstream E marked done for items
   10/11/13; item 12 (listings) stays open pending explicit approval.
   Full suite re-verified (doc/asset-only session, `cie/` package
   untouched): **99/99 still passing.**
