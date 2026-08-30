@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R9 — reproducible benchmark harness + a third independent repo.**
+  `scripts/benchmark.sh` + `scripts/benchmark_tasks.py` turn the
+  benchmark-doc methodology into a script: clone at the pinned commit →
+  index → run the three canonical task shapes on BOTH sides (naive
+  grep/read vs tool calls), emitting the JSON the docs' tables are
+  pasted from — plus the requested token-per-query metric, measured as
+  response-payload chars (tokenizer-free, labeled as such — ours gets
+  measured, codebase-memory-mcp's "120× fewer tokens" stays a
+  vendor-claim). Third dataset: docs/benchmarks-urllib3.md (urllib3 @
+  85a8a9cf, 36 files / 667 nodes / 1,307 edges) — wins (receiver-wise
+  caller attribution: 12 graph edges vs 28 undifferentiated grep
+  matches; 2.24× file-skeleton compression) AND misses (28/40
+  unresolved call sites — the known heuristic-recall gap, bigger on
+  this repo, published as found). The psf/requests numbers regenerate
+  via the same harness and match the published doc.
+
+### Added
+
 - **R8 — `cie export-html`: the shareable artifact.** One static,
   self-contained HTML snapshot of a project's graph, centered on what no
   competitor renders: task→file→test chains (real TESTS edges from the

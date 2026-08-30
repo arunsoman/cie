@@ -610,7 +610,12 @@ requests in the capture); screenshot committed via the script.
 
 ---
 
-### [ ] R9 · Benchmark harness + third independent repo (M)
+### [x] R9 · Benchmark harness + third independent repo (M) — DONE 2026-08-30
+
+*(DONE 2026-08-30: scripts/benchmark.sh + benchmark_tasks.py; third dataset
+docs/benchmarks-urllib3.md — 12 receiver-attributed caller edges vs 28 raw
+grep matches, 28/40 resolution miss published, 2.24× skeleton compression;
+requests numbers regenerate matching the doc, verified twice.)*
 
 **State today (verified).** `docs/benchmarks-requests.md` is the
 methodology of record (94 lines: pinned commit `5460f467`, 3 task
@@ -1192,5 +1197,8 @@ footnoted to its measured source; nothing published from vibes.
 - **2026-08-30 (implementation pass 8)** — R8 done: export-html feature
   (CLI + module + tests), psf/requests artifact + screenshots recorded
   via the script; suite 241 → 246. Committed.
+- **2026-08-30 (implementation pass 9)** — R9 done: harness + third
+  dataset (urllib3), README benchmark paragraph links the third repo;
+  suite 246 still green (scripts-only + doc). Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

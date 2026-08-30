@@ -52,7 +52,12 @@ own code) in [`docs/benchmarks-requests.md`](docs/benchmarks-requests.md),
 the pattern holds on a real win (a 1,184-line file skeletonizes to 43%
 of its raw size) and surfaces a real miss too (the same ambiguous-caller
 query resolved only 3 of 6 real call sites on that repo) — published
-because it's true, not adjusted to look better.
+because it's true, not adjusted to look better. A **third** dataset —
+[urllib3](https://github.com/urllib3) — adds a reproducible harness
+([`scripts/benchmark.sh`](scripts/benchmark.sh)): every number in
+[`docs/benchmarks-urllib3.md`](docs/benchmarks-urllib3.md) regenerates
+from the script, including the published recall miss (28 of 40 `close`
+call sites unresolved, in the response, not hidden).
 
 **A second hook, also measured, not asserted:** cie ships ~135
 LLM-callable tools — not a generic "run arbitrary code" surface the

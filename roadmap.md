@@ -158,7 +158,7 @@ effort S/M/L is a guess, treated as a guess.
       references**; screenshots captured straight from `file://` via
       `scripts/record_export_html.sh` (committed: docs/images/
       export-{snapshot,chains}.png). Suite 241 → 246.
-- [ ] **R9 · Benchmark harness + third independent repo** (M). Turn
+- [x] **R9 · Benchmark harness + third independent repo** (M). Turn
       docs/benchmarks-requests.md's methodology into
       `scripts/benchmark.sh` (reproducible like `record_demo.sh` is the
       source of truth for the demo), run a third independent public
@@ -167,6 +167,13 @@ effort S/M/L is a guess, treated as a guess.
       gets measured.
       **Verify:** the doc's numbers regenerate from the script; a
       fresh-clone reader can reproduce them end-to-end.
+      *Done 2026-08-30.* `scripts/benchmark.sh` + `benchmark_tasks.py`
+      (3 shapes × both sides, chars-based token metric, labeled proxy);
+      third dataset: urllib3 @ 85a8a9cf — wins and misses published
+      (12 resolved caller edges vs 28 raw grep matches; 28/40
+      unresolved; 2.24× skeleton compression) in
+      `docs/benchmarks-urllib3.md`; requests numbers regenerate and
+      match the doc (verified twice).
 - [ ] **R10 · GraphRAG/embedding first-party benchmark** (M). The
       semantic layer (`cie/embed.py`, `cie/graphrag.py`) is the one
       capability with zero measurements ("Where competitors are
