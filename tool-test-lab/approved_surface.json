@@ -1,0 +1,12 @@
+{
+  "_comment": "The CI conformance gate (roadmap R17). tool_count must equal the ToolService introspection count at the tested commit; unavailable tool names may carry only APPROVED reason slugs. Update ONLY in a PR whose point was a deliberate surface change — a silent diff here means a silent surface change (or a quiet regrowth of the 503 bucket).",
+  "approved_at": "2026-08-30",
+  "surface_label": "R14 surface",
+  "tool_count": 135,
+  "max_unavailable_by_design": 6,
+  "approved_unavailable_reasons": [
+    "OPTIONAL_BACKEND_MISSING:core",
+    "HOST_PLUGIN_MISSING:decompose-detector"
+  ],
+  "zero_crashes_required": true
+}

@@ -44,6 +44,15 @@ jobs:
         # absent in a standalone checkout.
         run: pytest -q
 
+      - name: Conformance gate (every tool executed; 0 crashes; surface + 503-reasons pinned)
+        # Roadmap R17: "135 tools, 0 crashes" as a machine-checked
+        # invariant instead of a doc claim. Fails when: any tool crashes,
+        # the served surface diverges from ToolService introspection, the
+        # tool count changes without an approved_surface.json bump, or
+        # the unavailable bucket regrows / gains an unapproved reason
+        # slug (R5's registry rule).
+        run: python tool-test-lab/conformance_gate.py
+
       - name: Smoke-check the MCP server actually starts
         # Real stdio initialize + tools/list handshake, proving the server
         # runs end-to-end (guards against the mcpserver.MCPServer -> FastMCP
