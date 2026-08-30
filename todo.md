@@ -1100,7 +1100,16 @@ checked by hand.
 
 ---
 
-### [ ] R19 · Repo trust signals + second-maintainer activation (S)
+### [x] R19 · Repo trust signals + second-maintainer activation (S) — DONE (release page rides R6) 2026-08-31
+
+*(Implementation: description + 10 topics applied via `gh repo edit`
+2026-08-31; three `good-first-issue` issues created — CLI-tests GFI →
+#17, failing_context ground truth → #18, urllib3 reproducibility → #19;
+README label link landed in 5b527c4; drafts + stamps in
+`docs/repo-trust-signals.md`. The release page is R6 step 3's own
+checklist item (notes rendered from CHANGELOG at cut time). R6's PyPI
+upload is blocked by a real finding: pypi `cie` is an unrelated
+project.)*
 
 **State today (verified).** CONTRIBUTING.md has a real
 second-maintainer path (README L93 links "Becoming a second maintainer"
@@ -1233,5 +1242,11 @@ footnoted to its measured source; nothing published from vibes.
   (detection + guarded merges + managed context blocks + readonly-by-
   default), verified via a real stdio handshake on the registered entry;
   suite 266 → 279. Committed.
-- Next update appends here with date + what moved (checkbox flips in
-  roadmap.md, status notes kept there; this file holds plan-state).
+- **2026-08-31 (implementation pass 14)** — R19 applied end-to-end:
+  repo description + 10 topics live (gh repo edit), starter issues #17/
+  #18/#19 created against CONTRIBUTING's safe-entry list; draft doc
+  committed with apply-stamps. En-route finding recorded under R6:
+  pypi.org/project/cie is cluster311/cie10 — the name-availability
+  assumption in R6's step 4 is false; needs a package-name decision.
+  README contributing link verified already in (5b527c4). Next update
+  appends here with date + what moved.
