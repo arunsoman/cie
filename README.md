@@ -7,7 +7,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
 [![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
 [![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
-[![Tests](https://img.shields.io/badge/tests-99%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-155%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
 [![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)

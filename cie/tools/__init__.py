@@ -315,6 +315,27 @@ class ToolService:
             return self._err(tool, "validation", str(exc), started,
                              hint="paths and working directories must stay "
                                   "inside the project root")
+        if isinstance(exc, ModuleNotFoundError):
+            # Optional backend absent (e.g. `core.llm` leftovers from the
+            # protobox split) — a property of THIS installation, not a crash.
+            missing = getattr(exc, "name", "") or str(exc)
+            return self._err(
+                tool, "unavailable", f"{type(exc).__name__}: {exc}", started,
+                hint=f"optional module '{missing}' is not installed in this standalone "
+                     "package; this tool needs the full (protobox) environment to work",
+            )
+        try:
+            from cie.decompose import DetectorUnavailable
+        except Exception:  # pragma: no cover - import itself cannot be allowed to break the guard
+            DetectorUnavailable = None  # type: ignore[assignment]
+        if DetectorUnavailable is not None and isinstance(exc, DetectorUnavailable):
+            # Optional decompose plugin absent (html walker / interactive-element
+            # detector) — same "installation property" semantics.
+            return self._err(
+                tool, "unavailable", f"{type(exc).__name__}: {exc}", started,
+                hint="register a decompose plugin entry-point (see the message) "
+                     "or run inside the full be-v2 environment",
+            )
         return self._err(tool, "internal", f"{type(exc).__name__}: {exc}",
                          started, hint="unexpected tool failure; report this")
 
@@ -820,11 +841,14 @@ class ToolService:
         directly (which alone would ALSO cycle back through
         `cie.factory`).
         """
-        from cie import graphrag as _graphrag
-
         tool = "qa"
         started = time.monotonic()
         try:
+            # lazy: see docstring — imported here (inside the guard scope) so
+            # the optional backend being absent degrades as `unavailable`, not
+            # as a raw crash escaping to the MCP wrapper
+            from cie import graphrag as _graphrag
+
             result = asyncio.run(_graphrag.qa(question, engine=self._engine))
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)

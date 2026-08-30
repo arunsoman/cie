@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -102,6 +103,48 @@ CREATE TABLE IF NOT EXISTS events (
 """
 
 
+class _ThreadSafeSQLite:
+    """sqlite3 connection shareable across threads.
+
+    WHY THIS EXISTS: `cie-mcp` builds this repository's connection once at
+    server startup (main thread) and then runs tool handlers in anyio worker
+    threads — CPython's default `check_same_thread=True` surfaced as a live
+    crash on the real MCP surface (`ProgrammingError: SQLite objects created
+    in a thread can only be used in that same thread`) for `get_task`,
+    `list_pending_tasks`, `task_dependency_closure` and `blame_history`.
+    In-process callers never saw it: the 143-test suite runs everything in
+    the main thread. sqlite's serialized mode makes individual statements
+    thread-safe, but TRANSACTION boundaries are not — a commit() landing
+    from another thread commits this thread's half-written transaction.
+    One lock around execute/commit/executescript/executemany/close gives
+    each operation (and each explicit commit) its own critical section.
+    """
+
+    def __init__(self, path: str):
+        self._conn = sqlite3.connect(path, check_same_thread=False)
+        self._lock = threading.RLock()
+
+    def execute(self, sql, *args):  # noqa: ANN001,ANN002 - mirrors sqlite3 api
+        with self._lock:
+            return self._conn.execute(sql, *args)
+
+    def executemany(self, sql, rows):  # noqa: ANN001 - mirrors sqlite3 api
+        with self._lock:
+            return self._conn.executemany(sql, rows)
+
+    def executescript(self, script):  # noqa: ANN001 - mirrors sqlite3 api
+        with self._lock:
+            return self._conn.executescript(script)
+
+    def commit(self):
+        with self._lock:
+            self._conn.commit()
+
+    def close(self):
+        with self._lock:
+            self._conn.close()
+
+
 class EmbeddedTaskRepository:
     """`TaskRepository` backed by one local SQLite file.
 
@@ -115,7 +158,7 @@ class EmbeddedTaskRepository:
     def __init__(self, db_path: Path | str, project: str = ""):
         self._db_path = Path(db_path)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self._db_path))
+        self._conn = _ThreadSafeSQLite(str(self._db_path))
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
         self._project = project

@@ -38,7 +38,13 @@ HINT_EMPTY_SEARCH = "no symbol named '{name}'; try a substring or drop the kind 
 HINT_EMPTY_FAILING_CONTEXT = "test node not indexed; load/reindex the test file first"
 
 #: Error kinds allowed in the error envelope.
-ERROR_KINDS = ("not_found", "validation", "internal")
+#:
+#: "unavailable" = the tool itself is fine but an optional backend module
+#: (e.g. the protobox `core.llm` layer absent from the standalone package)
+#: is not importable. Distinct from "internal": it is an expected, permanent
+#: property of this installation, not a crash — the fix is installing the
+#: optional dependency, not reporting a bug.
+ERROR_KINDS = ("not_found", "validation", "internal", "unavailable")
 
 
 def envelope(

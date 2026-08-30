@@ -493,12 +493,22 @@ class InMemoryRepository:
         return matches[: max(1, int(limit))]
 
     def get_file_skeleton(self, path: str) -> list[Node]:
+        """Signature/docstring/lines for every symbol in a file; [] if none.
+
+        Path match is EXACT or proper-path-suffix (`src/app.py` and
+        `/abs/.../src/app.py` for "app.py"). Deliberately NOT substring:
+        "app.py" used to match `test_app.py` too, so a skeleton for one file
+        returned another file's symbols (found by the ground-truth test,
+        2026-08-30). Same contract as `Neo4jRepository.get_file_skeleton`.
+        """
         needle = path.lower()
+        suffix = "/" + needle
         matches = [
             n
             for n in self._nodes.values()
             if n.kind in (NodeKind.CLASS.value, NodeKind.FUNC.value, NodeKind.METHOD.value)
-            and needle in n.source_file.lower()
+            and (n.source_file.lower() == needle
+                 or n.source_file.lower().endswith(suffix))
         ]
         matches.sort(key=lambda n: (n.source_file, n.line_start, n.label))
         return matches
@@ -545,10 +555,23 @@ class InMemoryRepository:
         max_depth = max(1, min(int(max_depth), 6))
         max_results = max(1, min(int(max_results), 50))
         needle = file_path.lower()
-        seed_ids = {nid for nid, n in self._nodes.items() if needle in n.source_file.lower()}
+        suffix = "/" + needle
+        # EXACT or proper-path-suffix seed — NOT substring: `needle in
+        # source_file` pre-seeds `test_app.py` when asked about `app.py`, and
+        # seeded == pre-visited == silently absent from the results — the
+        # test file disappeared from its own blast radius (ground-truth test,
+        # 2026-08-30).
+        seed_ids = {
+            nid for nid, n in self._nodes.items()
+            if n.source_file.lower() == needle
+            or n.source_file.lower().endswith(suffix)
+        }
         if not seed_ids:
             return []
-        allowed = {"calls", "contains", "defines", "imports"}
+        # "TESTS" (the testlink TESTS edges: test symbol → implementation)surfaced
+        # in blast radius on purpose: "which TESTS break if I change this" is
+        # half of the repair agent's question and the project's headline.
+        allowed = {"calls", "contains", "defines", "imports", "TESTS"}
         best_dist: dict[str, int] = {}
         best_conf: dict[str, Confidence] = {}
         frontier = set(seed_ids)

@@ -114,10 +114,21 @@ def _lazy_default_interactive_element_detector() -> Optional[InteractiveElementD
         return None
 
 
+class DetectorUnavailable(RuntimeError):
+    """No plugin for this decompose feature is registered in this install.
+
+    Deliberately a RuntimeError subclass so DIRECT decompose.py users keep
+    the documented fail-fast contract; `ToolService._guard` maps it to the
+    SPEC §0 `kind=unavailable` envelope because it is a property of the
+    installation (a plugin to register / richer environment to install),
+    not a bug in the tool.
+    """
+
+
 def _get_html_walker_factory() -> HtmlWalkerFactory:
     factory = _html_walker_factory or _lazy_default_html_walker_factory()
     if factory is None:
-        raise RuntimeError(
+        raise DetectorUnavailable(
             "no HTML walker available for cie.decompose.extract_pages — "
             "register one via cie.decompose.register_html_walker_factory, "
             "or run inside be-v2 with features/design_studio importable"
@@ -128,7 +139,7 @@ def _get_html_walker_factory() -> HtmlWalkerFactory:
 def _get_interactive_element_detector() -> InteractiveElementDetector:
     detector = _interactive_element_detector or _lazy_default_interactive_element_detector()
     if detector is None:
-        raise RuntimeError(
+        raise DetectorUnavailable(
             "no interactive-element detector available for "
             "cie.decompose.extract_elements — register one via "
             "cie.decompose.register_interactive_element_detector, or run "

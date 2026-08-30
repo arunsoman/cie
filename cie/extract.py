@@ -1298,8 +1298,40 @@ def declared_name(node) -> str:
     return _declared_name(node)
 
 
+#: Directory names that are never part of a project's own source tree.
+#: Indexing a virtualenv (or dependency/cache/build dirs) is worse than noise:
+#: a virtualenv often holds a STALE pip-installed copy of the project itself,
+#: so the graph gets two copies of every symbol and callers()/callees()
+#: answers come back duplicated and lie. Found by dogfooding `cie index .` on
+#: this repo (2026-08-30): 1,779 "files" / ~28k nodes indexed, mostly
+#: site-packages, and callers('extract_many') resolved into
+#: .venv/lib/python3.13/site-packages/cie/extract.py.
+EXCLUDED_DIRS = frozenset({
+    ".git", ".hg", ".svn",                 # VCS internals
+    ".venv", "venv",                        # virtualenvs + stale installs
+    "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    ".hypothesis", ".tox", ".nox", ".eggs",  # tool caches / envs
+    "node_modules",                         # JS dependencies
+    "build", "dist",                        # build outputs (stale copies)
+    ".cie",                                 # this tool's own graph db dir
+})
+
+
+def _is_excluded(path: Path, root: Path) -> bool:
+    """True when any path component under `root` is never project source."""
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return False
+    return any(part in EXCLUDED_DIRS for part in rel.parts)
+
+
 def extract_many(root: Path) -> list[Extraction]:
     """Recursively extract every supported source file under `root`.
+
+    Directories from EXCLUDED_DIRS (virtualenvs, node_modules, VCS internals,
+    tool caches, build outputs) are never walked — see that constant's
+    docstring for why indexing them is a correctness bug, not just noise.
 
     Returns one Extraction per file (never merged), which is what the pass-2
     resolver needs to attribute imports and call sites to their file. Files
@@ -1311,6 +1343,8 @@ def extract_many(root: Path) -> list[Extraction]:
     out: list[Extraction] = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():
+            continue
+        if _is_excluded(path, root):
             continue
         if supported_suffix(path) is None:
             continue

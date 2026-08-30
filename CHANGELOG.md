@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 (with [PEP 440](https://peps.python.org/pep-0440/) pre-release spelling:
 `0.1.0a1` is the first alpha, preceding the eventual `0.1.0` stable).
 
-## [Unreleased]
+## [0.1.0a3] - 2026-08-30 — dogfooded alpha
 
 ### Added
 - **Repair transaction layer — the propose/apply/verify patch protocol**
@@ -118,6 +118,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correct, full 81-tool surface vs. a 14-tool subset, one run). Added to
   the README right after the benchmark paragraph, and to
   `docs/competitive-landscape.md`'s strengths list.
+
+- Fixed a stale tool-count claim found while re-measuring for this
+  entry: the live surface is **126 MCP tools** (83 read-only under
+  `--policy inspector`), which is `ToolService`'s 127 public methods
+  minus `describe` (the introspection helper that generates the tool
+  list, deliberately not itself an LLM tool). Earlier docs variously
+  said 121 / 81 — snapshots of different measurement surfaces, now
+  labelled as such.
+
+### Fixed
+- **`cie index` no longer indexes virtualenvs / dependency / cache /
+  build / VCS directories** (`cie/extract.py`). Found by dogfooding
+  `cie index .` on this repo: the sole directory walk behind `cie
+  index`, `cie reindex` and `graph_diff` had zero exclusions, so it
+  indexed 1,779 files / ~28k nodes — overwhelmingly `.venv/`
+  `site-packages`, including a **stale pip-installed copy of cie
+  itself**, which duplicated every blast-radius answer
+  (`callers("extract_many")` resolved into
+  `.venv/lib/python3.13/site-packages/cie/extract.py` alongside the
+  real ones, plus pytest internals). After the fix the same index is
+  84 files / 1,554 nodes and answers are repo-only — the healed graph
+  now also picks up the new tests below as real callers. Pinned by
+  `tests/test_loader_exclusions.py` (5 tests).
+- **Optional-backend failures now degrade gracefully instead of
+  crashing.** Five modules still import the protobox `core.llm` layer
+  (`community_detect`, `contracts`, `graphrag`, `state_machine`,
+  `test_orchestration`); because they import lazily per tool call, the
+  failure fired at call time on the live read-only surface:
+  `coverage_gaps()` crashed with `ModuleNotFoundError: No module named
+  'core'` inside a bare "unexpected tool failure; report this"
+  envelope. New SPEC §0 error kind **`unavailable`** —
+  `cie/envelope.py` registers it, the HTTP tool mount maps it to 503,
+  and `ToolService._guard` (the funnel behind every MCP tool result)
+  and the HTTP dispatch both emit it — an expected property of the
+  standalone installation, not a reportable crash. Full `core.llm`
+  decoupling remains open: affected tools honestly return
+  `unavailable` rather than pretending. Found by dogfooding; pinned by
+  `tests/test_optional_dependency_envelope.py` (9 tests incl. a replay
+  of the exact live crash through the real `ToolService.coverage_gaps()`).
+  Suite: 129 → **143 tests, all passing**.
+- **`get_task` / `list_pending_tasks` / `task_dependency_closure` /
+  `blame_history` crashed on the live MCP surface** (`ProgrammingError:
+  SQLite objects created in a thread can only be used in that same
+  thread`): cie-mcp builds `EmbeddedTaskRepository`'s connection once at
+  startup (main thread) and runs tool handlers in anyio worker threads.
+  In-process tests never caught it because they run everything in the
+  main thread. Fix: `_ThreadSafeSQLite` wrapper
+  (`check_same_thread=False` + a lock around statement/commit critical
+  sections — transaction boundaries, not just statements, are what
+  breaks). Pinned by `tests/test_task_repo_threading.py` (4).
+- **Answer-correctness fixes, found by an exact ground-truth suite**
+  (`tests/test_graph_semantics_ground_truth.py`, 8 — a fixture project
+  where every true caller/callee/blast-radius member is known by
+  construction and tools are compared against those sets, not just
+  checked for `ok`):
+  - `file_skeleton("app.py")` returned `test_app.py`'s symbols: path
+    matching was SUBSTRING. Now exact or proper path suffix in both
+    backends (`InMemoryRepository` + `Neo4jRepository`, mirror-implemented).
+  - `affected_by` (blast radius, the repair agent's actual question)
+    omitted depending TEST files: the traversal's allowed-edge set lacked
+    the testlink `TESTS` edges, and the substring seed pre-visited the
+    test file's nodes so they silently vanished from results. Both
+    backends updated: seeds are exact/path-suffix, `TESTS` edges now
+    participate — the test file appears in the blast radius of the code
+    it exercises, as the project's own headline promises.
+  - `qa`'s lazy `core.graphrag` import sat *before* its guard (escaped
+    as a raw MCP error, not a SPEC envelope); `decompose_page`'s missing
+    optional plugin raised bare `RuntimeError` → typed
+    `DetectorUnavailable`, both now surface as `kind=unavailable`.
+  Post-fix full-surface conformance re-run (126 tools, live MCP server):
+  **85 verified / 19 graceful / 18 unavailable-by-design / 4
+  backend-gated (Neo4j) — 0 crashes.** Suite: 143 → **155 tests, all
+  passing**.
 
 ### Changed
 - README leads with a one-sentence hook (task/QA traceability) instead

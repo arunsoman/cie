@@ -829,7 +829,7 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
 }
 
 #: error kind -> HTTP status for failed tool envelopes.
-_ERROR_STATUS = {"not_found": 404, "validation": 422, "internal": 500}
+_ERROR_STATUS = {"not_found": 404, "validation": 422, "unavailable": 503, "internal": 500}
 
 
 @router.post("/tools/{tool}")
@@ -899,6 +899,17 @@ async def run_tool(tool: str, request: Request) -> JSONResponse:
             content=err_envelope(
                 tool, "validation", str(exc),
                 hint="check the argument values against the tool contract",
+            ),
+        )
+    except ModuleNotFoundError as exc:
+        # Optional backend absent (e.g. `core.llm` from the protobox era):
+        # a property of this installation, not a crash — 503, not 500.
+        return JSONResponse(
+            status_code=503,
+            content=err_envelope(
+                tool, "unavailable", f"{type(exc).__name__}: {exc}",
+                hint="an optional backend module is not installed in this "
+                     "standalone package; see the error message for which one",
             ),
         )
     except Exception as exc:  # noqa: BLE001 - backend failure

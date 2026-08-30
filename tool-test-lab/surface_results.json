@@ -1,0 +1,931 @@
+{
+  "tool_count": 126,
+  "summary": {
+    "verified": 85,
+    "graceful": 19,
+    "unavailable-by-design": 18,
+    "backend-down": 4
+  },
+  "results": {
+    "accuracy_check": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "actual_callers": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "affected_by": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "file_path": "app.py"
+      }
+    },
+    "agent_verdicts": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha"
+      }
+    },
+    "antipattern_scan": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "apm_metrics": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "apply_patch": {
+      "status": "graceful",
+      "detail": "not_found: unknown patch 'alpha'",
+      "attempts": 1,
+      "args": {
+        "patch_id": "alpha"
+      }
+    },
+    "architecture_check": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "blame_history": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "callees": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "callers": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "check_invariant": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "contract_id": "alpha",
+        "expression": "alpha",
+        "code_node_id": "alpha",
+        "state": {}
+      }
+    },
+    "class_hierarchy": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "class_name": "alpha"
+      }
+    },
+    "clone_clusters": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "clone_detect_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "clone_find": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "community_detect_run": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "community_search": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "query": "alpha"
+      }
+    },
+    "community_summarize_run": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "comprehensiveness_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "confidence_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "configure_layer_rules": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "layer_rules": {}
+      }
+    },
+    "contracts": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "contracts_run": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "text": "def alpha():\n    return 1\n"
+      }
+    },
+    "coverage_gaps": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "dead_code_confirm": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "decompose_page": {
+      "status": "unavailable-by-design",
+      "detail": "DetectorUnavailable: no interactive-element detector available for cie.decompose.extract_elements \u2014 register o",
+      "attempts": 1,
+      "args": {
+        "html": "alpha",
+        "screen_id": "alpha"
+      }
+    },
+    "delete_file": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "dependency_graph": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "dependency_graph_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "doc_graph_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "doc_search": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "query": "alpha"
+      }
+    },
+    "drift_detect_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "drift_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "edit_file": {
+      "status": "graceful",
+      "detail": "not_found: no such file under project root: app.py",
+      "attempts": 1,
+      "args": {
+        "path": "app.py",
+        "old_string": "alpha",
+        "new_string": "alpha"
+      }
+    },
+    "element_coverage": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "page_id": "alpha"
+      }
+    },
+    "entity_context": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "export_rdf": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "failing_context": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "test_identifier": "alpha"
+      }
+    },
+    "file_skeleton": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "freshness_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "fsm_validate": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "entity_name": "alpha"
+      }
+    },
+    "get_layer_rules": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "get_patch": {
+      "status": "graceful",
+      "detail": "not_found: unknown patch 'alpha'",
+      "attempts": 1,
+      "args": {
+        "patch_id": "alpha"
+      }
+    },
+    "get_task": {
+      "status": "graceful",
+      "detail": "not_found: no task named 'alpha'",
+      "attempts": 1,
+      "args": {
+        "name": "alpha"
+      }
+    },
+    "graph_diff": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "before_path": "app.py",
+        "after_path": "app.py"
+      }
+    },
+    "hybrid_search": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "query": "alpha"
+      }
+    },
+    "implied_pages": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "implied_pages_run": {
+      "status": "backend-down",
+      "detail": "ServiceUnavailable: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):\nFailed ",
+      "attempts": 1,
+      "args": {}
+    },
+    "inject_assertions": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "code": "alpha",
+        "contract_specs": []
+      }
+    },
+    "install_git_hook": {
+      "status": "graceful",
+      "detail": "validation: /tmp/cie-surface-sandbox is not a git repository (no .git directory)",
+      "attempts": 1,
+      "args": {
+        "cie_url": "alpha"
+      }
+    },
+    "invariant_violations": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "justification": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha"
+      }
+    },
+    "list_patches": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "list_pending_tasks": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "metric_trend": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "metrics": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "mock_coverage": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "mock_registry": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "mock_registry_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "mock_violations": {
+      "status": "graceful",
+      "detail": "not_found: no mock endpoint registered for 'alpha'",
+      "attempts": 1,
+      "args": {
+        "service_name": "alpha",
+        "method": "alpha",
+        "path": "app.py"
+      }
+    },
+    "nook_and_corner_test": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "page_tree": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "path_between": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "source": "app.py",
+        "target": "app.py"
+      }
+    },
+    "performance_analyze_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "performance_baseline": {
+      "status": "graceful",
+      "detail": "not_found: no latency metrics recorded for 'alpha'",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha"
+      }
+    },
+    "performance_profile": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "performance_regressions": {
+      "status": "graceful",
+      "detail": "not_found: no baseline recorded for 'alpha'",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha",
+        "current_p95": 1
+      }
+    },
+    "population_path": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "capability": "alpha"
+      }
+    },
+    "prd_traceability_chain": {
+      "status": "backend-down",
+      "detail": "ServiceUnavailable: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):\nFailed ",
+      "attempts": 1,
+      "args": {
+        "task_id": "alpha"
+      }
+    },
+    "prd_traceability_coverage": {
+      "status": "backend-down",
+      "detail": "ServiceUnavailable: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):\nFailed ",
+      "attempts": 1,
+      "args": {}
+    },
+    "prd_traceability_orphans": {
+      "status": "backend-down",
+      "detail": "ServiceUnavailable: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):\nFailed ",
+      "attempts": 1,
+      "args": {}
+    },
+    "promote_hint_to_task": {
+      "status": "graceful",
+      "detail": "not_found: no DerivedTaskHint 'alpha'",
+      "attempts": 1,
+      "args": {
+        "hint_id": "alpha",
+        "page_label": "alpha"
+      }
+    },
+    "propose_patch": {
+      "status": "graceful",
+      "detail": "validation: changes must be a non-empty list of [file, old_text, new_text] change objects",
+      "attempts": 1,
+      "args": {
+        "changes": []
+      }
+    },
+    "qa": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "question": "alpha"
+      }
+    },
+    "record_apm_metric": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha",
+        "metric_type": "alpha",
+        "value": 1
+      }
+    },
+    "record_test_result": {
+      "status": "graceful",
+      "detail": "not_found: unknown TestExecution 'alpha'",
+      "attempts": 1,
+      "args": {
+        "test_execution_id": "alpha",
+        "status": "passed"
+      }
+    },
+    "record_verdict": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha",
+        "agent_name": "alpha",
+        "verdict": "alpha",
+        "confidence": 1,
+        "reasoning": "alpha"
+      }
+    },
+    "reindex": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "reindex_file": {
+      "status": "graceful",
+      "detail": "not_found: no such file under project root: app.py",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "related_edges": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "resolve_import": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "cmd": "echo ok"
+      }
+    },
+    "run_tests": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "test_type": "alpha",
+        "target_files": []
+      }
+    },
+    "salience_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "search_symbol": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "name": "alpha"
+      }
+    },
+    "semantic_diff": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "spec_text": "alpha",
+        "target_symbol": "app.py"
+      }
+    },
+    "semantic_search": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "query": "alpha"
+      }
+    },
+    "start_mock_server": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "start_watch": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "state_machine": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "entity_name": "alpha"
+      }
+    },
+    "state_machine_run": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "text": "def alpha():\n    return 1\n"
+      }
+    },
+    "stop_mock_server": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "stop_watch": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "strip_assertions": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "code": "alpha"
+      }
+    },
+    "subsystem_dependency_graph": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "subsystem_dependency_graph_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "subsystem_gaps": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "subsystem_health": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "sync_ast_delta": {
+      "status": "graceful",
+      "detail": "not_found: no such file under project root: app.py",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "sync_evict_speculative": {
+      "status": "graceful",
+      "detail": "validation: the two-graph model requires a non-empty project; this ToolService is bound to the default/unnamed project",
+      "attempts": 1,
+      "args": {}
+    },
+    "sync_load_commit": {
+      "status": "graceful",
+      "detail": "not_found: [Errno 2] No such file or directory: 'app.py'",
+      "attempts": 1,
+      "args": {
+        "repo_path": "app.py",
+        "commit_hash": "alpha"
+      }
+    },
+    "sync_promote": {
+      "status": "graceful",
+      "detail": "validation: the two-graph model requires a non-empty project; this ToolService is bound to the default/unnamed project",
+      "attempts": 1,
+      "args": {}
+    },
+    "sync_quality_gate": {
+      "status": "graceful",
+      "detail": "not_found: no such file under project root: app.py",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "sync_revert": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "commit_hash": "alpha"
+      }
+    },
+    "task_dependency_closure": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "name": "alpha"
+      }
+    },
+    "tech_debt_report": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "telemetry_to_spec": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "code_node_id": "alpha"
+      }
+    },
+    "test_coverage": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "spec_node_id": "alpha"
+      }
+    },
+    "test_map": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "test_plan": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "test_results": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "test_skeletons": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "test_skeletons_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "specs": []
+      }
+    },
+    "traceability_chain": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "traceability_coverage": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "traceability_orphans": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "type_flow": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "symbol": "alpha"
+      }
+    },
+    "type_flow_run": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "unified_coverage_report": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {}
+    },
+    "validate_property_constraints": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "constraints": {}
+      }
+    },
+    "validate_types": {
+      "status": "unavailable-by-design",
+      "detail": "ModuleNotFoundError: No module named 'core'",
+      "attempts": 1,
+      "args": {
+        "domain_types": {}
+      }
+    },
+    "verify_patch": {
+      "status": "graceful",
+      "detail": "not_found: unknown patch 'alpha'",
+      "attempts": 1,
+      "args": {
+        "patch_id": "alpha"
+      }
+    },
+    "view_file": {
+      "status": "graceful",
+      "detail": "not_found: no such file under project root: app.py",
+      "attempts": 1,
+      "args": {
+        "path": "app.py"
+      }
+    },
+    "write_file": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "path": "app.py",
+        "content": "def alpha():\n    return 1\n"
+      }
+    },
+    "write_files_atomic": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {
+        "files": {}
+      }
+    }
+  }
+}

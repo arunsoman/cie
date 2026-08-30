@@ -1864,17 +1864,20 @@ class Neo4jRepository:
     def get_file_skeleton(self, path: str) -> list[Node]:
         """Return class/function/method nodes for a file, ordered by line_start.
 
-        `path` is a case-insensitive substring match on ``source_file`` so
-        agents can pass either repo-relative or absolute-ish paths. Only
-        signature/docstring/line metadata is returned — never bodies (the
-        schema stores no bodies).
+        `path` matches EXACTLY or as a proper path suffix (case-insensitive):
+        "app.py" matches `src/app.py` and `/abs/.../src/app.py` (the original
+        convenience for repo-relative vs absolute-ish args) but NOT
+        `test_app.py` — substring matching returned another file's symbols
+        for an exact-name query (ground-truth test, 2026-08-30). Mirror of
+        `InMemoryRepository.get_file_skeleton`.
         """
         needle = path.lower()
         query = (
             """
             MATCH (n:Node)
             WHERE n.kind IN [$class, $func, $method]
-              AND toLower(n.source_file) CONTAINS $needle"""
+              AND (toLower(n.source_file) = $needle
+                   OR toLower(n.source_file) ENDS WITH $needle_path)"""
             + self._pw("n")
             + """
             RETURN n
@@ -1883,6 +1886,7 @@ class Neo4jRepository:
         )
         rows = self._run(query, {
             "needle": needle,
+            "needle_path": "/" + needle,
             "class": NodeKind.CLASS.value,
             "func": NodeKind.FUNC.value,
             "method": NodeKind.METHOD.value,
@@ -1966,8 +1970,10 @@ class Neo4jRepository:
 
         Same BFS shape as `failing_context` (APOC-free variable-length
         expansion over `RELATES` edges, grouped by shortest-path distance)
-        but seeded from every node whose `source_file` CONTAINS
-        `file_path` (there may be several — a file with multiple
+        but seeded from every node whose `source_file` matches the path
+        exactly or as a proper path suffix (NOT substring — "app.py" used
+        to pre-seed `test_app.py`, whose nodes were then already-visited
+        and silently absent from the results) (there may be several — a file with multiple
         functions/classes) rather than a single resolved test node, and
         with the traversal direction itself configurable.
 
@@ -1986,7 +1992,8 @@ class Neo4jRepository:
         query_text = (
             """
             MATCH (f:Node)
-            WHERE toLower(f.source_file) CONTAINS $needle"""
+            WHERE toLower(f.source_file) = $needle
+               OR toLower(f.source_file) ENDS WITH $needle_path"""
             + self._pw("f")
             + """
             WITH collect(f.id) AS seed_ids
@@ -1995,7 +2002,7 @@ class Neo4jRepository:
             MATCH p = (f)""" + (arrow % max_depth) + """(m:Node)
             WHERE NOT m.id IN seed_ids
               AND all(r IN relationships(p)
-                      WHERE r.relation IN ['calls', 'contains', 'defines', 'imports'])"""
+                      WHERE r.relation IN ['calls', 'contains', 'defines', 'imports', 'TESTS'])"""
             + self._pw("m")
             + """
             WITH m, p ORDER BY length(p) ASC, m.label
@@ -2007,7 +2014,9 @@ class Neo4jRepository:
             """
         )
         query = Query(query_text, timeout=timeout_s)
-        rows = self._run(query, {"needle": needle, "limit": max_results})
+        rows = self._run(query, {
+            "needle": needle, "needle_path": "/" + needle, "limit": max_results,
+        })
         hits: list[ContextHit] = []
         for r in rows:
             conf_raw = r["conf"] or Confidence.EXTRACTED.value
