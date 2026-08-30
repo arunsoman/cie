@@ -689,7 +689,12 @@ vendor-documented, ours stated as measured.
 
 ---
 
-### [ ] R11 · Streamable-HTTP transport for `cie-mcp` (M)
+### [x] R11 · Streamable-HTTP transport for `cie-mcp` (M) — DONE 2026-08-30
+
+*(More existed than the roadmap implied: the parser already accepted
+the transport; implemented `--host/--port` pass-through, live
+verification via the official streamable_http client, wiring tests,
+README/docs/CHANGELOG.)*
 
 **State today (verified).** More exists than the roadmap implies:
 `cie/mcp_server.py::_build_arg_parser` already accepts `--transport
@@ -1173,5 +1178,7 @@ footnoted to its measured source; nothing published from vibes.
   call-resolution tallies visible in callers/callees output; live psf/
   requests check (resolution 19/16/3, name-keyed reconciled against the
   doc's 6-site framing); suite 235 → 239. Committed.
+- **2026-08-30 (implementation pass 7)** — R11 done: streamable-http
+  end to end (wiring + harness + docs); suite 239 → 241. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R11 — streamable-HTTP transport for `cie-mcp`.** The `--transport
+  streamable-http` choice is now actually usable end to end: `--host`
+  (default `127.0.0.1`) / `--port` (8000) kwargs wired into the SDK's
+  HTTP run path, the same server-side `ToolPolicy` applies on every
+  transport. Live-verified with the official streamable-http client
+  against a real spawned server (`tool-test-lab/dogfood_mcp_http.py`):
+  HTTP `tools/list` == exactly the 85-tool inspector prediction, and a
+  write attempt is refused server-side (the tool is never registered —
+  never trusted to the client). Browser-mode Inspector is the human
+  path; the harness is its scriptable twin.
+
+### Added
+
 - **R7 — edge provenance tagging: callers/callees disclose HOW each
   answer was reached.** Every row in `callers`/`callees` carries
   `provenance` — `"graph"` (a persisted, confidence-tagged edge) vs

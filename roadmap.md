@@ -166,13 +166,23 @@ effort S/M/L is a guess, treated as a guess.
       claude-context/grepai; publish wins and misses.
       **Verify:** numbers land in `docs/competitor-benchmarks.md` with
       the same tool-version-table rigor as the 08-28 run.
-- [ ] **R11 · Streamable-HTTP transport for `cie-mcp`** (M). The mcp
+- [x] **R11 · Streamable-HTTP transport for `cie-mcp`** (M). The mcp
       SDK's HTTP transport so browser/wire MCP clients connect without
       building a bespoke web client; `ToolPolicy` filtering flows
       through unchanged (inspector policy hides writes at the schema).
       **Verify:** a real browser-based MCP client (Inspector) connects
       over HTTP and sees exactly the schema set inspector policy
       predicts; write attempts are server-side-refused.
+      *Done 2026-08-30.* Implementation turned out further along than
+      the roadmap implied (the transport choice already parsed) — the
+      real work was `--host/--port` wiring + verification: live harness
+      (`tool-test-lab/dogfood_mcp_http.py`, official streamable-http
+      client vs a spawned server) proves HTTP tools/list == exactly the
+      85-tool inspector prediction and write attempts refused
+      server-side; wiring unit tests pin stdio-vs-HTTP kwargs; loopback
+      default + security doc reference; README quickstart block.
+      (Browser-mode Inspector remains the manual human step — recorded
+      as the harness's real-transport twin.)
 - [ ] **R12 · Language #7: tree-sitter C** (M). The deferred D1-C item
       with a real reason: C's function name/params sit inside nested
       `function_declarator`s, so field-based helpers silently skip

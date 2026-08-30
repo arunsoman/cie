@@ -113,3 +113,54 @@ def test_real_toolservice_registers_cleanly_with_no_introspection_errors(tmp_pat
     # confirmed missing once, fixed, guarded here so it can't regress.
     assert "write_files_atomic" in WRITE_TOOLS
     assert "write_files_atomic" not in read_only_names
+
+
+# ---------------------------------------------------------------------------
+# R11 — streamable-HTTP transport wiring
+# ---------------------------------------------------------------------------
+
+
+def test_main_passes_transport_host_port_to_the_server_run(monkeypatch, tmp_path):
+    """The `--transport streamable-http` flag (plus --host/--port) must
+    reach MCPServer.run as kwargs — the R11 parser already accepted the
+    transport choice; this pins the wiring so HTTP kwargs (host/port)
+    can't silently detach from the flags."""
+    import cie.mcp_server as mcp_server
+
+    captured: dict = {}
+
+    def fake_run(self, transport="stdio", **kwargs):
+        captured["transport"] = transport
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        mcp_server, "build_mcp_server",
+        lambda service, policy, name="cie": mcp_server._mcp_server_class()(name=name),
+    )
+    monkeypatch.setattr(mcp_server._mcp_server_class(), "run", fake_run)
+    from cie.mcp_server import main
+
+    main([str(tmp_path), "--embedded", "--transport", "streamable-http",
+          "--host", "0.0.0.0", "--port", "9001"])
+    assert captured["transport"] == "streamable-http"
+    assert captured["kwargs"] == {"host": "0.0.0.0", "port": 9001}
+
+
+def test_main_stdio_run_takes_no_extra_kwargs(monkeypatch, tmp_path):
+    import cie.mcp_server as mcp_server
+
+    captured: dict = {}
+
+    def fake_run(self, transport="stdio", **kwargs):
+        captured["transport"] = transport
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        mcp_server, "build_mcp_server",
+        lambda service, policy, name="cie": mcp_server._mcp_server_class()(name=name),
+    )
+    monkeypatch.setattr(mcp_server._mcp_server_class(), "run", fake_run)
+    from cie.mcp_server import main
+
+    main([str(tmp_path), "--embedded"])
+    assert captured == {"transport": "stdio", "kwargs": {}}

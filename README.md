@@ -114,6 +114,24 @@ too, backed by a second local SQLite file (`.cie/tasks.db`, via
 `cie.embedded_task_repository.EmbeddedTaskRepository`) — pass
 `--no-task-tracking` to `cie-mcp` if you'd rather skip creating it.
 
+The hierarchy store is `--no-hierarchy`-optional the same way
+(`.cie/hierarchy.db` by default).
+
+### Serving over HTTP instead of stdio
+
+```bash
+cie-mcp /path/to/project --embedded --policy inspector \
+  --transport streamable-http --host 127.0.0.1 --port 8000
+```
+
+Browser/wire MCP clients (e.g. MCP Inspector in browser mode) connect
+to `http://127.0.0.1:8000/mcp`. The SAME `ToolPolicy` filters
+registration on every transport — server-side, verified per transport
+(`tool-test-lab/dogfood_mcp_http.py`: HTTP `tools/list` == exactly the
+policy's predicted set; a write call comes back refused). Loopback bind
+by default; widening `--host` makes it a network service — see
+[`docs/security.md`](docs/security.md) for the `run`-tool boundary.
+
 **Query it from the CLI too, same file, still no Neo4j** — the documented
 query commands answer from the same `.cie/graph.db` the index wrote
 (auto-selection: embedded when a local graph.db exists, `--backend`/

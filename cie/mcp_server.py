@@ -168,7 +168,20 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--neo4j-password", default=None)
     parser.add_argument(
         "--transport", default="stdio", choices=["stdio", "sse", "streamable-http"],
-        help="MCP transport (default: stdio — what Claude Code/Cursor/Codex expect for a local server).",
+        help="MCP transport (default: stdio — what Claude Code/Cursor/Codex expect for a local server). "
+             "streamable-http is for browser/wire MCP clients (e.g. MCP Inspector in "
+             "browser mode); the SAME ToolPolicy filters registration, so a "
+             "read-only client only ever sees read tools — server-enforced.",
+    )
+    parser.add_argument(
+        "--host", default="127.0.0.1",
+        help="HTTP transports: bind address (default 127.0.0.1 — loopback "
+             "only; binding wider turns cie into a network service subject "
+             "to the ToolPolicy boundary — see docs/security.md).",
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000,
+        help="HTTP transports: bind port (default 8000).",
     )
     return parser
 
@@ -205,7 +218,15 @@ def main(argv: list[str] | None = None) -> None:
         service = build_tool_service_from_config(config)
 
     server = build_mcp_server(service, policy)
-    server.run(transport=args.transport)
+    if args.transport == "stdio":
+        server.run(transport="stdio")
+    else:
+        # host/port are streamable-http/sse kwargs (the SDK's run() kwargs);
+        # stdio takes none, so it branches — same server object either way.
+        # Loopback-by-default: an HTTP transport opens a port, which the
+        # ToolPolicy boundary (server-side enforcement) is designed for —
+        # never registered a tool the policy denies, never trusts the client.
+        server.run(transport=args.transport, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
