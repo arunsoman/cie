@@ -78,6 +78,11 @@ packages = ["cie"]
 # checkout, so collecting them errors. testpaths keeps `pytest` (no args)
 # correct.
 testpaths = ["tests"]
+# tests/fixtures/sandbox/test_app.py is CONFORMANCE FIXTURE data (R17 —
+# the harness runs real tools against it), not a test; collecting it
+# produced a bogus red (its `from app import alpha` needs the fixture's
+# own cwd, which pytest doesn't provide).
+norecursedirs = ["tests/fixtures"]
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx>=0.27"]
