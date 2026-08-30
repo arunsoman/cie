@@ -672,6 +672,7 @@ def index(ctx, path: Path, db: Optional[Path]) -> None:
     """
     from cie.callgraph import (
         resolve_call_edges,
+        resolution_stats,
         resolve_inheritance_edges,
         synthesize_external_class_nodes,
     )
@@ -686,6 +687,17 @@ def index(ctx, path: Path, db: Optional[Path]) -> None:
         nodes = [n for ext in per_file for n in ext.nodes]
         edges = [e for ext in per_file for e in ext.edges]
         call_edges = resolve_call_edges(per_file)
+        # R7: per-name call resolution tallies, persisted as analysis nodes
+        # so `callers()`/`callees()` can surface "resolved N of the M real
+        # call sites" in tool output (the benchmark doc's 3-of-6 gap).
+        stat_nodes = [
+            {
+                "id": f"callstat::{s['name']}", "label": s["name"],
+                "kind": "CallResolutionStat", "source_file": "",
+                **{k: s[k] for k in ("total_call_sites", "unresolved_call_sites")},
+            }
+            for s in resolution_stats(per_file)
+        ]
         inheritance_edges = resolve_inheritance_edges(per_file)
         known_ids = {n["id"] for n in nodes}
         external_nodes = synthesize_external_class_nodes(inheritance_edges, known_ids)
@@ -695,6 +707,7 @@ def index(ctx, path: Path, db: Optional[Path]) -> None:
 
         repo = EmbeddedRepository(db_path)
         written = repo.load_extraction(nodes, all_edges)
+        repo.replace_analysis_nodes("CallResolutionStat", stat_nodes, [], project="")
     payload = {
         "path": str(resolved), "db": str(db_path),
         "files_scanned": len(per_file),
@@ -1040,6 +1053,7 @@ def load(ctx, paths, project: str) -> None:
     """
     from cie.callgraph import (
         resolve_call_edges,
+        resolution_stats,
         resolve_inheritance_edges,
         synthesize_external_class_nodes,
     )
@@ -1062,6 +1076,16 @@ def load(ctx, paths, project: str) -> None:
                 )
             edges = [e for ext in per_file for e in ext.edges]
             call_edges = resolve_call_edges(per_file)
+            # R7: same resolution tallies `cie index` persists, so call-
+            # resolution completeness is visible on the Neo4j path too.
+            stat_nodes = [
+                {
+                    "id": f"callstat::{s['name']}", "label": s["name"],
+                    "kind": "CallResolutionStat", "source_file": "",
+                    **{k: s[k] for k in ("total_call_sites", "unresolved_call_sites")},
+                }
+                for s in resolution_stats(per_file)
+            ]
             inheritance_edges = resolve_inheritance_edges(per_file)
             known_ids = {n["id"] for n in nodes}
             # DM-08: an unresolved base class (external library, or a
@@ -1074,6 +1098,9 @@ def load(ctx, paths, project: str) -> None:
             count = engine._repo.load_extraction(  # noqa: SLF001
                 nodes, edges + call_edges + inheritance_edges + test_edges, project=project,
             )
+            engine._repo.replace_analysis_nodes(  # noqa: SLF001
+                "CallResolutionStat", stat_nodes, [], project=project,
+            )
         path_list = [str(p) for p in paths]
         total_edges = (
             len(edges) + len(call_edges) + len(inheritance_edges) + len(test_edges)
@@ -1084,6 +1111,7 @@ def load(ctx, paths, project: str) -> None:
             "calls_edges": len(call_edges),
             "inheritance_edges": len(inheritance_edges),
             "test_edges": len(test_edges),
+            "resolution_stats": len(stat_nodes),
             "paths": path_list,
             "project": project,
         }

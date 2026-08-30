@@ -123,7 +123,7 @@ effort S/M/L is a guess, treated as a guess.
 
 ## P1 — differentiator defense + credibility (after stable)
 
-- [ ] **R7 · Edge provenance tagging** (L). `callers()`/`callees()`
+- [x] **R7 · Edge provenance tagging** (L). `callers()`/`callees()`
       distinguish verified graph resolution from heuristic/name matches
       (Graphify's `EXTRACTED|INFERRED` is the exemplar; cie already has
       node-level confidence + `record_verdict`). This also makes the
@@ -131,6 +131,16 @@ effort S/M/L is a guess, treated as a guess.
       the tool's own output* instead of only in a benchmark doc.
       **Verify:** `test_graph_semantics_ground_truth.py`-style fixture
       asserts labels against known-by-inspection truth, both backends.
+      *Done 2026-08-30.* Per-row `provenance` (graph vs
+      heuristic-name-match, including on fallback legs) + envelope
+      `resolution` from `CallResolutionStat` tallies persisted by both
+      loaders in the edge pass (`callgraph.resolve_call_edges(stats_out=)`
+      / `resolution_stats()`); `tests/test_edge_provenance.py` pins
+      labels+counts against known-by-inspection truth (embedded) and the
+      fallback leg (Neo4j-configured service, no server — the fallback
+      path IS the other surface); live-verified on psf/requests —
+      `resolution {19 total, 16 unresolved, 3 resolved}`, matching the
+      published 3-resolved. Suite 239/239.
 - [ ] **R8 · `cie export-html` — the shareable artifact** (M). Static,
       read-only, self-contained HTML of a project's graph centered on
       what nobody else can render: task→file→test chains

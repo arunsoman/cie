@@ -562,12 +562,38 @@ class ToolService:
         )
         return self._ok(tool, results, started, truncated=truncated, hint=hint)
 
-    def _edge_results(self, records: Any, direction: str) -> list[dict]:
+    def _call_resolution_summary(self, name: str) -> Optional[dict]:
+        """R7: the persisted `CallResolutionStat` for `name`, as a summary
+        dict — `{total_call_sites, unresolved_call_sites}` — or None when
+        no stat was persisted (older index). Read through the repo's
+        analysis_nodes (protocol method; both backends have it), never
+        engine internals' shapes; best-effort, never load-bearing."""
+        try:
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "CallResolutionStat", project=self._canonical_project(),
+            )
+        except Exception:  # noqa: BLE001
+            return None
+        for n in nodes:
+            if n.properties.get("name", n.label) == name:
+                return {
+                    "total_call_sites": n.properties.get("total_call_sites", 0),
+                    "unresolved_call_sites": n.properties.get(
+                        "unresolved_call_sites", 0
+                    ),
+                }
+        return None
+
+    def _edge_results(self, records: Any, direction: str,
+                      provenance: str = "graph") -> list[dict]:
         """Shape EdgeRecords into caller/callee result dicts.
 
         Node file/signature are enriched best-effort via ``engine.get_node``
-        (HEAD QueryEngine method) so results match the T1.3 shape.
-        """
+        (HEAD QueryEngine method) so results match the T1.3 shape. Every
+        row carries `provenance` (R7): "graph" when it came from a
+        persisted, confidence-tagged edge — "heuristic-name-match" when
+        the heuristic index served the call, so a consumer can discount
+        the fallback leg programmatically instead of via prose hints."""
         results: list[dict] = []
         for record in records:
             peer_label = (
@@ -583,6 +609,7 @@ class ToolService:
                 direction: peer_label,
                 "relation": record.edge.relation,
                 "confidence": _confidence_value(record.edge.confidence),
+                "provenance": provenance,
             }
             if peer is not None:
                 entry[f"{direction}_file"] = peer.source_file
@@ -615,7 +642,14 @@ class ToolService:
         return self._ok(tool, [], started, hint=hint)
 
     def callers(self, symbol: str, limit: int = 30) -> dict:
-        """Blast radius: who calls ``symbol`` (T1.3)."""
+        """Blast radius: who calls ``symbol`` (T1.3).
+
+        Rows carry `confidence` (edge-level EXTRACTED/INFERRED/AMBIGUOUS)
+        and `provenance` (R7: "graph" vs "heuristic-name-match"); the
+        envelope carries `resolution` — persisted per-name call-site
+        totals so the known unresolved share (e.g. requests' 3-of-6 for
+        `close()`) is visible in tool output, not only in the benchmark
+        doc."""
         tool = "callers"
         started = time.monotonic()
         records, exc = self._try_graph(tool, self._engine.get_callers, symbol, limit)
@@ -625,16 +659,30 @@ class ToolService:
             empty_hint=HINT_EMPTY_CALLERS,
         )
         if fallback is not None:
+            if fallback.get("ok") and isinstance(fallback.get("results"), list):
+                for row in fallback["results"]:
+                    if isinstance(row, dict):
+                        row["provenance"] = "heuristic-name-match"
             return fallback
         results = self._edge_results(records, "caller")
         truncated = len(results) >= limit
-        return self._ok(
+        env = self._ok(
             tool, results, started, truncated=truncated,
             hint=f"results capped at {limit}" if truncated else None,
         )
+        resolution = self._call_resolution_summary(symbol)
+        if resolution is not None:
+            env["resolution"] = {
+                **resolution,
+                "resolved_edges": len(results),
+            }
+        return env
 
     def callees(self, symbol: str, limit: int = 30) -> dict:
-        """Reverse localization: what ``symbol`` calls (T1.3)."""
+        """Reverse localization: what ``symbol`` calls (T1.3).
+
+        Rows carry `confidence` + `provenance` (R7); see `callers` for the
+        envelope's `resolution` contract."""
         tool = "callees"
         started = time.monotonic()
         records, exc = self._try_graph(tool, self._engine.get_callees, symbol, limit)
@@ -644,6 +692,10 @@ class ToolService:
             empty_hint=HINT_EMPTY_CALLERS,
         )
         if fallback is not None:
+            if fallback.get("ok") and isinstance(fallback.get("results"), list):
+                for row in fallback["results"]:
+                    if isinstance(row, dict):
+                        row["provenance"] = "heuristic-name-match"
             return fallback
         results = self._edge_results(records, "callee")
         truncated = len(results) >= limit

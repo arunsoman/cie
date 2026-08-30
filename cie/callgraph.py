@@ -279,7 +279,10 @@ def _resolve_receiver(index: _Index, file_id: str, import_map: dict[str, str],
     return None, None
 
 
-def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
+def resolve_call_edges(
+    per_file: list[Extraction],
+    stats_out: Optional[list[dict]] = None,
+) -> list[dict]:
     """Resolve pass-2 `calls` edges from per-file extractions.
 
     Args:
@@ -287,16 +290,26 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
             and `call_sites` (see cie.extract.extract_many). Merged
             multi-file extractions are not supported: import/call-site
             attribution requires one file hub per Extraction.
+        stats_out: optional list to FILL with per-called-name resolution
+            tallies (R7's edge-provenance companion — see
+            `resolution_stats`): one dict per called name,
+            ``{name, total_call_sites, unresolved_call_sites}``. Pass a
+            list to collect them in the SAME pass (no second walk); the
+            loaders persist them as `CallResolutionStat` analysis nodes
+            so `callers()`/`callees()` can answer "how many call sites
+            did NOT resolve" — the benchmark docs' 3-of-6 gap, visible
+            in tool output instead of only in a doc.
 
     Returns:
         Edge dicts ``{source, target, relation: "calls", confidence, line}``
         where confidence is one of EXTRACTED/INFERRED/AMBIGUOUS. Call sites
         that cannot be resolved (rule d with zero or several same-named
-        symbols) are skipped.
+        symbols) are skipped (and COUNTED in stats_out when given).
     """
     index = _Index(per_file)
     edges: list[dict] = []
     seen: set[tuple[str, str, str, int]] = set()
+    totals: dict[str, list[int]] = {}  # name -> [total_sites, unresolved_sites]
 
     for ext in per_file:
         file_id = _file_hub_id(ext)
@@ -312,6 +325,9 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
             line = int(site.get("line", 0) or 0)
             if not caller or not name:
                 continue
+
+            bucket = totals.setdefault(name, [0, 0])
+            bucket[0] += 1
 
             target: Optional[str] = None
             confidence: Optional[Confidence] = None
@@ -344,6 +360,7 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
                     confidence = Confidence.AMBIGUOUS
 
             if target is None or confidence is None:
+                bucket[1] += 1
                 continue
             key = (caller, target, confidence.value, line)
             if key in seen:
@@ -357,7 +374,27 @@ def resolve_call_edges(per_file: list[Extraction]) -> list[dict]:
                 "line": line,
             })
 
+    if stats_out is not None:
+        stats_out.extend(
+            {
+                "name": name,
+                "total_call_sites": t,
+                "unresolved_call_sites": u,
+            }
+            for name, (t, u) in sorted(totals.items())
+        )
+
     return edges
+
+
+def resolution_stats(per_file: list[Extraction]) -> list[dict]:
+    """R7 companion to `resolve_call_edges`: per-called-name call-site
+    resolution tallies — see the `stats_out` arg there for the shape and
+    the why. One walk, shared logic; loaders persist these as
+    `CallResolutionStat` analysis nodes."""
+    stats: list[dict] = []
+    resolve_call_edges(per_file, stats_out=stats)
+    return stats
 
 
 # ---------------------------------------------------------------------------

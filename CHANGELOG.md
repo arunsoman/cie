@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R7 — edge provenance tagging: callers/callees disclose HOW each
+  answer was reached.** Every row in `callers`/`callees` carries
+  `provenance` — `"graph"` (a persisted, confidence-tagged edge) vs
+  `"heuristic-name-match"` (the fallback served it, say so per row) —
+  and the envelope carries `resolution` (`CallResolutionStat`, persisted
+  by `cie index`/`cie load` in the edge-resolution pass): per-name
+  `{total_call_sites, unresolved_call_sites, resolved_edges}`. The
+  benchmark docs' honest miss ("resolved 3 of 6 real call sites on
+  requests") is now a field in tool output — live-verified on
+  psf/requests: `resolution: {total: 19, unresolved: 16, resolved: 3}`
+  (name-keyed; see benchmarks-requests.md's reconciliation note).
+  `callgraph.resolve_call_edges` gained the same-pass stats companion
+  (`resolution_stats`); ground-truth provenance tests pin the labels
+  against known-by-inspection truth.
+
+### Added
+
 - **R14 — the PRD-hierarchy store lands on embedded SQLite.** Its last
   Neo4j-only feature is gone: `cie/embedded_hierarchy_repository.py`'s
   `SQLiteHierarchyRepository` implements the same `HierarchyRepository`

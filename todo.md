@@ -480,7 +480,16 @@ hand in goal.md.
 
 ## P1 — differentiator defense + credibility (after stable)
 
-### [ ] R7 · Edge provenance tagging (L)
+### [x] R7 · Edge provenance tagging (L) — DONE 2026-08-30
+
+*(Implementation summary: `callgraph.resolve_call_edges` computes per-name
+total/unresolved call-site tallies in the same pass (`resolution_stats`);
+both loaders persist them as `CallResolutionStat` analysis nodes;
+ToolService `callers`/`callees` shapes per-row `provenance`
+(graph|heuristic-name-match, including on fallback legs) + envelope
+`resolution`; 4 ground-truth tests (`tests/test_edge_provenance.py`);
+live psf/requests check matches the published 3-resolved with the gap
+exposed (`19/16/3`).)*
 
 **State today (verified).** The *graph* half exists: `cie/callgraph.py`
 already stamps every `calls`/`extends`/`implements` edge with
@@ -1160,5 +1169,9 @@ footnoted to its measured source; nothing published from vibes.
   213 → 235. The R3-era "hierarchy still Neo4j-only" caveat flipped in
   README; hierarchy.py's nonexistent-fake docstring pointer fixed.
   Committed.
+- **2026-08-30 (implementation pass 6)** — R7 done: provenance labels +
+  call-resolution tallies visible in callers/callees output; live psf/
+  requests check (resolution 19/16/3, name-keyed reconciled against the
+  doc's 6-site framing); suite 235 → 239. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -35,6 +35,16 @@ ambiguous, large file), then reported as found.
 | Find every real call to `close()` (defined 4x: `HTTPAdapter`, `BaseAdapter`, `Response`, `Session`) | `grep -rn "\.close()" src/requests/*.py` — 6 real call sites, no receiver-type info | `callers("close")` — resolved via the real call graph | **1**, finds **6** | **1**, finds **3** |
 | Understand a large file (`models.py`, 1,184 lines, 41,462 bytes) | Read the whole file | `file_skeleton("models.py")` | **1** call, 41,462 bytes | **1** call, **17,887 bytes** |
 
+**Re-measured 2026-08-30 (R7):** that ambiguous-caller gap is now
+*visible in the tool's own output* — `callers("close")` carries a
+`resolution` block (persisted per-name call-site tallies): this repo's
+live numbers are `total_call_sites: 19, unresolved_call_sites: 16,
+resolved_edges: 3`. The name-keyed denominator is broader than the
+doc-table's 6 adapter-close sites (any `.close()` on any object counts
+under the name), so the two figures aren't the same fraction — read
+them together: the doc counts adapter-relevant sites; the tool counts
+every call site sharing the name. Both are honest; neither is hidden.
+
 ## What this actually shows
 
 - **Task 1 (easy): a tie**, same as the first benchmark's Task 1 — an
