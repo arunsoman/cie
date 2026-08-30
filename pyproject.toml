@@ -1,6 +1,6 @@
 [project]
 name = "cie"
-version = "0.1.0a3"
+version = "0.1.0"
 description = "Code Insight Engine — a pluggable, language-agnostic code graph + LLM tool surface (MCP/HTTP/CLI) with an embedded SQLite or Neo4j backend."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -8,7 +8,7 @@ license = {text = "MIT"}
 authors = [{name = "Arun Soman", email = "aarunsoman@gmail.com"}]
 keywords = ["code-graph", "call-graph", "mcp", "llm-tools", "tree-sitter", "neo4j", "code-intelligence"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",

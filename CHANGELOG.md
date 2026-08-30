@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet — the stable cut happened at `v0.1.0` (see below); post-release
+work starts a fresh section here.
+
+## [0.1.0] - 2026-08-31 — first stable
+
+*Cut from the same tree as `0.1.0a3` plus everything below — the P0/P1
+roadmap (R1–R9, R11–R17) landed between the last alpha and this cut: the
+message bus is the same code base, now verified at 279 tests, a 135-tool
+surface with 0 conformance crashes, and 9 languages. Released from GitHub
+while a PyPI distribution-name decision is pending (`cie` on PyPI is an
+unrelated project).*
+
 ### Added
 
 - **R15 — `cie init`: one-command onboarding.** Detects installed MCP

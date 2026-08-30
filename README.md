@@ -7,7 +7,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
 [![tree-sitter](https://img.shields.io/badge/extraction-tree--sitter-4A9043.svg)](https://tree-sitter.github.io/tree-sitter/)
 [![Neo4j](https://img.shields.io/badge/backend-Neo4j%20%7C%20SQLite-008CC8.svg)](https://neo4j.com)
-[![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-279%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
 [![GitHub issues](https://img.shields.io/github/issues/kannamma-labs/cie?logo=github&label=issues)](https://github.com/kannamma-labs/cie/issues)
@@ -19,7 +19,7 @@
 [![Code size](https://img.shields.io/github/languages/code-size/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie)
 [![Repo size](https://img.shields.io/github/repo-size/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](#install)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/kannamma-labs/cie/releases)
+[![Status](https://img.shields.io/badge/status--beta-yellow.svg)](https://github.com/kannamma-labs/cie/releases)
 
 *Code Insight Engine.* No other surveyed code-graph tool can answer
 "which files implement this task, and are they tested?" as one query —
@@ -113,7 +113,7 @@ others, including where cie is honestly behind.
 ## Quickstart (zero-config, no Neo4j)
 
 ```bash
-pip install "cie[mcp]"
+pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"
 cie index /path/to/your/project
 cie-mcp /path/to/your/project --embedded
 ```
@@ -190,10 +190,15 @@ extraction, ~135 tools, the task/QA layer).
 ## Install
 
 ```bash
-pip install cie             # core: graph, tools, task/hierarchy layer over Neo4j
-pip install "cie[mcp]"      # + the MCP server (cie-mcp) — what most people want
-pip install "cie[http]"     # + the HTTP tool-mount / mock server (cie/routes.py)
+pip install cie             # ✗ not yet — see the note below
+pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"   # core + MCP server (cie-mcp) — what most people want
+pip install "cie[http] @ git+https://github.com/kannamma-labs/cie.git"  # + the HTTP tool-mount / mock server (cie/routes.py)
 ```
+
+> **Package-name note (2026-08-31):** the `cie` name on PyPI is taken by
+> an unrelated project (`cluster311/cie10`, ICD-10 codes — `pip install
+> cie` does NOT get you this tool). Until the project ships under a
+> different distribution name, install from GitHub as above.
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
 tree-sitter (+ Python/JS/TS/Java/Go/Rust/C/C++/C# grammars), watchdog, Click,
