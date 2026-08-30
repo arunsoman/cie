@@ -9,8 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet — the stable cut happened at `v0.1.0` (see below); post-release
-work starts a fresh section here.
+### Added
+
+- **R10 — first-party semantic retrieval, run and measured.**
+  `cie.embed` gains a stdlib-only OpenAI-compatible embeddings client as
+  dispatch tier 3 (host `core.llm` › registered override › env-gated
+  fallback › raise): gated **only** on an explicit `CIE_EMBED_DSN` plus a
+  key (`CIE_EMBED_API_KEY` or `NVIDIA_API_KEY`) — a bare provider key
+  never turns network calls on (no-accidental-network rule,
+  test-pinned). `EmbeddedRepository.load_extraction` now enriches rows
+  with real vectors when embeddings are supported and persists them (the
+  Neo4j `_maybe_compute_embeddings` contract, embedded edition), so
+  `semantic_search`'s dense signal works standalone. The graphrag
+  pipeline's pure layers import without `core.llm` (lazy-import playbook
+  R5 established; `qa`'s availability envelope unchanged and re-pinned).
+  The benchmark itself — `scripts/benchmark_semantic.py` + 16
+  hand-labeled questions on psf/requests and urllib3 (R9's corpora) —
+  measured **recall@8 = 1.0 on all 16 questions** (hybrid MRR 0.854
+  requests / 0.781 urllib3; semantic 0.754 / 0.823 — neither retriever
+  dominates, hybrid's floor is higher), embedding index overhead ~free
+  at this scale (+0.03s @ 665 nodes), misses published in
+  docs/competitor-benchmarks.md's new dated section with the
+  vendor-config-vs-measured table for claude-context and grepai (labeled
+  as not-run-here). Full-suite 279 → 292.
 
 ## [0.1.0] - 2026-08-31 — first stable
 

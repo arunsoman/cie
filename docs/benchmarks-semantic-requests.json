@@ -1,0 +1,296 @@
+{
+  "corpus": "requests",
+  "project": "/tmp/requests/src/requests",
+  "k": 8,
+  "embedding_model": "nvidia/nemotron-3-embed-1b",
+  "dsn": "https://integrate.api.nvidia.com/v1",
+  "index_time": {
+    "plain_seconds": 3.1,
+    "with_embeddings_seconds": 3.13,
+    "overhead_seconds": 0.03,
+    "nodes": 665
+  },
+  "questions": [
+    {
+      "q": "Where is PreparedRequest, the final outgoing request, assembled?",
+      "wanted": [
+        "models.py"
+      ],
+      "label_evidence": "models.py L378 class PreparedRequest, def prepare L424",
+      "hybrid_top_files": [
+        "_types.py",
+        "models.py",
+        "hooks.py",
+        "exceptions.py",
+        "cookies.py",
+        "utils.py",
+        "_internal_utils.py",
+        "sessions.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 0.5,
+      "semantic_top_files": [
+        "models.py",
+        "sessions.py",
+        "_types.py",
+        "auth.py",
+        "hooks.py",
+        "exceptions.py",
+        "utils.py",
+        "adapters.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 1603,
+      "context_tokens_est": 400,
+      "grep_hitlist_chars": 830
+    },
+    {
+      "q": "How are form fields and file uploads encoded in the request body?",
+      "wanted": [
+        "models.py",
+        "utils.py"
+      ],
+      "label_evidence": "models RequestEncodingMixin._encode_files; utils._encode_params",
+      "hybrid_top_files": [
+        "models.py",
+        "sessions.py",
+        "exceptions.py",
+        "api.py",
+        "_internal_utils.py",
+        "utils.py",
+        "cookies.py",
+        "_types.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "models.py",
+        "exceptions.py",
+        "_types.py",
+        "utils.py",
+        "structures.py",
+        "sessions.py",
+        "hooks.py",
+        "adapters.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 3843,
+      "context_tokens_est": 960,
+      "grep_hitlist_chars": 639
+    },
+    {
+      "q": "Where is the HTTP basic auth header constructed?",
+      "wanted": [
+        "auth.py",
+        "utils.py"
+      ],
+      "label_evidence": "auth.py _basic_auth_str L34; utils._basic_auth_str caller",
+      "hybrid_top_files": [
+        "auth.py",
+        "models.py",
+        "cookies.py",
+        "utils.py",
+        "sessions.py",
+        "adapters.py",
+        "exceptions.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "auth.py",
+        "models.py",
+        "sessions.py",
+        "cookies.py",
+        "exceptions.py",
+        "hooks.py",
+        "utils.py",
+        "adapters.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 1651,
+      "context_tokens_est": 412,
+      "grep_hitlist_chars": 684
+    },
+    {
+      "q": "Where does requests follow redirects and issue the follow-up request?",
+      "wanted": [
+        "sessions.py"
+      ],
+      "label_evidence": "sessions.py resolve_redirects L186",
+      "hybrid_top_files": [
+        "sessions.py",
+        "auth.py",
+        "exceptions.py",
+        "cookies.py",
+        "models.py",
+        "utils.py",
+        "api.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "models.py",
+        "exceptions.py",
+        "sessions.py",
+        "hooks.py",
+        "auth.py",
+        "utils.py",
+        "adapters.py",
+        "status_codes.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 0.333,
+      "context_chars": 2746,
+      "context_tokens_est": 686,
+      "grep_hitlist_chars": 830
+    },
+    {
+      "q": "Which component applies the urllib3 Retry policy on transport errors?",
+      "wanted": [
+        "adapters.py"
+      ],
+      "label_evidence": "adapters.py Retry import L34, MaxRetryError usage",
+      "hybrid_top_files": [
+        "adapters.py",
+        "exceptions.py",
+        "cookies.py",
+        "models.py",
+        "sessions.py",
+        "api.py",
+        "utils.py",
+        "__version__.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "exceptions.py",
+        "adapters.py",
+        "utils.py",
+        "status_codes.py",
+        "hooks.py",
+        "sessions.py",
+        "compat.py",
+        "_internal_utils.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 0.5,
+      "context_chars": 3772,
+      "context_tokens_est": 943,
+      "grep_hitlist_chars": 523
+    },
+    {
+      "q": "Where are HTTP status codes mapped to human-readable reasons?",
+      "wanted": [
+        "status_codes.py"
+      ],
+      "label_evidence": "status_codes.py _codes mapping module",
+      "hybrid_top_files": [
+        "status_codes.py",
+        "models.py",
+        "exceptions.py",
+        "adapters.py",
+        "auth.py",
+        "cookies.py",
+        "utils.py",
+        "_types.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "status_codes.py",
+        "exceptions.py",
+        "models.py",
+        "hooks.py",
+        "help.py",
+        "structures.py",
+        "utils.py",
+        "adapters.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 2378,
+      "context_tokens_est": 594,
+      "grep_hitlist_chars": 638
+    },
+    {
+      "q": "How is proxy configuration resolved from environment variables?",
+      "wanted": [
+        "utils.py"
+      ],
+      "label_evidence": "utils.py should_bypass_proxies L810, get_environ_proxies L873",
+      "hybrid_top_files": [
+        "utils.py",
+        "sessions.py",
+        "adapters.py",
+        "exceptions.py",
+        "auth.py",
+        "models.py",
+        "cookies.py",
+        "_types.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "utils.py",
+        "exceptions.py",
+        "sessions.py",
+        "adapters.py",
+        "auth.py",
+        "hooks.py",
+        "certs.py",
+        "cookies.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 3551,
+      "context_tokens_est": 887,
+      "grep_hitlist_chars": 477
+    },
+    {
+      "q": "What builds the connect and read timeouts passed to urllib3?",
+      "wanted": [
+        "adapters.py"
+      ],
+      "label_evidence": "adapters.py HTTPAdapter.send builds urllib3.Timeout",
+      "hybrid_top_files": [
+        "exceptions.py",
+        "_types.py",
+        "adapters.py",
+        "auth.py",
+        "cookies.py",
+        "utils.py",
+        "__init__.py",
+        "_internal_utils.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 0.333,
+      "semantic_top_files": [
+        "exceptions.py",
+        "_types.py",
+        "utils.py",
+        "hooks.py",
+        "adapters.py",
+        "sessions.py",
+        "structures.py",
+        "_internal_utils.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 0.2,
+      "context_chars": 5312,
+      "context_tokens_est": 1328,
+      "grep_hitlist_chars": 560
+    }
+  ],
+  "summary": {
+    "mean_hybrid_recall_at_k": 1.0,
+    "mean_semantic_recall_at_k": 1.0,
+    "mean_hybrid_mrr": 0.854,
+    "mean_semantic_mrr": 0.754,
+    "questions_answered_with_context": 8,
+    "questions_total": 8,
+    "note": "file-level recall@8 + MRR; dense signal from nvidia/nemotron-3-embed-1b via https://integrate.api.nvidia.com/v1"
+  }
+}

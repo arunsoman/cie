@@ -133,13 +133,24 @@ Honest gaps, not hedged:
   CodeGraph's 7-repo published range or Serena's scale of verification.
 - **Semantic/vector search maturity.** claude-context and grepai have
   dedicated, independently-benchmarked embedding retrieval; cie's
-  GraphRAG/embedding layer (`cie/graphrag.py`, `cie/embed.py`) exists but
-  is unbenchmarked.
-- **Maturity signals.** Alpha (`0.1.0a2`), single-author commit history —
-  real gaps, not just optics. (Test-suite depth specifically improved:
-  4 files/38 tests → 10 files/99 tests, covering task/QA,
-  quality-governance, and the language-adapter registry areas that had
-  zero coverage before — narrowed, not the same gap it started as.)
+  GraphRAG/embedding layer (`cie/graphrag.py`, `cie/embed.py`) now has a
+  **first-party retrieval benchmark** (R10, 2026-08-31:
+  docs/competitor-benchmarks.md's "Semantic retrieval" section — 16/16
+  questions at recall@8 = 1.0 across two third-party corpora, per-question
+  MRR published both ways, misses included) and runs standalone via the
+  env-gated OpenAI-compatible embeddings fallback. The gap is now of a
+  different kind: those stacks have larger user bases and tuned retrievers
+  for embedding-only search, but their retrieval quality on code questions
+  isn't published side-by-side with labeled answer sets — theirs stay
+  vendor-configs until someone runs both.
+- **Maturity signals.** Single-author commit history and weeks-old
+  code base — real gaps, not just optics. (Release posture improved:
+  `0.1.0` stable cut 2026-08-31 (tag `v0.1.0`, GitHub release; PyPI name
+  decision pending) with the maturity caveats kept in the release notes.
+  Test-suite depth specifically improved: 4 files/38 tests → 292 tests
+  across the suite, covering task/QA, quality-governance, language
+  adapters, embeddings fallback, and provenance/ground-truth areas that
+  had zero coverage before — narrowed, not the same gap it started as.)
 
 ## If prioritizing one next move for competitiveness
 

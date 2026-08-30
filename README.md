@@ -344,6 +344,10 @@ mandatory `hint`. Grouped by capability (all also exposed over MCP and
 `actual_callers`, `dead_code_confirm`, `hybrid_search` (lexical + dense
 vector + graph-centrality, with per-component scores), `entity_context`,
 `view_file` (windowed, line-numbered, joined with the symbol index).
+Embeddings: host `core.llm`, or the first-party OpenAI-compatible
+fallback (`CIE_EMBED_DSN` + key, stdlib — R10), or a registered
+override; first-party retrieval measured at recall@8 = 1.0 on two
+corpora (docs/competitor-benchmarks.md, 2026-08-31).
 
 **GraphRAG Q&A** — `qa` (`cie.graphrag`): a real pipeline —
 `query_plan.classify` picks a retrieval strategy, `hybrid_search`

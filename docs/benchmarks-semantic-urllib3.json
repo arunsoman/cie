@@ -1,0 +1,294 @@
+{
+  "corpus": "urllib3",
+  "project": "/tmp/urllib3-bench/src/urllib3",
+  "k": 8,
+  "embedding_model": "nvidia/nemotron-3-embed-1b",
+  "dsn": "https://integrate.api.nvidia.com/v1",
+  "index_time": {
+    "plain_seconds": 5.92,
+    "with_embeddings_seconds": 4.82,
+    "overhead_seconds": -1.11,
+    "nodes": 1207
+  },
+  "questions": [
+    {
+      "q": "Where is the pool of reusable HTTP connections implemented?",
+      "wanted": [
+        "connectionpool.py"
+      ],
+      "label_evidence": "connectionpool.py L126 class HTTPConnectionPool; _get_conn/_put_conn",
+      "hybrid_top_files": [
+        "connectionpool.py",
+        "contrib/socks.py",
+        "exceptions.py",
+        "poolmanager.py",
+        "_base_connection.py",
+        "connection.py",
+        "http2/connection.py",
+        "contrib/emscripten/connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "exceptions.py",
+        "contrib/socks.py",
+        "connectionpool.py",
+        "_base_connection.py",
+        "http2/connection.py",
+        "poolmanager.py",
+        "contrib/emscripten/connection.py",
+        "util/connection.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 0.333,
+      "context_chars": 5245,
+      "context_tokens_est": 1311,
+      "grep_hitlist_chars": 1618
+    },
+    {
+      "q": "How does PoolManager route requests to per-host connection pools?",
+      "wanted": [
+        "poolmanager.py"
+      ],
+      "label_evidence": "poolmanager.py L164 class PoolManager",
+      "hybrid_top_files": [
+        "poolmanager.py",
+        "connectionpool.py",
+        "contrib/socks.py",
+        "util/proxy.py",
+        "connection.py",
+        "http2/connection.py",
+        "_base_connection.py",
+        "util/connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "poolmanager.py",
+        "exceptions.py",
+        "connectionpool.py",
+        "contrib/socks.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 6255,
+      "context_tokens_est": 1563,
+      "grep_hitlist_chars": 1266
+    },
+    {
+      "q": "How does urllib3 decide how long to wait before retrying a failed request?",
+      "wanted": [
+        "util/retry.py"
+      ],
+      "label_evidence": "retry.py Retry L41, get_backoff_time L310",
+      "hybrid_top_files": [
+        "contrib/emscripten/fetch.py",
+        "util/wait.py",
+        "util/request.py",
+        "util/retry.py",
+        "connection.py",
+        "_base_connection.py",
+        "http2/__init__.py",
+        "connectionpool.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 0.25,
+      "semantic_top_files": [
+        "util/retry.py",
+        "response.py",
+        "contrib/emscripten/response.py",
+        "util/wait.py",
+        "util/timeout.py",
+        "exceptions.py",
+        "util/request.py",
+        "util/ssltransport.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 1762,
+      "context_tokens_est": 440,
+      "grep_hitlist_chars": 1390
+    },
+    {
+      "q": "Where are TLS sockets wrapped and the SSL context applied for https?",
+      "wanted": [
+        "connection.py",
+        "util/ssl_.py"
+      ],
+      "label_evidence": "connection.py ssl_wrap_socket usage L674; util/ssl_.py module",
+      "hybrid_top_files": [
+        "util/ssltransport.py",
+        "connection.py",
+        "contrib/pyopenssl.py",
+        "util/ssl_.py",
+        "exceptions.py",
+        "util/ssl_match_hostname.py",
+        "connectionpool.py",
+        "_collections.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 0.5,
+      "semantic_top_files": [
+        "connection.py",
+        "util/ssl_.py",
+        "util/ssltransport.py",
+        "contrib/pyopenssl.py",
+        "contrib/socks.py",
+        "_base_connection.py",
+        "connectionpool.py",
+        "util/ssl_match_hostname.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 5441,
+      "context_tokens_est": 1360,
+      "grep_hitlist_chars": 1018
+    },
+    {
+      "q": "How is a gzip or deflate compressed response body decoded?",
+      "wanted": [
+        "response.py",
+        "util/response.py"
+      ],
+      "label_evidence": "response.py Gzip/DeflateDecoder.decompress L58/L76; util/response.py",
+      "hybrid_top_files": [
+        "response.py",
+        "util/response.py",
+        "exceptions.py",
+        "util/retry.py",
+        "contrib/emscripten/response.py",
+        "contrib/emscripten/fetch.py",
+        "connection.py",
+        "http2/connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "response.py",
+        "contrib/emscripten/response.py",
+        "util/ssltransport.py",
+        "util/response.py",
+        "http2/connection.py",
+        "connection.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 1721,
+      "context_tokens_est": 430,
+      "grep_hitlist_chars": 1029
+    },
+    {
+      "q": "Where are connect and read timeout values applied?",
+      "wanted": [
+        "util/timeout.py",
+        "connectionpool.py"
+      ],
+      "label_evidence": "util/timeout.py class Timeout L25; connectionpool urlopen timeouts",
+      "hybrid_top_files": [
+        "util/timeout.py",
+        "exceptions.py",
+        "connectionpool.py",
+        "util/wait.py",
+        "util/connection.py",
+        "util/ssltransport.py",
+        "contrib/pyopenssl.py",
+        "connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "util/timeout.py",
+        "connectionpool.py",
+        "exceptions.py",
+        "util/ssltransport.py",
+        "contrib/pyopenssl.py",
+        "util/connection.py",
+        "connection.py",
+        "http2/connection.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 5974,
+      "context_tokens_est": 1493,
+      "grep_hitlist_chars": 1708
+    },
+    {
+      "q": "How is the request body transformed into chunks for sending?",
+      "wanted": [
+        "connection.py",
+        "util/request.py"
+      ],
+      "label_evidence": "connection.py L54 body_to_chunks import, L533 chunk transform",
+      "hybrid_top_files": [
+        "util/request.py",
+        "_request_methods.py",
+        "connection.py",
+        "util/retry.py",
+        "contrib/emscripten/connection.py",
+        "_base_connection.py",
+        "connectionpool.py",
+        "http2/connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 1.0,
+      "semantic_top_files": [
+        "connection.py",
+        "util/request.py",
+        "response.py",
+        "contrib/emscripten/request.py",
+        "contrib/emscripten/connection.py",
+        "exceptions.py",
+        "_base_connection.py",
+        "contrib/emscripten/response.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 1.0,
+      "context_chars": 6258,
+      "context_tokens_est": 1564,
+      "grep_hitlist_chars": 1454
+    },
+    {
+      "q": "How does urllib3 release a connection back to its pool after use?",
+      "wanted": [
+        "connectionpool.py"
+      ],
+      "label_evidence": "connectionpool.py _put_conn L300",
+      "hybrid_top_files": [
+        "response.py",
+        "connectionpool.py",
+        "contrib/emscripten/response.py",
+        "poolmanager.py",
+        "contrib/socks.py",
+        "_base_connection.py",
+        "http2/probe.py",
+        "connection.py"
+      ],
+      "hybrid_recall_at_k": 1.0,
+      "hybrid_mrr": 0.5,
+      "semantic_top_files": [
+        "response.py",
+        "contrib/emscripten/response.py",
+        "exceptions.py",
+        "connectionpool.py",
+        "poolmanager.py",
+        "connection.py",
+        "_base_connection.py",
+        "contrib/socks.py"
+      ],
+      "semantic_recall_at_k": 1.0,
+      "semantic_mrr": 0.25,
+      "context_chars": 4689,
+      "context_tokens_est": 1172,
+      "grep_hitlist_chars": 1712
+    }
+  ],
+  "summary": {
+    "mean_hybrid_recall_at_k": 1.0,
+    "mean_semantic_recall_at_k": 1.0,
+    "mean_hybrid_mrr": 0.781,
+    "mean_semantic_mrr": 0.823,
+    "questions_answered_with_context": 8,
+    "questions_total": 8,
+    "note": "file-level recall@8 + MRR; dense signal from nvidia/nemotron-3-embed-1b via https://integrate.api.nvidia.com/v1"
+  }
+}

@@ -144,3 +144,99 @@ uvx --from git+https://github.com/oraios/serena serena project create /path/to/r
 ```
 
 Time each with `time`, then compare — same as this pass.
+
+---
+
+## Semantic retrieval (GraphRAG) — first-party, 2026-08-31
+
+**What's new this pass:** R10's semantic layer now runs first-party —
+`cie.embed`'s env-gated OpenAI-compatible fallback
+(`CIE_EMBED_DSN` + key; stdlib, no new dependency — see
+`cie/embed.py`'s tier contract) makes the embedding pipeline reproducible
+from this repo alone. This section measures **cie's own semantic
+retrieval** (the layer R5 left host-gated, now standalone-capable); the
+competitor retrieval stacks below are **vendor-documented configs, not
+runs** — running them requires their services/indices, which the
+measurement environment does not have. Labeled as such; nothing here
+claims a head-to-head with them.
+
+### What was measured (ours — measured)
+
+`scripts/benchmark_semantic.py` (raw JSON committed alongside the doc):
+16 hand-labeled questions — 8 per corpus, spanning exact-symbol,
+conceptual (no symbol names in the query), and cross-file (truth spans
+2+ modules) — on the same corpora as R9's benchmarks, hand-labeled
+by reading the repos, grep evidence recorded per label in the script.
+
+| Corpus (pinned) | Nodes | Index time plain | + embeddings | Recall@8, hybrid | Recall@8, semantic | MRR hybrid | MRR semantic |
+|---|---|---|---|---|---|---|---|
+| psf/requests @ `5460f467` (`src/requests`) | 665 | 3.10s | 3.13s | **8/8 = 1.0** | **8/8 = 1.0** | **0.854** | 0.754 |
+| urllib3 @ `85a8a9cf` (`src/urllib3`) | 1,207 | 5.92s | 4.82s | **8/8 = 1.0** | **8/8 = 1.0** | 0.781 | **0.823** |
+
+- Every one of the 16 questions found its full relevant-file set within
+  the top 8 unique retrieved files — including the conceptual ones
+  ("how long to wait before retrying" → `util/retry.py` without naming
+  Retry) and every cross-file label ("TLS wrapping" → connection.py +
+  util/ssl_.py).
+- **Ranking (MRR) is where retrievers differ, and neither dominates:**
+  hybrid's 3-signal fusion wins on requests (0.854 vs 0.754); dense-only
+  wins on urllib3 (0.823 vs 0.781). Hybrid's floor is the higher of the
+  two (0.781 vs semantic's 0.754) — its worst case is better.
+- **Embedding index overhead at this scale is ~free**: warm-min index
+  time was 665 nodes in +0.03s and 1,207 nodes in −1.1s (i.e. inside
+  run-to-run noise — the batched, bounded-concurrency client sends
+  ~one request per 16 nodes).
+- Context assembly (the R10-decoupled pure layer) produced 776 avg
+  tokens (requests) / 1,167 avg tokens (urllib3) per question —
+  full context blocks with callers/tests expansion, compared against a
+  naive `grep -rilE` hit-list of 161/349 est. tokens — different
+  deliverables (assembled context vs a filename list), published as a
+  calibration point, not a win.
+
+**Honest misses (published as found):**
+- The hybrid retriever's lexical+graph biases are visible in specific
+  misses: "release a connection back to its pool" (urllib3) ranks
+  `connectionpool.py` 2nd via hybrid (MRR 0.5) vs 4th via dense (0.25);
+  the retry-backoff question's reverse (hybrid 0.25, dense 1.0) —
+  query shape decides which signal dominates, and the answer set does
+  not hide which one fired (every `hybrid_search` row carries
+  `lexical_score`/`dense_score`/`graph_score`; edge-level provenance
+  from R7).
+- A **full-repo index (repo root, tests/docs included)** was also run
+  for requests before scoping to the source tree: file-level precision
+  collapses to ~0.14 mean because test-function labels dominate
+  embedding retrieval. Scope the index to the source tree (R9's corpus
+  convention, what `--src-glob` drives) — or read the miss here rather
+  than rediscover it.
+
+### Configuration, stated (theirs — vendor-documented, NOT run here)
+
+| Retrieval stack | Stars / version | Indexing config (per their docs, 2026-08-31) | Run here? |
+|---|---|---|---|
+| **cie** (this run) | — | `cie index` (`sqlite` embedded, 665/1,207 nodes) → hybrid = lexical + dense (cosine, `node_embedding_text` payload: label/kind/decl line + docstring) + graph degree; dense via `nvidia/nemotron-3-embed-1b` (dim 2048) through the env-gated OpenAI-compatible fallback, `input_type` query-vs-passage at call sites | **measured, 2026-08-31** |
+| [claude-context](https://github.com/zilliztech/claude-context) | 12,455 | per README (as of 2026-07-14 commit): Milvus/Zilliz cloud vector DB; embeddings via user-supplied OpenAI/voyage key; MCP `index_codebase`/`search_code` tools — **vendor-documented** | not run here (needs their vector service + API keys) |
+| [grepai](https://github.com/yoanbernabeu/grepai) | 1,827, v0.36.0 (2026-08-30) | per README: 100% local — Ollama `nomic-embed-text` (default), LM Studio or OpenAI supported; `grepai watch` indexing daemon; call-graphs alongside vectors — **vendor-documented** | not run here (needs a local Ollama stack) |
+
+The `120× fewer tokens` style claims from codebase-memory-mcp remain
+**vendor claims** (see R9's note); everything in the measured table
+above is this repo's own run, reproducible below.
+
+### Reproducing
+
+```bash
+CIE_EMBED_DSN=https://integrate.api.nvidia.com/v1 \
+CIE_EMBED_API_KEY=... \
+CIE_EMBED_MODEL=nvidia/nemotron-3-embed-1b \
+python scripts/benchmark_semantic.py \
+    --project /tmp/requests/src/requests --corpus requests --out /tmp/sem-requests.json
+
+# second corpus
+CIE_EMBED_DSN=https://integrate.api.nvidia.com/v1 \
+CIE_EMBED_MODEL=nvidia/nemotron-3-embed-1b \
+python scripts/benchmark_semantic.py \
+    --project /tmp/urllib3-bench/src/urllib3 --corpus urllib3 --out /tmp/sem-urllib3.json
+```
+
+(Repos: `git clone https://github.com/psf/requests` and
+`git clone https://github.com/urllib3/urllib3`, checkout
+`5460f467` / `85a8a9cf` — the same pins as `docs/benchmarks-*.md`.)
