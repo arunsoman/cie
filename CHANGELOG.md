@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 (with [PEP 440](https://peps.python.org/pep-0440/) pre-release spelling:
 `0.1.0a1` is the first alpha, preceding the eventual `0.1.0` stable).
 
+## [Unreleased]
+
+### Fixed
+
+- **The CLI answers the zero-config quickstart (roadmap R2).** Query
+  commands (`cie files`, `cie search-symbol`, `cie callers`, `cie
+  skeleton`, `cie tasks:*`, …) are no longer hardwired to build a Neo4j
+  connection: the same engine answers against the local SQLite graph
+  `cie index` writes. Selection rule: `--backend` flag › ``CIE_BACKEND``
+  env › auto (embedded when a `.cie/graph.db` exists at `--db`/`CIE_DB`/
+  cwd, else Neo4j — unchanged for existing Neo4j users). Task commands
+  read/write the sibling `.cie/tasks.db` via the existing embedded task
+  repository; `hierarchy:*` commands say honestly that the SQLite store
+  is roadmap R14 (not a bolt retry-loop); `load`/`watch`/`bootstrap` +
+  explicit-embedded carry the embedded-equivalent hint (`cie index`)
+  instead of a connection failure. This closes the session-7 leftover
+  where the quickstart literally retried `localhost:7687` four times
+  before failing. Suite: 171 → 184 (`tests/test_cli.py`, 13 tests, real
+  click tree, no Neo4j anywhere).
+
+### Changed
+
+- `cie <query>` commands gained explicit backend selection (`--backend`,
+  `--db`, `CIE_BACKEND`, `CIE_DB`) and now fail fast with a `not_found`
+  envelope when explicitly pointed at a nonexistent local graph — never
+  a silently-empty answer.
+
 ## [0.1.0a3] - 2026-08-30 — dogfooded alpha
 
 ### Added

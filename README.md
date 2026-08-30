@@ -98,6 +98,27 @@ too, backed by a second local SQLite file (`.cie/tasks.db`, via
 `cie.embedded_task_repository.EmbeddedTaskRepository`) — pass
 `--no-task-tracking` to `cie-mcp` if you'd rather skip creating it.
 
+**Query it from the CLI too, same file, still no Neo4j** — the documented
+query commands answer from the same `.cie/graph.db` the index wrote
+(auto-selection: embedded when a local graph.db exists, `--backend`/
+`CIE_BACKEND` to override; roadmap R2):
+
+```bash
+cie files                     # what's indexed
+cie search-symbol close       # definitions by name
+cie callers close             # blast radius (resolved call graph)
+cie callees close
+cie skeleton src/api.py
+cie path alpha helper
+cie tasks:pending             # the task/QA layer, from .cie/tasks.db
+```
+
+Every command honors `--json` (group-level, before the subcommand) for
+the machine-driven, and explicit `--backend embedded/neo4j` + `--db`
+override the selection rule hierarchy. `cie load`/`cie watch`/`cie
+bootstrap` remain the multi-project Neo4j ingest paths (their embedded
+counterpart is re-running `cie index`).
+
 See "What it is — three layers" below for the full breakdown (structural
 extraction, ~126 tools, the task/QA layer).
 

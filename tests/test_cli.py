@@ -1,0 +1,272 @@
+"""R2 — CLI↔embedded-SQLite parity: the zero-config quickstart contract.
+
+The regression this file exists to prevent (session-7 log, named not
+fixed): `cie index` wrote the local SQLite graph while every documented
+query command hardwired `Neo4jRepository.connect` — so the quickstart
+literally retried `localhost:7687` four times before failing. These
+tests drive the REAL click tree (CliRunner, no monkeypatching of the
+openers) through the exact quickstart sequence — `cie index .` then the
+documented query commands — and assert they answer from `.cie/graph.db`
+with zero bolt traffic, plus the honest-error edges added in the same
+pass (explicit-embedded with a missing db, hierarchy on embedded,
+--backend precedence).
+
+Neo4j behaviors are NOT exercised here (no live server in CI); the
+Neo4j construction branch is unchanged code asserted indirectly by the
+backend-selection unit tests below.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from click.testing import CliRunner
+
+from cie.cli import _embedded_db_path, _selected_backend, cli
+
+APP_PY = (
+    "def helper():\n"
+    "    return 0\n"
+    "\n"
+    "def beta():\n"
+    "    return helper()\n"
+    "\n"
+    "def alpha():\n"
+    "    return beta()\n"
+)
+
+TASK_BATCH = {
+    "tasks": [
+        {
+            "name": "t1",
+            "task_type": "dev",
+            "description": "implement alpha's next step",
+            "file_path": "app.py",
+            "function_signatures": ["alpha()"],
+            # a dev task must carry its test triad (push_tasks' own
+            # validation — the repo-level QA contract, unchanged by R2)
+            "test_triad": {
+                "positive": "test_alpha_happy",
+                "negative": "test_alpha_negative",
+                "negative_to_positive": "test_alpha_after_fix",
+            },
+        }
+    ]
+}
+
+#: CIE_* env vars that could leak in from a dev shell and flip the
+#: selection rule — pinned to absent for every test here.
+ENV_TO_CLEAR = (
+    "CIE_PROJECT", "FORGE_PROJECT_ID", "CIE_BACKEND", "CIE_DB",
+    "CIE_NEO4J_URI", "CIE_NEO4J_USER", "CIE_NEO4J_PASSWORD", "CIE_RUN_ROOT",
+    "CIE_NO_TASK_TRACKING",
+)
+
+
+@pytest.fixture()
+def runner(monkeypatch):
+    for name in ENV_TO_CLEAR:
+        monkeypatch.delenv(name, raising=False)
+    return CliRunner()
+
+
+def _invoke_json(runner, args, **kwargs):
+    """Run a CLI command in --json mode; returns the parsed SPEC §0 envelope."""
+    result = runner.invoke(cli, ["--json", *args], catch_exceptions=False, **kwargs)
+    assert result.exit_code == kwargs.pop("exit_code", 0), result.output
+    return json.loads(result.output)
+
+
+@pytest.fixture()
+def indexed_project(runner):
+    """The quickstart itself: a 1-file project, `cie index .` — nothing else."""
+    with runner.isolated_filesystem():
+        Path("app.py").write_text(APP_PY)
+        env = json.loads(
+            runner.invoke(cli, ["--json", "index", "."]).output
+        )
+        assert env["ok"] is True
+        yield Path.cwd()
+
+
+# ---------------------------------------------------------------------------
+# The quickstart contract: index writes it, every query command reads it
+# ---------------------------------------------------------------------------
+
+
+class TestQuickstartParity:
+    def test_engine_backed_commands_answer_on_embedded(
+        self, runner, indexed_project
+    ):
+        for args in (
+            ["files"], ["stats"], ["health"], ["discover"], ["node", "alpha"],
+            ["neighbors", "alpha"], ["search", "alpha"],
+        ):
+            env = json.loads(runner.invoke(cli, ["--json", *args]).output)
+            assert env["ok"] is True, (args, env)
+
+    def test_tool_service_backed_commands_answer_on_embedded(
+        self, runner, indexed_project
+    ):
+        # callers: alpha is a leaf — the ground truth is who calls *beta*
+        env = json.loads(
+            runner.invoke(cli, ["--json", "callers", "beta"]).output
+        )
+        assert env["ok"] is True
+        assert {r["caller"] for r in env["results"]} == {"alpha"}
+        env = json.loads(
+            runner.invoke(cli, ["--json", "callees", "beta"]).output
+        )
+        assert {r["callee"] for r in env["results"]} == {"helper"}
+        # skeleton + view-file + search-symbol
+        env = json.loads(
+            runner.invoke(cli, ["--json", "skeleton", "app.py"]).output
+        )
+        assert {s["name"] for s in env["results"][0]["symbols"]} == {
+            "helper", "beta", "alpha",
+        }
+        env = json.loads(
+            runner.invoke(cli, ["--json", "search-symbol", "alpha"]).output
+        )
+        assert env["results"][0]["source_file"].endswith("app.py")
+        env = json.loads(
+            runner.invoke(cli, ["--json", "view-file", "app.py"]).output
+        )
+        assert "def alpha():" in env["results"][0]["content"]
+        env = json.loads(
+            runner.invoke(cli, ["--json", "path", "alpha", "helper"]).output
+        )
+        assert env["ok"] is True
+
+    def test_task_roundtrip_lands_in_sibling_tasks_db(
+        self, runner, indexed_project
+    ):
+        Path("batch.json").write_text(json.dumps(TASK_BATCH))
+        env = json.loads(
+            runner.invoke(cli, ["--json", "tasks:push", "batch.json"]).output
+        )
+        assert env["ok"] is True and env["results"]["accepted"] == 1
+        assert (Path.cwd() / ".cie" / "tasks.db").is_file()
+        env = json.loads(
+            runner.invoke(cli, ["--json", "tasks:pending"]).output
+        )
+        assert [t["name"] for t in env["results"]] == ["t1"]
+        env = json.loads(
+            runner.invoke(cli, ["--json", "tasks:get", "t1"]).output
+        )
+        assert env["results"][0]["file_path"] == "app.py"
+        env = json.loads(
+            runner.invoke(cli, ["--json", "validate:cycles"]).output
+        )
+        assert env["results"]["has_cycle"] is False
+
+    def test_human_mode_renders_without_traceback(self, runner, indexed_project):
+        result = runner.invoke(cli, ["search-symbol", "alpha"])
+        assert result.exit_code == 0
+        assert "alpha" in result.output
+        assert "Traceback" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# The selection rule itself
+# ---------------------------------------------------------------------------
+
+
+class TestBackendSelection:
+    def _ctx(self, backend=None, db=None):
+        """Deadline-simple stand-in for the click group context."""
+        import types
+
+        ctx = types.SimpleNamespace()
+        ctx.obj = {"backend_opt": backend, "db_opt": db}
+        return ctx
+
+    def test_explicit_backend_beats_everything(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("CIE_BACKEND", "neo4j")
+        db = tmp_path / ".cie" / "graph.db"
+        db.parent.mkdir(parents=True)
+        db.write_text("")
+        assert _selected_backend(self._ctx(db=db)) == "neo4j"
+        monkeypatch.setenv("CIE_BACKEND", "embedded")
+        assert _selected_backend(self._ctx(backend="neo4j")) == "neo4j"
+        assert _selected_backend(self._ctx(backend="embedded")) == "embedded"
+
+    def test_env_backend_is_honored(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("CIE_BACKEND", "embedded")
+        assert _selected_backend(self._ctx()) == "embedded"
+        monkeypatch.setenv("CIE_BACKEND", "neo4j")
+        assert _selected_backend(self._ctx()) == "neo4j"
+
+    def test_auto_prefers_existing_embedded_db(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("CIE_BACKEND", raising=False)
+        monkeypatch.chdir(tmp_path)  # a cwd guaranteed db-free; the repo's own .cie would lie here
+        assert _selected_backend(self._ctx()) == "neo4j"
+        (tmp_path / ".cie").mkdir()
+        (tmp_path / ".cie" / "graph.db").write_text("")
+        assert _selected_backend(self._ctx()) == "embedded"
+
+    def test_explicit_db_flag_shifts_the_probe(self, tmp_path):
+        other = tmp_path / "elsewhere" / "graph.db"
+        other.parent.mkdir(parents=True)
+        other.write_text("")
+        assert _selected_backend(self._ctx(db=other)) == "embedded"
+
+    def test_embedded_db_path_default_is_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert _embedded_db_path(None) == tmp_path / ".cie" / "graph.db"
+        assert _embedded_db_path(tmp_path / "x" / "g.db") == tmp_path / "x" / "g.db"
+
+
+# ---------------------------------------------------------------------------
+# The honest-error edges added with the seam
+# ---------------------------------------------------------------------------
+
+
+class TestHonestErrors:
+    def test_explicit_embedded_with_missing_db_fails_fast(
+        self, runner, tmp_path, monkeypatch
+    ):
+        """Not a traceback, not four bolt retries — one not_found envelope."""
+        monkeypatch.chdir(tmp_path)  # no .cie/graph.db here
+        result = runner.invoke(
+            cli, ["--json", "--backend", "embedded", "stats"]
+        )
+        assert result.exit_code == 1
+        env = json.loads(result.output)
+        assert env["ok"] is False and env["error"]["kind"] == "not_found"
+        assert "cie index" in env["hint"]
+
+    def test_hierarchy_commands_are_honest_unavailable_on_embedded(
+        self, runner, indexed_project
+    ):
+        result = runner.invoke(cli, ["--json", "hierarchy:children", "x"])
+        assert result.exit_code == 1
+        env = json.loads(result.output)
+        assert env["ok"] is False and env["error"]["kind"] == "unavailable"
+        assert "R14" in env["error"]["message"]
+        # and the failure names the Neo4j escape hatch instead of bolt noise
+        assert "CIE_NEO4J_URI" in env["hint"]
+
+    def test_load_refuses_explicit_embedded_with_the_embedded_hint(
+        self, runner, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            cli, ["--json", "--backend", "embedded", "load", "."]
+        )
+        assert result.exit_code == 1
+        env = json.loads(result.output)
+        assert env["error"]["kind"] == "unavailable"
+        assert "cie index" in env["hint"]
+
+    def test_bootstrap_refuses_explicit_embedded(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            cli, ["--json", "--backend", "embedded", "bootstrap"]
+        )
+        assert result.exit_code == 1
+        env = json.loads(result.output)
+        assert env["error"]["kind"] == "unavailable"

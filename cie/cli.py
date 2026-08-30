@@ -56,39 +56,160 @@ console = Console()
 
 
 # ---------------------------------------------------------------------------
-# Backend factories (monkeypatched in tests; Neo4j in production)
+# Backend factories (monkeypatched in tests; Neo4j in production — but the
+# zero-config embedded path is now the default when a local graph.db exists,
+# roadmap R2). Selection rule lives in _open_backend() below.
 # ---------------------------------------------------------------------------
 
 
 def _project_from_env() -> str:
-    """Project namespace from CIE_PROJECT (FORGE_PROJECT_ID alias)."""
+    """Project namespace from CIE_PROJECT (FORGE_PROJECT_ID alias).
+
+    NEO4J-ONLY: the multi-project namespace is a property of the shared
+    Neo4j database. The embedded SQLite backend is single-project by
+    definition (one graph.db = one project; `cie index` writes it
+    unscoped), so an unset CIE_PROJECT stays ``""`` on the embedded path —
+    which is also what every node `cie index` writes carries.
+    """
     return os.environ.get("CIE_PROJECT") or os.environ.get(
         "FORGE_PROJECT_ID", ""
     )
 
 
-def _open_engine(project: Optional[str] = None, ensure_indices: bool = False) -> QueryEngine:
-    """Connect a QueryEngine to Neo4j, scoped to a project.
+# ---------------------------------------------------------------------------
+# Backend selection (R2) — one rule, four construction sites
+# ---------------------------------------------------------------------------
 
-    Defaults to ``CIE_PROJECT``/``FORGE_PROJECT_ID`` (see module
-    docstring) when the caller doesn't pass one explicitly — every command
-    honors the env var this way, not just the handful that used to thread
-    it through by hand. Pass ``project=""`` explicitly for the legacy
-    unscoped (all-projects) view.
 
-    ``ensure_indices=False`` by default (2026-08-07): `Neo4jRepository.
-    connect()`'s own default flipped from always-on to opt-in — every CLI
-    command used to pay a `CREATE INDEX IF NOT EXISTS` round trip (and, per
-    the confirmed 2026-08-04 incident `cie.timeouts` documents, a real risk
-    of queuing behind a stuck schema lock) on every single invocation, even
-    read-only ones like `cie health`. Indices are bootstrapped once by the
-    app's own startup lifespan (`app/api.py`) or explicitly via `cie
-    bootstrap`; `load`/`watch` below still pass `ensure_indices=True`
-    themselves since they're the natural first-touch commands for a
-    project that may never have gone through the app at all.
+def _embedded_db_path(explicit_db: Optional[Path]) -> Path:
+    """The embedded graph file to read: explicit --db/CIE_DB, else
+    `<cwd>/.cie/graph.db` — the default location `cie index` writes."""
+    return explicit_db or (Path.cwd() / ".cie" / "graph.db")
+
+
+def _selected_backend(ctx: click.Context) -> str:
+    """Resolve which backend query commands answer against this invocation.
+
+    Resolution order (first match wins):
+      1. ``--backend`` flag (the click parameter, stashed in ctx.obj) —
+         explicit user choice, always honored.
+      2. ``CIE_BACKEND`` env var — but only when it names a backend
+         explicitly; the auto default falls through.
+      3. "auto": embedded when a graph.db exists at --db/CIE_DB/cwd,
+         else Neo4j — the quickstart contract (``cie index .`` then the
+         documented query commands work on the SAME file, no Neo4j
+         required).
+    """
+    opt = ctx.obj.get("backend_opt")
+    if opt:
+        return opt
+    # CIE_BACKEND env rides the click option's envvar into ctx.obj when
+    # set, so opt above carries it; read it directly for the not-set case.
+    explicit_env = os.environ.get("CIE_BACKEND", "").strip().lower()
+    if explicit_env in ("embedded", "neo4j"):
+        return explicit_env
+    # auto
+    if _embedded_db_path(ctx.obj.get("db_opt")).is_file():
+        return "embedded"
+    return "neo4j"
+
+
+class HierarchySQLiteUnavailable(RuntimeError):
+    """Programmatic alias for the embedded hierarchy not being available yet.
+
+    The SQLite PRD-hierarchy store is roadmap R14. Kept as a checkable
+    exception type for programmatic callers of the openers; the CLI
+    command path emits the honest `unavailable` envelope directly (see
+    `_open_hierarchy_repo`).
+    """
+
+
+def _open_backend(ctx: click.Context) -> str:
+    """The one backend-mode selector for query commands ("embedded"|"neo4j").
+
+    Every command reads through this helper or through the four
+    construction sites below (`_open_engine`, `_open_task_repo`,
+    `_open_hierarchy_repo`, `_open_tool_service`) — no command builds a
+    repo/engine by hand. Neo4j-only ingest commands (`load`/`watch`/
+    `bootstrap`/`serve`) do NOT consult this: they stay on the trust-Neo4j
+    path they always had (their embedded counterparts are `cie index`
+    and `cie-mcp --embedded`), and say so honestly when embedded was
+    explicitly selected.
+    """
+    mode = _selected_backend(ctx)
+    if mode == "embedded":
+        db = _embedded_db_path(ctx.obj.get("db_opt"))
+        if not db.is_file():
+            # fail the same way for every caller below; embedded queries
+            # against a missing file would otherwise return silently-empty
+            # results and look like "the graph is just empty"
+            raise FileNotFoundError(
+                f"no embedded graph database at {db} — run `cie index <path>` first "
+                f"(or point --db/CIE_DB at an existing .cie/graph.db)"
+            )
+    return mode
+
+
+def _guard_neo4j_only(ctx: click.Context, tool: str, alt_hint: str) -> None:
+    """Reject embedded mode for the Neo4j-only ingest/serve commands with
+    the honest, actionable error (not a bolt connection failure)."""
+    if _guard_neo4j_only_explicit(ctx):
+        _emit_err(
+            ctx, tool, "unavailable",
+            f"`{tool}` ingests/serves against the multi-project Neo4j backend, "
+            "which does not apply to the embedded SQLite graph",
+            hint=alt_hint,
+        )
+
+
+def _guard_neo4j_only_explicit(ctx: click.Context) -> bool:
+    """True ONLY when embedded was selected explicitly (--backend embedded
+    or CIE_BACKEND=embedded); auto-mode Neo4j-only commands keep working
+    for Neo4j users even in a cwd that has a stale .cie/graph.db."""
+    opt = ctx.obj.get("backend_opt")
+    if opt == "embedded":
+        return True
+    return (
+        opt is None
+        and os.environ.get("CIE_BACKEND", "").strip().lower() == "embedded"
+    )
+
+
+def _open_engine(project: Optional[str] = None, ensure_indices: bool = False, ctx: Optional[click.Context] = None) -> QueryEngine:
+    """Connect a QueryEngine, scoped to a project — against the backend the
+    selection rule (`--backend`/``CIE_BACKEND``/auto, see ``_open_backend``)
+    picks.
+
+    EMBEDDED branch (new, R2): wraps `EmbeddedRepository` — the same
+    local SQLite file `cie index` writes — so every documented query
+    command answers with zero Neo4j setup. ``ensure_indices`` stays a
+    signature-only no-op here (a two-table SQLite file needs nothing
+    bootstrapped; the shared call sites keep passing it).
+
+    Neo4j branch: unchanged behavior, including which callers bootstrap
+    indices (`load`/`watch`, the Neo4j-only ingest commands).
+
+    Project namespace (Neo4j concept): defaults to ``CIE_PROJECT``/
+    ``FORGE_PROJECT_ID`` when the caller doesn't pass one explicitly
+    (see `_project_from_env`); the embedded branch threads it through
+    unchanged — an unset CIE_PROJECT stays ``""``, matching everything
+    `cie index` writes unscoped.
     """
     if project is None:
         project = _project_from_env()
+    if ctx is None:
+        ctx = click.get_current_context(silent=True)
+    if ctx is not None:
+        mode = _open_backend(ctx)
+        db = ctx.obj.get("db_opt")
+    else:
+        # no click context (programmatic use): apply the auto rule
+        mode = "embedded" if _embedded_db_path(None).is_file() else "neo4j"
+        db = None
+    if mode == "embedded":
+        from cie.embedded_repository import EmbeddedRepository
+
+        return QueryEngine(EmbeddedRepository(_embedded_db_path(db), project=project))
     cfg = Neo4jConfig.from_env()
     repo = Neo4jRepository.connect(
         cfg.uri, cfg.user, cfg.password, cfg.database, project=project,
@@ -109,30 +230,61 @@ def _close_engine(engine: QueryEngine) -> None:
         close()
 
 
-def _open_task_repo(project: Optional[str] = None):
-    """Connect the task repository; returns ``(repo, driver)``.
+def _open_task_repo(project: Optional[str] = None, ctx: Optional[click.Context] = None):
+    """Open the task repository; returns ``(repo, driver-or-None)``.
 
-    Defaults to ``CIE_PROJECT``/``FORGE_PROJECT_ID`` the same way
-    :func:`_open_engine` does (2026-08-14 fix, RF6) — this never resolved
-    project from the env at all before, so every CLI task command (`tasks:
-    push`, `tasks:get`, etc.) always wrote/read the unscoped '' bucket
-    regardless of CIE_PROJECT, even when `_open_engine` in the very same
-    process correctly picked up the real project. Pass ``project=""``
-    explicitly for the legacy unscoped (all-projects) view.
+    Backend per the selection rule (`--backend`/``CIE_BACKEND``/auto):
+    the EMBEDDED branch (R2) is `EmbeddedTaskRepository` over the sibling
+    file of the selected graph db (default ``.cie/tasks.db``), created on
+    first use exactly like `cie-mcp --embedded` creates its task store.
+    The Neo4j branch is unchanged (the driver is the returned closeable).
+
+    The task repo namespace defaults to ``CIE_PROJECT``/``FORGE_PROJECT_ID``
+    the same way `_open_engine` does (2026-08-14 fix, RF6) — before that
+    fix this never resolved project from the env at all, so every CLI task
+    command always wrote/read the unscoped '' bucket regardless of
+    CIE_PROJECT. On the embedded path an unset env stays ``""``, which is
+    also the namespace `cie index` writes, so the pair stays consistent.
     """
+    if ctx is None:
+        ctx = click.get_current_context(silent=True)
+    if project is None:
+        project = _project_from_env()
+    if ctx is not None and _selected_backend(ctx) == "embedded":
+        from cie.embedded_task_repository import EmbeddedTaskRepository
+
+        graph_db = _embedded_db_path(ctx.obj.get("db_opt"))
+        return EmbeddedTaskRepository(graph_db.parent / "tasks.db", project=project), None
     from neo4j import GraphDatabase
 
     from cie.task_repository import Neo4jTaskRepository
 
-    if project is None:
-        project = _project_from_env()
     cfg = Neo4jConfig.from_env()
     driver = GraphDatabase.driver(cfg.uri, auth=(cfg.user, cfg.password), **cfg.driver_kwargs())
     return Neo4jTaskRepository.from_driver(driver, project=project), driver
 
 
-def _open_hierarchy_repo(project: str = ""):
-    """Connect the hierarchy repository; returns ``(repo, driver)``."""
+def _open_hierarchy_repo(project: str = "", ctx: Optional[click.Context] = None):
+    """Open the hierarchy repository; returns ``(repo, driver)``.
+
+    NEO4J-ONLY as of R2: the SQLite PRD-hierarchy store is roadmap R14 —
+    until then an embedded selection emits the honest `unavailable` error
+    envelope here (uniformly for all three hierarchy:* commands, exactly
+    like `_emit_err` from a command body), never a bolt retry-loop
+    masquerading as an answer.
+    """
+    if ctx is None:
+        ctx = click.get_current_context(silent=True)
+    if ctx is not None and _selected_backend(ctx) == "embedded":
+        tool = (ctx.invoked_subcommand or "hierarchy").replace(":", "_")
+        _emit_err(
+            ctx, tool, "unavailable",
+            "the PRD-hierarchy store is Neo4j-only in this build; the "
+            "embedded SQLite port is roadmap item R14",
+            hint="run against Neo4j instead: set CIE_NEO4J_URI (and clear "
+                 "CIE_BACKEND), or cd out of the directory holding "
+                 ".cie/graph.db so auto-selection picks Neo4j",
+        )
     from neo4j import GraphDatabase
 
     from cie.hierarchy import Neo4jHierarchyRepository
@@ -142,13 +294,22 @@ def _open_hierarchy_repo(project: str = ""):
     return Neo4jHierarchyRepository.from_driver(driver, project=project), driver
 
 
-def _open_tool_service():
-    """Build the ToolService facade over the real backends.
+def _open_tool_service(ctx: Optional[click.Context] = None):
+    """Build the ToolService facade over the selected backends.
 
     File views, runs, and git history are jailed under the current working
-    directory; ``CIE_RUN_ROOT`` can widen the ``run`` tool's jail.
+    directory; ``CIE_RUN_ROOT`` can widen the ``run`` tool's jail. On the
+    EMBEDDED path (R2) this composes the embedded engine + embedded task
+    repository (fall back to fail-fast via ``CIE_NO_TASK_TRACKING=1``),
+    so the service-backed commands (search-symbol, view-file, callers,
+    callees, skeleton, failing-context, affected-by, blame, run, reindex,
+    tasks:closure/deps) answer from the same zero-config graph `cie index`
+    wrote.
     """
     from cie.tools import ToolService
+
+    if ctx is None:
+        ctx = click.get_current_context(silent=True)
 
     # 2026-08-14 fix (RF6): resolve project ONCE and thread it into engine,
     # task_repo, AND ToolService's own project=. Previously ToolService was
@@ -158,8 +319,29 @@ def _open_tool_service():
     # were correctly env-scoped via CIE_PROJECT — every CLI-driven write
     # went to the unscoped bucket regardless of the env var.
     project = _project_from_env()
-    engine = _open_engine(project)
-    task_repo, _driver = _open_task_repo(project)
+    if ctx is not None and _selected_backend(ctx) == "embedded":
+        from cie.embedded_repository import EmbeddedRepository, NullTaskRepository
+        from cie.embedded_task_repository import EmbeddedTaskRepository
+        from cie.query import QueryEngine
+
+        db = _embedded_db_path(ctx.obj.get("db_opt"))
+        root = Path.cwd()
+        allowed_root = Path(os.environ.get("CIE_RUN_ROOT") or str(root))
+        no_tracking = os.environ.get("CIE_NO_TASK_TRACKING", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
+        task_repo = (
+            EmbeddedTaskRepository(db.parent / "tasks.db", project=project)
+            if not no_tracking
+            else NullTaskRepository()
+        )
+        return ToolService(
+            QueryEngine(EmbeddedRepository(db, project=project)),
+            task_repo,
+            root=root, allowed_root=allowed_root, project=project,
+        )
+    engine = _open_engine(project=project, ctx=ctx)
+    task_repo, _driver = _open_task_repo(ctx=ctx, project=project)
     root = Path.cwd()
     allowed_root = Path(os.environ.get("CIE_RUN_ROOT") or str(root))
     return ToolService(
@@ -414,11 +596,51 @@ def _render_signature(sig) -> None:
     "--json/--no-json", default=False,
     help="Output the SPEC §0 JSON envelope instead of human-formatted tables.",
 )
+@click.option(
+    "--backend", type=click.Choice(["auto", "embedded", "neo4j"]),
+    default=None, envvar="CIE_BACKEND",
+    help="Backend for query commands (default: CIE_BACKEND env, else auto —\n\n"
+         "auto picks the embedded SQLite graph when one exists and Neo4j "
+         "otherwise). Specific backend-selection rules are in _open_backend's "
+         "docstring.",
+)
+@click.option(
+    "--db", type=click.Path(path_type=Path), default=None, envvar="CIE_DB",
+    help="Embedded-mode SQLite graph file (default: CIE_DB env, else "
+         "<cwd>/.cie/graph.db). Writing a different location is `cie index "
+         "PATH --db`; querying one is `cie --db FILE files`.",
+)
 @click.pass_context
-def cli(ctx, json: bool) -> None:
-    """cie: query a knowledge graph stored in Neo4j."""
+def cli(ctx, json: bool, backend: Optional[str], db: Optional[Path]) -> None:
+    """Code Insight Engine — query/serve a code graph + task/QA layer.
+
+    Query commands answer against whichever backend the selection rule
+    (see the --backend option) picks: the zero-config embedded SQLite
+    graph written by `cie index`, or the multi-project Neo4j store written
+    by `cie load`/`cie watch` — the same engine answers either way
+    (roadmap R2; previously the query commands hardwired Neo4j and the
+    zero-config quickstart failed with four bolt retries).
+    """
     ctx.ensure_object(dict)
     ctx.obj["json"] = json
+    ctx.obj["backend_opt"] = backend
+    ctx.obj["db_opt"] = db
+
+    # One uniform fail-fast for the whole command tree (R2): an explicitly
+    # selected embedded backend pointing at a nonexistent graph db is an
+    # honest not_found — never a bolt retry-loop, never a traceback. The
+    # commands that write/create graphs keep looping through their own
+    # guards instead (index CREATES the file; load/watch/bootstrap/serve
+    # are Neo4j-only and say so themselves).
+    sub = ctx.invoked_subcommand or ""
+    if sub not in ("index", "load", "watch", "bootstrap", "serve") and not sub.startswith("hierarchy:"):
+        if _selected_backend(ctx) == "embedded" and not _embedded_db_path(db).is_file():
+            _emit_err(
+                ctx, sub, "not_found",
+                f"no embedded graph database at {_embedded_db_path(db)}",
+                hint="run `cie index <path>` first, or point --db/CIE_DB at "
+                     "an existing .cie/graph.db",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -693,6 +915,10 @@ def stats(ctx) -> None:
 def bootstrap(ctx) -> None:
     """Create every cie index/constraint if it doesn't exist yet.
 
+    Neo4j-only (the embedded SQLite graph needs no bootstrapping — `cie
+    index` creating the file IS the setup): with `--backend embedded`
+    this errors with that hint instead of pretending.
+
     Explicit, deliberate index creation — the counterpart to
     `Neo4jRepository.connect()`'s `ensure_indices=False` default (see
     `_open_engine`'s docstring for why that flipped): every OTHER command
@@ -704,6 +930,8 @@ def bootstrap(ctx) -> None:
     against a brand-new Neo4j instance the app has never booted against.
     Safe to re-run — every statement is `IF NOT EXISTS`.
     """
+    _guard_neo4j_only(ctx, "bootstrap", "the embedded backend has nothing to "
+                         "bootstrap — `cie index <path>` creates the local SQLite graph")
     engine = _open_engine()
     try:
         engine._repo.ensure_indices()  # noqa: SLF001 - the CLI owns this call
@@ -819,6 +1047,9 @@ def load(ctx, paths, project: str) -> None:
     )
     from cie.extract import extract_many
     from cie.testlink import resolve_test_edges
+
+    _guard_neo4j_only(ctx, "load", "the embedded equivalent is `cie index <path>` "
+                          "(local SQLite; re-run it to refresh)")
 
     per_file = [ext for path in paths for ext in extract_many(path)]
     engine = _open_engine(ensure_indices=True)
@@ -1318,6 +1549,10 @@ def watch(paths: tuple[Path, ...], project: str, debounce: float) -> None:
     .ts/.tsx) trigger a reindex - everything else is ignored.
     """
     from watchdog.observers import Observer
+
+    _guard_neo4j_only(ctx, "watch", "embedded has no incremental watcher yet — "
+                          "re-run `cie index <path>` after changes, or serve live "
+                          "queries with cie-mcp against the Neo4j store")
 
     project = project or _project_from_env()
     cfg = Neo4jConfig.from_env()

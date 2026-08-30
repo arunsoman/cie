@@ -173,7 +173,17 @@ crashes. Done ≠ merged; done = fresh `surface_results.json` committed.
 
 ---
 
-### [ ] R2 · CLI↔SQLite parity for the quickstart (M)
+### [x] R2 · CLI↔SQLite parity for the quickstart (M) — DONE 2026-08-30
+
+*(Implementation summary: one backend-selection seam in cie/cli.py —
+`--backend`/`--db`/`CIE_BACKEND`/`CIE_DB`/auto-probe; embedded branches
+in `_open_engine`/`_open_task_repo`/`_open_hierarchy_repo`/
+`_open_tool_service`; honest `unavailable`/`not_found` envelopes for
+hierarchy-on-embedded, Neo4j-only ingest commands, and explicitly
+missing dbs; group-level fail-fast probe; 13-test `tests/test_cli.py`
++ clean-venv verify vs psf/requests, callers("close")=3 matching the
+published benchmark. Details in the commit message and CHANGELOG
+[Unreleased].)*
 
 **State today (verified).** `cie index` writes the embedded SQLite graph
 (`cie/cli.py` L438–488 via `cie.embedded_repository.EmbeddedRepository`),
@@ -1083,5 +1093,11 @@ footnoted to its measured source; nothing published from vibes.
 - **2026-08-30 (implementation pass 1)** — R4 done: fold executed
   (tombstone + goal.md Provenance section + 11 reference rewrites),
   verified clean. Committed.
+- **2026-08-30 (implementation pass 2)** — R2 done: CLI↔SQLite parity.
+  Also fixed en route: the venv's cie was a stale non-editable
+  site-packages copy (the conformance-README trap) → now editable;
+  suite 171 → 184; quickstart verified against psf/requests in a clean
+  venv (858 nodes/1,822 edges; callers("close") = 3, matching
+  docs/benchmarks-requests.md). Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -44,13 +44,21 @@ effort S/M/L is a guess, treated as a guess.
       **Verify:** `tool-test-lab/dogfood_mcp.py` sees and executes the
       full task/QA surface against `.cie/tasks.db`; the
       test_tool_surface_invariants relationships updated, not broken.
-- [ ] **R2 · CLI↔SQLite parity for the quickstart** (M). Query commands
-      (`cie files` et al.) are Neo4j-only while `cie index` writes
+- [x] **R2 · CLI↔SQLite parity for the quickstart** (M). Query commands
+      (`cie files` et al.) answered Neo4j-only while `cie index` wrote
       SQLite — the zero-config quickstart literally retried
       localhost:7687 four times before failing (session-7 log, named
       not fixed). Point the query layer at the embedded repo.
       **Verify:** fresh venv: `pip install -e .` → `cie index .` → every
       documented query command answers against `.cie/graph.db`.
+      *Done 2026-08-30:* `--backend`/`--db`/`CIE_BACKEND`/`CIE_DB`
+      selection seam in cie/cli.py (auto = embedded when a local
+      graph.db exists); embedded task store wired into `tasks:*`;
+      hierarchy says honestly Neo4j-only (R14); load/watch/bootstrap
+      carry the embedded-equivalent hint; explicit-embedded on a missing
+      db fails fast with a not_found envelope. Verified: fresh venv →
+      psf/requests index → all query commands answer from .cie/graph.db,
+      `callers("close")` = the benchmark's 3 resolved. Suite 184/184.
 - [ ] **R3 · Stale-surface sync, repo-wide** (S). README badge says
       "tests-155 passing" (suite is 171); README and
       `docs/tool-selection-accuracy.md` say "81-tool surface" where the
