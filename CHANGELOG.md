@@ -522,6 +522,6 @@ embedded SQLite or Neo4j backend.
   server, so a client's `tools/list` never even names it — not merely
   refused at call time.
 
-[Unreleased]: https://github.com/arunsoman/cie/compare/v0.1.0a2...HEAD
-[0.1.0a2]: https://github.com/arunsoman/cie/releases/tag/v0.1.0a2
-[0.1.0a1]: https://github.com/arunsoman/cie/releases/tag/v0.1.0a1
+[Unreleased]: https://github.com/kannamma-labs/cie/compare/v0.1.0a2...HEAD
+[0.1.0a2]: https://github.com/kannamma-labs/cie/releases/tag/v0.1.0a2
+[0.1.0a1]: https://github.com/kannamma-labs/cie/releases/tag/v0.1.0a1

@@ -1,7 +1,7 @@
 # cie — the only code graph that knows which tasks and tests actually implement your code.
 
-[![CI](https://github.com/arunsoman/cie/actions/workflows/ci.yml/badge.svg)](https://github.com/arunsoman/cie/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/arunsoman/cie?include_prereleases&label=release)](https://github.com/arunsoman/cie/releases)
+[![CI](https://github.com/kannamma-labs/cie/actions/workflows/ci.yml/badge.svg)](https://github.com/kannamma-labs/cie/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kannamma-labs/cie?include_prereleases&label=release)](https://github.com/kannamma-labs/cie/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-server-7c3aed.svg)](https://modelcontextprotocol.io)
@@ -10,16 +10,16 @@
 [![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-06b6d4.svg)](CHANGELOG.md)
 
-[![GitHub issues](https://img.shields.io/github/issues/arunsoman/cie?logo=github&label=issues)](https://github.com/arunsoman/cie/issues)
-[![PRs](https://img.shields.io/github/issues-pr/arunsoman/cie?logo=github&label=PRs)](https://github.com/arunsoman/cie/pulls)
-[![Contributors](https://img.shields.io/github/contributors/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/graphs/contributors)
-[![Stars](https://img.shields.io/github/stars/arunsoman/cie?style=social&logo=github)](https://github.com/arunsoman/cie/stargazers)
-[![Last commit](https://img.shields.io/github/last-commit/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/commits/main)
-[![Commit activity](https://img.shields.io/github/commit-activity/y/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie/commits/main)
-[![Code size](https://img.shields.io/github/languages/code-size/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie)
-[![Repo size](https://img.shields.io/github/repo-size/arunsoman/cie?logo=github)](https://github.com/arunsoman/cie)
+[![GitHub issues](https://img.shields.io/github/issues/kannamma-labs/cie?logo=github&label=issues)](https://github.com/kannamma-labs/cie/issues)
+[![PRs](https://img.shields.io/github/issues-pr/kannamma-labs/cie?logo=github&label=PRs)](https://github.com/kannamma-labs/cie/pulls)
+[![Contributors](https://img.shields.io/github/contributors/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie/graphs/contributors)
+[![Stars](https://img.shields.io/github/stars/kannamma-labs/cie?style=social&logo=github)](https://github.com/kannamma-labs/cie/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie/commits/main)
+[![Commit activity](https://img.shields.io/github/commit-activity/y/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie/commits/main)
+[![Code size](https://img.shields.io/github/languages/code-size/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie)
+[![Repo size](https://img.shields.io/github/repo-size/kannamma-labs/cie?logo=github)](https://github.com/kannamma-labs/cie)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](#install)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/arunsoman/cie/releases)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/kannamma-labs/cie/releases)
 
 *Code Insight Engine.* No other surveyed code-graph tool can answer
 "which files implement this task, and are they tested?" as one query —
@@ -636,7 +636,7 @@ tests/                # test_standalone_smoke / test_mcp_server / test_embedded_
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, the test suite,
 and the design boundary to respect. Looking for a first PR? Start with
-the [`good first issue`](https://github.com/arunsoman/cie/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+the [`good first issue`](https://github.com/kannamma-labs/cie/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 label — each one names a safe entry-point module and acceptance
 criteria. CONTRIBUTING.md's "Becoming a second maintainer" section is
 the path beyond a one-off PR.

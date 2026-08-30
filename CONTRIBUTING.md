@@ -7,7 +7,7 @@ and the change is explained," not a heavyweight process.
 ## Quick dev setup
 
 ```bash
-git clone https://github.com/arunsoman/cie.git
+git clone https://github.com/kannamma-labs/cie.git
 cd cie
 pip install -e ".[mcp,http]"      # core + the optional MCP and HTTP extras
 pip install pytest                # dev dependency

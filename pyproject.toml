@@ -57,11 +57,11 @@ cie = "cie.cli:main"
 cie-mcp = "cie.mcp_server:main"
 
 [project.urls]
-Homepage = "https://github.com/arunsoman/cie"
-Repository = "https://github.com/arunsoman/cie"
-"Bug Tracker" = "https://github.com/arunsoman/cie/issues"
-Changelog = "https://github.com/arunsoman/cie/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/arunsoman/cie/blob/main/docs/language-agnostic-design.md"
+Homepage = "https://github.com/kannamma-labs/cie"
+Repository = "https://github.com/kannamma-labs/cie"
+"Bug Tracker" = "https://github.com/kannamma-labs/cie/issues"
+Changelog = "https://github.com/kannamma-labs/cie/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/kannamma-labs/cie/blob/main/docs/language-agnostic-design.md"
 
 [build-system]
 requires = ["hatchling"]
