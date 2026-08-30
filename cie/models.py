@@ -98,6 +98,12 @@ class NodeKind(str, Enum):
     PERFORMANCE_BASELINE = "PerformanceBaseline"
     PERFORMANCE_REGRESSION = "PerformanceRegression"
     COVERAGE_GAP = "CoverageGap"
+    #: Repair transaction layer (cie.patch): one immutable PatchPlan per
+    #: proposal, persisted via merge_delta (never replace_analysis_nodes —
+    #: plans accumulate, one per PROPOSED→APPLIED→VERIFIED/FAILED/REJECTED
+    #: lifecycle event). Written by ToolService.propose_patch; its status
+    #: property moves via update_node_properties ONLY.
+    PATCH_PLAN = "PatchPlan"
 
 
 class Confidence(str, Enum):

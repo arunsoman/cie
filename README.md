@@ -54,7 +54,7 @@ of its raw size) and surfaces a real miss too (the same ambiguous-caller
 query resolved only 3 of 6 real call sites on that repo) — published
 because it's true, not adjusted to look better.
 
-**A second hook, also measured, not asserted:** cie ships ~121
+**A second hook, also measured, not asserted:** cie ships ~126
 LLM-callable tools — not a generic "run arbitrary code" surface the
 model has to improvise a workaround from, but specific ones (`callers`,
 `file_skeleton`, `traceability_orphans`...) that let it express intent
@@ -99,7 +99,7 @@ too, backed by a second local SQLite file (`.cie/tasks.db`, via
 `--no-task-tracking` to `cie-mcp` if you'd rather skip creating it.
 
 See "What it is — three layers" below for the full breakdown (structural
-extraction, ~121 tools, the task/QA layer).
+extraction, ~126 tools, the task/QA layer).
 
 ## Install
 
@@ -132,12 +132,15 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   grammar) via `cie.lang_adapter.register_adapter` or the
   `cie.language_adapters` entry-point group, **no code change to this
   package required**.
-- **~121 LLM-callable tools** (`cie.tools.ToolService`, exposed 1:1 as
+- **~126 LLM-callable tools** (`cie.tools.ToolService`, exposed 1:1 as
   MCP tools and `POST /tools/{tool}` endpoints) — symbol search,
   call-graph traversal, clone/community/drift detection, quality reports,
   test-intelligence, traceability, confidence scoring, decomposition,
-  APM, and a jailed virtual filesystem
+  APM, a jailed virtual filesystem
   (`view_file`/`write_file`/`edit_file`/`delete_file`/`write_files_atomic`),
+  and a repair transaction layer (`propose_patch`/`apply_patch`/
+  `verify_patch` over immutable PatchPlan nodes — see
+  [`cie/patch.py`](cie/patch.py) and the changelog),
   all self-describing (`ToolService.describe()`), exposable as typed
   JSON-Schema tool definitions (`cie.tool_schema`) with per-agent-type
   authorization (`cie.tool_policy`), and servable over the real Model
@@ -225,7 +228,7 @@ the HTTP routes.
   `EmbeddedTaskRepository` by default, `NullTaskRepository` opt-in via
   `task_tracking=False`).
 
-### Tool surface — `ToolService` (`cie/tools/__init__.py`, ~121 methods)
+### Tool surface — `ToolService` (`cie/tools/__init__.py`, ~126 methods)
 Every method returns the standard SPEC §0 envelope (`ok`/`tool`/`results`/
 `truncated`/`total`/`hint`/`elapsed_ms`, `cie.envelope`); errors carry a
 mandatory `hint`. Grouped by capability (all also exposed over MCP and
@@ -425,7 +428,7 @@ different audiences:
 **Acquisition tier — zero-config, embedded.** One local SQLite file, no
 server, nothing to configure (see Quickstart). The full code graph
 (search, traversal, call graph, file skeleton, the virtual filesystem,
-the heuristic fallback, GraphRAG Q&A) + ~121 tools over MCP/HTTP/CLI.
+the heuristic fallback, GraphRAG Q&A) + ~126 tools over MCP/HTTP/CLI.
 **No task/QA tracking, no quality-governance layer** (clone/drift
 detection, confidence, contracts). This is the tier a solo dev or a
 first-time visitor tries — the sharp hook that wins the first star.
@@ -496,7 +499,7 @@ cie/
   testlink.py          # TESTS edge resolution
   lang_adapter.py      # pluggable language-adapter registry + entry points
   config.py factory.py # bootstrap (Neo4jConfig / CieConfig / build_tool_service*)
-  tools/               # ToolService (~121 tools) + jailed fs/run/blame helpers
+  tools/               # ToolService (~126 tools) + jailed fs/run/blame helpers
   mcp_server.py        # real MCP server (cie-mcp)
   routes.py            # FastAPI router (mounted into host app)
   cli.py               # 49-command CLI (Rich tables + --json envelope)

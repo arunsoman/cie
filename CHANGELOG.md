@@ -10,6 +10,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Repair transaction layer — the propose/apply/verify patch protocol**
+  (`cie/patch.py`, tools on `ToolService`): three tools that separate
+  *reasoning* from *mutation* in an autonomous repair loop, over one
+  immutable first-class **PatchPlan** object (`NodeKind.PATCH_PLAN`):
+
+  - **`propose_patch`** — construct a precise, reviewable repair proposal
+    and change NOTHING: carries the exact `old_text`→`new_text` changes a
+    unified diff each, the file-content hash the proposal was made
+    against, diagnosis + evidence, intended behavior, a counterfactual,
+    blast-radius impact resolved server-side from the graph (affected
+    symbols, callers, mapped tests), auto-assessed risk when none is
+    supplied, and provenance (agent/model/repository revision). The model
+    shouldn't have to hand-populate a patch plan; the graph already holds
+    most of it.
+  - **`apply_patch`** — the ONLY tool that mutates files on this surface,
+    guarded by a gate pipeline that all runs BEFORE any byte is written:
+    patch still PROPOSED (patches are immutable; REJECTED is terminal),
+    every path jailed under the project root, every `old_text` still
+    matching CURRENT content exactly-once (a proposal made against revision
+    A is rejected — `PATCH_CONTEXT_MISMATCH` — not blindly applied to
+    revision B), the plan's own `allowed_files` scope respected
+    (`PATCH_SCOPE_VIOLATION`), post-change content still parses
+    (Python-exact via `ast.parse`; other languages honestly `skipped`),
+    then ONE all-or-nothing write (snapshot + rollback underneath) with an
+    immediate re-hash integrity check and the graph re-indexed in the same
+    call. Gate failures record the patch's status as REJECTED, with the
+    reason — the fix is to re-propose, never to retry stale context.
+  - **`verify_patch`** — judge an APPLIED patch on repository evidence
+    (never the proposer's claim): is the applied content still in the
+    files (exact post-apply hashes), does everything still parse, do the
+    net-new imports resolve, does the declared counterfactual actually
+    hold (old behavior text gone, new present), which tests cover the
+    changed symbols — plus opt-in real `run_tests` over the discovered
+    tests and the architecture-check pass. Emits an envelope-only report
+    and records the patch's VERIFIED/FAILED status in an append-only
+    verification history; the proposing agent never certifies its own fix
+    (persist an INDEPENDENT verdict via `record_verdict`).
+  - **`get_patch` / `list_patches`** (read-only) — one full plan with its
+    audit properties, and the repair history the per-bug metrics
+    (first-patch success rate, patches-per-bug) are computed from.
+  Patch proposals are immutable (`PROPOSED → APPLIED → VERIFIED|FAILED`,
+  with `REJECTED`/`SUPERSEDED` terminal); re-proposing for the same
+  failing test supersedes the open proposal instead of mutating it, so
+  the FAILED→FAILED→VERIFIED chain per bug stays queryable via
+  `list_patches`. Registered in `NodeKind`, the HTTP surface, and
+  `tool_policy` (`propose_patch`/`apply_patch`/`verify_patch` are write
+  tools; `get_patch`/`list_patches` stay open to read-only policies).
+  30 tests (`tests/test_patch_tools.py`), full suite now 123; plus a
+  real-MCP round-trip (`scripts/smoke_patch_mcp.py`).
 - **`EmbeddedTaskRepository`** (`cie/embedded_task_repository.py`) —
   SQLite-backed, full `TaskRepository` protocol implementation. Task/QA
   tracking (push/list/status, artifacts, repair events, dependency

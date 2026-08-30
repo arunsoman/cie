@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import difflib
 import hashlib
 import inspect
 import logging
@@ -44,6 +45,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from cie import extract
+from cie import patch as _patch
 from cie import serialize as _serialize
 from cie.models import Confidence, Node, SymbolMatch
 
@@ -2816,6 +2818,893 @@ class ToolService:
         if summary["added"] == summary["removed"] == summary["modified"] == 0:
             hint = "no differences found between the two trees"
         return self._ok(tool, [payload], started, hint=hint)
+
+    # -- repair transaction layer (propose / apply / verify patches) ---------
+    #
+    # Three tools with three different jobs (see cie.patch's module
+    # docstring): propose = "what should change?" (never mutates files),
+    # apply = "can this change safely land?" (the ONLY file mutation, gated
+    # + all-or-nothing), verify = "did it fix the thing, unbroken?" (never
+    # mutates files). The component that proposes a fix never gets to
+    # declare its own fix correct.
+
+    def _resolve_file_node_ids(self, paths: set[str]) -> dict[str, str]:
+        """rel path -> the FILE node id extract.py actually used for it
+        (= str of the jail-resolved absolute path — see extract_file's
+        `file_id = str(path)`). Only exact matches are returned; a changed
+        file that was never indexed simply gets no PATCHES edge."""
+        by_abs: dict[str, str] = {}
+        try:
+            for node in self._engine._repo.list_files():  # noqa: SLF001
+                by_abs.setdefault(node.source_file, node.id)
+        except Exception:  # noqa: BLE001 - graph down: no edges, never a crash
+            return {}
+        out: dict[str, str] = {}
+        for rel in paths:
+            try:
+                resolved = _view._jail(self._root, rel)  # noqa: SLF001
+            except ValueError:
+                continue
+            if resolved.is_file():
+                out[rel] = out.get(rel) or by_abs.get(str(resolved), "")
+        return {k: v for k, v in out.items() if v}
+
+    def _repository_revision(self) -> str:
+        """git rev-parse HEAD, best-effort — provenance only; a non-git
+        project just reports empty and never fails a proposal over it."""
+        try:
+            result = _runner.run_command(
+                "git rev-parse HEAD", cwd=self._root, timeout=10,
+                allowed_root=self._allowed_root,
+            )
+            return result.output.strip().splitlines()[-1] \
+                if result.output.strip() else ""
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def propose_patch(
+        self,
+        changes: list,
+        test_id: str = "",
+        root_cause: str = "",
+        confidence: Optional[float] = None,
+        evidence: Optional[list] = None,
+        intended_behavior: str = "",
+        expected_failure: str = "",
+        after_patch: str = "",
+        constraints: Optional[list] = None,
+        allowed_files: Optional[list] = None,
+        risk_level: str = "",
+        agent: str = "",
+        model: str = "",
+    ) -> dict:
+        """Construct a precise, reviewable repair proposal — and change
+        NOTHING. Returns a full PatchPlan: one unified diff per change,
+        blast-radius impact resolved from the graph, an auto-assessed risk
+        level when none is supplied, provenance, and the file-content hash
+        every change was proposed against (apply's Gate-1 anchor). The plan
+        is persisted as an immutable PatchPlan node and becomes the input
+        to apply_patch — which answers "can this safely land?" — then
+        verify_patch, which answers "did it fix the thing?" on EVIDENCE.
+        The proposer deliberately has no tool that both edits files and
+        declares the result correct.
+        """
+        return self._propose_patch_impl(
+            changes=changes, test_id=test_id, root_cause=root_cause,
+            confidence=confidence, evidence=evidence,
+            intended_behavior=intended_behavior,
+            expected_failure=expected_failure, after_patch=after_patch,
+            constraints=constraints, allowed_files=allowed_files,
+            risk_level=risk_level, agent=agent, model=model,
+        )
+
+    def _propose_patch_impl(
+        self, *, changes, test_id, root_cause, confidence, evidence,
+        intended_behavior, expected_failure, after_patch, constraints,
+        allowed_files, risk_level, agent, model,
+    ) -> dict:
+        tool = "propose_patch"
+        started = time.monotonic()
+        from datetime import datetime, timezone
+        try:
+            if not changes or not isinstance(changes, list):
+                return self._err(
+                    tool, "validation",
+                    "changes must be a non-empty list of "
+                    "[file, old_text, new_text] change objects", started,
+                    hint="each change: {'file': 'src/x.py', 'old_text': '...', "
+                         "'new_text': '...'} — pass operation='create' + "
+                         "new_text for new files",
+                )
+            errors: list[str] = []
+            for i, change in enumerate(changes):
+                message = _patch.validate_change(change)
+                if message:
+                    errors.append(f"changes[{i}]: {message}")
+            if errors:
+                return self._err(
+                    tool, "validation", "; ".join(errors), started,
+                    hint="fix the change list and re-propose; the stale "
+                         "proposal was rejected",
+                )
+
+            structured: list[dict] = []
+            for change in changes:
+                rel = change["file"]
+                op = change.get("operation") or (
+                    _patch.OP_EDIT if change.get("old_text") else _patch.OP_CREATE
+                )
+                old_text = change.get("old_text", "")
+                new_text = change.get("new_text", "")
+                if op == _patch.OP_EDIT:
+                    try:
+                        content = _view._jail(self._root, rel).read_text(  # noqa: SLF001
+                            errors="replace"
+                        )
+                    except FileNotFoundError:
+                        return self._err(
+                            tool, "not_found",
+                            f"edit change targets file {rel!r} which does not "
+                            "exist (use operation='create' to add a new file)",
+                            started,
+                            hint="check the file exists with file_skeleton, or "
+                                 "propose a create change",
+                        )
+                    context_problem = _patch.check_change_context(content, old_text)
+                    if context_problem:
+                        return self._err(tool, "validation", context_problem, started)
+                    new_content = _patch.compute_new_content(content, old_text, new_text)
+                    diff = "\n".join(
+                        line for line in difflib.unified_diff(
+                            content.splitlines(), new_content.splitlines(),
+                            fromfile=f"a/{rel}", tofile=f"b/{rel}", lineterm="",
+                        )
+                    )
+                    context_sha = _patch.content_sha(content)
+                else:  # create
+                    resolved = _view._jail(self._root, rel)  # noqa: SLF001
+                    if resolved.is_file():
+                        return self._err(
+                            tool, "validation",
+                            f"create change targets existing file {rel!r} — "
+                            "use an edit change to modify it", started,
+                            hint="propose an edit with old_text if you meant to "
+                                 "modify, or a different filename for create",
+                        )
+                    diff = "\n".join(difflib.unified_diff(
+                        [], new_text.splitlines(),
+                        fromfile="/dev/null", tofile=f"b/{rel}", lineterm="",
+                    ))
+                    context_sha = _patch.content_sha("")
+                structured.append({
+                    "file": rel,
+                    "symbol": change.get("symbol", ""),
+                    "operation": op,
+                    "old_text": old_text,
+                    "new_text": new_text,
+                    "diff": diff,
+                    # Gate-1 anchor: apply re-validates against this state.
+                    "context_sha256": context_sha,
+                })
+
+            # Scope gate (Gate 4) is enforced NOW too — fail at propose time
+            # when the proposal declares an allowlist it immediately violates.
+            scope_problem = _patch.scope_of(allowed_files, structured)
+            if scope_problem:
+                return self._err(tool, "validation", scope_problem, started)
+
+            # Blast-radius enrichment — best-effort graph reads; failures
+            # degrade to empty lists, never fail the proposal.
+            affected_symbols: list[str] = []
+            callers: list[dict] = []
+            affected_tests: list[dict] = []
+            for change in structured:
+                if change["symbol"]:
+                    affected_symbols.append(change["symbol"])
+                call_env = self.callers(change.get("symbol") or change["file"])
+                if call_env.get("ok"):
+                    callers.extend(call_env.get("results", [])[:10])
+                if change.get("symbol"):
+                    tm_env = self.test_map(change["symbol"])
+                    if tm_env.get("ok"):
+                        affected_tests.extend(tm_env.get("results", []))
+
+            risk = (
+                {"level": risk_level, "reason": "caller-supplied", "source": "agent"}
+                if risk_level
+                else _patch.auto_risk(structured, len(callers))
+            )
+            created_at = datetime.now(timezone.utc).isoformat()
+            plan = _patch.build_patch_plan(
+                changes=structured, test_id=test_id, root_cause=root_cause,
+                confidence=confidence, evidence=evidence,
+                intended_behavior=intended_behavior,
+                expected_failure=expected_failure, after_patch=after_patch,
+                constraints=constraints, allowed_files=allowed_files,
+                risk=risk,
+                impact={
+                    "affected_symbols": affected_symbols,
+                    "affected_files": sorted({c["file"] for c in structured}),
+                    "callers": callers,
+                    "affected_tests": affected_tests,
+                },
+                agent=agent, model=model,
+                repository_revision=self._repository_revision(),
+                created_at=created_at,
+            )
+            node, edges = _patch.build_patch_node(
+                plan, file_node_ids=self._resolve_file_node_ids(
+                    {c["file"] for c in structured}),
+                # test-node linking lands in a later pass; the plan already
+                # carries test_id — no dangling edge for an unindexed test.
+            )
+            # A second open proposal for the same failing test is SUPERSEDED
+            # by this one (patches are immutable; re-proposal is a NEW
+            # lifecycle event, never a mutation of the old plan).
+            superseded: list[str] = []
+            if test_id:
+                for other in self._engine._repo.analysis_nodes(  # noqa: SLF001
+                    "PatchPlan", project=self._canonical_project(),
+                ):
+                    other_plan = other.properties.get("plan", {})
+                    if (
+                        other.properties.get("status") == _patch.STATUS_PROPOSED
+                        and (other_plan.get("trigger", {}) or {}) \
+                                .get("test_id", "") == test_id
+                        and other.id != plan["patch_id"]
+                    ):
+                        superseded.append(other.id)
+                if superseded:
+                    self._engine._repo.update_node_properties(  # noqa: SLF001
+                        {
+                            pid: {
+                                "status": _patch.STATUS_SUPERSEDED,
+                                "superseded_by": plan["patch_id"],
+                            }
+                            for pid in superseded
+                        },
+                        project=self._canonical_project(),
+                    )
+            self._engine._repo.merge_delta(  # noqa: SLF001
+                [node], edges, project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, [plan], started,
+            hint="nothing was modified — call apply_patch with this patch_id "
+                 "to mutate the repo through the gate pipeline",
+        )
+
+    def apply_patch(self, patch_id: str) -> dict:
+        """Take an already-created PatchPlan and safely mutate the
+        repository — it NEVER decides what the fix should be, only whether
+        THIS change can land. Five gates run before any byte is written:
+        the patch must exist and still be PROPOSED (Gate 0 — patches are
+        immutable and a REJECTED one is terminal); every target jailed
+        under the project root (Gate 2); every edit's old_text must still
+        match current content exactly once (Gate 1 — PATCH_CONTEXT_MISMATCH
+        on a stale proposal, never a blind apply); the proposal's own file
+        scope is respected (Gate 4); resulting content must parse (Gate 3,
+        Python-exact) and respect the write ceiling. Then ONE all-or-
+        nothing write (snapshot + rollback underneath), immediately
+        integrity-checked by re-hashing every written file (Gate 5 — a
+        post-write mismatch triggers full rollback), with the graph
+        re-indexed in the SAME call. On gate failure the patch's status
+        moves to REJECTED with the reason recorded — the fix is to re-
+        propose against current content, never to retry the stale id.
+        """
+        tool = "apply_patch"
+        started = time.monotonic()
+        try:
+            plans = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "PatchPlan", project=self._canonical_project(),
+            )
+            by_id = {n.id: n for n in plans}
+            if patch_id not in by_id:
+                return self._err(
+                    tool, "not_found", f"unknown patch '{patch_id}'", started,
+                    hint="list_patches to see every recorded proposal",
+                )
+            status = by_id[patch_id].properties.get(
+                "status", _patch.STATUS_PROPOSED,
+            )
+            if status != _patch.STATUS_PROPOSED:
+                if status == _patch.STATUS_APPLIED:
+                    return self._err(
+                        tool, "validation",
+                        f"patch '{patch_id}' is already APPLIED — apply is "
+                        "not re-runnable (patches are immutable); call "
+                        "verify_patch to judge it", started,
+                    )
+                return self._err(
+                    tool, "validation",
+                    f"patch '{patch_id}' is {status} — apply rejected; "
+                    + ("propose a new patch (a REJECTED patch is terminal; "
+                       "its context was proven stale or out of scope)"
+                       if status == _patch.STATUS_REJECTED
+                       else "propose a fresh patch for the next repair step"),
+                    started,
+                )
+            plan = by_id[patch_id].properties.get("plan", {})
+            changes = plan.get("changes", [])
+
+            # Gate 4 first: scope. Then per-change compute + validate.
+            scope_problem = _patch.scope_of(
+                (plan.get("intent", {}) or {}).get("allowed_files"), changes,
+            )
+            if scope_problem:
+                self._reject_patch(patch_id, scope_problem)
+                return self._err(tool, "validation", scope_problem, started)
+
+            final_content: dict[str, str] = {}
+            prior_content: dict[str, str] = {}
+            for change in changes:
+                rel = change["file"]
+                resolved = _view._jail(self._root, rel)  # noqa: SLF001 — Gate 2
+                if change["operation"] == _patch.OP_CREATE:
+                    if resolved.is_file():
+                        message = (
+                            f"PATCH_CONTEXT_MISMATCH: create change targets "
+                            f"{rel!r} which now exists"
+                        )
+                        self._reject_patch(patch_id, message)
+                        return self._err(tool, "validation", message, started)
+                    final_content[rel] = change["new_text"]
+                    continue
+                try:
+                    current = resolved.read_text(errors="replace")
+                except FileNotFoundError:
+                    message = (
+                        f"PATCH_CONTEXT_MISMATCH: {rel!r} no longer exists — "
+                        "it was deleted or moved since the proposal"
+                    )
+                    self._reject_patch(patch_id, message)
+                    return self._err(
+                        tool, "not_found", message, started,
+                        hint="re-propose; if the file is genuinely gone the "
+                             "diagnosis is stale too",
+                    )
+                context_problem = _patch.check_change_context(
+                    current, change["old_text"],
+                )
+                if context_problem:
+                    self._reject_patch(patch_id, context_problem)
+                    return self._err(tool, "validation", context_problem, started)
+                # Gate 1 strictness: the content hash must match the state
+                # the proposal was made against. old_text matching uniquely
+                # is not enough on its own — any post-proposal edit shifts
+                # the anchor, and a patch reviewed against revision A must
+                # not silently land on a drifted revision B.
+                if change.get("context_sha256") and \
+                        _patch.content_sha(current) != change["context_sha256"]:
+                    message = (
+                        f"PATCH_CONTEXT_MISMATCH: {rel!r} changed since the "
+                        "proposal was made (its content hash no longer "
+                        "matches the proposal's context anchor — the change "
+                        "was proposed against different file content). "
+                        "Re-propose against current content; the stale "
+                        "proposal was rejected."
+                    )
+                    self._reject_patch(patch_id, message)
+                    return self._err(
+                        tool, "validation", message, started,
+                        hint="even a matching old_text cannot be trusted "
+                             "when the file moved — diff the file and "
+                             "re-propose against current content",
+                    )
+                prior_content[rel] = current
+                final_content[rel] = _patch.compute_new_content(
+                    current, change["old_text"], change["new_text"],
+                )
+
+            # Gate 3: syntax of the POST-change content, and write ceiling.
+            for rel, content in final_content.items():
+                syntax = _patch.syntax_check(rel, content)
+                if syntax["valid"] is False:
+                    message = (
+                        f"patch invalid: {rel!r} would not parse after this "
+                        f"change ({syntax['detail']})"
+                    )
+                    self._reject_patch(patch_id, message)
+                    return self._err(
+                        tool, "validation", message, started,
+                        hint="fix the change (its unified diff is on the plan) "
+                             "and re-propose",
+                    )
+                if len(content.encode()) > self._max_file_size_bytes:
+                    message = f"{rel!r} result exceeds the write ceiling"
+                    self._reject_patch(patch_id, message)
+                    return self._err(
+                        tool, "validation", message, started,
+                        hint="split the change or raise max_file_size_bytes",
+                    )
+
+            # Gates all passed — atomic mutation (snapshot + rollback
+            # underneath), then an immediate post-write integrity check.
+            write_results = _edit.write_files_atomic(
+                self._root, final_content,
+                max_file_size_bytes=self._max_file_size_bytes,
+            )
+            integrity_failures: list[str] = []
+            for rel, new_content in final_content.items():
+                landed = _view._jail(self._root, rel).read_text(errors="replace")  # noqa: SLF001
+                if landed != new_content:
+                    integrity_failures.append(rel)
+            if integrity_failures:
+                for rel, before in prior_content.items():
+                    resolved = _view._jail(self._root, rel)  # noqa: SLF001
+                    resolved.write_text(before)
+                message = (
+                    f"post-write integrity check failed for {integrity_failures}; "
+                    "all files rolled back to pre-patch content"
+                )
+                return self._err(
+                    tool, "internal", message, started,
+                    hint="filesystem state is exactly pre-patch; the patch "
+                         "stays PROPOSED and may be re-applied after "
+                         "investigating the writer that corrupted the write",
+                )
+
+            graph_hints: list[str] = []
+            for rel in final_content:
+                _, file_hint = self._sync_graph_after_write(
+                    rel, {"path": rel, "applied": True},
+                )
+                if file_hint:
+                    graph_hints.append(f"{rel}: {file_hint}")
+            self._engine._repo.update_node_properties(  # noqa: SLF001
+                {
+                    patch_id: {
+                        "status": _patch.STATUS_APPLIED,
+                        "applied_at": time.strftime(
+                            "%Y-%m-%dT%H:%M:%SZ", time.gmtime(),
+                        ),
+                        "applied_files": sorted(final_content),
+                        "post_content_sha256": {
+                            rel: _patch.content_sha(content)
+                            for rel, content in final_content.items()
+                        },
+                    }
+                },
+                project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = "now judge it: verify_patch with this patch_id — apply does " \
+               "NOT decide the fix is correct, only that it landed safely"
+        if graph_hints:
+            hint += "; " + "; ".join(graph_hints)
+        return self._ok(
+            tool,
+            [{
+                "patch_id": patch_id,
+                "status": _patch.STATUS_APPLIED,
+                "files": {
+                    rel: {
+                        "bytes_written": write_results[rel]["bytes_written"],
+                        "created": write_results[rel]["created"],
+                        "post_content_sha256": _patch.content_sha(
+                            final_content[rel]),
+                    }
+                    for rel in sorted(final_content)
+                },
+            }],
+            started, hint=hint,
+        )
+
+    def _reject_patch(self, patch_id: str, reason: str) -> None:
+        """Record an apply-time rejection on the (still-immutable) plan."""
+        try:
+            self._engine._repo.update_node_properties(  # noqa: SLF001
+                {
+                    patch_id: {
+                        "status": _patch.STATUS_REJECTED,
+                        "rejected_reason": reason,
+                    }
+                },
+                project=self._canonical_project(),
+            )
+        except Exception:  # noqa: BLE001 - bookkeeping never masks the error
+            pass
+
+    def verify_patch(
+        self,
+        patch_id: str,
+        run_tests: bool = False,
+        test_type: str = "unit",
+        architecture_check: bool = False,
+    ) -> dict:
+        """Judge an APPLIED patch on evidence — never on the proposer's
+        claim. Runs the checklist against the REPOSITORY, not against the
+        plan: is the patch's content actually in each file (or the exact
+        post-apply hash still intact), does everything still parse, do the
+        imports the patch added resolve, which tests cover the changed
+        symbols, does the declared counterfactual actually describe a real
+        behavior change (old text gone, new text present) — then, only when
+        the caller opts in, the affected tests are executed for real and
+        the architecture-check pass runs. Never mutates the repository and
+        never edits the plan's content — the only writes are the patch's
+        own status (VERIFIED|FAILED) and an append-only verification
+        history entry, so the FAILED → FAILED → VERIFIED chain needed for
+        repair metrics accumulates. A patch that proposes-but-doesn't-apply
+        is not verifiable; apply it first.
+        """
+        tool = "verify_patch"
+        started = time.monotonic()
+        try:
+            plans = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "PatchPlan", project=self._canonical_project(),
+            )
+            by_id = {n.id: n for n in plans}
+            if patch_id not in by_id:
+                return self._err(
+                    tool, "not_found", f"unknown patch '{patch_id}'", started,
+                    hint="list_patches to see every recorded proposal",
+                )
+            node = by_id[patch_id]
+            status = node.properties.get("status", _patch.STATUS_PROPOSED)
+            if status in (_patch.STATUS_PROPOSED, _patch.STATUS_REJECTED,
+                          _patch.STATUS_SUPERSEDED):
+                return self._err(
+                    tool, "validation",
+                    f"patch '{patch_id}' is {status} — verify_patch judges an "
+                    "APPLIED patch; call apply_patch first", started,
+                )
+            plan = node.properties.get("plan", {})
+            changes = plan.get("changes", [])
+            post_hashes = node.properties.get("post_content_sha256", {})
+            checks: list[dict] = []
+
+            # 1-2. content: every change's text is really in the file, and
+            # the file is byte-identical to what apply recorded when strict.
+            content_failures: list[str] = []
+            changed_files = sorted({c["file"] for c in changes})
+            for rel in changed_files:
+                try:
+                    current = _view._jail(self._root, rel).read_text(  # noqa: SLF001
+                        errors="replace",
+                    )
+                except FileNotFoundError:
+                    content_failures.append(
+                        f"{rel}: does not exist (deleted after apply?)",
+                    )
+                    continue
+                expected_hash = post_hashes.get(rel)
+                if expected_hash:
+                    if _patch.content_sha(current) == expected_hash:
+                        continue
+                    content_failures.append(
+                        f"{rel}: content changed since apply (expected sha "
+                        f"{expected_hash[:12]}… got {_patch.content_sha(current)[:12]}…)"
+                    )
+                    continue
+                for change in [c for c in changes if c["file"] == rel]:
+                    if change["operation"] == _patch.OP_CREATE:
+                        continue
+                    if change["new_text"] and change["new_text"] not in current:
+                        content_failures.append(
+                            f"{rel}: applied new_text is missing from the file",
+                        )
+            checks.append({
+                "name": "patch_content_present",
+                "status": "fail" if content_failures else "pass",
+                "detail": "; ".join(content_failures)
+                          if content_failures
+                          else f"{len(changed_files)} file(s) match the "
+                               "post-apply content",
+            })
+
+            # 3. syntax of every touched file as it stands NOW.
+            syntax_failures: list[str] = []
+            skipped_syntax: list[str] = []
+            for rel in changed_files:
+                try:
+                    current = _view._jail(self._root, rel).read_text(  # noqa: SLF001
+                        errors="replace",
+                    )
+                except FileNotFoundError:
+                    continue
+                syntax = _patch.syntax_check(rel, current)
+                if syntax["valid"] is False:
+                    syntax_failures.append(f"{rel}: {syntax['detail']}")
+                elif syntax["valid"] is None:
+                    skipped_syntax.append(rel)
+            checks.append({
+                "name": "syntax_valid",
+                "status": (
+                    "pass" if not syntax_failures
+                    else "fail",
+                ),
+                "detail": (
+                    "; ".join(syntax_failures) if syntax_failures
+                    else "all touched files parse"
+                    if not skipped_syntax
+                    else "all touched files parse"
+                    + f" (not exact-checked: {skipped_syntax})"
+                ),
+            })
+
+            # 4. imports the patch added resolve somewhere.
+            import_failures: list[str] = []
+            import_checked = 0
+            for change in changes:
+                for line in _patch.net_new_imports(
+                    change.get("old_text", ""), change.get("new_text", ""),
+                ):
+                    symbol = (
+                        line[len("from "):].split()[0].strip()
+                        if line.startswith("from ")
+                        else line[len("import "):].split()[0].strip()
+                    ).rstrip(",")
+                    import_checked += 1
+                    resolved = self.resolve_import(symbol, importing_file=change["file"])
+                    if not (resolved.get("ok") and resolved.get("results")):
+                        import_failures.append(
+                            f"{change['file']}: '{line}' does not resolve "
+                            "against the project index (third-party imports "
+                            "are expected here — a warning, not a failure)",
+                        )
+            checks.append({
+                "name": "imports_resolvable",
+                "status": "pass" if not import_failures else "warn",
+                "detail": (
+                    f"{import_checked} net-new import(s) checked"
+                    if import_checked and not import_failures
+                    else "no net-new imports"
+                    if not import_checked
+                    else "; ".join(import_failures)
+                ),
+            })
+
+            # 5. counterfactual: does the patch ACTUALLY change behavior in
+            # the direction the diagnosis predicted (old behavior gone, new
+            # behavior present) — not just "the suite is green".
+            counterfactual = (plan.get("intent", {}) or {}).get(
+                "counterfactual", {},
+            ) or {}
+            cf_failures: list[str] = []
+            for change in changes:
+                try:
+                    current = _view._jail(self._root, change["file"]).read_text(  # noqa: SLF001
+                        errors="replace",
+                    )
+                except FileNotFoundError:
+                    cf_failures.append(f"{change['file']}: missing")
+                    continue
+                if change["operation"] == _patch.OP_EDIT:
+                    if change["old_text"] in current:
+                        cf_failures.append(
+                            f"{change['file']}: pre-patch behavior text still "
+                            "present — the change may not have taken effect",
+                        )
+                    if change["new_text"] not in current:
+                        cf_failures.append(
+                            f"{change['file']}: post-patch behavior text "
+                            "absent — the change may have been reverted",
+                        )
+            checks.append({
+                "name": "counterfactual_holds",
+                "status": "fail" if cf_failures else "pass",
+                "detail": (
+                    "; ".join(cf_failures) if cf_failures
+                    else "old behavior removed, new behavior present"
+                    + (f"; declared: {counterfactual.get('after_patch', '')[:120]}"
+                       if counterfactual.get("after_patch") else "")
+                ),
+            })
+
+            # 6. regression surface: tests covering the changed symbols.
+            # The failing test's own file (when the test symbol is indexed)
+            # plus files of up to five TESTS-mapped regression tests — this
+            # is the list executed_tests (opt-in below) runs.
+            affected_tests = (plan.get("impact", {}) or {}).get(
+                "affected_tests", [],
+            )
+            test_id = (plan.get("trigger", {}) or {}).get("test_id", "")
+            test_files: list[str] = []
+
+            def _file_of_symbol(symbol_name: str) -> str:
+                env = self.search_symbol(symbol_name)
+                for hit in env.get("results", []) if env.get("ok") else []:
+                    f = hit.get("source_file", "")
+                    if f and hit.get("name", "") == symbol_name:
+                        return f
+                return ""
+
+            if test_id:
+                f = _file_of_symbol(test_id)
+                if f and f not in test_files:
+                    test_files.append(f)
+            for record in affected_tests[:5]:
+                f = _file_of_symbol(record.get("test", ""))
+                if f and f not in test_files:
+                    test_files.append(f)
+            test_files = sorted(dict.fromkeys(f for f in test_files if f))
+            checks.append({
+                "name": "regression_surface",
+                "status": "pass" if (affected_tests or test_id) else "skip",
+                "detail": (
+                    f"failing test: {test_id}; "
+                    f"{len(affected_tests)} mapped test(s): "
+                    + ", ".join(
+                        t.get("test", "") for t in affected_tests[:8]
+                    )
+                    if (affected_tests or test_id)
+                    else "no failing test recorded and no TESTS-map edges "
+                         "for the changed symbols — the plan's diagnosis "
+                         "cannot be regression-checked"
+                ),
+            })
+
+            # 7. (opt-in) execute for real.
+            if run_tests:
+                if not test_files:
+                    checks.append({
+                        "name": "executed_tests",
+                        "status": "skip",
+                        "detail": "no test files discovered to run "
+                                  "(test files come from the failing-test "
+                                  "lookup + TESTS edges; pass them yourself "
+                                  "via run_tests when known)",
+                    })
+                else:
+                    orch_result = self.run_tests(test_type, test_files)
+                    checks.append({
+                        "name": "executed_tests",
+                        "status": (
+                            "pass" if orch_result.get("ok")
+                            and (orch_result.get("results") or [{}])[0]
+                            .get("status") == "passed"
+                            else "fail"
+                        ),
+                        "detail": str((orch_result.get("results") or [{}])[0]
+                                      .get("status", "no result"))
+                                  + ("; " + str(orch_result.get("hint", ""))
+                                     if orch_result.get("hint") else ""),
+                    })
+
+            # 8. (opt-in) architecture check over the current graph state.
+            if architecture_check:
+                arch = self.architecture_check()
+                violations = arch.get("results", []) if arch.get("ok") else []
+                checks.append({
+                    "name": "architecture_check",
+                    "status": "pass" if not violations else "fail",
+                    "detail": (
+                        "no architectural violations"
+                        if not violations
+                        else f"{len(violations)} violation(s): "
+                        + "; ".join(
+                            str(v.get("rule", v.get("kind", v))[:80] if isinstance(v, dict) else str(v)[:80])
+                            for v in violations[:5]
+                        )
+                    ),
+                })
+
+            hard_failures = [
+                c for c in checks if c["status"] == "fail"
+            ]
+            verdict = _patch.STATUS_FAILED if hard_failures \
+                else _patch.STATUS_VERIFIED
+            history_entry = {
+                "verified_at": time.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(),
+                ),
+                "status": verdict,
+                "failed_checks": [c["name"] for c in hard_failures],
+                "checks": checks,
+            }
+            prior_history = node.properties.get("verification_history", []) or []
+            self._engine._repo.update_node_properties(  # noqa: SLF001
+                {
+                    patch_id: {
+                        "status": verdict,
+                        "last_verification": history_entry,
+                        "verification_history": prior_history + [history_entry],
+                    }
+                },
+                project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = (
+            f"verdict {verdict}; the report is envelope-only evidence — "
+            "persist an INDEPENDENT verdict via record_verdict(patch_id, "
+            "agent, 'pass'|'fail', confidence, reasoning) so the proposing "
+            "agent never certifies its own fix"
+        )
+        return self._ok(
+            tool,
+            [{
+                "patch_id": patch_id,
+                "status": verdict,
+                "checks": checks,
+                "affected_tests": affected_tests,
+                "test_files": test_files,
+            }],
+            started, hint=hint,
+        )
+
+    def get_patch(self, patch_id: str) -> dict:
+        """One full PatchPlan by id — the immutable proposal snapshot plus
+        its CURRENT lifecycle status and every audit property (apply/reject
+        reasons, verification history)."""
+        tool = "get_patch"
+        started = time.monotonic()
+        try:
+            plans = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "PatchPlan", project=self._canonical_project(),
+            )
+            by_id = {n.id: n for n in plans}
+            if patch_id not in by_id:
+                return self._err(
+                    tool, "not_found", f"unknown patch '{patch_id}'", started,
+                    hint="list_patches to see every recorded proposal",
+                )
+            node = by_id[patch_id]
+            result = {
+                "patch_id": node.id,
+                **(node.properties.get("plan", {}) or {}),
+            }
+            result["patch_id"] = node.id
+            result["status"] = node.properties.get(
+                "status", _patch.STATUS_PROPOSED,
+            )
+            for key in (
+                "applied_at", "rejected_reason", "superseded_by",
+                "last_verification", "verification_history",
+            ):
+                if key in node.properties:
+                    result[key] = node.properties[key]
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def list_patches(self, status: str = "", limit: int = 20) -> dict:
+        """Every recorded PatchPlan, newest first, with one-line summaries —
+        the repair-history view the per-bug metrics (first-patch success
+        rate, mean patches per bug, verdict-vs-outcome correlation) are
+        computed from."""
+        tool = "list_patches"
+        started = time.monotonic()
+        try:
+            nodes = self._engine._repo.analysis_nodes(  # noqa: SLF001
+                "PatchPlan", project=self._canonical_project(),
+            )
+            if status:
+                nodes = [n for n in nodes
+                         if n.properties.get("status") == status]
+            nodes.sort(key=lambda n: n.properties.get("plan", {}).get(
+                "created_at", "",
+            ), reverse=True)
+            total = len(nodes)
+            nodes = nodes[: max(0, limit)]
+            results = []
+            for n in nodes:
+                plan = n.properties.get("plan", {}) or {}
+                results.append({
+                    "patch_id": n.id,
+                    "status": n.properties.get(
+                        "status", _patch.STATUS_PROPOSED,
+                    ),
+                    "created_at": plan.get("created_at", ""),
+                    "test_id": (plan.get("trigger", {}) or {}).get(
+                        "test_id", "",
+                    ),
+                    "files": plan.get("impact", {}).get("affected_files", []),
+                    "risk": (plan.get("risk", {}) or {}).get("level", ""),
+                    "root_cause": (plan.get("diagnosis", {}) or {}).get(
+                        "root_cause", "",
+                    ),
+                })
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, results, started, total=total, truncated=total > len(results),
+            hint=(f"{total} patch(es) recorded; capped at {limit}"
+                  if total > len(results) else None),
+        )
 
     # -- execution / indexing tools ------------------------------------------
 

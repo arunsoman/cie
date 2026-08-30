@@ -790,6 +790,14 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "start_watch": _service_tool("start_watch"),
     "stop_watch": _service_tool("stop_watch"),
     # -- write tools --
+    # Repair transaction layer (propose → apply → verify; see cie.patch).
+    # apply_patch is the only file-mutating tool; propose/verify persist
+    # their immutable PatchPlan nodes / lifecycle status to the graph only.
+    "propose_patch": _service_tool("propose_patch"),
+    "apply_patch": _service_tool("apply_patch"),
+    "verify_patch": _service_tool("verify_patch"),
+    "get_patch": _service_tool("get_patch"),
+    "list_patches": _service_tool("list_patches"),
     "write_file": _service_tool("write_file"),
     "write_files_atomic": _service_tool("write_files_atomic"),
     "edit_file": _service_tool("edit_file"),

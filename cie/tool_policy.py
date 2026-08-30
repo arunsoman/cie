@@ -53,6 +53,12 @@ class AgentType(str, Enum):
 WRITE_TOOLS: frozenset[str] = frozenset({
     # filesystem
     "write_file", "write_files_atomic", "edit_file", "delete_file",
+    # repair transaction layer: propose persists an immutable PatchPlan
+    # node, apply mutates files (the ONLY file-mutating path that runs the
+    # gate pipeline), verify writes back the patch's status + verification
+    # history — see cie.patch's module docstring for the mutation split
+    # between propose/apply/verify.
+    "propose_patch", "apply_patch", "verify_patch",
     # execution / process side effects
     "run", "run_tests", "start_watch", "stop_watch",
     "start_mock_server", "stop_mock_server", "install_git_hook",
