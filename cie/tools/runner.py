@@ -128,6 +128,17 @@ def run_command(
             "run commands must stay inside the project directory"
         )
 
+    # R16 — optional container seam: CIE_RUN_WRAPPER prefixes the command
+    # with a caller-supplied wrapper (e.g. `docker run --rm -v {root}:{root}
+    # -w {root}`) — CONVENIENCE, NOT ENFORCEMENT: the same cwd jail and
+    # timeout apply, but cie does not verify what the wrapper does (the
+    # boundary statement lives in docs/security.md). A wrapper may use the
+    # {root} placeholder (the resolved jail root). Absent env, behavior is
+    # unchanged.
+    wrapper = os.environ.get("CIE_RUN_WRAPPER", "").strip()
+    if wrapper:
+        cmd = f"{wrapper.format(root=resolved_cwd)} {cmd}" if "{root}" in wrapper else f"{wrapper} {cmd}"
+
     proc = subprocess.Popen(
         cmd,
         shell=True,

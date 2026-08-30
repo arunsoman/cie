@@ -258,13 +258,19 @@ effort S/M/L is a guess, treated as a guess.
       installer are the exemplars; delta S2).
       **Verify:** fresh clone → `cie init` → client lists cie tools with
       zero manual config; captured for the demo cast.
-- [ ] **R16 · `run`-tool isolation story made explicit** (M). `run` is
+- [x] **R16 · `run`-tool isolation story made explicit** (M). `run` is
       already policy-gated (WRITE_TOOLS → 403 under the default read-only
       HTTP surface, this session) but the jail is cwd+timeout, "no
       container isolation yet" per routes.py. Ship docs + optional
       container mode; state the boundary plainly.
       **Verify:** doc states the threat model; a policy test pins that
       every networked surface refuses `run` by default.
+      *Done 2026-08-30.* `docs/security.md` (threat model: jail IS / NOT
+      IS / surface matrix); `CIE_RUN_WRAPPER` container seam
+      (convenience-not-enforcement, byte-identical absent); enforcement
+      pins: HTTP run-refusal monkeypatches Popen (403 must precede any
+      spawn), wrapper-expansion test, MCP non-registration already
+      pinned in test_mcp_server. Suite 264 → 266.
 - [ ] **R17 · Conformance in CI** (S). Run
       `tool-test-lab/surface_conformance.py` on every push: fail on any
       crash or silent surface-count change, so "126 tools, 0 crashes"

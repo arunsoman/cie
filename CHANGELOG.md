@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R16 — the `run`-tool isolation story made explicit.** New
+  `docs/security.md` states the threat model precisely: the cwd jail +
+  hard-timeout/process-group kill + bounded output that IS there, and
+  equally plainly what is NOT (no fs sandbox beyond cwd, no network
+  restriction, no container isolation) — plus the surface-by-surface
+  matrix of what each caller can reach (HTTP default refuses `run`
+  server-side before any process spawns, machine-checked by a test that
+  monkeypatches Popen to blow up on any invocation; MCP `readonly`
+  never registers it). Optional `CIE_RUN_WRAPPER` container seam —
+  documented as convenience, not enforcement, with the pin that absent
+  the env var behavior is byte-identical.
+
+### Added
+
 - **R9 — reproducible benchmark harness + a third independent repo.**
   `scripts/benchmark.sh` + `scripts/benchmark_tasks.py` turn the
   benchmark-doc methodology into a script: clone at the pinned commit →

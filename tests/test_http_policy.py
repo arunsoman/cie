@@ -266,3 +266,69 @@ def test_discovery_filter_covers_every_toolservice_write_tool(client):
     assert hidden  # sanity: WRITE_TOOLS is keyed to real ToolService methods
     names = _manifest_names(client)
     assert not (names & hidden)
+
+# ---------------------------------------------------------------------------
+# R16 — the run-tool isolation boundary, machine-checked per surface
+# (the human-readable statement lives in docs/security.md; these are the
+# enforcement pins that keep the doc true).
+# ---------------------------------------------------------------------------
+
+
+def test_run_refused_on_every_networked_surface_by_default(client, monkeypatch):
+    """docs/security.md's table row 3: the default HTTP policy refuses
+    `run` server-side — no process is ever started (the refusal fires in
+    the dispatcher, before the handler)."""
+    import cie.tools.runner as runner
+
+    spawned = []
+    monkeypatch.setattr(
+        runner.subprocess, "Popen",
+        lambda *a, **k: spawned.append((a, k)) or (_ for _ in ()).throw(AssertionError("Popen must NOT run")),
+    )
+    r = client.post("/tools/run", json={"cmd": "echo popped"})
+    assert r.status_code == 403
+    assert r.json()["error"]["kind"] == "forbidden"
+    assert not spawned, "a 403 must precede any process spawn"
+
+
+def test_run_wrapper_seam_is_convenience_not_enforcement(monkeypatch, tmp_path):
+    """CIE_RUN_WRAPPER prefixes the command (with {root} expansion) — the
+    pin: absent the env var, behavior is byte-identical to before; with
+    it, the wrapper wraps and the same jail/timeout still wrap the
+    WRAPPER (docs/security.md's 'convenience, not enforcement')."""
+    import cie.tools.runner as runner
+
+    (tmp_path / "probe.txt").write_text("x")
+    monkeypatch.delenv("CIE_RUN_WRAPPER", raising=False)
+    result = runner.run_command(
+        "cat probe.txt", cwd=tmp_path, timeout=10, allowed_root=tmp_path,
+    )
+    assert result.output.strip() == "x"
+
+    captured: dict = {}
+
+    class FakeProc:
+        def __init__(self, cmd, **kwargs):
+            captured["cmd"] = cmd
+
+        def communicate(self, timeout=None):
+            class P:
+                pid = 0
+
+            return ("", None)
+
+        returncode = 0
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProc)
+    monkeypatch.setenv(
+        "CIE_RUN_WRAPPER", "docker run --rm -v {root}:{root} -w {root}"
+    )
+    runner.run_command(
+        "cat probe.txt", cwd=tmp_path, timeout=10, allowed_root=tmp_path,
+    )
+    assert captured["cmd"].startswith("docker run --rm -v ")
+    assert str(tmp_path) in captured["cmd"]
+    assert captured["cmd"].endswith("cat probe.txt")

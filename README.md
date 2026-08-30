@@ -560,6 +560,9 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
 
 ## Docs
 
+- [Security model](docs/security.md) — the `run` tool's jail, timeout,
+  and (optional) container seam, stated as a threat model: what is
+  isolated, what is NOT, and which surface refuses what by default.
 - [Competitive landscape](docs/competitive-landscape.md) — nearest
   competitors (CodeGraphContext, CodeGraph, Serena, and others), where cie
   differs, and where it's honestly behind.
@@ -567,6 +570,8 @@ Or over MCP: `cie-mcp /path/to/your/project` (no `--embedded`) — reads
   methodology re-run on a well-known public repo this project didn't
   write, not a self-referential proof case; a real win and a real recall
   gap, both reported.
+- [Benchmarks — urllib3](docs/benchmarks-urllib3.md) — the third dataset,
+  fully regenerable from [`scripts/benchmark.sh`](scripts/benchmark.sh).
 - [Tool-selection accuracy](docs/tool-selection-accuracy.md) — does
   having 81+ tools instead of ~14 cost an agent selection accuracy?
   Measured, not asserted: 14/14 correct in both conditions, one run —

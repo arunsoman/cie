@@ -989,7 +989,7 @@ by what the client lists.
 
 ---
 
-### [ ] R16 · `run`-tool isolation story made explicit (M)
+### [x] R16 · `run`-tool isolation story made explicit (M) — DONE 2026-08-30
 
 **State today (verified).** The honest core exists:
 `cie/tools/runner.py` L3–8 states "v0 isolation is subprocess only —
@@ -1029,7 +1029,7 @@ container mode demonstrated once in a cast (optional, doc'd).
 
 ---
 
-### [ ] R17 · Conformance in CI (S)
+### [x] R17 · Conformance in CI (S) — DONE 2026-08-30
 
 **State today (verified).** `.github/workflows/ci.yml` runs pytest on
 py3.10–3.13 + an MCP stdio smoke step (initialize + tools/list) — good
@@ -1225,5 +1225,9 @@ footnoted to its measured source; nothing published from vibes.
   two live-found fixes (`.h` mis-tree under C grammar for C++ —
   re-scoped with docs; `cs`-vs-`csharp` language-key mismatch); suite
   254 → 264. Committed.
+- **2026-08-30 (implementation pass 12)** — R17 done (CI conformance
+  gate + approved_surface.json + fixture; one collection leak fixed);
+  R16 done (docs/security.md + CIE_RUN_WRAPPER seam + spawn-guard test);
+  suite 264 → 266. Committed in two commits.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).
