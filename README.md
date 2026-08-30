@@ -632,6 +632,15 @@ cie/
 tests/                # test_standalone_smoke / test_mcp_server / test_embedded_repository
 ```
 
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, the test suite,
+and the design boundary to respect. Looking for a first PR? Start with
+the [`good first issue`](https://github.com/arunsoman/cie/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+label — each one names a safe entry-point module and acceptance
+criteria. CONTRIBUTING.md's "Becoming a second maintainer" section is
+the path beyond a one-off PR.
+
 ## License
 
 cie is released under the [MIT License](LICENSE).
