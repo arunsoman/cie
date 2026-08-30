@@ -239,16 +239,51 @@ class TestHonestErrors:
         assert env["ok"] is False and env["error"]["kind"] == "not_found"
         assert "cie index" in env["hint"]
 
-    def test_hierarchy_commands_are_honest_unavailable_on_embedded(
-        self, runner, indexed_project
+    def test_hierarchy_commands_work_on_embedded(self, runner, indexed_project):
+        """R14 roundtrip through the real CLI: push -> children -> lineage,
+        all against .cie/hierarchy.db (was honest-unavailable in R2, then
+        R14 shipped the SQLite store — this test flipped from a negative
+        pin to a positive one; the honest-unavailable contract it used to
+        pin moved to `hierarchy_tracking=False` configurations)."""
+        tree = {
+            "node_type": "module", "id": "m1", "name": "Backend",
+            "children": [
+                {"node_type": "feature", "id": "f1", "name": "Auth",
+                 "children": [
+                     {"node_type": "userstory", "id": "u1", "name": "Login"},
+                 ]},
+            ],
+        }
+        Path("tree.json").write_text(json.dumps(tree))
+        env = json.loads(
+            runner.invoke(cli, ["--json", "hierarchy:push", "tree.json"]).output
+        )
+        assert env["ok"] is True and env["results"]["nodes_written"] == 3
+        assert (Path.cwd() / ".cie" / "hierarchy.db").is_file()
+        env = json.loads(
+            runner.invoke(cli, ["--json", "hierarchy:children", "m1"]).output
+        )
+        assert env["ok"] is True
+        assert [c["id"] for c in env["results"]["children"]] == ["f1", "u1"]
+        env = json.loads(
+            runner.invoke(cli, ["--json", "hierarchy:lineage", "u1"]).output
+        )
+        assert env["ok"] is True
+        assert [v["id"] for v in env["results"]] == ["m1", "f1", "u1"]
+
+    def test_hierarchy_commands_are_honest_unavailable_when_tracking_off(
+        self, runner, tmp_path, monkeypatch
     ):
-        result = runner.invoke(cli, ["--json", "hierarchy:children", "x"])
-        assert result.exit_code == 1
-        env = json.loads(result.output)
+        """The honest-unavailable contract didn't die with R14 — it moved
+        to the explicit opt-out: an embedded service built with the
+        hierarchy store disabled returns the unavailable envelope (never
+        silently-empty), via factory's hierarchy_tracking=False."""
+        from cie.factory import build_tool_service_embedded
+
+        svc = build_tool_service_embedded(tmp_path, hierarchy_tracking=False)
+        env = svc.get_lineage("m1")
         assert env["ok"] is False and env["error"]["kind"] == "unavailable"
-        assert "R14" in env["error"]["message"]
-        # and the failure names the Neo4j escape hatch instead of bolt noise
-        assert "CIE_NEO4J_URI" in env["hint"]
+        assert env["error"]["reason"] == "HIERARCHY_STORE_NOT_CONFIGURED"
 
     def test_load_refuses_explicit_embedded_with_the_embedded_hint(
         self, runner, tmp_path, monkeypatch

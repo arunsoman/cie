@@ -158,6 +158,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="With --embedded: fail fast on task/QA tool calls instead of "
              "creating a tasks.db (pre-Phase-0.5 behavior).",
     )
+    parser.add_argument(
+        "--no-hierarchy", action="store_true",
+        help="With --embedded: fail fast on hierarchy tool calls instead of "
+             "creating a hierarchy.db (pre-R14 behavior).",
+    )
     parser.add_argument("--neo4j-uri", default=None)
     parser.add_argument("--neo4j-user", default=None)
     parser.add_argument("--neo4j-password", default=None)
@@ -179,6 +184,7 @@ def main(argv: list[str] | None = None) -> None:
         service = build_tool_service_embedded(
             args.project_root, db_path=args.db, project=args.project,
             task_db_path=args.task_db, task_tracking=not args.no_task_tracking,
+            hierarchy_tracking=not args.no_hierarchy,
         )
     else:
         from cie.config import CieConfig, Neo4jConfig

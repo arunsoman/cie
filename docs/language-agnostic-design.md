@@ -191,7 +191,7 @@ Generic execution oracle: `run` (already language-agnostic — keep as-is).
   push/get, coverage record/get/report/snapshot/trend).
 - **Decision: keep it, as the Neo4j/team *retention* tier — not a
   zero-config feature.** The acquisition tier (embedded SQLite, the code
-  graph + ~132 tools over MCP/HTTP/CLI) is what a solo dev / first-time
+  graph + ~135 tools over MCP/HTTP/CLI) is what a solo dev / first-time
   visitor tries; the task/QA traceability + quality-governance layer is
   the "when your team is on Neo4j" upgrade that makes cie worth keeping
   installed past week one (cie's retention differentiator vs. pure code

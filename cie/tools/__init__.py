@@ -144,6 +144,7 @@ class ToolService:
         allowed_root: Optional[Path] = None,
         project: str = "",
         max_file_size_bytes: int = _view.DEFAULT_MAX_FILE_SIZE_BYTES,
+        hierarchy_repo: Optional[Any] = None,
     ) -> None:
         self._engine = engine
         self._task_repo = task_repo
@@ -177,6 +178,14 @@ class ToolService:
         # as long as the caller keeps making calls against this project"
         # lifecycle as `_watch_observer` above.
         self._mock_server_handle: Any = None
+        # The PRD-hierarchy store (roadmap R14): SQLiteHierarchyRepository
+        # on the embedded backend (default `<root>/.cie/hierarchy.db`),
+        # Neo4jHierarchyRepository through the factory's build path — or
+        # None for callers that pass `hierarchy_tracking=False` (the
+        # hierarchy tools then return an honest unavailable envelope,
+        # mirroring the task_tracking=False / NullTaskRepository pattern;
+        # fail-fast, never silently-empty).
+        self._hierarchy_repo: Any = hierarchy_repo
         # Lazily built by _heuristic_fallback() below — NOT built here in
         # __init__, since most ToolService instances never need it (Neo4j
         # serves nearly every real call); a full `SymbolIndex` project
@@ -4448,3 +4457,105 @@ class ToolService:
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
         return self._ok(tool, dataclasses.asdict(snapshot), started)
+
+    # -- PRD hierarchy — promoted from HTTP-only alias handlers (R14) ------
+
+    def _require_hierarchy(self, tool: str, started: float):
+        """The hierarchy store, or the honest unavailable envelope."""
+        if self._hierarchy_repo is None:
+            return None, self._err(
+                tool, "unavailable",
+                "no hierarchy store is configured for this backend", started,
+                reason="HIERARCHY_STORE_NOT_CONFIGURED",
+                hint="build the service with build_tool_service_embedded "
+                     "(default) or a Neo4j-backed factory; pass --no-"
+                     "hierarchy only when task/QA tracking is intentionally off",
+            )
+        return self._hierarchy_repo, None
+
+    def push_hierarchy(self, tree: Optional[dict] = None) -> dict:
+        """Pull an INS IDE planner tree (Module/Feature/Workflow/UseCase/
+        UserStory — the HierarchyNode JSON shape) into the graph (§5.3).
+        PRD-hierarchy write side; the tree is validated
+        (ids unique on every root-to-leaf path) and MERGEed idempotently
+        by (node id, project). UserStory nodes with
+        metadata['task_names'] get REALIZED_BY links."""
+        tool = "push_hierarchy"
+        started = time.monotonic()
+        repo, err = self._require_hierarchy(tool, started)
+        if err is not None:
+            return err
+        try:
+            from cie.tasks import HierarchyNode
+
+            root = HierarchyNode.model_validate({k: v for k, v in (tree or {}).items()})
+            written = repo.push_hierarchy(root, project=self._project)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool,
+            {"nodes_written": written, "root_id": root.id,
+             "root_name": root.name, "project": self._project},
+            started,
+        )
+
+    def get_children(
+        self, node_id: str = "", depth: int = 0, type_filter: str = "",
+        limit: int = 200,
+    ) -> dict:
+        """THE 'all children' API for the PRD hierarchy (§5.3): BFS over
+        HAS_CHILD ordered by depth then name. depth=0 unlimited; the
+        type_filter restricts RESULTS (traversal passes through other
+        types); when more exist, truncated=True. Envelope includes the
+        root node + its computed children."""
+        tool = "get_children"
+        started = time.monotonic()
+        repo, err = self._require_hierarchy(tool, started)
+        if err is not None:
+            return err
+        try:
+            subtree = repo.get_children(
+                node_id, depth=int(depth), type_filter=str(type_filter),
+                limit=int(limit),
+            )
+        except ValueError:
+            return self._err(
+                tool, "not_found", f"unknown hierarchy node '{node_id}'", started,
+                hint="push the hierarchy first with push_hierarchy",
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = (
+            "children capped at the limit; narrow with depth or type_filter"
+            if subtree.truncated
+            else None
+        )
+        return self._ok(
+            tool,
+            {
+                "root": subtree.root.model_dump(mode="json"),
+                "children": [c.model_dump(mode="json") for c in subtree.children],
+            },
+            started, truncated=subtree.truncated, hint=hint,
+        )
+
+    def get_lineage(self, node_id: str = "") -> dict:
+        """Ancestor path of one hierarchy node, root-first (§5.3) — "which
+        module does this user story belong to", in one hop query."""
+        tool = "get_lineage"
+        started = time.monotonic()
+        repo, err = self._require_hierarchy(tool, started)
+        if err is not None:
+            return err
+        try:
+            lineage = repo.get_lineage(node_id)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [v.model_dump(mode="json") for v in lineage]
+        return self._ok(
+            tool, results, started,
+            hint=None if results else (
+                f"unknown hierarchy node '{node_id}'; push the hierarchy "
+                "first with push_hierarchy"
+            ),
+        )

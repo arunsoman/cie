@@ -134,6 +134,7 @@ def build_tool_service(
         root=Path(root),
         allowed_root=Path(allowed_root) if allowed_root is not None else None,
         project=project,
+        hierarchy_repo=get_hierarchy_repo(project, cfg),
         **kwargs,
     )
 
@@ -171,20 +172,21 @@ def build_tool_service_embedded(
     max_file_size_bytes: Optional[int] = None,
     task_db_path: Optional[Path] = None,
     task_tracking: bool = True,
+    hierarchy_tracking: bool = True,
+    hierarchy_db_path: Optional[Path] = None,
 ) -> ToolService:
     """Zero-config `ToolService`, no Neo4j required — the other half of
     `build_tool_service`/`build_tool_service_from_config` above, backed by
     `cie.embedded_repository.EmbeddedRepository` (a local SQLite file,
     default `<root>/.cie/graph.db`) instead of `Neo4jRepository`.
 
-    Task/QA tracking is now available here too: `cie.embedded_task_repository.
-    EmbeddedTaskRepository`, a second local SQLite file (default
-    `<root>/.cie/tasks.db`), the same `TaskRepository` protocol
-    `Neo4jTaskRepository` implements. Pass `task_tracking=False` to fall
-    back to `cie.embedded_repository.NullTaskRepository` (fail-fast on
-    every task call) instead — e.g. for a caller that wants the smallest
-    possible footprint and never touches task tools.
-    """
+    Task/QA tracking is available via `cie.embedded_task_repository.
+    EmbeddedTaskRepository` (default `<root>/.cie/tasks.db`; pass
+    `task_tracking=False` to fail-fast via `NullTaskRepository`), and the
+    PRD hierarchy via `cie.embedded_hierarchy_repository.
+    SQLiteHierarchyRepository` (R14; default `<root>/.cie/hierarchy.db`;
+    pass `hierarchy_tracking=False` to skip creating that file — the
+    hierarchy tools then return an honest unavailable envelope)."""
     from cie.embedded_repository import EmbeddedRepository, NullTaskRepository
     from cie.embedded_task_repository import EmbeddedTaskRepository
     from cie.query import QueryEngine
@@ -203,8 +205,18 @@ def build_tool_service_embedded(
         task_repo = EmbeddedTaskRepository(resolved_task_db, project=project)
     else:
         task_repo = NullTaskRepository()
+    hierarchy_repo = None
+    if hierarchy_tracking:
+        from cie.embedded_hierarchy_repository import SQLiteHierarchyRepository
+
+        resolved_hierarchy_db = (
+            Path(hierarchy_db_path) if hierarchy_db_path is not None
+            else resolved_root / ".cie" / "hierarchy.db"
+        )
+        hierarchy_repo = SQLiteHierarchyRepository(resolved_hierarchy_db, project=project)
     return ToolService(
-        engine, task_repo, root=resolved_root, project=project, **kwargs,
+        engine, task_repo, root=resolved_root, project=project,
+        hierarchy_repo=hierarchy_repo, **kwargs,
     )
 
 

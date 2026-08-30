@@ -84,6 +84,9 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     # read-only-by-default HTTP surface would silently permit these writes.
     "push_tasks", "set_task_status", "link_artifact",
     "append_repair_events", "record_coverage", "record_coverage_snapshot",
+    # PRD hierarchy write (roadmap R14): promoted alongside its embedded
+    # SQLite store; get_children/get_lineage are read-side and stay out.
+    "push_hierarchy",
     # sync/versioning graph mutation
     "sync_promote", "sync_revert", "sync_evict_speculative",
     "sync_load_commit", "sync_quality_gate",

@@ -22,7 +22,7 @@ reproducible harness or an auditable artifact of a specific run.
 ## Artifacts of record
 
 - **`surface_results.json`** — the 2026-08-30 conformance run's full
-  output (132 tools: 88 verified ok / 22 graceful / 18 unavailable /
+  output (135 tools: 100 verified ok / 26 graceful / 5 unavailable /
   4 backend-gated / 0 crashes — the post-R1 surface, re-run same day;
   the prior pre-R1 snapshot (126 tools: 85/19/18/4) is superseded).
   Environment-specific paths inside; kept

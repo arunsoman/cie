@@ -8,8 +8,12 @@ stores, links, and traverses it. Graph shapes (integration spec + SPEC §5.3):
     (parent)-[:HAS_CHILD]->(child)
     (:UserStory)-[:REALIZED_BY]->(:AtomicTask)   # via metadata['task_names']
 
-All Cypher is APOC-free. The in-memory fake lives in
-``tests/in_memory_hierarchy_repo.py`` and enforces the same semantics.
+All Cypher is APOC-free. The embedded twin (`SQLiteHierarchyRepository`,
+R14) lives in `cie/embedded_hierarchy_repository.py` and implements the
+same protocol over one local SQLite file. (An earlier version of this
+docstring pointed at an in-memory fake at
+`tests/in_memory_hierarchy_repo.py` — that file never existed in this
+repository, found and corrected during R14.)
 """
 
 from __future__ import annotations

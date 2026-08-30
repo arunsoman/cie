@@ -827,7 +827,20 @@ pairs; README/landscape/pyproject updated in the same pass.
 
 ---
 
-### [ ] R14 · PRD-hierarchy port to embedded SQLite (M)
+### [x] R14 · PRD-hierarchy port to embedded SQLite (M) — DONE 2026-08-30
+
+*(Implementation summary: `cie/embedded_hierarchy_repository.py` (same
+protocol, shared validators, documented backend differences — single
+HAS_CHILD direction, name-keyed unconditional REALIZED_BY);
+`hierarchy_repo` param on ToolService + `hierarchy_tracking=False` /
+`--no-hierarchy` opt-out with
+`unavailable[HIERARCHY_STORE_NOT_CONFIGURED]`; three hierarchy tools
+promoted (R1's playbook, incl. the WRITE_TOOLS trap); factory + cli
++ mcp wiring; 21 tests at B1's bar; conformance re-run: 135 tools,
+100 verified / 26 graceful / 5 unavailable / 0 crashes; README#undefers
+"still Neo4j only"; stale docstring fixed. push_hierarchy trip-wire
+verified by the pinned invariant test firing exactly once when the
+alias-set/WRITE_TOOLS swap was momentarily half-done.)*
 
 **State today (verified).** `cie/hierarchy.py` holds the full
 `HierarchyRepository` protocol (L151–188: `push_hierarchy`,
@@ -1141,5 +1154,11 @@ footnoted to its measured source; nothing published from vibes.
   all with reason slugs; 13 tools now run purely standalone; bucket
   scan caught and fixed `failing_context("")` IsADirectoryError;
   conformance 100/23/5/4, 0 crashes; suite 205 → 212. Committed.
+- **2026-08-30 (implementation pass 5)** — R14 done: SQLite hierarchy
+  store + the last three HTTP-only tools promoted; HTTP_WRITE_ALIASES
+  empty; surface 132 → 135 (conformance 100/26/5/4, 0 crashes); suite
+  213 → 235. The R3-era "hierarchy still Neo4j-only" caveat flipped in
+  README; hierarchy.py's nonexistent-fake docstring pointer fixed.
+  Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

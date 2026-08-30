@@ -137,22 +137,15 @@ def get_tool_service(project: str = "") -> ToolService:
 # ---------------------------------------------------------------------------
 
 #: POST /tools/{tool} handlers that mutate the task/hierarchy/coverage
-#: repository but are NOT ToolService methods (bespoke ``_tool_*``
-#: handlers, invisible to `ToolService.describe()` and therefore absent
-#: from `WRITE_TOOLS`, which is keyed to ToolService method names). The
-#: unified dispatcher must treat these exactly like WRITE_TOOLS tools.
-#:
-#: Roadmap R1 shrank this to ONE name: the six task/QA write-back tools
-#: (push_tasks, set_task_status, link_artifact, append_repair_events,
-#: record_coverage, record_coverage_snapshot) are now real ToolService
-#: methods — MCP/CLI see them for free — so their authorization flows
-#: through WRITE_TOOLS like every other write (they were added there in
-#: the same commit; the invariants tests pin that this set and
-#: WRITE_TOOLS never shadow each other). push_hierarchy waits for its
-#: embedded backend (roadmap R14), so it stays aliased.
-HTTP_WRITE_ALIASES: frozenset[str] = frozenset({
-    "push_hierarchy",
-})
+#: repository but are NOT ToolService methods. (Historical note: this was
+#: once 17 bespoke `_tool_*` handlers; R1 promoted the six task/QA write-
+#: back tools, R14 promoted the three hierarchy tools — all now real
+#: ToolService methods whose authorization flows through WRITE_TOOLS.
+#: The set is now EMPTY, permanently: a promoted name must move to
+#: WRITE_TOOLS in the same commit (pinned by
+#: `test_http_write_aliases_and_write_tools_never_overlap`), so a future
+#: promotion can't double-classify it.
+HTTP_WRITE_ALIASES: frozenset[str] = frozenset()
 
 
 def _http_policy() -> ToolPolicy:
@@ -503,91 +496,6 @@ def _tool_validate_cycles(kwargs: dict, project: str) -> dict:
     )
 
 
-def _tool_push_hierarchy(kwargs: dict, project: str) -> dict:
-    """push_hierarchy: ingest a planner Module->...->UserStory tree (§5.3)."""
-    tool = "push_hierarchy"
-    tree = {k: v for k, v in kwargs.items() if k != "project"}
-    with ToolTimer() as timer:
-        try:
-            root = HierarchyNode.model_validate(tree)
-        except ValueError as exc:
-            return err_envelope(
-                tool, "validation", str(exc),
-                hint="expected a HierarchyNode tree: {node_type, name, id?, "
-                     "description?, metadata?, children?}",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        try:
-            written = factory.get_hierarchy_repo(project).push_hierarchy(
-                root, project=project
-            )
-        except ValueError as exc:
-            return err_envelope(
-                tool, "validation", str(exc),
-                hint="hierarchy ids must be unique on every root-to-leaf path",
-                elapsed_ms=timer.elapsed_ms,
-            )
-    return envelope(
-        tool,
-        {
-            "nodes_written": written,
-            "root_id": root.id,
-            "root_name": root.name,
-            "project": project,
-        },
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
-def _tool_get_children(kwargs: dict, project: str) -> dict:
-    """get_children: BFS 'all children' traversal of the PRD hierarchy."""
-    tool = "get_children"
-    node_id = str(kwargs.get("node_id", ""))
-    with ToolTimer() as timer:
-        try:
-            subtree = factory.get_hierarchy_repo(project).get_children(
-                node_id,
-                depth=int(kwargs.get("depth", 0)),
-                type_filter=str(kwargs.get("type_filter", "")),
-                limit=int(kwargs.get("limit", 200)),
-            )
-        except ValueError:
-            return err_envelope(
-                tool, "not_found", f"unknown hierarchy node '{node_id}'",
-                hint="push the hierarchy first with push_hierarchy",
-                elapsed_ms=timer.elapsed_ms,
-            )
-    hint = (
-        "children capped at the limit; narrow with depth or type_filter"
-        if subtree.truncated
-        else None
-    )
-    return envelope(
-        tool,
-        {
-            "root": subtree.root.model_dump(mode="json"),
-            "children": [c.model_dump(mode="json") for c in subtree.children],
-        },
-        truncated=subtree.truncated, hint=hint, elapsed_ms=timer.elapsed_ms,
-    )
-
-
-def _tool_get_lineage(kwargs: dict, project: str) -> dict:
-    """get_lineage: ancestor path of a hierarchy node, root-first."""
-    tool = "get_lineage"
-    node_id = str(kwargs.get("node_id", ""))
-    with ToolTimer() as timer:
-        lineage = factory.get_hierarchy_repo(project).get_lineage(node_id)
-    hint = None if lineage else (
-        f"unknown hierarchy node '{node_id}'; push the hierarchy first with "
-        "push_hierarchy"
-    )
-    return envelope(
-        tool, [v.model_dump(mode="json") for v in lineage], hint=hint,
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
 def _tool_health(kwargs: dict, project: str) -> dict:
     """health: connectivity + counts + isolation + schema version (T3.4)."""
     tool = "health"
@@ -765,9 +673,9 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "validate_coverage": _tool_validate_coverage,
     "validate_cycles": _tool_validate_cycles,
     # PRD hierarchy
-    "push_hierarchy": _tool_push_hierarchy,
-    "get_children": _tool_get_children,
-    "get_lineage": _tool_get_lineage,
+    "push_hierarchy": _service_tool("push_hierarchy"),
+    "get_children": _service_tool("get_children"),
+    "get_lineage": _service_tool("get_lineage"),
     # QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md)
     "record_coverage": _service_tool("record_coverage"),
     "get_coverage": _tool_get_coverage,

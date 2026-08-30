@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **R14 — the PRD-hierarchy store lands on embedded SQLite.** Its last
+  Neo4j-only feature is gone: `cie/embedded_hierarchy_repository.py`'s
+  `SQLiteHierarchyRepository` implements the same `HierarchyRepository`
+  protocol (`push_hierarchy`/`get_children`/`get_lineage`/
+  `get_hierarchy_node`/`get_project_tree`) over one local file
+  (`.cie/hierarchy.db` beside the other embedded stores). Intentional,
+  documented backend differences: one HAS_CHILD edge direction (nothing
+  writes the host wide-schema's CHILD_OF on this path) and name-keyed,
+  unconditional REALIZED_BY edges (the task layer lives in a separate
+  file; Neo4j's write validates them against stored AtomicTask nodes).
+  The three hierarchy tools are real `ToolService` methods now — the
+  last HTTP-only alias handlers; `HTTP_WRITE_ALIASES` is EMPTY
+  (permanently, pinned), `push_hierarchy` joined `WRITE_TOOLS`, and the
+  default `cie-mcp --embedded` serves the full PRD tree (opt out with
+  `--no-hierarchy` / `hierarchy_tracking=False`; the tools then return
+  `unavailable[HIERARCHY_STORE_NOT_CONFIGURED]`, never silent-empties).
+  CLI `hierarchy:*` commands also work against embedded now (R2's seam
+  extends to the hierarchy repo). 21 tests
+  (`tests/test_embedded_hierarchy_repository.py`, B1's bar) + the pinned
+  honest-unavailable-when-off test. `cie/hierarchy.py`'s docstring
+  pointer to a nonexistent in-memory fake corrected in the same pass.
+
+### Added
+
 - **R5 — the 503 surface shrinks 18 → 5, each with a machine-readable
   reason.** The four protobox-leftover modules
   (`cie/community_detect.py`, `cie/contracts.py`, `cie/state_machine.py`,

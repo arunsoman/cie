@@ -176,12 +176,21 @@ effort S/M/L is a guess, treated as a guess.
       landscape doc, don't round up.
       **Verify:** same bar as R12, per language; README/landscape/
       pyproject updated in the same pass (the no-stale-docs rule).
-- [ ] **R14 · PRD-hierarchy port to embedded SQLite** (M). The last
+- [x] **R14 · PRD-hierarchy port to embedded SQLite** (M). The last
       Neo4j-only feature (`cie.hierarchy`) — offered and not selected in
       session 3, still true. Completes "everything works on the default
       backend" story started by B1.
       **Verify:** hierarchy CRUD + lineage tests at the B1 depth
       (17-test bar) against SQLite; docs drop the "Neo4j-only" caveat.
+      *Done 2026-08-30.* `SQLiteHierarchyRepository` (same protocol)
+      over `.cie/hierarchy.db`; the three hierarchy tools promoted to
+      real ToolService methods (the last HTTP-only alias handlers —
+      `HTTP_WRITE_ALIASES` now EMPTY, pinned); `push_hierarchy` joined
+      WRITE_TOOLS; `--no-hierarchy` / `hierarchy_tracking=False` opt-out
+      with honest `unavailable[HIERARCHY_STORE_NOT_CONFIGURED]`; CLI
+      `hierarchy:*` works embedded; stale docstring pointer corrected.
+      21 tests + roundtrip+pins; surface 132 → 135, conformance re-run
+      100/26/5/4, 0 crashes; suite 235/235.
 
 ## P2 — adoption & launch mechanics (gated on R6)
 

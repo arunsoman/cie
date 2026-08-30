@@ -114,10 +114,15 @@ def test_build_tool_service_embedded_needs_no_neo4j_no_env_vars(tmp_path):
 
 def test_build_tool_service_embedded_custom_db_path(tmp_path):
     custom_db = tmp_path / "somewhere" / "custom.db"
-    # task_tracking=False so this test isolates the *graph* db_path override
-    # — task tracking's own db_path is covered by
-    # test_build_tool_service_embedded_custom_task_db_path below.
-    build_tool_service_embedded(tmp_path, db_path=custom_db, task_tracking=False)
+    # task_tracking=False + hierarchy_tracking=False so this test isolates
+    # the *graph* db_path override — the task store's db_path is covered
+    # by test_build_tool_service_embedded_custom_task_db_path below, and
+    # the hierarchy store (R14) would otherwise create `.cie/hierarchy.db`
+    # as a side effect.
+    build_tool_service_embedded(
+        tmp_path, db_path=custom_db, task_tracking=False,
+        hierarchy_tracking=False,
+    )
     assert custom_db.exists()
     assert not (tmp_path / ".cie").exists()
 

@@ -267,23 +267,21 @@ def _open_task_repo(project: Optional[str] = None, ctx: Optional[click.Context] 
 def _open_hierarchy_repo(project: str = "", ctx: Optional[click.Context] = None):
     """Open the hierarchy repository; returns ``(repo, driver)``.
 
-    NEO4J-ONLY as of R2: the SQLite PRD-hierarchy store is roadmap R14 —
-    until then an embedded selection emits the honest `unavailable` error
-    envelope here (uniformly for all three hierarchy:* commands, exactly
-    like `_emit_err` from a command body), never a bolt retry-loop
-    masquerading as an answer.
+    Backend per the selection rule (`--backend`/``CIE_BACKEND``/auto):
+    the EMBEDDED branch (R14) is `SQLiteHierarchyRepository` over the
+    sibling file of the selected graph db (default
+    ``.cie/hierarchy.db``), completing the zero-config story R2 started;
+    the Neo4j branch is unchanged (the driver is the returned closeable).
     """
     if ctx is None:
         ctx = click.get_current_context(silent=True)
     if ctx is not None and _selected_backend(ctx) == "embedded":
-        tool = (ctx.invoked_subcommand or "hierarchy").replace(":", "_")
-        _emit_err(
-            ctx, tool, "unavailable",
-            "the PRD-hierarchy store is Neo4j-only in this build; the "
-            "embedded SQLite port is roadmap item R14",
-            hint="run against Neo4j instead: set CIE_NEO4J_URI (and clear "
-                 "CIE_BACKEND), or cd out of the directory holding "
-                 ".cie/graph.db so auto-selection picks Neo4j",
+        from cie.embedded_hierarchy_repository import SQLiteHierarchyRepository
+
+        graph_db = _embedded_db_path(ctx.obj.get("db_opt"))
+        return (
+            SQLiteHierarchyRepository(graph_db.parent / "hierarchy.db", project=project),
+            None,
         )
     from neo4j import GraphDatabase
 

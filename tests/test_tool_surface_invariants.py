@@ -72,11 +72,8 @@ def _route_tool_keys() -> set[str]:
 HTTP_ONLY_HELPERS: frozenset[str] = frozenset({
     "coverage_report",
     "coverage_trend",
-    "get_children",
     "get_coverage",
-    "get_lineage",
     "health",
-    "push_hierarchy",
     "schema_version",
     "validate_api_contracts",
     "validate_coverage",

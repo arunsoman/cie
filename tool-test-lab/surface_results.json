@@ -1,8 +1,8 @@
 {
-  "tool_count": 132,
+  "tool_count": 135,
   "summary": {
     "verified": 100,
-    "graceful": 23,
+    "graceful": 26,
     "unavailable-by-design": 5,
     "backend-down": 4
   },
@@ -315,7 +315,19 @@
         "entity_name": "alpha"
       }
     },
+    "get_children": {
+      "status": "graceful",
+      "detail": "not_found: unknown hierarchy node ''",
+      "attempts": 1,
+      "args": {}
+    },
     "get_layer_rules": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "get_lineage": {
       "status": "verified",
       "detail": "",
       "attempts": 1,
@@ -377,7 +389,7 @@
     },
     "install_git_hook": {
       "status": "graceful",
-      "detail": "validation: /tmp/tmp.U3ZnTjDe1b is not a git repository (no .git directory)",
+      "detail": "validation: /tmp/tmp.0hw67cXjhS is not a git repository (no .git directory)",
       "attempts": 1,
       "args": {
         "cie_url": "alpha"
@@ -552,6 +564,14 @@
         "changes": []
       }
     },
+    "push_hierarchy": {
+      "status": "graceful",
+      "detail": "validation: 2 validation errors for HierarchyNode\nnode_type\n  Field required [type=missing, input_value={}, input_type=dic",
+      "attempts": 4,
+      "args": {
+        "node_type": "alpha"
+      }
+    },
     "push_tasks": {
       "status": "verified",
       "detail": "",
@@ -671,8 +691,8 @@
       }
     },
     "semantic_diff": {
-      "status": "verified",
-      "detail": "",
+      "status": "graceful",
+      "detail": "not_found: unknown symbol 'app.py'",
       "attempts": 1,
       "args": {
         "spec_text": "alpha",

@@ -54,7 +54,7 @@ of its raw size) and surfaces a real miss too (the same ambiguous-caller
 query resolved only 3 of 6 real call sites on that repo) — published
 because it's true, not adjusted to look better.
 
-**A second hook, also measured, not asserted:** cie ships ~132
+**A second hook, also measured, not asserted:** cie ships ~135
 LLM-callable tools — not a generic "run arbitrary code" surface the
 model has to improvise a workaround from, but specific ones (`callers`,
 `file_skeleton`, `traceability_orphans`...) that let it express intent
@@ -65,7 +65,7 @@ tasks hand-picked to be confusable (5 different "coverage"-named tools
 alone),
 picked the exactly correct tool **14/14** — against the full read-only
 surface measured that run (81 tools at the 2026-08-30 snapshot; the
-surface has since grown — today 132 ToolService tools / 83 read-only
+surface has since grown — today 135 ToolService tools / 85 read-only
 under the `inspector` policy) and the same 14/14 it got against a 14-tool
 subset. One run, real caveats in the linked doc — but the
 "more tools, more room to mess up" worry didn't hold up when actually
@@ -74,11 +74,11 @@ checked.
 **Tool-count labels — one convention, introspection-derived** (no prose
 estimate is ever cited without its label):
 
-- **132 ToolService tools** — every public `ToolService` method minus
+- **135 ToolService tools** — every public `ToolService` method minus
   `describe`; what `cie-mcp` serves under `--policy full` and what
   `POST /tools/{tool}` accepts.
-- **83 read-only tools** — the `--policy inspector` (default HTTP) view;
-  132 minus the 49 `WRITE_TOOLS` members (pinned in `tests/
+- **85 read-only tools** — the `--policy inspector` (default HTTP) view;
+  135 minus the 50 `WRITE_TOOLS` members (pinned in `tests/
   test_tool_surface_invariants.py`).
 - Historical snapshots (81/121/etc.) are dated record — CHANGELOG keeps
   them labeled; live cuts re-measure from introspection, never edit
@@ -136,7 +136,7 @@ bootstrap` remain the multi-project Neo4j ingest paths (their embedded
 counterpart is re-running `cie index`).
 
 See "What it is — three layers" below for the full breakdown (structural
-extraction, ~132 tools, the task/QA layer).
+extraction, ~135 tools, the task/QA layer).
 
 ## Install
 
@@ -169,7 +169,7 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   grammar) via `cie.lang_adapter.register_adapter` or the
   `cie.language_adapters` entry-point group, **no code change to this
   package required**.
-- **~132 LLM-callable tools** (`cie.tools.ToolService`, exposed 1:1 as
+- **~135 LLM-callable tools** (`cie.tools.ToolService`, exposed 1:1 as
   MCP tools and `POST /tools/{tool}` endpoints) — symbol search,
   call-graph traversal, clone/community/drift detection, quality reports,
   test-intelligence, traceability, confidence scoring, decomposition,
@@ -191,10 +191,12 @@ repos, and `ToolService` itself have **no HTTP dependency at all**.
   (SQLite, `.cie/tasks.db`; pass `task_tracking=False` to
   `build_tool_service_embedded`, or `--no-task-tracking` to `cie-mcp`,
   for `cie.embedded_repository.NullTaskRepository`'s fail-fast behavior
-  instead). The separate PRD-decomposition tree (`cie.hierarchy`,
-  `prd_coverage`/`prd_orphans`/`prd_traceability_chain`) is **still
-  Neo4j only** — those three tools call `cie.factory.get_hierarchy_repo`
-  directly regardless of which backend built the `ToolService`.
+  instead). The separate PRD-decomposition tree (`cie.hierarchy`) works
+  here too — the SQLite PRD-hierarchy store
+  (`cie.embedded_hierarchy_repository.SQLiteHierarchyRepository`, R14;
+  default `.cie/hierarchy.db`, or `--no-hierarchy` /
+  `hierarchy_tracking=False` to opt out) implements the same
+  `HierarchyRepository` protocol the Neo4j backend does.
 - **Honest degradation, machine-readable** (post-R5): tools whose logic
   is pure run standalone — the 2026-08-30 lazy-`core.llm` refactor
   un-503'd 13 of the 18 previously unavailable tools — and the 5 that
@@ -275,7 +277,7 @@ the HTTP routes.
   `EmbeddedTaskRepository` by default, `NullTaskRepository` opt-in via
   `task_tracking=False`).
 
-### Tool surface — `ToolService` (`cie/tools/__init__.py`, ~132 methods)
+### Tool surface — `ToolService` (`cie/tools/__init__.py`, ~135 methods)
 Every method returns the standard SPEC §0 envelope (`ok`/`tool`/`results`/
 `truncated`/`total`/`hint`/`elapsed_ms`, `cie.envelope`); errors carry a
 mandatory `hint`. Grouped by capability (all also exposed over MCP and
@@ -486,7 +488,7 @@ different audiences:
 **Acquisition tier — zero-config, embedded.** One local SQLite file, no
 server, nothing to configure (see Quickstart). The full code graph
 (search, traversal, call graph, file skeleton, the virtual filesystem,
-the heuristic fallback, GraphRAG Q&A) + ~132 tools over MCP/HTTP/CLI.
+the heuristic fallback, GraphRAG Q&A) + ~135 tools over MCP/HTTP/CLI.
 **No task/QA tracking, no quality-governance layer** (clone/drift
 detection, confidence, contracts). This is the tier a solo dev or a
 first-time visitor tries — the sharp hook that wins the first star.
@@ -557,7 +559,7 @@ cie/
   testlink.py          # TESTS edge resolution
   lang_adapter.py      # pluggable language-adapter registry + entry points
   config.py factory.py # bootstrap (Neo4jConfig / CieConfig / build_tool_service*)
-  tools/               # ToolService (~132 tools) + jailed fs/run/blame helpers
+  tools/               # ToolService (~135 tools) + jailed fs/run/blame helpers
   mcp_server.py        # real MCP server (cie-mcp)
   routes.py            # FastAPI router (mounted into host app)
   cli.py               # 49-command CLI (Rich tables + --json envelope)
