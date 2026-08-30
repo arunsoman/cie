@@ -73,14 +73,31 @@ def test_write_tool_rejected_by_default(client):
 
 
 def test_write_alias_rejected_by_default(client):
-    """`push_tasks` mutates the task repository but is a bespoke handler —
-    invisible to WRITE_TOOLS. `HTTP_WRITE_ALIASES` must close exactly that
-    gap, or the read-only default is fiction for task writes."""
+    """`push_tasks` mutates the task repository. Since R1 it IS a
+    ToolService method (MCP/CLI see it too), so its 403-by-default comes
+    from WRITE_TOOLS — this test now doubles as the promoted-write pin:
+    if a promoted name ever disappeared from WRITE_TOOLS, this 403 would
+    flip to a 200 and the read-only default would be fiction for task
+    writes. see test_http_write_aliases_and_write_tools_never_overlap for
+    the structural pin."""
     r = client.post("/tools/push_tasks", json={})
     assert r.status_code == 403
     body = r.json()
     assert body["error"]["kind"] == "forbidden"
     assert "not permitted" in body["error"]["message"]
+
+
+def test_promoted_task_qa_writes_refused_by_default(client):
+    """Every name promoted into ToolService by R1 must be refused by the
+    default read-only HTTP policy — one per tool, the machine-checkable
+    half of the parity claim (roadmap R1's verify)."""
+    for name in (
+        "push_tasks", "set_task_status", "link_artifact",
+        "append_repair_events", "record_coverage", "record_coverage_snapshot",
+    ):
+        env = client.post(f"/tools/{name}", json={}).json()
+        assert env["ok"] is False, name
+        assert env["error"]["kind"] == "forbidden", name
 
 
 def test_unknown_tool_is_404_not_403(client):

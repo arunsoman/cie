@@ -4,7 +4,7 @@ Closes the single gap named as the highest-leverage next move in
 `docs/competitive-landscape.md`: cie did not speak MCP, so it couldn't plug into Claude Code / Cursor / Codex /
 any MCP host the turnkey way every competitor in that research does.
 
-Wraps `cie.tools.ToolService` (~121 methods) as MCP tools using the
+Wraps `cie.tools.ToolService` (~132 methods) as MCP tools using the
 official `mcp` SDK's `FastMCP` high-level server, filtered by a
 `cie.tool_policy.ToolPolicy` so a connecting MCP client only ever sees
 — and can only ever call — the tools that policy permits. This is

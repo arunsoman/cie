@@ -114,7 +114,7 @@ async def main() -> None:
     # IMPORTANT: pin the REPO as the code source. From a sandbox cwd, `import cie`
     # resolves to the stale site-packages copy (0.1.0a2), not the repo being
     # tested — found the hard way when fixed tools still crashed.
-    env = dict(os.environ, PYTHONPATH="/home/arun/Downloads/cie")
+    env = dict(os.environ, PYTHONPATH=os.environ.get("CIE_REPO_ROOT", "/home/arun/Downloads/cie"))
     params = StdioServerParameters(command="bash", args=["-c", cmd], env=env)
     results: dict[str, dict] = {}
     async with stdio_client(params) as (read, write):

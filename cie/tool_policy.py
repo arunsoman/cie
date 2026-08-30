@@ -5,13 +5,15 @@ holds a reference to the instance — fine for a trusted in-process caller,
 not fine once cie is handed to a less-trusted external caller (docs/plans/
 cie-standalone-any-project-plan.md, Pillar A gap 2). This module adds a
 thin policy layer OVER `ToolService` — it does not change `ToolService` or
-any of its ~123 methods. Adopted at one real call site so far (2026-08-30):
+any of its ~132 methods. Adopted at two real call sites so far (2026-08-30):
 the HTTP surface (`cie/routes.py`) routes every `POST /tools/{tool}`
-dispatch through `authorize()` (its mutating task/hierarchy alias handlers
-via the `HTTP_WRITE_ALIASES` set, read-only by default with
-``CIE_HTTP_POLICY`` choosing otherwise), and its mutating legacy REST
-routes through the `_write_guard` dependency. The MCP server and forge's
-direct method calls are still future adopters.
+dispatch through `authorize()` — its mutating task/hierarchy alias
+handlers via the `HTTP_WRITE_ALIASES` set (push_hierarchy only since R1
+promoted the task/QA write-back into ToolService), read-only by default
+with ``CIE_HTTP_POLICY`` choosing otherwise — and its mutating legacy REST
+routes through the `_write_guard` dependency. The MCP server is now an
+adopter too (mcp_server filters registration through the same policy).
+Direct method calls (forge's backends) stay trusted in-process callers.
 
 `WRITE_TOOLS` below is a hand-curated classification — every method's
 docstring (and body, where the docstring alone was ambiguous) was read
@@ -77,6 +79,11 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     "promote_hint_to_task", "reindex", "reindex_file",
     "nook_and_corner_test", "configure_layer_rules", "performance_baseline",
     "decompose_page",
+    # task/QA write-back — promoted from HTTP-only alias handlers to real
+    # ToolService methods (roadmap R1); they MUST stay in this set or the
+    # read-only-by-default HTTP surface would silently permit these writes.
+    "push_tasks", "set_task_status", "link_artifact",
+    "append_repair_events", "record_coverage", "record_coverage_snapshot",
     # sync/versioning graph mutation
     "sync_promote", "sync_revert", "sync_evict_speculative",
     "sync_load_commit", "sync_quality_gate",

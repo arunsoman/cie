@@ -58,27 +58,26 @@ def _route_tool_keys() -> set[str]:
 
 
 #: HTTP-only tools that are NOT ToolService methods — the explicit,
-#: hand-maintained task/hierarchy/coverage write-back + validation +
+#: hand-maintained task/hierarchy/coverage read-side + validation +
 #: health/schema helpers in `cie/routes.py`'s `_tool_*` functions. These
 #: are the ONLY tools allowed to exist on the HTTP surface without a
 #: matching ToolService method. Keep this set in sync with `cie/routes.py`;
 #: if you add a new `_tool_*` helper, add its key here or (preferred) make
 #: it a real ToolService method so MCP/CLI get it for free.
+#: Roadmap R1 shrank this set by six: the task/QA write-back tools
+#: (push_tasks, set_task_status, link_artifact, append_repair_events,
+#: record_coverage, record_coverage_snapshot) ARE ToolService methods now,
+#: and MUST stay out of this set (they're WRITE_TOOLS members; keeping a
+#: stale helper entry would silently exempt them from the write gate).
 HTTP_ONLY_HELPERS: frozenset[str] = frozenset({
-    "append_repair_events",
     "coverage_report",
     "coverage_trend",
     "get_children",
     "get_coverage",
     "get_lineage",
     "health",
-    "link_artifact",
     "push_hierarchy",
-    "push_tasks",
-    "record_coverage",
-    "record_coverage_snapshot",
     "schema_version",
-    "set_task_status",
     "validate_api_contracts",
     "validate_coverage",
     "validate_cycles",
@@ -118,6 +117,42 @@ def test_http_only_tools_are_exactly_the_documented_helpers():
         f"HTTP_ONLY_HELPERS lists tools not actually in cie.routes.TOOLS "
         f"(stale helper entry): {sorted(missing)}"
     )
+
+
+def test_http_write_aliases_and_write_tools_never_overlap():
+    """The R1 promotion trap, pinned permanently.
+
+    When a task/QA alias handler is promoted into a ToolService method,
+    routes' `/tools/{tool}` dispatcher reclassifies it: authorization for
+    that name moves from the HTTP_WRITE_ALIASES branch (allow_write flag)
+    to WRITE_TOOLS. If a promoted name were left in the alias set, the
+    alias branch would shadow the write gate; if it were dropped from
+    WRITE_TOOLS at promotion, the read-only-by-default HTTP policy would
+    silently PERMIT a write. Both directions are pinned here: the alias
+    set must stay free of ToolService names, and the six tools promoted
+    in R1 must remain in WRITE_TOOLS."""
+    from cie.routes import HTTP_WRITE_ALIASES
+
+    surface = _public_tool_service_methods()
+    overlap = HTTP_WRITE_ALIASES & surface & WRITE_TOOLS
+    assert not overlap, (
+        f"{sorted(overlap)} are both ToolService methods and HTTP write "
+        "aliases — dispatched with two different authorization semantics; "
+        "remove them from HTTP_WRITE_ALIASES (routes.py) once they are "
+        "WRITE_TOOLS members"
+    )
+    promoted_r1 = {
+        "push_tasks", "set_task_status", "link_artifact",
+        "append_repair_events", "record_coverage", "record_coverage_snapshot",
+    }
+    lost = promoted_r1 - WRITE_TOOLS - HTTP_WRITE_ALIASES
+    assert not lost, (
+        f"{sorted(lost)} left the alias set but are missing from WRITE_TOOLS "
+        "— on the read-only-by-default HTTP surface they would now be "
+        "callable as WRITES; add them back to WRITE_TOOLS"
+    )
+    for name in promoted_r1:
+        assert name in surface, f"{name} must remain a public ToolService method"
 
 
 # ---------------------------------------------------------------------------

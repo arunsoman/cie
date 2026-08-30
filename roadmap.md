@@ -32,8 +32,8 @@ effort S/M/L is a guess, treated as a guess.
 
 ## P0 — before 0.1.0 stable can honestly cut
 
-- [ ] **R1 · Embedded MCP write-side parity** (M). The default surface
-      `cie-mcp --embedded` exposes only `list_pending_tasks` write-side-
+- [x] **R1 · Embedded MCP write-side parity** (M). The default surface
+      `cie-mcp --embedded` exposed only `list_pending_tasks` write-side-
       adjacent — the task/QA layer, the README's headline differentiator,
       is read-only on the default install because `push_tasks`,
       `set_task_status`, `link_artifact`, `append_repair_events`,
@@ -44,6 +44,14 @@ effort S/M/L is a guess, treated as a guess.
       **Verify:** `tool-test-lab/dogfood_mcp.py` sees and executes the
       full task/QA surface against `.cie/tasks.db`; the
       test_tool_surface_invariants relationships updated, not broken.
+      *Done 2026-08-30 (minus `push_hierarchy`, which needs its embedded
+      backend — moved to R14).* Six tools promoted; WRITE_TOOLS gained
+      them in the same commit (the shadowing trap is pinned by a new
+      invariants test); `HTTP_WRITE_ALIASES` down to `push_hierarchy`
+      only; surface 126 → 132; live MCP probe executed all six against
+      `.cie/tasks.db` (push/status get/link/coverage/snapshot all ok);
+      conformance 88/22/18/4, 0 crashes, fresh artifact committed;
+      suite 205/205.
 - [x] **R2 · CLI↔SQLite parity for the quickstart** (M). Query commands
       (`cie files` et al.) answered Neo4j-only while `cie index` wrote
       SQLite — the zero-config quickstart literally retried

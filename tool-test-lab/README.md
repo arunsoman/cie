@@ -22,8 +22,10 @@ reproducible harness or an auditable artifact of a specific run.
 ## Artifacts of record
 
 - **`surface_results.json`** — the 2026-08-30 conformance run's full
-  output (126 tools: 85 verified ok / 19 graceful / 18 unavailable /
-  4 backend-gated / 0 crashes). Environment-specific paths inside; kept
+  output (132 tools: 88 verified ok / 22 graceful / 18 unavailable /
+  4 backend-gated / 0 crashes — the post-R1 surface, re-run same day;
+  the prior pre-R1 snapshot (126 tools: 85/19/18/4) is superseded).
+  Environment-specific paths inside; kept
   as the audited snapshot, not as a fixture.
 - **`TOOL_TEST_REPORT.md`** — the 2026-08-30 audit of the *agent
   harness's* own tools (`read`/`write`/`edit`/`bash` + extension tools),

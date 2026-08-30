@@ -16,9 +16,13 @@ measures it instead of asserting it either way.
 **Ground truth, locked before running anything:** 14 natural-language
 tasks, each with one predetermined correct tool from cie's real,
 generated `tools/list` schemas (`cie.tool_schema.tool_schemas`,
-readonly/`inspector`-policy set — the same 81 tools a real read-only MCP
-client sees, descriptions truncated exactly as the real schema
-generation produces them, not edited for this test). Several tasks were
+readonly/`inspector`-policy set — the 81-tool read-only surface as of
+the 08-30 run (a dated snapshot of an earlier, smaller surface; the
+live read-only count has since grown with the R1 task/QA write-back
+promotions — the *selection* finding is about relative surface size,
+not the exact count),
+descriptions truncated exactly as the real schema generation produces
+them, not edited for this test). Several tasks were
 deliberately chosen to be genuinely hard: cie's own tool surface has 5
 different "coverage"-named tools (`coverage_gaps`, `test_coverage`,
 `traceability_coverage`, `prd_traceability_coverage`,
@@ -53,8 +57,8 @@ of five coverage-shaped tools that actually matched each phrasing).
 
 ## What this actually shows
 
-**The hypothesis that prompted this test — that 81 tools costs
-selection accuracy relative to 14 — did not hold up.** Zero measured
+**The hypothesis that prompted this test — that a large read-only tool
+costs selection accuracy relative to a 14-tool subset — did not hold up.** Zero measured
 cost in this run, even against tasks hand-picked to be confusable. That
 directly supports the pushback this test was built to check: a large,
 specific tool surface is not automatically a liability for the agent

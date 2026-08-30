@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP write-side parity for the task/QA layer (roadmap R1).** The six
+  task/QA write-back tools — `push_tasks`, `set_task_status`,
+  `link_artifact`, `append_repair_events`, `record_coverage`,
+  `record_coverage_snapshot` — are real `ToolService` methods now, so
+  the default `cie-mcp --embedded` install (which introspects only
+  ToolService) serves the full task/QA surface over MCP, instead of it
+  being HTTP-only alias handlers. Same kwargs, same envelope shapes,
+  same hints as the handlers they replace; they were added to
+  `WRITE_TOOLS` in the same commit (`push_hierarchy` stays an HTTP alias
+  until its embedded backend lands in R14). The read-only HTTP/MCP
+  story is unchanged and pinned by tests — promoted writes are 403 by
+  default server-side, per tool. Surface: 126 → **132 tools**, live
+  conformance 88 verified / 22 graceful / 18 unavailable-by-design / 4
+  backend-gated / **0 crashes** (`tool-test-lab/surface_results.json` —
+  fresh artifact, this commit), with an execution check over a real MCP
+  stdio session against `.cie/tasks.db`.
+
 ### Fixed
 
 - **The CLI answers the zero-config quickstart (roadmap R2).** Query

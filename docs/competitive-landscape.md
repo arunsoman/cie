@@ -76,7 +76,7 @@ open-ended language-extension model.
    no import-edge extraction, no docstring extraction (`cie/extract.py`'s
    module docstring).
 
-8. **126 tools vs. 14 (CodeGraphContext) doesn't cost selection
+8. **132 tools vs. 14 (CodeGraphContext) doesn't cost selection
    accuracy — measured, not assumed.** The obvious worry about a large,
    specific tool surface is that an agent picks the wrong one more
    often; `docs/tool-selection-accuracy.md` tested that directly (14
@@ -98,7 +98,7 @@ open-ended language-extension model.
 | Adoption | New, 0 stars | Community project | 68.7k stars — category leader | 28.6k stars, 170+ contributors |
 | Languages out-of-box | 6 (tree-sitter: Python/JS/TS/Java/Go/Rust) | 23 (tree-sitter/SCIP) | 21 (tree-sitter) | 40+ (via LSP) |
 | Extending to a new language | Register any `LanguageAdapter` — no grammar or LSP required | Needs a tree-sitter grammar or SCIP indexer | Needs a tree-sitter grammar | Needs a working LSP server |
-| Tool count | 126 | 14 | not disclosed; MCP-native | many, LSP-backed |
+| Tool count | 132 | 14 | not disclosed; MCP-native | many, LSP-backed |
 | Task/QA tracking | Yes — AtomicTask/QA CRUD, traceability chains (Neo4j or zero-config SQLite) | No | No | No |
 | Quality/drift/test intelligence | Yes — clone detection, drift detection, confidence scoring, contracts/invariants, state-machine validation, tech-debt reports | No (has `manage_adr`, not the same thing) | No | No |
 | Per-agent tool policy | Yes — `ToolPolicy`/`WRITE_TOOLS`, server-enforced | No (left to the MCP client) | No | No |

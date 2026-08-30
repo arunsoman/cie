@@ -1,8 +1,8 @@
 {
-  "tool_count": 126,
+  "tool_count": 132,
   "summary": {
-    "verified": 85,
-    "graceful": 19,
+    "verified": 88,
+    "graceful": 22,
     "unavailable-by-design": 18,
     "backend-down": 4
   },
@@ -44,6 +44,12 @@
       "args": {}
     },
     "apm_metrics": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
+    "append_repair_events": {
       "status": "verified",
       "detail": "",
       "attempts": 1,
@@ -371,7 +377,7 @@
     },
     "install_git_hook": {
       "status": "graceful",
-      "detail": "validation: /tmp/cie-surface-sandbox is not a git repository (no .git directory)",
+      "detail": "validation: /tmp/tmp.a5RkYVoslb is not a git repository (no .git directory)",
       "attempts": 1,
       "args": {
         "cie_url": "alpha"
@@ -390,6 +396,12 @@
       "args": {
         "code_node_id": "alpha"
       }
+    },
+    "link_artifact": {
+      "status": "graceful",
+      "detail": "not_found: task '' not found",
+      "attempts": 1,
+      "args": {}
     },
     "list_patches": {
       "status": "verified",
@@ -540,6 +552,12 @@
         "changes": []
       }
     },
+    "push_tasks": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
+    },
     "qa": {
       "status": "unavailable-by-design",
       "detail": "ModuleNotFoundError: No module named 'core'",
@@ -557,6 +575,18 @@
         "metric_type": "alpha",
         "value": 1
       }
+    },
+    "record_coverage": {
+      "status": "graceful",
+      "detail": "validation: file_path is required",
+      "attempts": 1,
+      "args": {}
+    },
+    "record_coverage_snapshot": {
+      "status": "verified",
+      "detail": "",
+      "attempts": 1,
+      "args": {}
     },
     "record_test_result": {
       "status": "graceful",
@@ -656,6 +686,12 @@
       "args": {
         "query": "alpha"
       }
+    },
+    "set_task_status": {
+      "status": "graceful",
+      "detail": "validation: invalid status ''",
+      "attempts": 1,
+      "args": {}
     },
     "start_mock_server": {
       "status": "verified",

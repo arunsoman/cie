@@ -141,9 +141,17 @@ def get_tool_service(project: str = "") -> ToolService:
 #: handlers, invisible to `ToolService.describe()` and therefore absent
 #: from `WRITE_TOOLS`, which is keyed to ToolService method names). The
 #: unified dispatcher must treat these exactly like WRITE_TOOLS tools.
+#:
+#: Roadmap R1 shrank this to ONE name: the six task/QA write-back tools
+#: (push_tasks, set_task_status, link_artifact, append_repair_events,
+#: record_coverage, record_coverage_snapshot) are now real ToolService
+#: methods — MCP/CLI see them for free — so their authorization flows
+#: through WRITE_TOOLS like every other write (they were added there in
+#: the same commit; the invariants tests pin that this set and
+#: WRITE_TOOLS never shadow each other). push_hierarchy waits for its
+#: embedded backend (roadmap R14), so it stays aliased.
 HTTP_WRITE_ALIASES: frozenset[str] = frozenset({
-    "push_tasks", "set_task_status", "link_artifact", "append_repair_events",
-    "record_coverage", "record_coverage_snapshot", "push_hierarchy",
+    "push_hierarchy",
 })
 
 
@@ -371,124 +379,6 @@ def _service_tool(method_name: str) -> Callable[[dict, str], dict]:
     return handler
 
 
-def _tool_push_tasks(kwargs: dict, project: str) -> dict:
-    """push_tasks: validate + partial-accept a batch (T3.1)."""
-    tool = "push_tasks"
-    with ToolTimer() as timer:
-        try:
-            batch = AtomicTaskBatch.model_validate(kwargs)
-        except ValueError as exc:
-            return err_envelope(
-                tool, "validation", str(exc),
-                hint="validate the batch against schemas/atomic_task.schema.json",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        result = factory.get_task_repo(project).push_tasks(batch, project=project)
-    hint = None
-    if result.rejected:
-        hint = (
-            f"{len(result.rejected)} task(s) rejected; fix the reasons and "
-            "re-push (push is idempotent per task name)"
-        )
-    return envelope(
-        tool, result.model_dump(mode="json"), hint=hint,
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
-def _tool_set_task_status(kwargs: dict, project: str) -> dict:
-    """set_task_status: lifecycle write-back (T3.2)."""
-    tool = "set_task_status"
-    name = str(kwargs.get("name", ""))
-    with ToolTimer() as timer:
-        try:
-            status = TaskStatus(str(kwargs.get("status", "")))
-        except ValueError:
-            return err_envelope(
-                tool, "validation",
-                f"invalid status '{kwargs.get('status')}'",
-                hint=f"valid statuses: {[s.value for s in TaskStatus]}",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        updated_at = str(
-            kwargs.get("updated_at")
-            or datetime.now(timezone.utc).isoformat()
-        )
-        updated = factory.get_task_repo(project).set_status(name, status, updated_at)
-        if not updated:
-            return err_envelope(
-                tool, "not_found", f"task '{name}' not found",
-                hint="call list_pending_tasks to see available tasks",
-                elapsed_ms=timer.elapsed_ms,
-            )
-    return envelope(
-        tool,
-        {"name": name, "status": status.value, "updated_at": updated_at},
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
-def _tool_link_artifact(kwargs: dict, project: str) -> dict:
-    """link_artifact: PRODUCED edge task -> artifact (T3.2)."""
-    tool = "link_artifact"
-    task_name = str(kwargs.get("task_name", ""))
-    with ToolTimer() as timer:
-        try:
-            kind = ArtifactKind(str(kwargs.get("kind", "source")))
-        except ValueError:
-            return err_envelope(
-                tool, "validation", f"invalid kind '{kwargs.get('kind')}'",
-                hint=f"valid kinds: {[k.value for k in ArtifactKind]}",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        artifact = Artifact(
-            path=str(kwargs.get("path", "")),
-            kind=kind,
-            commit_sha=str(kwargs.get("commit_sha", "")),
-        )
-        linked = factory.get_task_repo(project).add_artifact(task_name, artifact)
-        if not linked:
-            return err_envelope(
-                tool, "not_found", f"task '{task_name}' not found",
-                hint="call list_pending_tasks to see available tasks",
-                elapsed_ms=timer.elapsed_ms,
-            )
-    return envelope(
-        tool,
-        {"task": task_name, "path": artifact.path, "kind": kind.value},
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
-def _tool_append_repair_events(kwargs: dict, project: str) -> dict:
-    """append_repair_events: trajectory.jsonl rows -> HAS_EVENT edges (T3.2)."""
-    tool = "append_repair_events"
-    task_name = str(kwargs.get("task_name", ""))
-    raw_events = kwargs.get("events") or []
-    with ToolTimer() as timer:
-        try:
-            events = [RepairEvent.model_validate(e) for e in raw_events]
-        except ValueError as exc:
-            return err_envelope(
-                tool, "validation", str(exc),
-                hint="events must match the RepairEvent shape: {round, "
-                     "failures_before, failures_after, mode, lint_ok, timestamp}",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        repo = factory.get_task_repo(project)
-        for event in events:
-            if not repo.add_event(task_name, event):
-                return err_envelope(
-                    tool, "not_found", f"task '{task_name}' not found",
-                    hint="call list_pending_tasks to see available tasks",
-                    elapsed_ms=timer.elapsed_ms,
-                )
-    return envelope(
-        tool, {"task": task_name, "events_appended": len(events)},
-        elapsed_ms=timer.elapsed_ms,
-    )
-
-
 def _tool_validate_api_contracts(kwargs: dict, project: str) -> dict:
     """validate_api_contracts: FE/BE pairs with divergent ApiSpecs (T3.3)."""
     tool = "validate_api_contracts"
@@ -514,51 +404,6 @@ def _tool_validate_coverage(kwargs: dict, project: str) -> dict:
         tool, [g.model_dump(mode="json") for g in gaps], hint=hint,
         elapsed_ms=timer.elapsed_ms,
     )
-
-
-def _tool_record_coverage(kwargs: dict, project: str) -> dict:
-    """record_coverage: write one file's coverage measurement + derived
-    per-function breakdown (be-v2/docs/design/qa-persona-cie-knowledge-graph.md).
-    Custom handler, not a ToolService method — this is a QA-workflow tool,
-    not something forge's own repair/generate agent needs, so it stays
-    off ToolService.describe()'s manifest (see CieBackend's zero-drift
-    test in tests/forge/test_cie_backend_tool_parity.py for why that
-    distinction matters)."""
-    tool = "record_coverage"
-    file_path = str(kwargs.get("file_path", ""))
-    with ToolTimer() as timer:
-        if not file_path:
-            return err_envelope(
-                tool, "validation", "file_path is required",
-                hint="pass the same repo-relative path the coverage tool reported",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        try:
-            coverage_pct = float(kwargs.get("coverage_pct", 0))
-            covered_lines = int(kwargs.get("covered_lines", 0))
-        except (TypeError, ValueError) as exc:
-            return err_envelope(
-                tool, "validation",
-                f"coverage_pct/covered_lines must be numeric: {exc}",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        uncovered_lines = kwargs.get("uncovered_lines") or []
-        measured_at = str(
-            kwargs.get("measured_at") or datetime.now(timezone.utc).isoformat()
-        )
-        subtree = str(kwargs.get("subtree", ""))
-        result = factory.get_engine(project).record_coverage(
-            file_path, subtree, coverage_pct, covered_lines, uncovered_lines,
-            measured_at,
-        )
-    if result is None:
-        return err_envelope(
-            tool, "not_found", f"no indexed FILE node for '{file_path}'",
-            hint="index the file first (cie load/reindex-file) before "
-                 "recording coverage",
-            elapsed_ms=timer.elapsed_ms,
-        )
-    return envelope(tool, dataclasses.asdict(result), elapsed_ms=timer.elapsed_ms)
 
 
 def _tool_get_coverage(kwargs: dict, project: str) -> dict:
@@ -614,36 +459,6 @@ def _tool_coverage_report(kwargs: dict, project: str) -> dict:
         tool, [dataclasses.asdict(r) for r in results], hint=hint,
         elapsed_ms=timer.elapsed_ms,
     )
-
-
-def _tool_record_coverage_snapshot(kwargs: dict, project: str) -> dict:
-    """record_coverage_snapshot: append one aggregate measurement for
-    trend history. Always a CREATE (see CoverageSnapshot's docstring) —
-    never overwrites a prior snapshot."""
-    tool = "record_coverage_snapshot"
-    with ToolTimer() as timer:
-        try:
-            snapshot = CoverageSnapshot(
-                project=project,
-                subtree=str(kwargs.get("subtree", "")),
-                aggregate_pct=float(kwargs.get("aggregate_pct", 0)),
-                files_measured=int(kwargs.get("files_measured", 0)),
-                total_lines=int(kwargs.get("total_lines", 0)),
-                covered_lines=int(kwargs.get("covered_lines", 0)),
-                measured_at=str(
-                    kwargs.get("measured_at")
-                    or datetime.now(timezone.utc).isoformat()
-                ),
-            )
-        except (TypeError, ValueError) as exc:
-            return err_envelope(
-                tool, "validation", str(exc),
-                hint="aggregate_pct/files_measured/total_lines/covered_lines "
-                     "must be numeric",
-                elapsed_ms=timer.elapsed_ms,
-            )
-        factory.get_engine(project).record_coverage_snapshot(snapshot)
-    return envelope(tool, dataclasses.asdict(snapshot), elapsed_ms=timer.elapsed_ms)
 
 
 def _tool_coverage_trend(kwargs: dict, project: str) -> dict:
@@ -940,12 +755,12 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "delete_file": _service_tool("delete_file"),
     # Tier 3: task supply + write-back + validation
     "list_pending_tasks": _service_tool("list_pending_tasks"),
-    "push_tasks": _tool_push_tasks,
+    "push_tasks": _service_tool("push_tasks"),
     "get_task": _service_tool("get_task"),
     "task_dependency_closure": _service_tool("task_dependency_closure"),
-    "set_task_status": _tool_set_task_status,
-    "link_artifact": _tool_link_artifact,
-    "append_repair_events": _tool_append_repair_events,
+    "set_task_status": _service_tool("set_task_status"),
+    "link_artifact": _service_tool("link_artifact"),
+    "append_repair_events": _service_tool("append_repair_events"),
     "validate_api_contracts": _tool_validate_api_contracts,
     "validate_coverage": _tool_validate_coverage,
     "validate_cycles": _tool_validate_cycles,
@@ -954,10 +769,10 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "get_children": _tool_get_children,
     "get_lineage": _tool_get_lineage,
     # QA coverage (be-v2/docs/design/qa-persona-cie-knowledge-graph.md)
-    "record_coverage": _tool_record_coverage,
+    "record_coverage": _service_tool("record_coverage"),
     "get_coverage": _tool_get_coverage,
     "coverage_report": _tool_coverage_report,
-    "record_coverage_snapshot": _tool_record_coverage_snapshot,
+    "record_coverage_snapshot": _service_tool("record_coverage_snapshot"),
     "coverage_trend": _tool_coverage_trend,
     # Operational plumbing
     "health": _tool_health,

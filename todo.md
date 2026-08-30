@@ -85,7 +85,18 @@ an artifact of record.
 
 ## P0 — before 0.1.0 stable can honestly cut
 
-### [ ] R1 · Embedded MCP write-side parity (M)
+### [x] R1 · Embedded MCP write-side parity (M) — DONE 2026-08-30
+
+*(Implementation summary: six `cie.routes._tool_*` handlers ported
+verbatim into ToolService methods; routes dispatch via
+`_service_tool`; `WRITE_TOOLS` +6 in the same commit with the overlap
+pinned by `test_http_write_aliases_and_write_tools_never_overlap`;
+`HTTP_ONLY_HELPERS` −6; policy 403-tests per promoted name; 19-test
+`tests/test_task_qa_write_parity.py` on the embedded backend incl.
+SQLite on-disk verification; live MCP stdio probe executed all six;
+surface 126→132, conformance re-run committed.
+`push_hierarchy` + read-side hierarchy helpers wait for R14. Full
+detail in the commit and CHANGELOG [Unreleased].)*
 
 **State today (verified).** `cie/routes.py` implements 7 task/QA write
 tools as bespoke `_tool_*` HTTP handlers — `_tool_push_tasks` (L374),
@@ -1099,5 +1110,13 @@ footnoted to its measured source; nothing published from vibes.
   suite 171 → 184; quickstart verified against psf/requests in a clean
   venv (858 nodes/1,822 edges; callers("close") = 3, matching
   docs/benchmarks-requests.md). Committed.
+- **2026-08-30 (implementation pass 3)** — R1 done minus `push_hierarchy`
+  (blocked on R14's SQLite hierarchy store by design, alias stays).
+  Found en route (honest note, not fixed here — pre-existing semantics
+  preserved by the promotion): the "push is idempotent per task name"
+  hint is only true idempotence when the batch re-pushes the same task
+  id; a fresh-id re-push with the same name creates a second row (both
+  backends; plan_push rejects duplicate names within one batch only).
+  Documented by test. Suite 186 → 205. Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -4233,3 +4233,206 @@ class ToolService:
                  "check with get_task"
         )
         return self._ok(tool, results, started, hint=hint)
+
+    # -- task/QA write-back — promoted from HTTP-only alias handlers ------
+    # (roadmap R1: these were bespoke `cie.routes._tool_*` handlers, which
+    # made the task/QA layer — the README's headline differentiator —
+    # read-only on the default `cie-mcp --embedded` install because the
+    # MCP server introspects only ToolService. Same kwargs, same envelope
+    # shapes, same hints as the HTTP handlers they replace; the remaining
+    # HTTP-only helpers (get_coverage/coverage_report/coverage_trend/
+    # validate_*/push_hierarchy/get_children/get_lineage/health/
+    # schema_version) are documented in
+    # tests/test_tool_surface_invariants.py's HTTP_ONLY_HELPERS.)
+
+    def push_tasks(self, tasks: Optional[list] = None) -> dict:
+        """Push a batch of atomic tasks — validate + partial-accept (T3.1).
+
+        Accepts the AtomicTaskBatch shape ({tasks: [...]}, each task the
+        schemas/atomic_task.schema.json shape); idempotent per task name.
+        Contradiction-free but invalid batches are PARTIALLY accepted:
+        valid tasks land, invalid ones come back rejected with per-task
+        reasons (e.g. a dev task missing its test_triad), never dropped
+        silently."""
+        tool = "push_tasks"
+        started = time.monotonic()
+        try:
+            from cie.tasks import AtomicTaskBatch
+
+            batch = AtomicTaskBatch.model_validate({"tasks": tasks or []})
+            result = self._task_repo.push_tasks(batch, project=self._project)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        hint = (
+            f"{len(result.rejected)} task(s) rejected; fix the reasons and "
+            "re-push (push is idempotent per task name)"
+            if result.rejected
+            else None
+        )
+        return self._ok(tool, result.model_dump(mode="json"), started, hint=hint)
+
+    def set_task_status(
+        self, name: str = "", status: str = "", updated_at: str = ""
+    ) -> dict:
+        """Task lifecycle write-back (T3.2): set one task's status.
+
+        Valid statuses are the TaskStatus enum values; a snapshot timestamp
+        is filled in server-side when updated_at is omitted. returns
+        not_found when the task name is unknown."""
+        tool = "set_task_status"
+        started = time.monotonic()
+        try:
+            from datetime import datetime, timezone
+
+            from cie.tasks import TaskStatus
+
+            status_obj = TaskStatus(str(status))
+            stamped = str(updated_at) or datetime.now(timezone.utc).isoformat()
+            updated = self._task_repo.set_status(name, status_obj, stamped)
+            if not updated:
+                return self._err(
+                    tool, "not_found", f"task '{name}' not found", started,
+                    hint="call list_pending_tasks to see available tasks",
+                )
+        except ValueError:
+            from cie.tasks import TaskStatus
+
+            return self._err(
+                tool, "validation", f"invalid status '{status}'", started,
+                hint=f"valid statuses: {[s.value for s in TaskStatus]}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, {"name": name, "status": status_obj.value, "updated_at": stamped},
+            started,
+        )
+
+    def link_artifact(
+        self, task_name: str = "", kind: str = "", path: str = "",
+        commit_sha: str = "",
+    ) -> dict:
+        """PRODUCED edge task -> artifact (T3.2): record that `task_name`
+        produced the file at `path` (kind: source|test|schema|doc; the
+        commit_sha pins the exact revision when known)."""
+        tool = "link_artifact"
+        started = time.monotonic()
+        try:
+            from cie.tasks import Artifact, ArtifactKind
+
+            kind_obj = ArtifactKind(str(kind or ArtifactKind.SOURCE.value))
+            artifact = Artifact(path=str(path), kind=kind_obj, commit_sha=str(commit_sha))
+            linked = self._task_repo.add_artifact(task_name, artifact)
+            if not linked:
+                return self._err(
+                    tool, "not_found", f"task '{task_name}' not found", started,
+                    hint="call list_pending_tasks to see available tasks",
+                )
+        except ValueError:
+            from cie.tasks import ArtifactKind
+
+            return self._err(
+                tool, "validation", f"invalid kind '{kind}'", started,
+                hint=f"valid kinds: {[k.value for k in ArtifactKind]}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, {"task": task_name, "path": path, "kind": kind_obj.value},
+            started,
+        )
+
+    def append_repair_events(
+        self, task_name: str = "", events: Optional[list] = None
+    ) -> dict:
+        """Repair-trajectory write-back (T3.2): trajectory.jsonl rows ->
+        HAS_EVENT edges. Each event: {round, failures_before,
+        failures_after, mode, lint_ok?, timestamp?}."""
+        tool = "append_repair_events"
+        started = time.monotonic()
+        try:
+            from cie.tasks import RepairEvent
+
+            parsed = [RepairEvent.model_validate(e) for e in (events or [])]
+        except Exception as exc:  # noqa: BLE001
+            return self._err(
+                tool, "validation", str(exc), started,
+                hint="events must match the RepairEvent shape: {round, "
+                     "failures_before, failures_after, mode, lint_ok, timestamp}",
+            )
+        try:
+            for event in parsed:
+                if not self._task_repo.add_event(task_name, event):
+                    return self._err(
+                        tool, "not_found", f"task '{task_name}' not found", started,
+                        hint="call list_pending_tasks to see available tasks",
+                    )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(
+            tool, {"task": task_name, "events_appended": len(parsed)}, started,
+        )
+
+    def record_coverage(
+        self, file_path: str = "", subtree: str = "",
+        coverage_pct: float = 0.0, covered_lines: int = 0,
+        uncovered_lines: Optional[list] = None, measured_at: str = "",
+    ) -> dict:
+        """Write one file's coverage measurement + derived per-function
+        breakdown (QA workflow). Requires the file already indexed.
+        Envelope: per-function breakdown with measured percentages; call
+        before committing so QA tools can report real coverage."""
+        tool = "record_coverage"
+        started = time.monotonic()
+        try:
+            from datetime import datetime, timezone
+
+            if not file_path:
+                return self._err(
+                    tool, "validation", "file_path is required", started,
+                    hint="pass the same repo-relative path the coverage tool reported",
+                )
+            stamped = str(measured_at) or datetime.now(timezone.utc).isoformat()
+            result = self._engine.record_coverage(
+                file_path, subtree, float(coverage_pct), int(covered_lines),
+                list(uncovered_lines or []), stamped,
+            )
+            if result is None:
+                return self._err(
+                    tool, "not_found", f"no indexed FILE node for '{file_path}'", started,
+                    hint="index the file first (cie load/reindex) before "
+                         "recording coverage",
+                )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, dataclasses.asdict(result), started)
+
+    def record_coverage_snapshot(
+        self, aggregate_pct: float = 0.0, files_measured: int = 0,
+        total_lines: int = 0, covered_lines: int = 0, subtree: str = "",
+        measured_at: str = "",
+    ) -> dict:
+        """Append one aggregate coverage snapshot for trend history (QA
+        workflow). Always a CREATE — never overwrites the prior snapshot;
+        coverage_trend reads these back most-recent-first."""
+        tool = "record_coverage_snapshot"
+        started = time.monotonic()
+        try:
+            from datetime import datetime, timezone
+
+            from cie.models import CoverageSnapshot
+
+            snapshot = CoverageSnapshot(
+                project=self._project,
+                subtree=str(subtree),
+                aggregate_pct=float(aggregate_pct),
+                files_measured=int(files_measured),
+                total_lines=int(total_lines),
+                covered_lines=int(covered_lines),
+                measured_at=str(measured_at)
+                or datetime.now(timezone.utc).isoformat(),
+            )
+            self._engine.record_coverage_snapshot(snapshot)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, dataclasses.asdict(snapshot), started)
