@@ -198,13 +198,23 @@ effort S/M/L is a guess, treated as a guess.
       default + security doc reference; README quickstart block.
       (Browser-mode Inspector remains the manual human step — recorded
       as the harness's real-transport twin.)
-- [ ] **R12 · Language #7: tree-sitter C** (M). The deferred D1-C item
+- [x] **R12 · Language #7: tree-sitter C** (M). The deferred D1-C item
       with a real reason: C's function name/params sit inside nested
       `function_declarator`s, so field-based helpers silently skip
       functions. Build the declarator-unwrapping logic for real.
       **Verify:** test_extract_go_rust-style suite against a real C
       parse; the naive-skip bug class asserted absent (a test that would
       fail if extraction silently returned nothing).
+      *Done 2026-08-30.* `_c_declarator_name` (innermost identifier
+      outside parameter_list — the mirror bug pinned too), params/return
+      type through the declarator chain; `.c`+`.h` loaders; call sites
+      resolve EXTRACTED; 9 tests incl. the never-silently-skips guard
+      and name≠param-name; pyproject `tree-sitter-c>=0.23.0`; language
+      counts 6→7 everywhere (competitive-landscape, README, pyproject).
+      Documented v1 scope: structs are NOT class nodes; header
+      prototypes stay out (the definition carries graph identity —
+      duplicating them would fork same-name resolution, pinned by a
+      test). Suite 254/254.
 - [ ] **R13 · Languages #8–9: C++ and C#** (M). Share the R12
       declarator path; inheritance/impl resolution differs per language.
       Narrow but does not close the 6-vs-21-40+ gap — say so in the

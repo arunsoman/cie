@@ -754,10 +754,18 @@ harness, screenshot/cast recorded.
 
 ---
 
-### [ ] R12 · Language #7: tree-sitter C (M)
+### [x] R12 · Language #7: tree-sitter C (M) — DONE 2026-08-30
 
-**State today (verified).** `cie/extract.py` tables (`_LANG_LOADERS`
-L72–82, `_FUNCTION_TYPES` L94–103, `_PARAM_TYPES` L105, `_CALL_TYPES`
+*(Implementation summary: `cie/extract.py` — `.c`/`.h` loaders,
+`function_definition` (shared with Python's node type, per-file language
+dispatch), `_DECLARATOR_TYPES` + `_c_declarator_name` (innermost
+identifier, param_list excluded — the mirror bug pinned),
+`_c_params_text`/`_c_return_type_text` through the declarator chain;
+pyproject `tree-sitter-c>=0.23.0`; v1 scope: no struct-classes, no
+header-prototype nodes — both documented + test-pinned. 9 tests in
+tests/test_extract_c.py incl. the D1 never-silently-skips guard.)*
+
+**State today (verified).** Same tables as R12 (`_LANG_LOADERS` L72–82, `_FUNCTION_TYPES` L94–103, `_PARAM_TYPES` L105, `_CALL_TYPES`
 L114) cover 6 languages; the file's own comments document the
 verified-per-grammar discipline to copy. The known trap is real: in
 tree-sitter-c, a function's name lives inside nested
@@ -1200,5 +1208,8 @@ footnoted to its measured source; nothing published from vibes.
 - **2026-08-30 (implementation pass 9)** — R9 done: harness + third
   dataset (urllib3), README benchmark paragraph links the third repo;
   suite 246 still green (scripts-only + doc). Committed.
+- **2026-08-30 (implementation pass 10)** — R12 done: C language #7
+  (declarator unwrap + mirror-bug pin + guard suite); suite 246 → 254.
+  Committed.
 - Next update appends here with date + what moved (checkbox flips in
   roadmap.md, status notes kept there; this file holds plan-state).

@@ -80,6 +80,12 @@ _LANG_LOADERS = {
     ".java": "tree_sitter_java.language",
     ".go": "tree_sitter_go.language",
     ".rs": "tree_sitter_rust.language",
+    # R12: C (headers included — a .h is walked and yields its file hub
+    # + call sites; header PROTOTYPES deliberately do not become separate
+    # FUNC nodes: the definition carries graph identity, and duplicating
+    # it would fork same-name resolution. Documented v1 scope).
+    ".c": "tree_sitter_c.language",
+    ".h": "tree_sitter_c.language",
 }
 
 
@@ -93,7 +99,7 @@ _CLASS_TYPES = {"class_definition", "class_declaration"}
 
 # Node types that represent a function or method declaration, per language.
 _FUNCTION_TYPES = {
-    "function_definition",       # python
+    "function_definition",       # python, C (R12 — name via declarator)
     "function_declaration",      # js/ts, go (top-level func)
     "method_definition",        # js/ts class methods
     "function_expression",       # js anonymous (named via parent assignment)
@@ -107,6 +113,90 @@ _FUNCTION_TYPES = {
 # verified against real tree-sitter-go output, not assumed from the
 # grammar's docs.
 _PARAM_TYPES = {"parameters", "formal_parameters", "parameter_list"}
+
+# Node types that hold a C declarator chain (R12): a C function's name is
+# NOT a direct field of `function_definition` — it's the innermost
+# identifier of the declarator chain, wrapped per shape (all verified
+# against real tree-sitter-c parses, not assumed):
+#   int alpha(int x)      -> function_declarator -> declarator: identifier
+#   int *alpha(int x)     -> function_declarator -> pointer_declarator
+#   void (*fp)(int) = a;  -> init_declarator -> function_declarator ->
+#                            parenthesized_declarator -> pointer_declarator
+# This is the fix D1 deferred with a real reason ("field-based helpers
+# silently return ''/skip the function") — the declarator-unwrapping
+# logic, with a test that would fail if extraction ever silently skipped
+# a function.
+_DECLARATOR_TYPES = {
+    "function_declarator", "pointer_declarator",
+    "parenthesized_declarator", "init_declarator",
+}
+
+
+def _c_declarator_name(declarator) -> str:
+    """Innermost identifier of a C declarator chain, EXCLUDING anything
+    inside a parameter_list: its parameter names are identifiers too, and
+    the naive 'first identifier anywhere' would return the first PARAM
+    name — a wrong-but-plausible answer (asserted against in
+    tests/test_extract_c.py, the naive-skip bug class in mirror form)."""
+    current = declarator
+    for _ in range(64):  # defensive: malformed chains never loop
+        if current.type == "identifier":
+            return current.text.decode("utf-8", errors="replace")
+        named = current.child_by_field_name("declarator")
+        if named is not None:
+            current = named
+            continue
+        inner = None
+        for c in current.children:
+            if c.type == "parameter_list":
+                continue
+            if c.type in _DECLARATOR_TYPES or c.type == "identifier":
+                inner = c
+                break
+        if inner is None:
+            return ""
+        current = inner
+    return ""
+
+
+def _c_function_name(node) -> str:
+    """C `function_definition` -> innermost declarator identifier."""
+    decl = node.child_by_field_name("declarator")
+    if decl is None:
+        return ""
+    return _c_declarator_name(decl)
+
+
+def _c_params_text(node) -> str:
+    """C parameters live INSIDE the declarator chain
+    (function_declarator -> parameter_list), not as a direct child of
+    the function_definition — descend to find them."""
+    stack = [
+        c for c in node.children if c.type in _DECLARATOR_TYPES
+    ]
+    seen = 0
+    while stack and seen < 64:
+        seen += 1
+        cur = stack.pop()
+        if cur.type == "parameter_list":
+            return cur.text.decode("utf-8", errors="replace").strip()
+        stack.extend(
+            c for c in cur.children
+            if c.type in _DECLARATOR_TYPES or c.type == "parameter_list"
+        )
+    return "()"
+
+
+def _c_return_type_text(node) -> str:
+    """Everything before the declarator: the declaration specifiers
+    (`static int`, `void`, `struct Config *`)."""
+    parts: list[str] = []
+    for child in node.children:
+        if child.type in _DECLARATOR_TYPES or child.type == "compound_statement":
+            break
+        parts.append(child.text.decode("utf-8", errors="replace"))
+    return " ".join(parts).strip()
+
 
 # Node type for a type annotation (ts return/param types).
 _TYPE_ANNOTATION = "type_annotation"
@@ -735,6 +825,12 @@ def _walk_file(
             name = _declared_name(n.parent)
             if name:
                 return name
+        if language == "c":
+            # R12: the declarator chain — `_declared_name`'s `name`-field
+            # read finds nothing (function_definition exposes no `name`),
+            # and the generic first-identifier scan would return the
+            # declaration specifiers; the unwrap knows the shape.
+            return _c_function_name(n)
         return _declared_name(n)
 
     def _emit_function(n, enclosing_class_id: Optional[str]) -> None:
@@ -745,8 +841,11 @@ def _walk_file(
         node_id = f"{file_id}::{name}"
         # disambiguate overloads by start line
         node_id = f"{node_id}@{n.start_point[0] + 1}"
-        params = _params_text(n)
-        rtype = _return_type_text(n)
+        params = _c_params_text(n) if language == "c" else _params_text(n)
+        rtype = (
+            _c_return_type_text(n) if language == "c"
+            else _return_type_text(n)
+        )
         signature = _build_signature(name, params, rtype)
         line_start, line_end = _node_lines(n)
         out.nodes.append({
@@ -827,6 +926,12 @@ def _walk_file(
             for child in node.children:
                 _walk(child, enclosing_class_id)
             return
+        # R12 v1 scope note (no branch needed): header prototypes (`.h`
+        # declarations) are deliberately NOT emitted as separate FUNC
+        # nodes — the definition carries graph identity, and a duplicated
+        # prototype would fork the id space for same-name resolution.
+        # The .h file still extracts (file hub); the walk simply finds
+        # nothing else to emit for a pure-prototype declaration.
         for child in node.children:
             _walk(child, enclosing_class_id)
 
