@@ -1088,12 +1088,19 @@ restore → green; invariant machine-checked from then on.
 
 ---
 
-### [ ] R18 · Directory listings (S, human action — gated on explicit go-ahead)
+### [ ] R18 · Directory listings (S, human action — gated on explicit go-ahead) — drafts DONE 2026-08-31
+
+*(Step 1 complete: `docs/directory-listings-drafts.md` holds the
+mcpservers.org field set and the awesome-mcp-servers PR text, every
+string sourced from the shipped README, R6 gate satisfied. Submission
+awaits the owner's explicit go-ahead; README badge row stays un-added
+until listings are live.)*
 
 **State today (verified).** goal.md E3 names the two targets
 (mcpservers.org/submit, awesome-mcp-servers PR) and the rule: external
 action under this account needs explicit go-ahead, per goal.md's "needs
-your go-ahead" framing. Not started; README has no links to add yet.
+your go-ahead" framing. Draft complete 2026-08-31; README has no links
+to add yet (correctly — no live listing to link).
 
 **Plan.**
 1. Draft (no submission): mcpservers.org entry fields (name, tagline
