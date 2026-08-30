@@ -1205,6 +1205,437 @@ footnoted to its measured source; nothing published from vibes.
 
 ---
 
+## P3 — the next 25 (R21–R45): defend, widen, mature
+
+> Added 2026-08-31 (planning pass 2), from `docs/competitive-delta-2026-
+> 08-30.md` (WATCH W1–W4) + `docs/competitive-landscape.md` (honest
+> gaps) per the owner's direction. This section holds the executable
+> plans; `roadmap.md` P3 holds the why/scope. Baseline when planned:
+> suite 292/292; surface 135 tools — 101/25/5/4, 0 crashes; 0.1.1
+> shipped on GitHub as `cie-mcp` (PyPI upload pending creds);
+> competitive docs: delta 08-30 (no MUST, 4 SHOULD all shipped, WATCH
+> W1–W4 promoted here), landscape refreshed same-day.
+
+### P3a — stable-story mechanics
+
+### [ ] R21 · Ship `cie-mcp` to PyPI (S)
+
+**State today (verified).** `dist/cie_mcp-0.1.1-*` built + twine-PASSED,
+rehearsed from the wheel (index 858/1822, handshake 85 read tools);
+upload blocked only on credentials (no `~/.pypirc`, no repo secrets —
+verified); GitHub release 0.1.1 live; README install carries both
+routes.
+
+**Plan.** 1) Ask owner for the PyPI token or trusted-publisher setup.
+2) Preferred: add `.github/workflows/publish.yml` — on tag `v*`, build
+via uv, `twine check`, `pypa/gh-action-pypi-publish` with
+`PYPI_API_TOKEN` secret; tag `v0.1.1` re-push triggers the publish.
+3) Post-upload clean-venv verify: `pip install "cie-mcp[mcp]"` from
+PyPI → `cie index` + stdio handshake against the pinned requests clone
+(R6 step 5's missing half).
+
+**Verify.** Fresh-venv-from-PyPI end to end; `pip show cie-mcp`
+metadata correct; uninstall/reinstall idempotent.
+
+**Impact.** Unblocks the R18 listing installs + R20 post links;
+README's GitHub-install note flips to a PyPI-first line with a dated
+note.
+
+### [ ] R22 · CI hardening: OS matrix + Dependabot merge (S)
+
+**State today (verified).** CI = `ubuntu-latest` only, py3.10–3.13,
+conformance job present; two Dependabot PRs open and green (click ≥8.5.0
+tree-sitter-c ≥0.24.2).
+
+**Plan.** Merge the two PRs (rebase first, `tree-sitter-c` is a pyproject
+core dep); add `strategy.matrix.os: [ubuntu-latest, macos-latest]` (+
+`windows-latest` with `--retry 3` allow-fail tier); keep the conformance
+job Linux-only-but-matrix-aware (approved_surface gate stays serverless).
+
+**Verify.** Matrix green; conformance unchanged; suite 292 on all
+legs.
+
+### [ ] R23 · Nightly benchmark CI (S)
+
+**State today (verified).** Benchmarks are session-run artifacts
+(docs/benchmarks-*.md + committed JSONs); no scheduled re-run exists;
+CI has no cron.
+
+**Plan.** `schedule: cron` job → checkout pinned clones (requests
+5460f467, urllib3 85a8a9cf) → run `scripts/benchmark.sh` → upload
+artifact + commit `tool-test-lab/benchmark_history/<date>.json` if
+core-metrics drift >20% (callers resolution, skeleton ratio); alert
+issue on drift. Semantic variant (benchmark_semantic.py) runs only when
+`CIE_EMBED_*` secrets exist — honest skip otherwise.
+
+**Verify.** Artifacts comparable across two consecutive runs; a
+deliberate drift test (once, branch) raises the alert.
+
+### P3b — differentiator defense (WATCH promotions)
+
+### [ ] R24 · `cie impact` — PR test-impact (M) — PROMOTED W1
+
+**State today (verified).** Building blocks exist and conformance-verify:
+`sync_load_commit`/`sync_ast_delta` (two-graph speculative model),
+`affected_by`/`callers` chains with per-edge provenance (R7), TESTS
+edges from the index pass + the atomic-task layer
+(`traceability_chain`), `record_test_result`/`TestExecution` (R26 feeds
+observed history). No impact tool on the surface (135-tool list).
+CodeGraph's platform announcement is the direct attack this answers
+[delta W1].
+
+**Plan.** 1) `ToolService.impact(diff_or_commit)` — changed-file/symbol
+set → closure over calls/called_by; join TESTS edges for the canary
+test set; rank by distance + (R26) failure history; add to
+conformance's approved surface in the same commit (Count Contract).
+2) `cie impact` CLI + HTTP route (read-only). 3) `--json` for CI.
+
+**Verify.** Ground-truth fixture (known diff → exact test set,
+known-by-inspection) on both backends; live check on psf/requests at
+the pinned commit; count sweep + docs same-pass.
+
+### [ ] R25 · PR review pack (M) — PROMOTED W1
+
+**State today (verified).** Pieces exist: `sync_load_commit` speculative
+loading, `semantic_diff`, R8's export-html compositional pattern, R24's
+planned impact.
+
+**Plan.** `cie review-pack <commit|diff>` → one static HTML+JSON: changed
+symbols (canonical-vs-speculative diff), impact (R24),
+contracts/invariants touched, orphans created. Script-generated, no
+network.
+
+**Verify.** Pack for a pinned commit of a real repo matches a
+hand-derived expectation list; zero external references (export-html
+bar).
+
+### [ ] R26 · Runtime evidence overlay (M) — PROMOTED W3 (test-run level)
+
+**State today (verified).** Ingest surface half-exists:
+`record_test_result`/`TestExecution` + `record_coverage*` are real tools
+(conformance-verified); junitxml timing is mentioned in README's quality
+section but no importer exists; no OBSERVED edge kinds.
+
+**Plan.** 1) `cie ingest-results <junitxml>` → map failed/error tests to
+TEST-attached code nodes, persist as OBSERVED_FAILED/FLAKY analysis
+edges (analysis-node pattern from §13). 2) Coverage snapshots →
+OBSERVED_COVERED. 3) `impact` (R24) boosts observed-failure history;
+read envelopes carry `evidence:> observed`
+recency. eBPF stays watch-listed (not scoped).
+
+**Verify.** Replay a true junitxml from the repo's own suite into a
+fixture graph; assert `impact` reflects observed runs; node-id
+resolution test (test-name → TEST node match discipline documented).
+
+### [ ] R27 · Policy profiles 2.0 (M) — PROMOTED W2
+
+**State today (verified).** Policy surface exists and is enforced
+server-side on every transport: `ToolPolicy` policies
+(forge/full/inspector/miner/orchestrator/readonly — the parser at
+`cie/mcp_server.py --policy`), `WRITE_TOOLS`, per-tool 403 tests
+(R1/R16). No policy FILES, no per-client binding at init, no audit log.
+
+**Plan.** 1) Profile file format: allow/deny patterns over tool names
+groups (yaml? — decide: stdlib `tomllib` TOML, no new dep). 2)
+`cie-mcp --policy-file`, `cie init --policy <file>` writing the client
+binding; validation errors = fail-fast not silent-fallback. 3) refusal
+audit log (size-capped, append-only, opt-in flag). 4)
+INVARIANT extension: profile ∩ WRITE_TOOLS can never contain a tool
+the base policy forbids (the R1 trap pattern, one level up).
+
+**Verify.** Per-surface profile tests; rotation test; existing
+`test_http_policy` suite still green byte-for-byte.
+
+### [ ] R28 · Multi-repo workspaces (L, gated on a real multi-repo user)
+— PROMOTED W4
+
+**State today (verified).** Every store is single-project-scoped
+(`project` column in stores; ToolService bound to one project; sync
+even rejects empty-project writes). Cross-repo = new layer (ids
+collide: `app.py::alpha@1` in two roots is two nodes today).
+
+**Plan.** Only on a real user (re-sequencing rule): `cie workspace
+add/list`, id-qualification scheme (`<root-alias>/app.py::...`),
+workspace-level impact/search composability. **Verify.** Two-repo
+fixture, no collisions, qualification visible in envelopes.
+
+### P3c — semantic layer completion
+
+### [ ] R29 · First-party chat fallback → `qa` fully standalone (M)
+
+**State today (verified).** R10 shipped the embed tier-3; chat is still
+host-only: `core.llm.ask/Prompt/LlmAgent` imported lazily at call sites
+(qa gate at call start; rerank/contracts/state_machine runners likewise)
+— the conformance bucket sits at 5 unavailable (4 optional-backend + 1
+plugin), pinned by `tests/test_unavailable_reasons.py`.
+
+**Plan.** 1) `cie/llm_compat.py`: minimal ask/Prompt surface over an
+OpenAI-compatible chat endpoint (stdlib, mocked-transport-testable;
+gated on explicit DSN + key like embed). 2) Wire as dispatch tier:
+host core.llm › env chat fallback (for ask()/rerank + the four
+runner tools' single ask-calls). 3) Registry update in the same commit
+(the trap: unavailable-shrink = surface change for the conformance
+comparator).
+
+**Verify.** Mocked-transport request/parse tests; live qa on an indexed
+clone with env set (answer + citations unchanged in shape); the 4
+tools leave `unavailable-by-design` (live conformance artifact;
+unavailable ≤1: decompose_page pending R45).
+
+### [ ] R30 · No-LLM rerank (S/M)
+
+**State today (verified).** `(graphrag.rerank` = an LLM ask with
+degrade-to-hybrid-order; in-memory hybrid fuses lexical+dense+graph
+(`_hybrid_normalized`); the 16-question labeled set exists in
+scripts/benchmark_semantic.py with per-question MRR.
+
+**Plan.** Structural re-ranker (term coverage, dense, degree,
+TESTS-linkage boost, same-file proximity) behind `use_rerank_ing`
+semantics: used when no LLM; A/B three-way (none/structural/LLM) on
+the labeled set; publish per-corpus winners + misses.
+
+**Verify.** Determinism test (seeded); benchmark doc gains the 3-way
+table; no change to qa's envelope shape.
+
+### [ ] R31 · Benchmark corpus #4 + tokenizer-pinned counts (M)
+
+**State today (verified).** Corpora: requests, urllib3 (+forge-internal
+for the 08-28 doc); token metric is chars//4 (documented approximation,
+AI-06 convention); no tokenizer dep exists; R12/R13 make a C corpus
+parseable.
+
+**Plan.** Pick the C corpus on the ambiguous-name property (candidates:
+libuv, sqlite); structural benchmark (R9 harness) + semantic questions
+(needs R29 or structural-only first); add `tiktoken` as a
+benchmark-only extra, publish chars AND tokens for every table with a
+dated re-run note; label vendor "120×"-class claims vendor-only.
+
+**Verify.** Fresh-clone reproduction (GFI-3 bar); docs regenerated
+from scripts.
+
+### P3d — language breadth
+
+### [ ] R32 · Language #10: Kotlin (M)
+
+**State today (verified).** 9 languages; R12/R13 established the
+pattern: grammar dep + loader + tables + declarator/field name paths +
+a real-parse guard suite (264→292 test growth across languages);
+counts sweep is a hard same-PR rule.
+
+**Plan.** tree-sitter-kotlin dep; `_KOTLIN_*` tables (friendly field-
+based names like C# — assert with a test); the real trap: receiver
+functions (`fun String.foo()`, receiver type → class edges), companion
+object members; `_docstring` line-comment attach; README/landscape/py-
+project sweep; `tests/test_extract_kotlin.py` (R12 bar: exact-set +
+non-empty guard).
+
+**Verify.** Fixture suite at the Go/Rust count; counts sweep clean.
+
+### [ ] R33 · Languages #11–12: PHP + Ruby (M)
+
+**State today (verified).** Same tables (R12-R13); PHP field-based
+names; both are the two most-requested gaps left in the
+landscape table's neighbor set.
+
+**Plan.** PHP: `tree-sitter-php` dep; class/interface/method (`name`
+field friendly), `->`/`::` receiver resolution (method_call_expression
+→ receiver edges); Ruby: `tree-sitter-ruby`; `def name` + `def
+self.x` (class-edge receiver), `call` nodes for invocations; both with
+documented-gap sections added to `docs/adding-a-language.md`.
+
+**Verify.** Two suites at the R12 bar; 9→12 count sweep across
+README/landscape/pyproject/CHANGELOG same-PR.
+
+### [ ] R34 · Go/Rust import edges + docstrings (M) — closes a named gap
+
+**State today (verified).** Landscape §7 documents it precisely: Go/Rust
+do NOT extract import edges or docstrings (`extract.py`'s own header
+names the honest gap; the Go/Rust loaders were added at the R12 bar
+without the import-map path Python's loader has).
+
+**Plan.** Port the Python import-edge path to Go (`import`/`go.mod`
+file-hub approximation) + Rust (`use` paths → module hubs); docstring
+attach (Go block comments before decls, Rust `///`) — same graceful
+"honestly None" treatment as empty docstrings elsewhere; both suites
+grow assertions; landscape §7's "documented gap" sentence flips.
+
+**Verify.** Import-edge ground-truth + docstring tests; D1 no-silent-
+skip guard stays green.
+
+### P3e — graph richness & MCP surface
+
+### [ ] R35 · Non-code artifacts as nodes (M)
+
+**State today (verified).** Extraction is language-loader-driven only
+(`_LANG_LOADERS` by extension); no Dockerfile/Makefile/CI handling
+(codebase-memory-mcp indexes Dockerfiles/K8s as nodes [vendor claim] —
+the exact gap).
+
+**Plan.** New artifact loader (no grammar): Dockerfile, compose,
+Makefile, GitHub workflows, `pyproject.toml` — FILE nodes + DESCRIBES
+edges (artifact → files it builds/exercises, best-effort rules),
+participating in impact + export_html. Count-contract-safe: describes
+extraction, not new tools.
+
+**Verify.** Fixture (Dockerfile + workflow) asserts kinds/edges;
+export_html renders them; conformance unchanged (no new tools).
+
+### [ ] R36 · Freshness contract (M)
+
+**State today (verified).** `start_watch` runs a watchdog Observer (no-op
+without watchdog); `watch` CLI prints a hint; staleness is only
+reportable (`freshness_report`); no auto-apply of `sync_ast_delta`.
+
+**Plan.** Watch mode auto-applies sync_ast_delta per changed file on
+debounce; every read envelope gains `as_of` (index stamp) + `stale:
+bool`; staleness measured against mtimes the watch already tracks.
+
+**Verify.** Touch-edit-query loop test (real Observer, skip-with-reason
+on flaky CI fs events); envelope-stamp unit tests; `freshness_report`
+agrees with the envelope stamps.
+
+### [ ] R37 · MCP resources + prompts (M)
+
+**State today (verified).** `cie-mcp` serves tools only (tools/list +
+tools/call; no resources/prompts in mcp_server.py — verified by grep);
+GitNexus ships 16 tools + resources + skills [vendor claim]/[scan].
+
+**Plan.** resources:// (stats, traceability chains, export-html
+artifact) + prompts/ (impact-report, traceability-audit,
+onboarding-summary) all policy-filtered server-side; stdio +
+streamable-http parity (R11's harness).
+
+**Verify.** resources/list + prompts/list in the dogfood harness; a
+non-permitted resource refuses server-side (policy test, same file).
+
+### [ ] R38 · `cie serve-ui` — local web viewer (L)
+
+**State today (verified).** Static export exists (R8, zero-network
+verified); no server UI; export_html's own README-style boundary note
+("safe slice of a viewer") anticipates this split: frozen vs
+interactive.
+
+**Plan.** localhost-only HTTP server (std server lib already in deps
+via http extra — routes.py shares the boundary): read-only endpoints
+over the embedded graph (graph browser, chains, search); no write
+surface; docs/security.md gains the threat model (loopback bind,
+read-only, single user). record-script screenshot.
+
+**Verify.** Headless-Chrome harness click-through (R8's pattern);
+security.md section; policy note.
+
+### [ ] R39 · Multi-project server (M)
+
+**State today (verified).** `cie-mcp [--project P]` today: one project
+per process; factories resolve one path; toolset describes one graph.
+
+**Plan.** `--project` repeatable + `--projects-file`; tools gain
+optional `project:` arg routed server-side (default = first), per-
+project DB isolation, `describe` lists project toolsets. Prerequisite
+seam for R28 (cross-repo analytics are a step beyond routing).
+
+**Verify.** Two-project stdio handshake lists both; no cross-project
+id leaks; R15-style `cie init` unchanged (one project default).
+
+### P3f — credibility & productization
+
+### [ ] R40 · Structural benchmark corpus #4 (M)
+
+**State today (verified).** R9 harness proven on requests + urllib3 (+
+forge for the 08-28 doc); C parseable since R12/R13; the landscape
+"two/three small first-pass benchmarks" sentence was updated same-week
+but the frontier is datasets-count parity with CodeGraph's 7-repo
+range.
+
+**Plan.** Run the R9 harness against corpus #4 (likely = R31's C
+repo — one index serves both); publish with the honest-loss section;
+update landscape sentences with dated re-runs.
+
+**Verify.** Fresh-clone reproduction from the script alone.
+
+### [ ] R41 · Token accounting, pinned (S)
+
+**State today (verified).** Token estimates are chars//4 everywhere
+(AI-06's documented approximation) — fine within docs, but the vendor
+"120× fewer tokens" comparisons need a pinned tokenizer to be
+apples-to-apples.
+
+**Plan.** Re-publish every benchmark table with chars AND tokens
+(pinned tokenizer; benchmark-only extra per R31); one comparison
+paragraph vs vendor claims, labeled; no prose number floats without a
+table.
+
+**Verify.** All tables regenerate from scripts; a grep proves no
+uncited token claims.
+
+### [ ] R42 · Scale milestone: ≥100k-LOC corpus (M)
+
+**State today (verified).** Largest measured: urllib3 ≈12k LOC (1,207
+nodes); SocratiCode publishes 2.45M-LOC [vendor claim] — the response
+should be OUR measured scale, not a counter-claim.
+
+**Plan.** django (or cpython Lib subset, same discipline: pinned
+commit): index time + memory + per-tool latency table + conformance
+run; publish methodology + targets. No code changes expected — if
+there are, they're follow-up items, not surprises in this PR.
+
+**Verify.** Dated results doc; the run is script-reproducible.
+
+### [ ] R43 · `cie doctor` + init breadth (S)
+
+**State today (verified).** No doctor; `cie init` detects Claude Code/
+Cursor (config presence) + prints Codex TOML; no Cline/Continue/
+Windsurf/VSCode-agent detection; no MCP self-handshake tool.
+
+**Plan.** `cie doctor`: index freshness vs mtimes, orphan-task/
+-test summary, schema/db sanity, env echo (NEO4J_*/CIE_*),
+self-handshake of the registered client entry — one honest report;
+init adds the four new clients with R15's guarded-merge discipline.
+
+**Verify.** doctor healthy-vs-broken fixture pair (each finding
+asserted); one new client config merged idempotently; suite grows.
+
+### [ ] R44 · Gate packs (S/M)
+
+**State today (verified).** Governance checkers all exist as tools
+(traceability_coverage, invariant_violations, clone_detect_run,
+drift_detect_run, coverage_gaps, tech_debt_report, check_invariant) —
+but composing them for CI is on the caller; no gate command.
+
+**Plan.** `cie gate --profile pr|nightly|refactor` (thresholds inline
+or file), exit codes 0/1 + JSON + hint lines; the `pr` profile pairs
+with R24's impact (gate ON the impact slice). CI recipe in the README.
+
+**Verify.** Fixture repo in CI: intentionally-broken commit → red,
+restore → green (R17's proof pattern); profiles pinned by tests.
+
+### [ ] R45 · Last-503s: reference decompose plugin (S)
+
+**State today (verified).** Unavailable bucket (post-R10-contract):
+`contracts_run`, `state_machine_run`, `community_summarize_run` (host
+core.llm), `qa` — all four get env-gated chat paths via R29;
+`decompose_page` is the last forced-503 (DetectorUnavailable,
+HOST_PLUGIN_MISSING). R5's registry asserts the bucket; the end-state
+is zero forced-503s with plugins/env honestly gating the rest.
+
+**Plan.** Reference detector (html.parser-based interactive-element
+extraction) shipped as the extension example + `docs/plugin.md`;
+registry test end-state: bucket = 0 forced, optional-backends env-
+gated; decompose docs join init's context files.
+
+**Verify.** Registry test asserts the final bucket; example plugin
+works against a fixture screen; README#undefers note flips.
+
+### P3 execution order (recommended)
+
+R21 → R22 → R23 (mechanics) → R24 → R25 → R26 (defense spine) → R29 →
+R45 → R30 → R31 → R34 → R32 → R33 → R35 → R36 → R37 → R39 → R38 → R27 →
+R40 → R41 → R42 → R43 → R44. R28 stays gated on its trigger.
+R24/R29 are the two highest-leverage items (WATCH answer + the last
+host-gating of the tool surface).
+
+---
+
 ## Session log
 
 - **2026-08-30 (planning pass):** read roadmap + goal + CONTRIBUTING;
@@ -1329,4 +1760,16 @@ footnoted to its measured source; nothing published from vibes.
   benchmark docs instead (frozen dated records keep their path
   mentions per convention). NOTE: the files remain visible in git
   HISTORY (old commits); a purge would need a history rewrite + force-
-  push — not done. Next update appends here.
+  push — not done.
+- **2026-08-31 (planning pass 2)** — P3 drafted from the two source docs:
+  delta WATCH W1–W4 formally PROMOTED (R24/R25, R27, R26, R28 — R28
+  keeping its real-user gate per the re-sequencing rule), landscape
+  honest-gaps mapped to R21/R22/R32–R34/R40–R43, semantic-completion
+  thread to R29–R31/R45, surface-parity thread to R35–R39, governance
+  productization to R44. 25 items, each with basis · size · verify;
+  execution order in todo.md P3. Facts verified at planning time:
+  ubuntu-only CI matrix; no MCP resources/prompts surface;
+  sync_load_commit/sync_ast_delta/record_test_result/TestExecution all
+  exist (impact/overlay are composites, not new graph machinery); no
+  tokenizer dep; watchdog Observer present in start_watch. Next update
+  appends here. Next update appends here.

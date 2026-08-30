@@ -1,4 +1,4 @@
-# roadmap.md — the first 20 items, by priority
+# roadmap.md — 45 items, by priority (P0: R1–R6, P1: R7–R14, P2: R15–R20, P3: R21–R45)
 
 > Created 2026-08-30, from: `docs/competitive-delta-2026-08-30.md` (S/W
 > items), `docs/competitive-landscape.md` (honest-gaps section), the
@@ -306,17 +306,264 @@ effort S/M/L is a guess, treated as a guess.
 
 ---
 
-## Not planned (watch-list, re-check at each competitive-delta scan)
+## P3 — the next 25 (R21–R45): defend, widen, mature (added 2026-08-31)
+
+> Sequenced from `docs/competitive-delta-2026-08-30.md` (WATCH W1–W4 +
+> the no-MUST verdict → differentiator *defense*) and
+> `docs/competitive-landscape.md` (honest-gaps: language breadth,
+> adoption/battle-testing, semantic maturity, maturity signals). The
+> WATCH items are hereby PROMOTED into P3 per the re-sequencing rule —
+> the owner directed the next tranche from these two docs on 2026-08-31,
+> which the watch-list treated as the trigger. Promotions: W1 → R24/R25,
+> W2 → R27, W3 → R26, W4 → R28. Executable plans live in `todo.md` P3.
+
+### P3a — stable-story mechanics (small, unblocks adoption)
+
+- [ ] **R21 · Ship `cie-mcp` to PyPI** (S). The 0.1.1 artifacts exist and
+      pass twine + a clean-venv rehearsal; the upload itself needs the
+      maintainer's PyPI token (username `__token__`) or, preferably, a
+      `.github/workflows/publish.yml` on tag-push using a
+      `PYPI_API_TOKEN` secret (trusted publishing needs the PyPI-side
+      project entry first). **Verify (closes R6's step 5):** fresh venv,
+      `pip install "cie-mcp[mcp]"` FROM PyPI, `cie index` + MCP handshake
+      against the pinned requests clone — the exact rehearsal, against
+      the real artifact. Feeds R18's listing links + R20's post.
+- [ ] **R22 · CI hardening** (S). Merge the two green Dependabot PRs
+      (click ≥8.5.0, tree-sitter-c ≥0.24.2 — both CI-passing), then add
+      an OS matrix (ubuntu + macos; windows best-effort, allow-fail at
+      first — tree-sitter/wheel availability varies). **Verify:** matrix
+      green on a pushed commit; conformance gate unchanged (0 crashes).
+      Basis: battle-testing gap (landscape).
+- [ ] **R23 · Nightly benchmark CI** (S). A scheduled job running
+      `scripts/benchmark.sh` (structural) against the pinned clones and
+      committing a timestamped artifact of record; a threshold alert
+      (e.g. callers-resolution or skeleton-ratio drift >20%) opens an
+      issue instead of silently stale numbers. The semantic benchmark
+      variant gates on a repo secret (`CIE_EMBED_*`) — runs only when
+      present, skipped honestly otherwise. **Verify:** two consecutive
+      nightly runs produce comparable artifacts; a deliberate drift test
+      (once, on a branch) alerts.
+
+### P3b — differentiator defense (WATCH promotions)
+
+- [ ] **R24 · `cie impact` — PR test-impact** (M). *PROMOTED W1*
+      (CodeGraph's per-PR what-to-test platform is the category leader's
+      nearest attack on differentiator #1). Input: a diff/commit range
+      (`sync_load_commit` + `sync_ast_delta` already exist) → output:
+      blast radius (callers/affected_by chains from changed symbols),
+      the RANKED test set derived from real TESTS edges + task links,
+      and touched contracts/invariants — CI-ready JSON plus a human
+      block. No competitor can derive a test set: they have no TESTS
+      edges or task layer. **Verify:** ground-truth fixture (known diff
+      → known test set, known-by-inspection), both backends; live
+      psf/requests diff check matching the published resolution data.
+- [ ] **R25 · PR review pack** (M). One artifact per change:
+      `sync_load_commit`'s speculative-vs-canonical diff + R24's impact
+      + drift/contract risks + orphan analysis, rendered in the R8
+      export-html format (static, no server). Basis: W1 + differentiator
+      #5 (two-graph git semantics — nobody surveyed has an equivalent).
+      Depends on R24. **Verify:** pack for a pinned commit of a third-.
+      party repo matches hand-derived expectations; script-generated.
+- [ ] **R26 · Runtime evidence overlay** (M). *PROMOTED W3*
+      (code-graph-rag's test-run/eBPF merges — the ecosystem's proof
+      that users want observed behavior in a static graph; ours is
+      test-run-level, not eBPF-level, and that's enough for v1). Ingest
+      `pytest --junitxml` into the EXISTING `record_test_result`/
+      TestExecution surface + measured coverage snapshots
+      (`record_coverage_snapshot`), persist as OBSERVED edges; R24's
+      ranking then uses observed failure history, and envelopes carry a
+      staleness flag. **Verify:** replay a real junitxml into a fixture
+      graph; `impact` output reflects the observed run in a
+      ground-truth test.
+- [ ] **R27 · Policy profiles 2.0** (M). *PROMOTED W2* (SocratiCode's
+      MCP-policy-proxy sibling — keep server-side governance ahead):
+      named policy FILES (allow/deny tool patterns + tool-group
+      wildcards), `cie init --policy <file>` per-client binding,
+      `--policy-file` on cie-mcp, and a bounded refusal-audit log
+      (who-asked-what-was-denied, size-capped). **Verify:** profile
+      tests per surface (stdio/HTTP), audit-log rotation test, the
+      existing ToolPolicy invariant set extended not replaced.
+- [ ] **R28 · Multi-repo workspaces** (L). *PROMOTED W4* (gortex's
+      cross-repo default) — **still gated on the watch-list trigger:** a
+      real multi-repo user must ask before this starts (re-sequencing
+      rule). Registry of indexed roots (`cie workspace add/list`),
+      project-qualified tool results, workspace-level impact/search.
+      **Verify:** two-repo fixture returns correctly-qualified symbols
+      with no cross-root id collisions.
+
+### P3c — semantic layer completion (R10's follow-throughs)
+
+- [ ] **R29 · First-party chat fallback → `qa` fully standalone** (M).
+      Mirror R10's embed tier-3 for CHAT completions:
+      `cie/llm_compat.py` implements the minimal Prompt/ask surface
+      (`QaLlmOutput`-style parsing, system+user messages, JSON-mode
+      output) over any OpenAI-compatible chat endpoint, gated exactly
+      like the embed client (explicit DSN + key — no accidental
+      network). `qa`, `rerank`, and the host-gated runners
+      (`contracts_run`, `state_machine_run`, `community_summarize_run`)
+      get a standalone path; the unavailable registry shrinks toward
+      the pinned minimum (decompose_page remains plugin-gated).
+      **Verify:** `tests/test_llm_compat.py` (mocked transport: request
+      shape, tool-call-free JSON parsing, degrade paths) + live
+      conformance showing the bucket shrink; `test_unavailable_reasons`
+      updated at the same commit (the registry trap).
+- [ ] **R30 · No-LLM rerank** (S/M). A structural re-scoring pass
+      (lexical coverage + dense + graph degree + TESTS-linkage boost)
+      used when no LLM is reachable, behind the existing
+      `use_reranking` seam; A/B against R29's LLM rerank AND no-rerank
+      on the 16-question labeled set — publish whichever wins per
+      corpus, misses included. **Verify:** labeled-set MRR deltas in the
+      benchmark doc; deterministic (seeded) behavior test.
+- [ ] **R31 · Benchmark corpus #4 + tokenizer-pinned counts** (M).
+      Fourth corpus = a real C repo exercising R12/R13 (candidates:
+      libuv, sqlite amalgamation — pick on the ambiguous-name property);
+      plus pin ONE tokenizer (add `tiktoken` as a benchmark-only extra,
+      not a runtime dep) so the token-efficiency numbers stop being
+      chars-heuristic: re-publish chars AND tokens for every task in
+      every benchmark doc, dated re-run notes — the apples-to-apples
+      ground for the "120× fewer tokens"-class vendor claims (labeled
+      vendor-vs-measured, per the standing rule). Depends on R29 for
+      the QA-task slice (or runs structural-only first).
+
+### P3d — language breadth (the landscape's biggest table gap)
+
+- [ ] **R32 · Language #10: Kotlin** (M). tree-sitter-kotlin grammar;
+      field-based name extraction (C#-like, friendlier than C's
+      declarators) — the known trap is receiver-function syntax (`fun
+      String.foo()`) and companion objects; `test_extract_kotlin.py` at
+      the R12 bar (exact-set positive assertions + a naive-skip guard);
+      README/landscape/pyproject sweep in the same PR. **Verify:**
+      real-parse fixture suite + counts sweep.
+- [ ] **R33 · Languages #11–12: PHP + Ruby** (M). One pass, same bar:
+      PHP `method_declaration` with `name` field (friendly) + `->`/
+      `::` receiver call resolution; Ruby `def`/`call` nodes + `def
+      self.x` receivers; Go/Rust-style documented-gap assertions per
+      language. Both update the counts sweep same-PR. **Verify:** two
+      test suites + landscape table row (9 → 12, honest phrasing kept:
+      still far from 21–40+).
+- [ ] **R34 · Close Go/Rust's documented gaps: import edges + docstrings**
+      (M). Landscape §7 names them honestly: Go/Rust extract symbol
+      structure but extract NO import edges and NO docstrings. Port the
+      Python loaders' import-map path (`.h`-style file-hub resolution)
+      and docstring attachment to both; `tests/test_extract_go_rust.py`
+      grows the assertions; the "documented gap" comment flips to
+      implemented. **Verify:** import-edge ground truth + docstring
+      attach tests; no silent-skip regressions (the D1 guard stays
+      green).
+
+### P3e — graph richness & MCP surface (parity where competitors lead)
+
+- [ ] **R35 · Non-code artifacts as nodes** (M). Dockerfile / compose /
+      Makefile / CI yaml / requirements-pyproject files become FILE
+      nodes with DESCRIBES edges (codebase-memory-mcp indexes
+      Dockerfiles/K8s as graph nodes [vendor claim]) so impact and
+      traceability cover build/deploy surfaces. **Verify:** fixture
+      with a Dockerfile + a workflow yaml asserting node kinds/edges;
+      export_html + impact include them.
+- [ ] **R36 · Freshness contract** (M). `watch` mode currently launches
+      the observer but staleness is only reportable
+      (`freshness_report`): make watch auto-apply `sync_ast_delta` on
+      debounce (the seam already exists; `start_watch` runs Observer
+      now) and stamp every read envelope with `as_of`/`stale` — the
+      zero-staleness guarantee CodeGraph's auto-sync advertises [vendor
+      claim]. **Verify:** touch-edit-query loop test (watchdog real
+      Observer in CI — skip-with-reason on flaky fs events), envelope
+      stamp test.
+- [ ] **R37 · MCP resources + prompts** (M). GitNexus parity: expose
+      resources:// (project stats, chains, the export-html asset)
+      and prompt templates (impact-report, traceability-audit,
+      onboarding-summary) — read-only by construction, server-side
+      filtered by policy like tools. **Verify:** resources/list +
+      prompts/list over the stdio dogfood harness; policy refusal for
+      non-permitted content.
+- [ ] **R38 · `cie serve-ui` — local web viewer** (L). Localhost-only,
+      read-only browser UI over the embedded graph (graph browser,
+      chain view, search) — the server cousin of R8's static export;
+      the safe slice: no write surface, no auth model, loopback bind +
+      policy note. Basis: Graphify's UI artifact + CodeGraph's platform
+      adjacency; complements export-html (interactive vs frozen).
+      **Verify:** harness drives headless-Chrome over the UI; one
+      committed screenshot via the record-script pattern; security.md
+      gains the serve-ui threat model (loopback, read-only).
+- [ ] **R39 · Multi-project server** (M). One `cie-mcp` serving N
+      indexed projects: `--project` repeatable / `--projects-file`,
+      tool `project` arg honored server-side, per-project DB isolation,
+      toolset summary in `describe`. Distinct from R28 (analytics
+      ACROSS repos) — this is serve-time routing BETWEEN them; R28
+      builds on it. **Verify:** two-project stdio handshake shows both
+      toolsets, no cross-project id leaks (collision test).
+
+### P3f — credibility & productization (landscape maturity/credibility)
+
+- [ ] **R40 · Structural benchmark corpus #4** (M). The R9 harness
+      against the same C repo chosen in R31 (or a second Python repo if
+      the C parse is still young): the two-column honesty format, 4th
+      dataset published, landscape's "two/three datasets" sentences
+      updated with dated re-runs. **Verify:** fresh-clone reproduction
+      from the script alone (GFI-3's bar).
+- [ ] **R41 · Token accounting, pinned** (S). Superseded by R31's
+      tokenizer work in the semantic doc; this item carries the rest:
+      re-publish chars-vs-tokens for every historical benchmark table
+      with the pinned tokenizer, and one explicit comparison paragraph
+      vs "120× fewer tokens"-class vendor claims (labeled, not
+      implied-equal). **Verify:** docs regenerate from scripts with
+      both metrics; no prose number floats without a table.
+- [ ] **R42 · Scale milestone: ≥100k-LOC corpus** (M).django or a cpython
+      subset — publish index time/memory, per-tool query latency at
+      scale, and conformance-on-big-repo results; the response to
+      SocratiCode's "2.45M-LOC" vendor framing is OUR measured scale,
+      not a counter-claim. **Verify:** numbers + methodology in a dated
+      doc; suite unaffected (fixture-scoped).
+- [ ] **R43 · `cie doctor` + init breadth** (S). `cie doctor`:
+      index freshness, orphan tasks/tests, stale-db/schema-version
+      checks, env config echo, MCP self-handshake — one command that
+      says what's wrong (trust-signal item); `cie init` gains Cline/
+      Continue/Windsurf/VSCode-agent detection (config-presence
+      discipline as R15). **Verify:** doctor on a healthy + a broken
+      fixture (each finding asserted); one new client config merged
+      idempotently.
+- [ ] **R44 · Gate packs** (S/M). `cie gate --profile
+      pr|nightly|refactor` composing the EXISTING checkers
+      (traceability_coverage, invariant_violations, clone_detect_run,
+      drift_detect_run, coverage_gaps, tech_debt_report) with exit codes
+      + JSON + thresholds — the quality-governance differentiator made
+      CI-consumable in one command (pairs with R22's CI + R24's impact).
+      **Verify:** a fixture repo wired into CI that goes red on an
+      intentionally-broken commit and green on restore (R17's proof
+      pattern).
+- [ ] **R45 · Last-503s: reference decompose plugin** (S). `decompose_p
+      age` is the only HOST_PLUGIN-gated tool left once R29 lands: ship
+      a REFERENCE detector plugin (html.parser-based interactive-element
+      extraction) as the extension example + docs/plugin.md — the
+      availability registry ends at zero forced-503s with env-gated
+      optional backends honestly stated. **Verify:** registry test
+      end-state asserted; plugin example tested.
+
+**P3 dependency sketch:** R21 → (R22, R23) is the mechanical spine;
+R24 → R25; R26 feeds R24's ranking (either order, note in PR); R29 →
+R30/R31/R45; R39 → R28; R36/R37/R38/R43/R44 independent;
+R40/R41/R42 independent; R32/R33/R34 independent. Re-sequencing rule
+unchanged: a DIFFERENTIATOR IMPACT finding from the next delta scan
+pre-empts everything in this tier.
+
+## Not planned (watch-list — W1–W4 now PROMOTED into P3 above)
+
+*(Promoted 2026-08-31 per the owner's next-tranche direction: W1 → R24/
+R25, W2 → R27, W3 → R26, W4 → R28. This list keeps the triggers for the
+remaining non-promoted items and the re-check cadence.)*
 
 - **W1** — CodeGraph's per-PR what-to-test platform announcement:
   re-scan the moment the hosted beta ships anything real (closest attack
-  on differentiator #1).
+  on differentiator #1). → **PROMOTED into R24/R25 (P3).**
 - **W2** — SocratiCode's MCP-policy-proxy sibling: trigger if a code
   integration turns it into automatic client-type tool-hiding.
+  → **PROMOTED into R27 (P3).**
 - **W3** — runtime call-graph overlay (code-graph-rag's test-run/eBPF
   trace): its own project, not a patch; promote on real user demand.
+  → **Test-run level PROMOTED into R26 (P3); eBPF-level stays here.**
 - **W4** — cross-repo graphs (gortex): real architecture change; promote
   only on a real multi-repo user.
+  → **PROMOTED into R28 (P3), entry itself keeps the real-user gate.**
 - **F8/F9 + extension-host failure isolation** — pi harness environment,
   not cie the product; tracked in goal.md workstream F and
   `tool-test-lab/TOOL_TEST_REPORT.md`.
