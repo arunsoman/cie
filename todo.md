@@ -433,7 +433,21 @@ naming what remains 503 and why.
 
 ---
 
-### [ ] R6 · Cut 0.1.0 stable — the C1 gate (S once R1–R5 close)
+### [x] R6 · Cut 0.1.0 stable — the C1 gate (S once R1–R5 close) — DONE 2026-08-31 (GitHub release live; PyPI upload pending a distribution-name decision)
+
+*(Implementation: release commit `a22b4bf` — version house 0.1.0a3 →
+0.1.0, classifier → Beta only, README badges re-cut (status-beta,
+tests-279), CHANGELOG [Unreleased] → [0.1.0] with a fresh Unreleased
+stub; suite 279/279; `uv build` → sdist+wheel, twine check PASSED, entry
+points verified; clean-venv rehearsal from the wheel on a fresh
+psf/requests clone @ 5460f467 — index 858/1822, `cie callers close` = 3,
+real MCP stdio handshake from an independent client: 85 read-only tools,
+callers() executes with resolution gap visible. Tag `v0.1.0` pushed,
+GH release live with the caveats block kept; C1 hand-closed in goal.md
+with the tag id. **Open follow-up:** PyPI upload under `cie` is
+impossible — pypi `cie` is cluster311/cie10 (ICD-10 codes, latest
+0.208); needs a rename-or-GitHub-only decision, README + release notes
+already state it with a date.)*
 
 **State today (verified).** `pyproject.toml` version `0.1.0a3`,
 classifier `Development Status :: 3 - Alpha`; CHANGELOG's latest dated
@@ -1248,5 +1262,14 @@ footnoted to its measured source; nothing published from vibes.
   committed with apply-stamps. En-route finding recorded under R6:
   pypi.org/project/cie is cluster311/cie10 — the name-availability
   assumption in R6's step 4 is false; needs a package-name decision.
-  README contributing link verified already in (5b527c4). Next update
+  README contributing link verified already in (5b527c4).
+- **2026-08-31 (implementation pass 15)** — R6 executed end-to-end
+  (minus PyPI upload, blocked on a package-name decision): version
+  house, artifacts built + twine-passed, clean-venv rehearsal from the
+  wheel on the third-party repo (CLI + real MCP client, all matching
+  published numbers), tag `v0.1.0` + GH release with caveats kept, C1
+  hand-closed at tag `v0.1.0` on `a22b4bf`. Committed in two commits
+  (release cut; goal/todo close-out). PyPI finding: pypi `cie` =
+  cluster311/cie10; README quickstart switched to GitHub installs with
+  a dated note until the distribution name is decided. Next update
   appends here with date + what moved.

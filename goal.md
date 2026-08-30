@@ -69,14 +69,21 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
 
 ## C — Trust signals vs. actual maturity
 
-- [ ] **C1. Don't run Phase 1 (launch mechanics) until 0.1.0 stable ships**
-      — stays open until that release exists; not a doc change. **Cannot
-      be closed by further editing** — cutting a "stable" release is an
-      outward-facing trust claim and a real business decision (the folded
-      growth-plan's "Open question" rationale, preserved in this item's
-      own text), not something
-      to fake by bumping a version string. Left open on purpose; see the
-      Log below.
+- [x] **C1. Don't run Phase 1 (launch mechanics) until 0.1.0 stable ships**
+      — **CLOSED 2026-08-31 by hand**: tag `v0.1.0` cut on the release
+      commit `a22b4bf`, GitHub release live at
+      https://github.com/kannamma-labs/cie/releases/tag/v0.1.0 (notes render
+      CHANGELOG's `[0.1.0]` section + the maturity-caveats block, kept from
+      the alpha per the no-honeypot rule). Clean-venv rehearsal verified
+      end-to-end from the built wheel (suite 279/279; conformance 0
+      crashes; index → callers=3 → MCP handshake 85 read-only tools on a
+      fresh psf/requests clone at the pinned commit). One open follow-up,
+      recorded in todo.md R6: the PyPI upload cannot happen under the name
+      `cie` (`pypi.org/project/cie` is cluster311/cie10, ICD-10 codes) —
+      distribution rename decision pending; GitHub is the single source
+      until then (README quickstart already installs from GitHub and says
+      so, dated). This closure was the release mechanics existing — the
+      user's go-ahead given in the 2026-08-31 session.
 - [x] **C2. Grow test coverage** — one test file per major capability
       area not yet covered. `tests/test_clone_detect.py` (7 tests,
       quality-governance — token/AST clone signals + union-find fusion,
