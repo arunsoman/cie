@@ -1287,5 +1287,24 @@ footnoted to its measured source; nothing published from vibes.
   hand-closed at tag `v0.1.0` on `a22b4bf`. Committed in two commits
   (release cut; goal/todo close-out). PyPI finding: pypi `cie` =
   cluster311/cie10; README quickstart switched to GitHub installs with
-  a dated note until the distribution name is decided. Next update
-  appends here with date + what moved.
+  a dated note until the distribution name is decided.
+- **2026-08-31 (implementation pass 16)** — R10 done end-to-end: (step
+  1) first-party OpenAI-compatible embeddings fallback (stdlib, DSN+key
+  gated, no-accidental-network rule pinned) + embedded-load enrichment +
+  graphrag pure layers decoupled (qa envelope unchanged, re-pinned);
+  suite 279 → 292; conformance 135 tools / 101-25-5-4 / 0 crashes, fresh
+  artifact committed. (step 2) scripts/benchmark_semantic.py + live runs
+  on both R9 corpora via NIM nv-embed-1b fallback: recall@8 = 1.0 on
+  16/16 hand-labeled questions, MRR 0.75–0.85 per retriever per corpus
+  (neither dominates — published both ways), index overhead ~free;
+  docs/competitor-benchmarks.md dated section with raw-JSON artifacts +
+  vendor-config table (claude-context/grepai labeled not-run-here).
+  Committed in two commits.
+- **2026-08-31 (implementation pass 17)** — R18 step 1 + R20 steps 1–2:
+  directory-listings drafts (docs/directory-listings-drafts.md, nothing
+  submitted, gate now satisfied → only the go-ahead remains) and the
+  launch-post draft (docs/launch-post-draft.md, 14-row claim audit,
+  every row footnoted; publish gates 1–3/7 satisfied, 4–6 open). Boxes
+  stay open until the external actions actually happen, per their own
+  gating. Committed separately.
+- Next update appends here with date + what moved.
