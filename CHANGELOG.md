@@ -33,6 +33,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vendor-config-vs-measured table for claude-context and grepai (labeled
   as not-run-here). Full-suite 279 → 292.
 
+## [0.1.1] - 2026-08-31 — PyPI distribution renamed to `cie-mcp`
+
+*`pypi.org/project/cie` is an unrelated project (cluster311/cie10, ICD-10
+codes) — the finding recorded in the 0.1.0 release notes becomes this
+change: the distribution ships under **`cie-mcp`** from now on. The
+import package, the `cie` CLI, the `cie-mcp` console script, the repo,
+and the tags are unchanged; only the pip string moves:
+`pip install "cie-mcp[mcp]"` (was `pip install "cie[mcp] @
+git+…"-only`).*
+
+### Added
+
+- First PyPI artifact for the project, under the new distribution name
+  (core + `mcp`/`http` extras; console scripts `cie` and `cie-mcp`).
+- GitHub install remains supported and pinned in README alongside the
+  PyPI line (same commit, so both routes verify identical code).
+
+### Changed
+
+- Distribution name `cie` → `cie-mcp` in `pyproject.toml`; version
+  `0.1.0` → `0.1.1` (the v0.1.0 GitHub release/tag stays as-is — dated
+  record under the old name). Extras migrate with the distribution:
+  `cie-mcp[mcp]`, `cie-mcp[http]`.
+
 ## [0.1.0] - 2026-08-31 — first stable
 
 *Cut from the same tree as `0.1.0a3` plus everything below — the P0/P1

@@ -18,7 +18,7 @@ from the shipped README on this commit.)
 | Name | cie — Code Insight Engine |
 | Tagline | The code graph that knows which tasks and tests implement your code |
 | One-liner | 135-tool MCP server over a local SQLite or Neo4j code graph — callers/callees/call-graphs, task→file→test traceability, read-only by default; 9 languages, zero-config embedded mode, one static-HTML export. |
-| Install | `pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"` then `cie index <repo>` + `cie-mcp <repo> --embedded` |
+| Install | `pip install "cie-mcp[mcp]"` then `cie index <repo>` + `cie-mcp <repo> --embedded` |
 | Transport | stdio (default) and streamable-HTTP (`--transport streamable-http --host 127.0.0.1 --port 8000`, localhost-only default) |
 | Policy note | Server-side `ToolPolicy` (`--policy readonly` default; writes 403'd server-side per tool — machine-checked, docs/security.md) |
 | Repository | https://github.com/kannamma-labs/cie |

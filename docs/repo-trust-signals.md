@@ -4,8 +4,9 @@
 > three starter issues — see stamps below). The release page (§3) rides
 > the 0.1.0 release itself (R6); the PyPI upload under the name `cie` is
 > blocked by a name collision — `pypi.org/project/cie` is unrelated
-> (cluster311/cie10, ICD-10 codes; latest 0.208) — so R6's upload step
-> needs a package-name decision first. Remaining [APPLY] items were run
+> (cluster311/cie10, ICD-10 codes; latest 0.208) — **resolved 2026-08-31:
+> the distribution ships as `cie-mcp` from v0.1.1** (install strings in
+> §1 updated same-day). Remaining [APPLY] items were run
 > while the metadata's own claim set is already true of HEAD (135-tool
 > surface, 9 languages, read-only default), keeping the honesty rule:
 > metadata must match the artifact.

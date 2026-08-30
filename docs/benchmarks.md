@@ -77,7 +77,7 @@ cie's own ambiguous-name resolution, diagnosed precisely and since fixed.
 ## Reproducing this
 
 ```bash
-pip install "cie[mcp]"
+pip install "cie-mcp[mcp]"
 cie index /path/to/some/real/repo
 cie-mcp /path/to/some/real/repo --embedded --policy inspector
 # then call search_symbol / callers / file_skeleton over MCP and compare

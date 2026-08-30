@@ -132,7 +132,7 @@ comparison.
 
 ```bash
 # cie
-pip install "cie[mcp]"
+pip install "cie-mcp[mcp]"
 cie index /path/to/repo
 
 # CodeGraphContext

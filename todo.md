@@ -433,7 +433,7 @@ naming what remains 503 and why.
 
 ---
 
-### [x] R6 · Cut 0.1.0 stable — the C1 gate (S once R1–R5 close) — DONE 2026-08-31 (GitHub release live; PyPI upload pending a distribution-name decision)
+### [x] R6 · Cut 0.1.0 stable — the C1 gate (S once R1–R5 close) — DONE 2026-08-31 (GitHub release live; PyPI distribution renamed to `cie-mcp` in 0.1.1 same day — upload runs with the maintainer's creds)
 
 *(Implementation: release commit `a22b4bf` — version house 0.1.0a3 →
 0.1.0, classifier → Beta only, README badges re-cut (status-beta,
@@ -444,10 +444,12 @@ psf/requests clone @ 5460f467 — index 858/1822, `cie callers close` = 3,
 real MCP stdio handshake from an independent client: 85 read-only tools,
 callers() executes with resolution gap visible. Tag `v0.1.0` pushed,
 GH release live with the caveats block kept; C1 hand-closed in goal.md
-with the tag id. **Open follow-up:** PyPI upload under `cie` is
-impossible — pypi `cie` is cluster311/cie10 (ICD-10 codes, latest
-0.208); needs a rename-or-GitHub-only decision, README + release notes
-already state it with a date.)*
+with the tag id. **Open follow-up RESOLVED 2026-08-31:** PyPI upload
+under `cie` is impossible — pypi `cie` is cluster311/cie10 (ICD-10
+codes, latest 0.208); the user chose `cie-mcp` as the distribution name
+and the rename shipped in 0.1.1 (import package/CLI/tags unchanged;
+install lines swept across README/docs same pass — session-log pass
+18). The remaining step is the maintainer-credentialed upload itself.)*
 
 **State today (verified).** `pyproject.toml` version `0.1.0a3`,
 classifier `Development Status :: 3 - Alpha`; CHANGELOG's latest dated
@@ -1307,4 +1309,14 @@ footnoted to its measured source; nothing published from vibes.
   every row footnoted; publish gates 1–3/7 satisfied, 4–6 open). Boxes
   stay open until the external actions actually happen, per their own
   gating. Committed separately.
-- Next update appends here with date + what moved.
+- **2026-08-31 (implementation pass 18)** — PyPI distribution renamed to
+  **`cie-mcp`** (user's decision; pypi `cie` was confirmed unrelated):
+  pyproject name + version 0.1.1, README quickstart/install switched to
+  `pip install "cie-mcp[mcp]"` with the dated note, live install strings
+  swept in benchmarks/reproducing docs + the R18/R20 drafts,
+  competitive-landscape + goal.md C1 follow-up + repo-trust-signals
+  notes updated; suite green; artifacts rebuilt and re-rehearsed under
+  the new dist name; tag `v0.1.1` + GH release cut. The upload itself
+  runs with the maintainer's PyPI token or trusted-publisher workflow
+  (no credentials available in this environment — handoff noted in the
+  release notes). Next update appends here.

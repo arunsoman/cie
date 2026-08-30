@@ -113,10 +113,13 @@ others, including where cie is honestly behind.
 ## Quickstart (zero-config, no Neo4j)
 
 ```bash
-pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"
+pip install "cie-mcp[mcp]"
 cie index /path/to/your/project
 cie-mcp /path/to/your/project --embedded
 ```
+
+> Until the 0.1.1 upload lands on PyPI, install from GitHub:
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git"`.
 
 That's an MCP server over stdio — add it to Claude Code / Cursor / Codex /
 any MCP client the way you'd add any other local MCP server, and it can
@@ -190,15 +193,18 @@ extraction, ~135 tools, the task/QA layer).
 ## Install
 
 ```bash
-pip install cie             # ✗ not yet — see the note below
-pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"   # core + MCP server (cie-mcp) — what most people want
-pip install "cie[http] @ git+https://github.com/kannamma-labs/cie.git"  # + the HTTP tool-mount / mock server (cie/routes.py)
+pip install cie             # ✗ still not this project — see the note below
+pip install "cie-mcp[mcp]"   # core + MCP server (cie-mcp) — what most people want
+pip install "cie-mcp[http]"  # + the HTTP tool-mount / mock server (cie/routes.py)
 ```
 
-> **Package-name note (2026-08-31):** the `cie` name on PyPI is taken by
-> an unrelated project (`cluster311/cie10`, ICD-10 codes — `pip install
-> cie` does NOT get you this tool). Until the project ships under a
-> different distribution name, install from GitHub as above.
+> **Package-name note (updated 2026-08-31, v0.1.1):** the distribution
+> ships as **`cie-mcp`** — the `cie` name on PyPI belongs to an unrelated
+> project (`cluster311/cie10`, ICD-10 codes; `pip install cie` does NOT
+> get you this tool — never did). Import package stays `cie`; console
+> scripts stay `cie` and `cie-mcp`; tags/releases unchanged. GitHub
+> installs are an equal alternative:
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git"`.
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
 tree-sitter (+ Python/JS/TS/Java/Go/Rust/C/C++/C# grammars), watchdog, Click,

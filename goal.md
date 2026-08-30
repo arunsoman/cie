@@ -77,13 +77,15 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done, verified
       the alpha per the no-honeypot rule). Clean-venv rehearsal verified
       end-to-end from the built wheel (suite 279/279; conformance 0
       crashes; index → callers=3 → MCP handshake 85 read-only tools on a
-      fresh psf/requests clone at the pinned commit). One open follow-up,
-      recorded in todo.md R6: the PyPI upload cannot happen under the name
-      `cie` (`pypi.org/project/cie` is cluster311/cie10, ICD-10 codes) —
-      distribution rename decision pending; GitHub is the single source
-      until then (README quickstart already installs from GitHub and says
-      so, dated). This closure was the release mechanics existing — the
-      user's go-ahead given in the 2026-08-31 session.
+      fresh psf/requests clone at the pinned commit). The open follow-up
+      from the same session is RESOLVED (2026-08-31): the distribution
+      ships as **`cie-mcp`** from v0.1.1 (pypi `cie`
+      is cluster311/cie10, ICD-10 codes; import package/CLI/tags
+      unchanged). README quickstart + install carry the PyPI line with
+      the dated note; the PyPI upload itself runs with the maintainer's
+      credentials/workflow on top of this commit. This closure was the
+      release mechanics existing — the user's go-ahead given in the
+      2026-08-31 session.
 - [x] **C2. Grow test coverage** — one test file per major capability
       area not yet covered. `tests/test_clone_detect.py` (7 tests,
       quality-governance — token/AST clone signals + union-find fusion,

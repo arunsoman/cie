@@ -96,7 +96,7 @@ attempted as a fix in this pass.
 ```bash
 git clone --depth 1 https://github.com/psf/requests.git
 cd requests
-pip install "cie[mcp]"
+pip install "cie-mcp[mcp]"
 cie index .
 cie-mcp . --embedded --policy inspector
 # then call search_symbol / callers / file_skeleton over MCP and compare

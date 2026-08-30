@@ -48,7 +48,7 @@ docs/benchmarks-requests.md, docs/benchmarks-urllib3.md,
 docs/competitor-benchmarks.md.
 
 Repo: https://github.com/kannamma-labs/cie
-Install: `pip install "cie[mcp] @ git+https://github.com/kannamma-labs/cie.git"`
+Install: `pip install "cie-mcp[mcp]"`
 
 *(HN-format note: keep the title ≤80 chars; the body above is the first
 comment. No superlatives that aren't footnoted.)*
@@ -109,7 +109,7 @@ be footnoted, it doesn't go in the post.)*
 | 8 | 9 languages | cie/extract.py language tables + tests/test_extract_{c,cpp,csharp}.py | 2026-08-30 |
 | 9 | export-html: one static file, zero external references | tests/test_export_html.py + docs/images/ screenshots (recorded via scripts/record_export_html.sh) | 2026-08-30 |
 | 10 | task→file→test chains over real TESTS edges; orphans listed | `traceability_chain`/`traceability_orphans` tools (conformance-verified) + export-html views | 2026-08-31 |
-| 11 | "0.1.0 stable" | tag `v0.1.0` + GitHub release (a22b4bf); PyPI name decision pending — **posts must say install-from-GitHub**, matching README | 2026-08-31 |
+| 11 | "0.1.0 stable" + the `cie-mcp` distribution rename | tag `v0.1.0` + GitHub release (a22b4bf); **0.1.1** (2026-08-31): distribution renamed to `cie-mcp` (PyPI `cie` is cluster311/cie10 — an unrelated ICD-10 project); import package/CLI unchanged — **posts must use `pip install "cie-mcp[mcp]"`** | 2026-08-31 |
 | 12 | 292 tests | `pytest -q` (re-run on the publishing commit; the badge/citation is refreshed per release, R3's convention) | 2026-08-31 |
 | 13 | competitor language/tool counts and star counts (if mentioned) | docs/competitive-landscape.md table + docs/competitive-delta-2026-08-30.md, **vendor counts stay labeled vendor-claims** | 2026-08-30 |
 | 14 | "codebase-memory-mcp / others: 120× fewer tokens"-style numbers, if used at all | **vendor claims only — cite as such or drop** (R9's convention) | 2026-08-30 |

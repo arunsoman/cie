@@ -145,8 +145,10 @@ Honest gaps, not hedged:
   vendor-configs until someone runs both.
 - **Maturity signals.** Single-author commit history and weeks-old
   code base — real gaps, not just optics. (Release posture improved:
-  `0.1.0` stable cut 2026-08-31 (tag `v0.1.0`, GitHub release; PyPI name
-  decision pending) with the maturity caveats kept in the release notes.
+  `0.1.0` stable cut 2026-08-31 (tag `v0.1.0`, GitHub release),
+  distribution renamed to `cie-mcp` from 0.1.1 the same day (PyPI's
+  `cie` is an unrelated project) with the maturity caveats kept in the
+  release notes.
   Test-suite depth specifically improved: 4 files/38 tests → 292 tests
   across the suite, covering task/QA, quality-governance, language
   adapters, embeddings fallback, and provenance/ground-truth areas that
