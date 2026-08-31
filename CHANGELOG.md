@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet — 0.1.4's changes are directly below.
+
+## [0.1.4] - 2026-08-31 — direct-calls TESTS edges (dogfooding fix)
+
 ### Added
 
 - **testlink heuristic (4) — direct-calls TESTS edges** (found by the
