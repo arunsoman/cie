@@ -11,6 +11,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AST mirror + `get_meta`/`get_function` — cie as the single source
+  where the actual file and its AST stay in sync** (`cie/ast_store.py`,
+  new ToolService methods, registered on HTTP/MCP/CLI). `get_meta(path)`
+  serves file type, total lines, and the file's function signatures;
+  `get_function(path, signature)` serves one function's ACTUAL content —
+  both strictly from a parsed, in-process AST snapshot, never a disk
+  read. Every cie write path refreshes the mirror in the SAME call as
+  the filesystem write: `write_file`/`write_files_atomic`/`edit_file`/
+  `apply_patch` via `_sync_graph_after_write` (apply_patch only reaches
+  that hook after its atomic write + post-write integrity re-hash, so a
+  rolled-back patch never touches the mirror), `delete_file` drops the
+  entry, `reindex_file`/`sync_ast_delta` re-ingest — so a read can never
+  see a half-applied write, and a gate-rejected patch moves neither the
+  bytes nor the mirror. External writers stay invisible until
+  `reindex_file` explicitly refreshes — the deliberate price of reads
+  that never stat or re-read. The 3,000-line-function answer is built
+  in: `start`/`end` are function-relative window bounds (`end=0` = 100
+  lines from `start`), the payload always carries the function's span,
+  length, and a FLAT nested-definition map (any depth, capped 100 with an
+  honest truncation note) — huge functions are navigated
+  (nested map → narrow window), never dumped; `content` keeps
+  view_file's exact `{n:>5}\t{line}` format with absolute file lines so
+  the two tools cross-reference. Signatures are Python-AST-exact
+  (decorators included in spans, defs behind `if`/`try`/`match` blocks
+  included, classes + methods with qualified names); non-Python files
+  honestly serve type/line count with a `file_skeleton` pointer instead
+  of a regex table pretending to be an AST; a file that doesn't parse
+  keeps type/lines with a `parse_error` hint — the mirror degrades, it
+  never lies. 13 tests (`tests/test_ast_store_tools.py`) pin the
+  contract, including the disk-mutation-behind-cie's-back single-source
+  proof and apply_patch's file+AST move-as-one-unit proof (suite
+  312 → 325).
+- **File-path index — `ls`/`dir`/`file_hierarchy`/`file_names_like`/
+  `path_prefix`** (`cie/file_index.py`, five new ToolService methods,
+  registered on HTTP/MCP/CLI, all read-only). One sorted array of
+  relative paths per project root, built lazily with a single `os.walk`
+  per process (pruning `cie.extract.EXCLUDED_DIRS`, so `.venv`/
+  `node_modules`/VCS internals never enter it) — `ls`/`dir` list one
+  directory level with per-dir file counts, `file_hierarchy` renders a
+  depth- and budget-limited ASCII tree for orientation, `file_names_like`
+  is a whole-repo fnmatch search, and `path_prefix` recovers a partial
+  or mistyped path (zero matches return the two nearest indexed
+  neighbors as a "did you mean", found by bisecting the sorted array).
+  Same single-source discipline as the AST mirror above: reads never
+  touch the filesystem, every cie write path (`write_file`/
+  `write_files_atomic`/`edit_file`/`apply_patch`/`delete_file`/
+  `reindex_file`/`reindex`) updates the index in the SAME call the
+  filesystem changes, and an external change stays invisible until an
+  explicit `reindex()`/`reindex_file` refresh. Empty directories are
+  invisible by design (files define shape — documented, not hidden).
+  12 tests (`tests/test_file_index_tools.py`) pin the contract,
+  including the excluded-dirs proof and the external-change-invisible-
+  until-reindex proof (suite 325 → 337; surface 135 → 142).
 - **`vision.md` — "the far shore", linked from the README title line**
   (the first thing on the repo's face, above the badges): the
   project's *why* — five acts (the end of source code, immortal

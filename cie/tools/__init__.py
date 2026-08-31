@@ -44,7 +44,9 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+from cie import ast_store as _ast_store
 from cie import extract
+from cie import file_index as _file_index
 from cie import patch as _patch
 from cie import serialize as _serialize
 from cie.models import Confidence, Node, SymbolMatch
@@ -436,6 +438,165 @@ class ToolService:
         if exc is not None:
             hint = self._degraded_hint(exc, hint)
         return self._ok(tool, [result], started, truncated=truncated, hint=hint)
+
+    def get_meta(self, path: str) -> dict:
+        """File meta from the AST mirror: file type, total lines, and
+        the file's function signatures — served from the in-process AST
+        snapshot, never a disk read.
+
+        Sync contract (cie.ast_store's module docstring): every cie
+        write path — write_file/write_files_atomic/edit_file/apply_patch
+        via `_sync_graph_after_write`, delete_file, reindex_file,
+        sync_ast_delta — refreshes the mirror in the SAME call, after the
+        filesystem write has landed (apply_patch only reaches that hook
+        after its post-write integrity re-hash, so a rolled-back patch
+        never touches it). A change made OUTSIDE cie stays invisible to
+        this tool until reindex_file/sync_ast_delta explicitly
+        refreshes the mirror — that is what "cie is the single source
+        where the file and its AST stay in sync" buys: no read can ever
+        see a half-applied write. Signatures are Python-AST-exact;
+        non-Python files honestly serve type/line count with a hint
+        pointing at file_skeleton's heuristic tier.
+        """
+        tool = "get_meta"
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, path)
+            entry = _ast_store.lookup_or_ingest(
+                self._root, resolved, max_bytes=self._max_file_size_bytes)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        payload, truncated, hint = _ast_store.meta_payload(entry)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
+
+    def get_function(self, path: str, signature: str,
+                     start: int = 1, end: int = 0) -> dict:
+        """One function's ACTUAL content, sliced from the AST snapshot —
+        never a disk read (see `get_meta` for the sync contract).
+
+        `signature` accepts whatever get_meta printed (full signature),
+        a qualified name ("Class.method"), or a bare name — which must be
+        unique in the file; ambiguity is an error listing candidates,
+        never a guess.
+
+        The 3,000-line-function answer: `start`/`end` are
+        FUNCTION-RELATIVE (1-based, inclusive; `end=0` means WINDOW=100
+        lines from `start`), and the payload ALWAYS carries the
+        function's absolute file span, its length, and its
+        nested-definition map — so a huge function is navigated (read
+        the nested map, then request a narrow window) instead of dumped
+        into the caller's context. `content` lines use view_file's exact
+        ``{n:>5}\\t{line}`` format with ABSOLUTE file line numbers, so
+        windows from the two tools cross-reference cleanly.
+        """
+        tool = "get_function"
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, path)
+            entry = _ast_store.lookup_or_ingest(
+                self._root, resolved, max_bytes=self._max_file_size_bytes)
+            payload, truncated, hint = _ast_store.function_payload(
+                entry, signature, start, end)
+        except _ast_store.AstLookupError as exc:
+            return self._err(tool, exc.kind, str(exc), started, hint=exc.hint)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
+
+    # -- filesystem navigation (cie.file_index — pure index reads) -------
+
+    def _ls_impl(self, tool: str, path: str, limit: int) -> dict:
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, path or ".")
+            rel = _file_index.rel_under(self._root, resolved)
+            payload, truncated, hint = _file_index.ls_payload(
+                _file_index.for_root(self._root), rel, limit)
+        except _file_index.FileIndexError as exc:
+            return self._err(tool, exc.kind, str(exc), started, hint=exc.hint)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
+
+    def ls(self, path: str = "", limit: int = _file_index.LS_CAP) -> dict:
+        """One directory level from the in-process file index — dirs with
+        files-within counts, files with their types. Never touches the
+        filesystem: the index is built once per root per process
+        (pruning cie.extract.EXCLUDED_DIRS — virtualenvs, node_modules,
+        VCS internals, build outputs never enter it) and refreshed in
+        the SAME call by every cie write (see cie.file_index's module
+        docstring); external changes need reindex(). Empty dirs are
+        invisible (files define shape). get_meta serves a file's
+        contents-side meta; this serves the tree's shape.
+        """
+        return self._ls_impl("ls", path, limit)
+
+    def dir(self, path: str = "", limit: int = _file_index.LS_CAP) -> dict:
+        """Windows spelling of `ls` — the exact same payload. Registered
+        as its own tool because a model reaching for `dir` would
+        otherwise waste a turn on an unknown-tool error (the same class
+        the shell-hallucination fixes target); both names, one index.
+        """
+        return self._ls_impl("dir", path, limit)
+
+    def file_hierarchy(self, path: str = "", depth: int = 2,
+                       max_entries: int = _file_index.TREE_ENTRY_CAP) -> dict:
+        """ASCII tree of a subtree from the in-process file index —
+        per-directory file counts, depth- and budget-limited with honest
+        truncation notes. The orientation tool: an agent reads the
+        shape first (file_hierarchy), then narrows (ls), then reads
+        (get_meta/get_function/view_file) — instead of guessing paths.
+        Same index, same sync contract as `ls`.
+        """
+        tool = "file_hierarchy"
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, path or ".")
+            rel = _file_index.rel_under(self._root, resolved)
+            payload, truncated, hint = _file_index.hierarchy_payload(
+                _file_index.for_root(self._root), rel, depth, max_entries)
+        except _file_index.FileIndexError as exc:
+            return self._err(tool, exc.kind, str(exc), started, hint=exc.hint)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
+
+    def file_names_like(self, pattern: str,
+                        limit: int = _file_index.MATCH_CAP) -> dict:
+        """Every indexed path matching an fnmatch glob ('*.py', '*test*',
+        'pay*') — the whole-repo file-name search, over the same
+        in-process index as `ls`. Sorted, capped, with the real count.
+        """
+        tool = "file_names_like"
+        started = time.monotonic()
+        try:
+            payload, truncated, hint = _file_index.names_like_payload(
+                _file_index.for_root(self._root), pattern, limit)
+        except _file_index.FileIndexError as exc:
+            return self._err(tool, exc.kind, str(exc), started, hint=exc.hint)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
+
+    def path_prefix(self, prefix: str = "",
+                    limit: int = _file_index.MATCH_CAP) -> dict:
+        """Everything under a PARTIAL path — the half-remembered-path and
+        typo-recovery tool, two binary searches away in the sorted index.
+        Zero matches come back with the nearest existing neighbors as a
+        'did you mean', so a wrong guess costs one turn, not a hunt.
+        No jail prefix argument to normalize: it is a search key, and
+        every result is an already-jailed relative path from the index.
+        """
+        tool = "path_prefix"
+        started = time.monotonic()
+        try:
+            payload, truncated, hint = _file_index.prefix_payload(
+                _file_index.for_root(self._root), prefix, limit)
+        except _file_index.FileIndexError as exc:
+            return self._err(tool, exc.kind, str(exc), started, hint=exc.hint)
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [payload], started, truncated=truncated, hint=hint)
 
     def search_symbol(
         self,
@@ -1582,6 +1743,13 @@ class ToolService:
             resolved = _view._jail(self._root, path)
             if not resolved.is_file():
                 raise FileNotFoundError(f"no such file under project root: {path}")
+            # AST mirror rides the same explicit-refresh path — this is
+            # THE entry point for external changes (see get_meta's
+            # docstring), so the mirror must refresh here too, not only
+            # on cie's own writes.
+            _ast_store.sync_path(self._root, resolved,
+                                 max_bytes=self._max_file_size_bytes)
+            _file_index.refresh_path(self._root, resolved, exists_on_disk=True)
             before = self._engine._repo.get_file_skeleton(str(resolved))  # noqa: SLF001
             fresh = extract.extract_file(resolved)
             after = [
@@ -3921,6 +4089,13 @@ class ToolService:
             return self._guard(tool, started, exc)
         self._invalidate_api_routes_cache()
         self._sync_heuristic_index(resolved)
+        # AST mirror: the unlink and the mirror drop are one unit — a
+        # later get_meta/get_function for this path must not serve a
+        # deleted file's snapshot.
+        _ast_store.drop(self._root, resolved)
+        # and the file index forgets it in the same call — a later ls/
+        # file_names_like must not serve a deleted file's path.
+        _file_index.remove_path(self._root, resolved)
         # Stale on purpose if left in place: a later reindex() comparing a
         # RECREATED file's hash against this deleted file's last-known
         # hash could match (same content) and wrongly skip re-indexing it
@@ -3988,8 +4163,23 @@ class ToolService:
         self._invalidate_api_routes_cache()
         resolved = _view._jail(self._root, path)
         self._sync_heuristic_index(resolved)
+        # AST mirror (cie.ast_store — get_meta/get_function's source of
+        # truth): refreshed in the SAME call as the graph sync, only
+        # after the write has landed on disk (and for apply_patch, after
+        # its post-write integrity re-hash — a rolled-back patch never
+        # reaches this line), so file system, graph, and AST move as one
+        # unit per call. Never raises — a mirror hiccup degrades to a
+        # hint exactly like the graph sync below it.
+        ast_hint = _ast_store.sync_path(
+            self._root, resolved, max_bytes=self._max_file_size_bytes)
+        # File index rides the same hook: the just-written (or newly
+        # created — apply_patch's new files land here too) path is in the
+        # index the same call it landed on disk, so a following ls/
+        # file_names_like can never miss a file cie itself just wrote.
+        _file_index.add_path(self._root, resolved)
         if extract.supported_suffix(resolved) is None:
-            return result, "not an indexable source file; graph unaffected"
+            return result, (ast_hint
+                            or "not an indexable source file; graph unaffected")
         try:
             content = resolved.read_bytes()
             extraction = extract.extract_file(resolved)
@@ -3998,8 +4188,9 @@ class ToolService:
             )
             self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
-            return result, f"write succeeded but graph reindex failed: {exc}"
-        return {**result, "nodes_written": written}, None
+            return result, ("write succeeded but graph reindex failed: "
+                            f"{exc}" + (f"; {ast_hint}" if ast_hint else ""))
+        return {**result, "nodes_written": written}, ast_hint
 
     def reindex_file(self, path: str) -> dict:
         """Incrementally re-index one file.
@@ -4028,6 +4219,18 @@ class ToolService:
                 )
             self._sync_heuristic_index(resolved)
             content = resolved.read_bytes()
+            # AST mirror rides the SAME read: one disk read refreshes
+            # graph and mirror together — this is the explicit-refresh
+            # entry point for changes that landed OUTSIDE cie (see
+            # cie.ast_store's module docstring), so the mirror must move
+            # with it, not lag a write behind.
+            mirror_hint = _ast_store.ingest_bytes(
+                self._root, resolved, content,
+                max_bytes=self._max_file_size_bytes)
+            # File index: a file that appeared outside cie's write tools
+            # becomes visible here — reindex_file is the per-file explicit
+            # refresh for external changes.
+            _file_index.refresh_path(self._root, resolved, exists_on_disk=True)
             extraction = extract.extract_file(resolved)
             written = self._engine._repo.reindex_file(  # noqa: SLF001
                 str(resolved), extraction, project=self._project,
@@ -4035,10 +4238,13 @@ class ToolService:
             self._indexed_hashes[path] = hashlib.sha256(content).hexdigest()
         except Exception as exc:  # noqa: BLE001
             return self._guard(tool, started, exc)
+        hint = ("graph is fresh for this file; callers of unchanged files "
+                "were re-resolved in the same call")
+        if mirror_hint:
+            hint = f"{hint}; {mirror_hint}"
         return self._ok(
             tool, [{"path": str(resolved), "nodes_written": written}], started,
-            hint="graph is fresh for this file; callers of unchanged files "
-                 "were re-resolved in the same call",
+            hint=hint,
         )
 
     def reindex(self) -> dict:
@@ -4074,6 +4280,12 @@ class ToolService:
         """
         tool = "reindex"
         started = time.monotonic()
+        # Full-walk explicit refresh for the FILE INDEX first — a new or
+        # deleted external file is only visible to ls/file_hierarchy/
+        # file_names_like/path_prefix after this, exactly as the graph's
+        # own freshness story works here (the hash-based per-file
+        # skipping below cannot see a file it never knew about).
+        _file_index.rebuild(self._root)
         indexed = 0
         skipped = 0
         errors: list[dict] = []

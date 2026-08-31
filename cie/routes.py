@@ -526,6 +526,13 @@ def _tool_schema_version(kwargs: dict, project: str) -> dict:
 TOOLS: dict[str, Callable[[dict, str], dict]] = {
     # Tier 1
     "view_file": _service_tool("view_file"),
+    "get_meta": _service_tool("get_meta"),
+    "get_function": _service_tool("get_function"),
+    "ls": _service_tool("ls"),
+    "dir": _service_tool("dir"),
+    "file_hierarchy": _service_tool("file_hierarchy"),
+    "file_names_like": _service_tool("file_names_like"),
+    "path_prefix": _service_tool("path_prefix"),
     "search_symbol": _service_tool("search_symbol"),
     "resolve_import": _service_tool("resolve_import"),
     "semantic_search": _service_tool("semantic_search"),
@@ -1274,7 +1281,9 @@ def get_blast_radius(
 # ---------------------------------------------------------------------------
 
 READ_ONLY_CIE_TOOLS: frozenset[str] = frozenset({
-    "view_file", "search_symbol", "resolve_import", "semantic_search",
+    "view_file", "get_meta", "get_function",
+    "ls", "dir", "file_hierarchy", "file_names_like", "path_prefix",
+    "search_symbol", "resolve_import", "semantic_search",
     "callers", "callees", "file_skeleton", "path_between", "failing_context",
     "affected_by", "class_hierarchy",
     "test_map", "actual_callers", "dead_code_confirm", "hybrid_search",
