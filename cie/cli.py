@@ -90,28 +90,20 @@ def _embedded_db_path(explicit_db: Optional[Path]) -> Path:
 def _selected_backend(ctx: click.Context) -> str:
     """Resolve which backend query commands answer against this invocation.
 
-    Resolution order (first match wins):
-      1. ``--backend`` flag (the click parameter, stashed in ctx.obj) —
-         explicit user choice, always honored.
-      2. ``CIE_BACKEND`` env var — but only when it names a backend
-         explicitly; the auto default falls through.
-      3. "auto": embedded when a graph.db exists at --db/CIE_DB/cwd,
-         else Neo4j — the quickstart contract (``cie index .`` then the
-         documented query commands work on the SAME file, no Neo4j
-         required).
+    Thin adapter over `cie.config.resolve_backend` — the ONE rule
+    shared with `cie-mcp` (that docstring owns the resolution order:
+    `--backend` naming a backend > `CIE_BACKEND` naming a backend >
+    auto — embedded when the graph file exists, else Neo4j). ctx
+    carries the click `--backend`/`CIE_BACKEND` option value (which
+    may be the string "auto"), and auto-detection checks the
+    embedded graph file this caller would use.
     """
-    opt = ctx.obj.get("backend_opt")
-    if opt:
-        return opt
-    # CIE_BACKEND env rides the click option's envvar into ctx.obj when
-    # set, so opt above carries it; read it directly for the not-set case.
-    explicit_env = os.environ.get("CIE_BACKEND", "").strip().lower()
-    if explicit_env in ("embedded", "neo4j"):
-        return explicit_env
-    # auto
-    if _embedded_db_path(ctx.obj.get("db_opt")).is_file():
-        return "embedded"
-    return "neo4j"
+    from cie.config import resolve_backend
+
+    return resolve_backend(
+        ctx.obj.get("backend_opt"),
+        db_path=_embedded_db_path(ctx.obj.get("db_opt")),
+    )
 
 
 class HierarchySQLiteUnavailable(RuntimeError):
@@ -668,7 +660,7 @@ def index(ctx, path: Path, db: Optional[Path]) -> None:
 
     \b
         cie index .
-        cie-mcp . --embedded   # serve the index just built, no Neo4j
+        cie-mcp . --backend embedded   # serve the index just built, no Neo4j
     """
     from cie.callgraph import (
         resolve_call_edges,
@@ -718,7 +710,7 @@ def index(ctx, path: Path, db: Optional[Path]) -> None:
         return
     console.print(f"[green]indexed[/green] {payload['files_scanned']} files -> {db_path}")
     console.print(f"  nodes: {written}   edges: {payload['edges']} ({payload['call_edges']} calls)")
-    console.print(f"  try: [bold]cie-mcp {resolved} --embedded[/bold] to serve this over MCP")
+    console.print(f"  try: [bold]cie-mcp {resolved} --backend embedded[/bold] to serve this over MCP")
 
 
 # ---------------------------------------------------------------------------

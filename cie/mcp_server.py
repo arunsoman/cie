@@ -36,6 +36,7 @@ difference callers see is ``call_tool``'s return: 2.x returns a
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -139,9 +140,17 @@ def _build_arg_parser() -> argparse.ArgumentParser:
              "'forge'/'orchestrator'/'miner'/'inspector' still work.",
     )
     parser.add_argument(
+        "--backend", default=None, choices=["auto", "embedded", "neo4j"],
+        help="Storage backend (default: CIE_BACKEND env, else auto — the same "
+             "one rule the `cie` CLI uses: auto serves the embedded SQLite "
+             "graph when <project_root>/.cie/graph.db exists, else Neo4j). "
+             "Explicit embedded/neo4j always wins over auto and over the env.",
+    )
+    parser.add_argument(
         "--embedded", action="store_true",
-        help="Zero-config: use a local SQLite graph instead of Neo4j "
-             "— run `cie index PROJECT_ROOT` "
+        help="Alias of --backend embedded (kept so every entry registered "
+             "by `cie init` up to 0.1.2 keeps working). Zero-config: use a "
+             "local SQLite graph instead of Neo4j — run `cie index PROJECT_ROOT` "
              "first. Task/QA tracking (Phase 0.5) is included via a second "
              "local SQLite file — see --no-task-tracking to disable it.",
     )
@@ -191,7 +200,21 @@ def main(argv: list[str] | None = None) -> None:
     args = _build_arg_parser().parse_args(argv)
     policy = resolve_policy(args.policy)
 
-    if args.embedded:
+    # The SAME one-rule backend selection the `cie` CLI uses (R2's
+    # contract, generalized in cie.config.resolve_backend): explicit
+    # --backend > CIE_BACKEND env > the --embedded alias > auto (serve
+    # <project_root>/.cie/graph.db when it exists, else Neo4j).
+    from cie.config import resolve_backend
+
+    db_path = (
+        args.db if args.db is not None
+        else Path(args.project_root) / ".cie" / "graph.db"
+    )
+    backend = resolve_backend(
+        args.backend, embedded_flag=args.embedded, db_path=db_path,
+    )
+
+    if backend == "embedded":
         from cie.factory import build_tool_service_embedded
 
         service = build_tool_service_embedded(
@@ -199,6 +222,7 @@ def main(argv: list[str] | None = None) -> None:
             task_db_path=args.task_db, task_tracking=not args.no_task_tracking,
             hierarchy_tracking=not args.no_hierarchy,
         )
+        storage = str(db_path)
     else:
         from cie.config import CieConfig, Neo4jConfig
         from cie.factory import build_tool_service_from_config
@@ -216,6 +240,18 @@ def main(argv: list[str] | None = None) -> None:
             neo4j=neo4j or Neo4jConfig.from_env(),
         )
         service = build_tool_service_from_config(config)
+        storage = f"{config.neo4j.uri} (db: {config.neo4j.database})"
+
+    # One diagnostic line, to STDERR only — stdout is the JSON-RPC
+    # channel for stdio transports and must stay protocol-clean; the
+    # client's own logs surface this line, so a wrong-backend surprise
+    # is never silent.
+    print(
+        f"cie-mcp: backend={backend} storage={storage} "
+        f"policy={args.policy} project={args.project or '-'} "
+        f"transport={args.transport}",
+        file=sys.stderr, flush=True,
+    )
 
     server = build_mcp_server(service, policy)
     if args.transport == "stdio":

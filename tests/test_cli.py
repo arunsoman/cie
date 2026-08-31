@@ -214,6 +214,19 @@ class TestBackendSelection:
         other.write_text("")
         assert _selected_backend(self._ctx(db=other)) == "embedded"
 
+    def test_explicit_auto_means_auto_not_neo4j(self, tmp_path, monkeypatch):
+        """Regression (found live 2026-08-31): the pre-centralization
+        `if opt: return opt` returned the truthy string "auto", and
+        `_open_backend` then treated it as Neo4j — an indexed project
+        queried the wrong store. Explicit --backend auto must MEAN auto."""
+        monkeypatch.delenv("CIE_BACKEND", raising=False)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".cie").mkdir()
+        (tmp_path / ".cie" / "graph.db").write_text("")
+        assert _selected_backend(self._ctx(backend="auto")) == "embedded"
+        (tmp_path / ".cie" / "graph.db").unlink()
+        assert _selected_backend(self._ctx(backend="auto")) == "neo4j"
+
     def test_embedded_db_path_default_is_cwd(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         assert _embedded_db_path(None) == tmp_path / ".cie" / "graph.db"

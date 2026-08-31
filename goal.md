@@ -15,6 +15,15 @@ actually true. Each item's rationale is its own text below — the plan
 that used to live in `docs/growth-plan.md` Phase 0.5 was folded into
 this file on 2026-08-30 (see Provenance next).
 
+**Product principle (stated 2026-08-31, owner's words):** *least
+friction to users and their existing infrastructure.* Concretely: the
+default path works with zero decisions (auto backend selection — an
+indexed project just serves); one explicit knob (`--backend`,
+`CIE_BACKEND`) when the user does care, identical across front-ends;
+existing env vars (`NEO4J_*`, legacy `CIE_NEO4J_*`) and every old
+spelling (`cie-mcp --embedded`) keep working forever; whatever the
+system picks is stated, never silent (stderr startup line).
+
 ## Provenance — `docs/growth-plan.md` folded here (R4, 2026-08-30)
 
 `docs/growth-plan.md` Phase 0.5 was the launch-readiness plan this doc

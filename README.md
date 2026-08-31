@@ -107,7 +107,7 @@ Already installed and prefer the client-side route? The same
 registration as one command inside Claude Code:
 
 ```bash
-claude mcp add cie -- $(command -v cie-mcp) /path/to/your/project --embedded --policy readonly
+claude mcp add cie -- $(command -v cie-mcp) /path/to/your/project --backend embedded --policy readonly
 ```
 
 **Multiple projects?** Run `cie init` inside each — clients namespace
@@ -153,7 +153,7 @@ this public tree.
 ```bash
 pip install "cie-mcp[mcp]"
 cie index /path/to/your/project
-cie-mcp /path/to/your/project --embedded
+cie-mcp /path/to/your/project --backend embedded
 ```
 
 > Until the PyPI upload lands (blocked on the maintainer's token —
@@ -194,7 +194,7 @@ a snapshot, not an app.
 ### Serving over HTTP instead of stdio
 
 ```bash
-cie-mcp /path/to/project --embedded --policy inspector \
+cie-mcp /path/to/project --backend embedded --policy inspector \
   --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 
@@ -362,6 +362,30 @@ the HTTP routes.
   semantic search (requires embeddings written at load time).
 
 ### Storage backends & config (`config.py`, `factory.py`)
+
+**Choosing storage — one rule, every front-end** (motto: *least
+friction to users and their existing infrastructure*). You never have
+to choose for the default path to work; one explicit knob exists for
+when you care, and it's the same everywhere:
+
+| Front-end | How to select |
+|---|---|
+| `cie` CLI (query commands) | `--backend {auto,embedded,neo4j}` (also rides `CIE_BACKEND` env); default **auto** |
+| `cie-mcp` (MCP server) | same `--backend` choices + `CIE_BACKEND`; `--embedded` stays a permanent alias (every entry `cie init` ever wrote keeps working) |
+| `cie-mcp` auto (no flags) | serves `<root>/.cie/graph.db` when it exists, else Neo4j — the quickstart contract, and the choice is **stated on stderr at startup** (`backend=… storage=…`), never silent |
+| `cie index` / `cie load` / `watch` / `serve` | purpose-pinned: index → embedded SQLite; load/watch/serve/bootstrap → Neo4j (they say so honestly if you ask for embedded) |
+| HTTP tool-mount (`cie/routes.py`) | Neo4j today — the forge/CI path; embedded-over-HTTP is not claimed |
+
+Resolution order (first hit wins): explicit `--backend` naming
+embedded/neo4j › `CIE_BACKEND` naming one (a stray value falls through,
+never crashes a run) › `--embedded` alias › auto (graph file exists?).
+Selection is orthogonal to *configuration*: Neo4j connection settings
+come from `NEO4J_URI`/`NEO4J_USERNAME`/`NEO4J_PASSWORD` (or legacy
+`CIE_NEO4J_*` overrides, or `--neo4j-*` on `cie-mcp`) however you
+selected it. Auto means an indexed project just serves — no Neo4j
+running, no decision forced; a team on Neo4j sets `CIE_BACKEND=neo4j`
+once and every front-end obeys.
+
 - `Neo4jConfig.from_env()` — reads `NEO4J_*` (or legacy `CIE_NEO4J_*`
   override) plus per-operation timeouts
   (`CIE_NEO4J_QUERY_TIMEOUT_S`, `..._WRITE_TIMEOUT_S`, `..._SCHEMA_TIMEOUT_S`).

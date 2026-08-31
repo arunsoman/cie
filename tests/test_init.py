@@ -60,7 +60,7 @@ def test_init_registers_claude_code_project_mcp_json(home, project):
     assert Path(entry["command"]).is_absolute()
     assert entry["args"][-1] == "readonly"
     assert str(project) in entry["args"]
-    assert "--embedded" in entry["args"]
+    assert entry["args"][-4:-2] == ["--backend", "embedded"]
 
 
 def test_server_command_prefers_absolute_script(monkeypatch):
@@ -83,7 +83,9 @@ def test_server_command_falls_back_to_module_when_not_on_path(monkeypatch):
     entry = _server_entry(Path("/proj"), "readonly")
     assert entry["command"] == sys.executable
     assert entry["args"][:2] == ["-m", "cie.mcp_server"]
-    assert entry["args"][2:] == ["/proj", "--embedded", "--policy", "readonly"]
+    assert entry["args"][2:] == [
+        "/proj", "--backend", "embedded", "--policy", "readonly",
+    ]
 
 
 def test_init_defaults_to_readonly_policy(home, project):

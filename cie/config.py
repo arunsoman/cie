@@ -150,3 +150,48 @@ class CieConfig:
         """Convenience constructor matching `Neo4jConfig.from_env()`'s own
         env-var convention — still fully optional; nothing requires it."""
         return cls(project_root=Path(project_root), project=project, neo4j=Neo4jConfig.from_env())
+
+
+def resolve_backend(
+    flag: Optional[str] = None,
+    env: Optional[str] = None,
+    *,
+    embedded_flag: bool = False,
+    db_path: Optional[Path] = None,
+) -> str:
+    """ONE storage-backend selection rule, shared by every front-end.
+
+    Callers pass their own knobs; the answer is ``"embedded"`` or
+    ``"neo4j"``. Resolution order (first hit wins):
+
+      1. ``flag`` naming ``embedded``/``neo4j`` — the explicit
+         ``--backend`` choice, always honored. ``"auto"`` (or anything
+         else/unset) falls through to detection below — an explicit
+         ``--backend auto`` must MEAN auto, never accidentally pin a
+         backend. (Centralizing this fixed a live-found bug, 2026-08-31:
+         the CLI's own ``if opt: return opt`` returned the truthy string
+         ``"auto"`` and ``_open_backend`` then treated it as Neo4j —
+         an indexed project queried the wrong store.)
+      2. ``CIE_BACKEND`` env naming ``embedded``/``neo4j`` (explicit
+         values only; unset/other values fall through — tolerant by
+         design: a stray value never crashes a query run).
+      3. ``embedded_flag`` — `cie-mcp`'s historical boolean
+         ``--embedded``, a permanent alias of ``--backend embedded``
+         (every entry registered by ``cie init`` up to 0.1.2 keeps
+         working unchanged).
+      4. auto: ``embedded`` when ``db_path`` (the graph file this
+         caller would use) exists, else ``neo4j`` — the quickstart
+         contract: index a project, then query/serve the SAME file,
+         no Neo4j required.
+    """
+    f = (flag or "").strip().lower()
+    if f in ("embedded", "neo4j"):
+        return f
+    e = (env if env is not None else os.environ.get("CIE_BACKEND", "")).strip().lower()
+    if e in ("embedded", "neo4j"):
+        return e
+    if embedded_flag:
+        return "embedded"
+    if db_path is not None and Path(db_path).is_file():
+        return "embedded"
+    return "neo4j"

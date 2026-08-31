@@ -9,7 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet — 0.1.2's changes are directly below.
+### Added
+
+- **One storage-backend selection rule, every front-end** (motto:
+  *least friction to users and their existing infrastructure*).
+  `cie.config.resolve_backend` is now the single rule — explicit
+  `--backend {auto,embedded,neo4j}` › `CIE_BACKEND` env (a stray value
+  falls through to auto, never crashes a run) › the `--embedded`
+  alias › auto (serve `<root>/.cie/graph.db` when it exists, else
+  Neo4j) — and `cie-mcp` now uses it too, so the MCP server and the
+  CLI obey the same variable and flag. `cie-mcp` states its resolved
+  choice on **stderr at startup** (`backend=… storage=… policy=…
+  transport=…`), never silent, and stdout stays byte-clean (it is the
+  JSON-RPC channel). `cie init` writes the canonical `--backend
+  embedded` in new registrations; every `--embedded` entry ever
+  written keeps working unchanged (permanent alias). Selection is
+  orthogonal to configuration: `NEO4J_*` / legacy `CIE_NEO4J_*` /
+  `--neo4j-*` still configure Neo4j however you selected it. HTTP
+  tool-mount remains Neo4j-only (documented as such). README gained
+  the per-front-end selection matrix under "Storage backends &
+  config".
+
+### Fixed
+
+- **Explicit `--backend auto` was read as Neo4j** (the CLI's
+  `_selected_backend` returned the truthy string `"auto"`, and
+  `_open_backend` treated any non-"embedded" value as Neo4j — an
+  indexed project queried the wrong store). Found live 2026-08-31
+  while unifying selection; the shared resolver fixes it by
+  construction ("auto" falls through to detection), pinned by a
+  regression test.
 
 ## [0.1.2] - 2026-08-31 — native client compatibility + one-click install
 

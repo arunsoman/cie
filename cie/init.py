@@ -95,7 +95,7 @@ def _server_entry(root: Path, policy: str) -> dict:
     command, prefix = _server_command()
     return {
         "command": command,
-        "args": [*prefix, str(root), "--embedded", "--policy", policy],
+        "args": [*prefix, str(root), "--backend", "embedded", "--policy", policy],
     }
 
 
@@ -140,7 +140,9 @@ def _codex_snippet(root: Path, policy: str) -> str:
 
 def _context_block(root: Path, policy: str) -> str:
     command, prefix = _server_command()
-    shown = " ".join([command, *prefix, str(root), "--embedded", "--policy", policy])
+    shown = " ".join(
+        [command, *prefix, str(root), "--backend", "embedded", "--policy", policy]
+    )
     return f"""{BEGIN}
 ## cie — Code Insight Engine (managed by `cie init`)
 

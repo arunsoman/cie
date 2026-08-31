@@ -2415,3 +2415,26 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   README one-click section gained the "Multiple projects?" note with
   the dated live verification. No code change this pass. Suite 294
   (ritual). Next update appends here.
+- **2026-08-31 (implementation pass 23)** — storage selection unified
+  under the owner's stated motto (*least friction to users and their
+  existing infrastructure*, recorded in goal.md as the product
+  principle). Found while mapping how a user selects a backend: the
+  CLI already had the clean rule (R2: `--backend` › `CIE_BACKEND` ›
+  auto), but `cie-mcp` ignored all of it (boolean `--embedded` only,
+  no env, no auto), HTTP is Neo4j-only, and README had no selection
+  matrix; ALSO found + fixed a live bug: explicit `--backend auto`
+  returned the truthy string "auto" and `_open_backend` read it as
+  Neo4j (regression-pinned). Changes: `cie.config.resolve_backend` is
+  the one shared rule; `cie-mcp` gains `--backend {auto,embedded,neo4j}`
+  + `CIE_BACKEND` + `--embedded` as permanent alias + a **stderr-only**
+  startup line stating backend/storage/policy/transport (stdout stays
+  protocol-clean — test-pinned); `cie init` writes canonical `--backend
+  embedded`; CLI hint prints teach the canonical form; README gained
+  the selection matrix (front-end × how) under Storage backends; the
+  no-flag default for `cie-mcp` is now auto (indexed project just
+  serves — behavior change, CHANGELOG-documented, every existing
+  registered entry carries `--embedded` and is unaffected). HTTP
+  Neo4j-only documented honestly. Suite 294 → 308 (new
+  tests/test_backend_selection.py: 13 — 7 resolver branches + 5
+  server-level incl. stdout-purity + parser; +1 CLI auto regression;
+  init tests updated to canonical args). Next update appends here.
