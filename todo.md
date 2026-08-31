@@ -2226,6 +2226,190 @@ re-sequencing rule overrides everything: a `⚠ DIFFERENTIATOR
 IMPACT` finding from the next delta scan pre-empts this tier.
 
 ---
+
+## P4 — graph-as-source (vision.md's biggest leap, step one)
+
+> Added 2026-08-31. Not a competitive-delta item like P3 — this
+> tranche is `vision.md`'s own "seeds and leaps" audit turned into
+> checkboxes: "the end of source code" is labeled the biggest leap
+> there, with an explicit unlock condition named in the doc itself —
+> "nothing renders a graph back into code yet. One toy demo... and
+> this section stops being poetry and becomes a roadmap item." R46–R50
+> is that item, planned against a real read of `cie/models.py`,
+> `cie/lang_adapter.py`, `cie/ast_store.py`, `cie/patch.py` on this
+> commit. Strictly sequential — each item is a hard precondition for
+> the next, not a parallelizable set like P3's.
+
+### [ ] R46 · Node-body unification (M)
+
+**State today (verified).** `Node` (`cie/models.py` L131–164) is a
+frozen dataclass of structural facts only: `signature`, `line_start`/
+`line_end`, `docstring`, a catch-all `properties` dict for kinds that
+need more (L155–164) — no body/AST payload field, by design (it's an
+extraction record, not a source-of-truth record). Separately,
+`cie.ast_store.FunctionEntry` (`cie/ast_store.py` L106) already holds
+exactly the renderable shape R47 will need (signature + span +
+nested-definition map, Python-AST-exact per this session's `get_meta`/
+`get_function` work) — but it's reached via `lookup_or_ingest(root,
+resolved_path, ...)` (L357), keyed by filesystem path, not by graph
+node id. The two systems that would need to agree on "this function"
+for R47+ don't share a key today.
+
+**Plan.**
+1. Give `Node` (or a sibling table keyed by node id, decide on the
+   join cost) a pointer to its `ast_store.FunctionEntry` — the
+   cheapest version is a resolvable `(source_file, signature)` pair
+   already on `Node` today (both fields exist), formalized into a
+   documented join, not a new stored field, if that proves sufficient.
+2. Only if the join is too lossy (ambiguous signatures, nested
+   defs not addressable) does this need a real new field — decide
+   from a real fixture, don't presuppose the heavier option.
+3. No new tool surface. Pure plumbing; the existing `get_meta`/
+   `get_function` contract is the proof structure to reuse.
+
+**Verify.** A fixture asserts one node id resolves to the identical
+body content through both the graph lookup path and the direct
+`ast_store` lookup, for a file with multiple same-named methods across
+classes (the ambiguity case that would break a naive path-only join).
+
+---
+
+### [ ] R47 · `cie/render.py` — Python round-trip renderer, the toy demo (M)
+
+**State today (verified).** Nothing renders. `LanguageAdapter`
+(`cie/lang_adapter.py` L35–43) is a one-way `Protocol`: the only method
+is `extract_file(path) -> Extraction` (L43); there is no `render`
+method on the contract, and no adapter (including the no-grammar/
+no-LSP one `vision.md` cites) implements one. This is the literal gap
+`vision.md`'s own audit names.
+
+**Plan.**
+1. New `cie/render.py`, Python-only, no new adapter-protocol method
+   yet (keep R47 scoped to proving the render is possible, not wiring
+   it into the adapter registry — that's R48+'s job): `render_function
+   (node) -> str`, `render_file(node) -> str`, walking the body R46
+   made addressable.
+2. The falsifiable success criterion, stated up front per this repo's
+   verify-not-write convention: `parse(path) → render → parse`
+   produces an identical AST, OR an explicitly documented normalization
+   (e.g. quote style, trailing whitespace) — decide which, pin it in a
+   test, never leave it implicit.
+3. No mutation path. `render.py` never touches disk; it's a pure
+   function over the model, callable in isolation.
+
+**Verify.** A round-trip fixture over a real file (this repo's own
+`cie/ast_store.py` is a good first target — it already has full
+signature/span coverage from this session's work) asserts identical-
+or-documented-normalized re-parse; a case with nested defs and
+decorators (the two things `get_function`'s payload already tracks)
+is in the fixture set, not just a flat function.
+
+---
+
+### [ ] R48 · Model-first edit path (L)
+
+**State today (verified).** `cie/patch.py`'s propose/apply/verify
+protocol (module docstring L1–33) is real and battle-tested — but its
+`changes` list is `old_text`/`new_text` string spans (`OP_EDIT`/
+`OP_CREATE`, L63–64; validation at L103–113 explicitly requires both
+to be strings). Every mutation is text in, text out; the graph/AST
+mirror re-syncs FROM the write (`_sync_graph_after_write`, this
+session's ast_store/file_index work) — the direction is filesystem →
+model, never the reverse.
+
+**Plan.**
+1. A new change shape alongside `OP_EDIT`/`OP_CREATE` — a node-level
+   change (e.g. "replace this function's body with this structure") —
+   validated the same way (`_validate_change`-style, mirrored for the
+   new shape), carried through the SAME `PatchPlan` object, same
+   PROPOSED → APPLIED → VERIFIED lifecycle, same diagnosis/evidence/
+   counterfactual/blast-radius fields. Reuse the safety protocol
+   wholesale; only the mutation primitive changes.
+2. `apply_patch`'s file-write step, for this change shape only, calls
+   R47's `render_file` and writes the render — still through
+   `write_files_atomic`'s snapshot+rollback (no new mutation surface;
+   this rides the same all-or-nothing apply cie already trusts).
+3. Explicitly out of scope for R48: cross-language (that's R49).
+   R48 proves "the model is what gets edited," in Python only.
+
+**Verify.** A ground-truth fixture: propose a node-level change,
+apply it, and the resulting file passes R47's parse-render-parse
+round-trip check; a rejected-at-apply case (current disk content
+diverged from the proposal's basis) behaves exactly like today's
+text-based `apply_patch` rejection — same REJECTED status, same
+re-validation-against-current-disk guarantee.
+
+---
+
+### [ ] R49 · Cross-language rendering, bounded scope (L)
+
+**State today (verified).** Nothing to port from — R48 is Python-only
+by construction. `vision.md`'s "ask for the same graph in Python or
+Rust" line is not a general solvable problem at full fidelity (arbitrary
+stdlib calls, language-specific idioms, no universal semantic mapping);
+treating it as one would break this repo's own honesty convention the
+same way rounding 9 languages up to "21-40+" would.
+
+**Plan.**
+1. Scope down explicitly, in writing, before any code: pure functions,
+   simple control flow (if/for/while, no comprehension-only sugar
+   assumed portable), no language-specific stdlib calls. Document the
+   boundary in `docs/adding-a-language.md` alongside the C declarator
+   trap and the Go/Rust import-edge gap — same idiom, new entry.
+2. Add `render(node, target_language) -> str` to a NEW capability, not
+   a required `LanguageAdapter` method (most adapters will never
+   implement it — that's honest, not a shortfall) — an adapter that
+   can't render a given node returns a named `unsupported` reason,
+   never a best-effort wrong answer.
+3. First cross-language pair: whichever two adapters share the most
+   R49-in-scope constructs (decide from a real survey of this repo's
+   own extracted functions across languages — don't guess).
+
+**Verify.** A fixture set of in-scope functions round-trips into the
+second language and re-parses cleanly there; every out-of-scope
+construct in the same fixture set fails LOUD with the `unsupported`
+reason (a test that would fail if it silently produced wrong code —
+the same "naive-skip" discipline R12's C guard used, applied to
+rendering instead of extraction).
+
+---
+
+### [ ] R50 · Render provenance (S)
+
+**State today (verified).** R7 (edge provenance — DONE 2026-08-30)
+already stamps graph/heuristic provenance and resolution counts on
+read paths; `record_verdict`-style confidence tracking already exists
+per `vision.md`'s own "half built" trust-layer note. Nothing today
+connects a RENDERED file back to the graph state/verdict that produced
+it, because nothing renders yet.
+
+**Plan.**
+1. Every render (R47 standalone, or R48's apply-time render) carries a
+   provenance stamp: graph version/commit + the verdict(s) attached to
+   the source node(s) — composition on R7's existing fields, not a new
+   confidence model.
+2. Surface it somewhere inspectable — a comment header in v1 is the
+   cheap, honest option (visible without a tool call); a dedicated
+   `render_provenance(path)` tool is the richer option — decide based
+   on whichever R47/R48 shipped with.
+
+**Verify.** A fixture renders a file and asserts the provenance stamp
+resolves back to the real graph commit + verdict that produced it; a
+render from an UNVERIFIED node's content carries that honestly too
+(no stamp implies unearned trust).
+
+---
+
+**P4 dependency chain:** R46 → R47 → R48 → R49, strictly sequential —
+each is a precondition, not a parallel track like P3's. R50 can start
+once R47 lands (it only needs SOMETHING rendering, not the full
+model-first edit path). Basis for the whole tranche: `vision.md`'s own
+seeds-and-leaps audit, surfaced in a 2026-08-31 session working through
+what the vision doc actually commits to vs. what stands on running
+code — see that file's closing section for the source language this
+tranche translates into checkboxes.
+
+---
 ## Session log
 
 - **2026-08-30 (planning pass):** read roadmap + goal + CONTRIBUTING;

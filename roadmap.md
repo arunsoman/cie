@@ -546,6 +546,73 @@ R40/R41/R42 independent; R32/R33/R34 independent. Re-sequencing rule
 unchanged: a DIFFERENTIATOR IMPACT finding from the next delta scan
 pre-empts everything in this tier.
 
+## P4 — graph-as-source (vision.md's biggest leap, step one)
+
+> Added 2026-08-31, from a session working through `vision.md`'s own
+> seeds-and-leaps audit: "the end of source code" is labeled the
+> **biggest leap** there — "nothing renders a graph back into code yet.
+> One toy demo... and this section stops being poetry and becomes a
+> roadmap item." R46–R50 is that item. Unlike P3, this tranche has no
+> competitive basis — it's the vision's own honesty audit turned into
+> checkboxes, gated on nothing but sequence (each item is a hard
+> prerequisite for the next).
+
+- [ ] **R46 · Node-body unification** (M). `Node` (`cie/models.py`
+      L131) is a frozen dataclass of structural facts — `signature`,
+      `line_start`/`line_end`, `docstring` — with no renderable body
+      field, and `cie.ast_store.FunctionEntry` (`cie/ast_store.py`
+      L106, looked up via `lookup_or_ingest` L357) is keyed by
+      `(root, resolved path)`, not by graph node id. The two systems
+      that would need to agree on "this function" for anything past
+      this point don't share a key today. Give a node a structured,
+      walkable body (Python's own `ast` tree, reusing `ast_store`'s
+      existing parse) addressable by node id. No new tool surface —
+      pure plumbing. **Verify:** a fixture asserts one node id resolves
+      to the same body through both the graph lookup and `ast_store`.
+- [ ] **R47 · `cie/render.py` — Python round-trip renderer, the toy
+      demo** (M). *Depends on R46.* `render_function(node) -> str`,
+      `render_file(node) -> str`, Python only. Success criterion is
+      falsifiable, not vibes: `parse(path) → render → parse` produces
+      an identical (or explicitly, documentedly normalized) AST. No
+      mutation path yet — this only proves the graph can BE a
+      rendering target. This is the demo `vision.md` says converts the
+      section from poetry to roadmap.
+- [ ] **R48 · Model-first edit path** (L). *Depends on R47.*
+      `propose_patch`/`apply_patch`/`verify_patch` (`cie/patch.py`)
+      mutate `old_text`/`new_text` string spans (`OP_EDIT`/`OP_CREATE`,
+      L63–113) — text in, text out, the graph re-syncs FROM the write
+      (this session's `ast_store`/`file_index` work). R48 inverts it: a
+      proposal against the MODEL (a node-level change), same
+      propose/apply/verify safety protocol reused as-is (diagnosis,
+      evidence, blast-radius, all-or-nothing apply), but `apply`
+      renders the model and writes the render. First point where files
+      stop being where edits happen. **Verify:** a ground-truth fixture
+      proposes a node-level change, applies it, and the resulting file
+      round-trips through R47's parse-render-parse check.
+- [ ] **R49 · Cross-language rendering, bounded scope** (L). *Depends
+      on R48.* "Ask for the same graph in Python or Rust" — the vision
+      line — is not a general solvable problem at full fidelity; scope
+      it honestly to a narrow subset (pure functions, simple control
+      flow, no language-specific stdlib calls) with the gap stated as
+      loudly as Go/Rust's documented import-edge gap. This is the
+      farthest-out item in the tranche and should be treated that way —
+      no rounding up. **Verify:** a fixture set of in-scope functions
+      renders correctly in a second language; every out-of-scope
+      construct fails LOUD (a named `unsupported` reason), never
+      silently wrong.
+- [ ] **R50 · Render provenance** (S). *Rides R47 or R48, either
+      order.* Every rendered file carries which graph version and which
+      recorded verdict produced it — composition on top of R7's
+      already-shipped edge-provenance/confidence work, not new
+      invention. Closes the loop back to the trust-layer pillar.
+      **Verify:** a rendered file's provenance stamp resolves back to a
+      real graph commit + verdict in a fixture.
+
+**P4 dependency chain:** R46 → R47 → R48 → R49 (strictly sequential —
+each is a precondition, not a parallel track); R50 can start once R47
+lands. Basis for the whole tranche: `vision.md`'s "seeds and leaps"
+section, this repo's own audit of itself.
+
 ## Not planned (watch-list — W1–W4 now PROMOTED into P3 above)
 
 *(Promoted 2026-08-31 per the owner's next-tranche direction: W1 → R24/
