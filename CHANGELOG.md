@@ -9,7 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet — 0.1.2's changes are directly below.
+
+## [0.1.2] - 2026-08-31 — native client compatibility + one-click install
+
+### Fixed
+
+- **Native client compatibility — spawn-robust `cie init` entries.**
+  Registered entries carried a bare `"cie-mcp"` command, which only
+  resolves if the MCP client's PATH includes the install bin —
+  GUI-launched Claude Code/Cursor/Codex processes typically don't, so
+  the entry failed to spawn in exactly the environment that matters
+  (the R15 handshake test had been compensating for this test-side).
+  `cie init` now resolves a spawn-robust command at registration time
+  — absolute console-script path (`shutil.which`), else the running
+  interpreter via `-m cie.mcp_server` — and writes it into project
+  `.mcp.json`, `~/.cursor/mcp.json`, the Codex TOML snippet, and the
+  managed `AGENTS.md`/`CLAUDE.md` context block alike. **Verified with
+  the real Claude Code CLI (2.1.251)**, not a mock client: `cie init`
+  → `claude mcp list` shows `cie … ✔ Connected` → a one-shot
+  `claude -p` agent call of `search_symbol` through the registered
+  entry returned the correct indexed file. Cursor/Codex are
+  format-verified against their documented config shapes only (not
+  installed on the test machine) — labeled as such, not claimed as
+  live. Suite 292 → 294 (two new resolution tests; the real-client
+  handshake test now spawns the entry exactly as written).
+
 ### Added
+
+- **One-click install, documented and live-verified (README top).**
+  One time: `uv tool install "cie-mcp[mcp] @
+  git+https://github.com/kannamma-labs/cie.git@v0.1.2"` (puts `cie` /
+  `cie-mcp` on PATH); per project: `cie init .` (index, register the
+  detected client with a spawn-robust entry, write the context
+  files). The whole chain — `uv tool install` from the tag, `cie
+  index`, `cie init` producing the absolute `~/.local/bin/cie-mcp`
+  entry, Claude Code `✔ Connected`, one-shot tool call — was run
+  end-to-end on 2026-08-31; README carries the dated record. Browser
+  deep-link "one-click" is deliberately NOT claimed: cie is a local
+  stdio server pointed at a specific project with a policy the
+  operator chooses — that is what `cie init` computes; a deep link
+  cannot.
+
+*Carried in from [Unreleased]: the R10 entry below shipped in the
+v0.1.1 artifact (commits b6393de/279ee53 are in tag v0.1.1) but had
+remained under [Unreleased] when 0.1.1 was cut for the rename — the
+entry text is unchanged, only its home.*
 
 - **R10 — first-party semantic retrieval, run and measured.**
   `cie.embed` gains a stdlib-only OpenAI-compatible embeddings client as

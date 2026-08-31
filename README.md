@@ -89,13 +89,38 @@ estimate is ever cited without its label):
   them labeled; live cuts re-measure from introspection, never edit
   history.
 
-Try it in two commands, no server, no signup — index a project into a
-local SQLite file and serve it to Claude Code, Cursor, or any MCP client,
-task/QA traceability included. Or one command to do all of it:
+Try it in one click per project, no clone, no server, no signup —
+install once from a release tag, then one command per project indexes
+it, registers cie with your MCP client (spawn-robust entry: absolute
+path, so GUI-launched clients find it), and writes the agent context
+files:
 
 ```bash
-cie init /path/to/your/project
+# once per machine (latest tag):
+uv tool install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"
+
+# per project — from inside the project:
+cie init .
 ```
+
+Already installed and prefer the client-side route? The same
+registration as one command inside Claude Code:
+
+```bash
+claude mcp add cie -- $(command -v cie-mcp) /path/to/your/project --embedded --policy readonly
+```
+
+> *(Verified live, 2026-08-31, with the real Claude Code CLI 2.1.251 —
+> not a mock client: `cie init` → `claude mcp list` shows
+> `cie … ✔ Connected` → a one-shot `claude -p` agent call of
+> `search_symbol` through the registered server returned the correct
+> indexed file; the whole `uv tool install` → `cie init` → connected
+> chain was run end-to-end. Cursor/Codex: config formats verified
+> against their documented shapes, but those apps aren't on the test
+> machine — format-verified, not claimed as live. Browser deep-link
+> "one-click" is deliberately not claimed: cie is a local stdio server
+> pointed at a specific project with a policy you choose — that's what
+> `cie init` computes; a deep link can't.)*
 
 Detects installed MCP clients (Claude Code via project `.mcp.json`,
 Cursor via `~/.cursor/mcp.json`), registers the stdio server
@@ -122,8 +147,10 @@ cie index /path/to/your/project
 cie-mcp /path/to/your/project --embedded
 ```
 
-> Until the 0.1.1 upload lands on PyPI, install from GitHub:
-> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git"`.
+> Until the PyPI upload lands (blocked on the maintainer's token —
+> tracked as roadmap R21), install from GitHub:
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"`
+> — or use the one-click `uv tool install` above.
 
 That's an MCP server over stdio — add it to Claude Code / Cursor / Codex /
 any MCP client the way you'd add any other local MCP server, and it can
@@ -208,7 +235,7 @@ pip install "cie-mcp[http]"  # + the HTTP tool-mount / mock server (cie/routes.p
 > get you this tool — never did). Import package stays `cie`; console
 > scripts stay `cie` and `cie-mcp`; tags/releases unchanged. GitHub
 > installs are an equal alternative:
-> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git"`.
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"`.
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
 tree-sitter (+ Python/JS/TS/Java/Go/Rust/C/C++/C# grammars), watchdog, Click,
