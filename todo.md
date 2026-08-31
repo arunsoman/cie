@@ -2415,6 +2415,32 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   README one-click section gained the "Multiple projects?" note with
   the dated live verification. No code change this pass. Suite 294
   (ritual). Next update appends here.
+- **2026-08-31 (implementation pass 26)** — README restructured per owner
+  direction: demo + install + contributors only; EVERYTHING else moved
+  to a new **GitHub developer wiki** (20 pages, pushed to the wiki repo,
+  commit 5384370). Wiki discipline kept: it's a git repo (kannamma-labs/
+  cie.wiki), pages carry "verified at v0.1.4" stamps, evidence STAYS
+  in-repo (wiki links to docs/ artifacts — benchmarks raw JSON, demo
+  casts, production log — never duplicates them; "if code and wiki
+  disagree, the code wins"). Hand-written from the tree: Architecture
+  (ingestion 3 passes incl. current 4-heuristics TESTS truth, storage +
+  one selection rule, ToolService/envelope, policy write boundary,
+  front-ends, optional-deps envelope) + Home nav + 10 how-tos
+  (install/serve incl. multi-project, storage selection, Neo4j team
+  mode, freshness, impact questions = the demo workflow, task/QA
+  layer, semantic search w/ no-accidental-network rule, snapshot/HTTP,
+  policies, troubleshoot from real 2026-08-31 errors) + Benchmarks
+  (headline numbers → raw artifacts) + Contributing details. Reference
+  sections migrated by script with link fixes (docs/ → absolute blob
+  URLs); missed slices appended (task layer, front-ends, storage
+  matrix); extraction page PATCHED to the current 4-heuristic truth
+  (the migrated README text predated heuristic 4). README: kept title,
+  badges (tests badge corrected 279 → 312), pitch line + wiki pointer,
+  demo + caption, condensed Install (one-click + one-liner + pip +
+  package-name note + deps line), NEW "Contributors wanted" (honesty
+  culture, measured-gaps path, good-first-issue label + #17-19, wiki
+  contributing page, CONTRIBUTING.md), License. No code change; docs
+  restructure. Suite 312 (ritual). Next update appends here.
 - **2026-08-31 (implementation pass 23)** — storage selection unified
   under the owner's stated motto (*least friction to users and their
   existing infrastructure*, recorded in goal.md as the product
