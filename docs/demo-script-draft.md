@@ -132,10 +132,19 @@ click…". Draft caption:
 
 ## 9. Owner approval checklist
 
-1. Format: **A** (recommended) / B / C / D?
-2. Question wording (§5) — keep, or sharpen?
-3. End-card text (§4 last beat) — keep as drafted?
-4. Corpus: requests@5460f467, or a different repo (e.g. cie itself for
-   the dogfooding story — weaker: less famous, no big test suite)?
-5. Cut v0.1.3 first (required for `--backend` on screen) — yes/no?
-6. Uncut cast committed in-repo vs. linked as GitHub release asset?
+**DECIDED 2026-08-31 (owner):**
+
+1. Format: **A — approved.**
+2. Question wording: **keep verbatim** (recommended + accepted — it is
+   the exact wording of the verified §8 session; re-rolling risks a
+   weaker capture).
+3. End-card text: **keep as drafted** (recommended + accepted — every
+   phrase is a pinned/verified fact).
+4. Corpus: **psf/requests @ 5460f467** (recommended + accepted).
+5. **v0.1.3 cut before recording** (required — `--backend` on screen
+   must be shipped behavior; recommended + accepted).
+6. Uncut cast: **committed in-repo** (`docs/demo/session-close-uncut.cast`,
+   recommended + accepted — lives with the code, no external host).
+
+Recording may proceed under these decisions; README embed + GIF
+publishing happen in the same change as the recording artifacts.

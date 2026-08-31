@@ -97,7 +97,7 @@ files:
 
 ```bash
 # once per machine (latest tag):
-uv tool install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"
+uv tool install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.3"
 
 # per project — from inside the project:
 cie init .
@@ -158,7 +158,7 @@ cie-mcp /path/to/your/project --backend embedded
 
 > Until the PyPI upload lands (blocked on the maintainer's token —
 > tracked as roadmap R21), install from GitHub:
-> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"`
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.3"`
 > — or use the one-click `uv tool install` above.
 
 That's an MCP server over stdio — add it to Claude Code / Cursor / Codex /
@@ -244,7 +244,7 @@ pip install "cie-mcp[http]"  # + the HTTP tool-mount / mock server (cie/routes.p
 > get you this tool — never did). Import package stays `cie`; console
 > scripts stay `cie` and `cie-mcp`; tags/releases unchanged. GitHub
 > installs are an equal alternative:
-> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.2"`.
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.3"`.
 
 Core dependencies (`pyproject.toml`): Neo4j driver, Pydantic v2,
 tree-sitter (+ Python/JS/TS/Java/Go/Rust/C/C++/C# grammars), watchdog, Click,

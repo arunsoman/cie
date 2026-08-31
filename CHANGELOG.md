@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet — 0.1.3's changes are directly below.
+
+## [0.1.3] - 2026-08-31 — one storage-backend selection rule, every front-end
+
+*The owner's stated product principle, enforced in code and docs:
+**least friction to users and their existing infrastructure** — the
+default path works with zero decisions, one explicit knob when you
+care, and whatever the system picks is stated, never silent.*
+
 ### Added
 
 - **One storage-backend selection rule, every front-end** (motto:
