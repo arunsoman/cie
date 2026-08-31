@@ -11,11 +11,19 @@ touches existing config, and that re-runs are no-ops.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
-from cie.init import BEGIN, END, detect_clients, run_init
+from cie.init import (
+    BEGIN,
+    END,
+    _server_command,
+    _server_entry,
+    detect_clients,
+    run_init,
+)
 
 
 @pytest.fixture()
@@ -48,9 +56,34 @@ def test_init_registers_claude_code_project_mcp_json(home, project):
     report = run_init(project, home, clients=["claude-code"])
     data = json.loads((project / ".mcp.json").read_text())
     entry = data["mcpServers"]["cie"]
-    assert entry["command"] == "cie-mcp"
-    assert entry["args"][0] == str(project)
-    assert "--policy" in entry["args"] and "readonly" in entry["args"]
+    # spawn-robust: never a bare name the client's PATH has to resolve
+    assert Path(entry["command"]).is_absolute()
+    assert entry["args"][-1] == "readonly"
+    assert str(project) in entry["args"]
+    assert "--embedded" in entry["args"]
+
+
+def test_server_command_prefers_absolute_script(monkeypatch):
+    """Resolution order 1: the console script on PATH resolves to its
+    ABSOLUTE path (spawnable by any client environment, PATH-free)."""
+    monkeypatch.setattr("cie.init.shutil.which", lambda name: "/opt/bin/cie-mcp")
+    command, prefix = _server_command()
+    assert (command, prefix) == ("/opt/bin/cie-mcp", [])
+
+
+def test_server_command_falls_back_to_module_when_not_on_path(monkeypatch):
+    """Resolution order 2 (the common venv case): bare `cie-mcp` is NOT
+    on the client's PATH — the entry carries the running interpreter +
+    `-m cie.mcp_server`, which needs no PATH at all."""
+    monkeypatch.setattr("cie.init.shutil.which", lambda name: None)
+    command, prefix = _server_command()
+    assert command == sys.executable
+    assert prefix == ["-m", "cie.mcp_server"]
+    # and the generated entry composes it correctly:
+    entry = _server_entry(Path("/proj"), "readonly")
+    assert entry["command"] == sys.executable
+    assert entry["args"][:2] == ["-m", "cie.mcp_server"]
+    assert entry["args"][2:] == ["/proj", "--embedded", "--policy", "readonly"]
 
 
 def test_init_defaults_to_readonly_policy(home, project):
@@ -140,7 +173,10 @@ def test_init_no_context_flag_skips_context_files(home, project):
 
 def test_registered_entry_passes_the_real_client_handshake(home, project):
     """The R15 verify's cie-side half: the registered entry IS the server
-    a client would spawn — run it over real stdio and list tools."""
+    a client would spawn — run it over real stdio and list tools. Since
+    the native-compat fix (2026-08-31) the entry is spawned AS WRITTEN:
+    no test-side compensation for a bare command the client's PATH
+    can't resolve — the entry itself is spawn-robust."""
     import asyncio
     import os
 
@@ -152,14 +188,6 @@ def test_registered_entry_passes_the_real_client_handshake(home, project):
     entry = json.loads((project / ".mcp.json").read_text())["mcpServers"]["cie"]
     env = {**os.environ, "PYTHONPATH": os.environ.get("PYTHONPATH", "")}
 
-    import shutil, sys
-
-    if shutil.which("cie-mcp") is None:
-        # editable-install-less environments: same server via the module
-        entry = {
-            "command": sys.executable,
-            "args": ["-m", "cie.mcp_server", *entry["args"]],
-        }
     async def handshake():
         params = StdioServerParameters(
             command=entry["command"], args=entry["args"], env=env,

@@ -28,6 +28,8 @@ Design decisions, stated:
 from __future__ import annotations
 
 import json
+import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,14 +39,6 @@ _CIE_SERVER_NAME = "cie"
 #: append-or-replace contract above.
 BEGIN = "<!-- cie:init:begin -->"
 END = "<!-- cie:init:end -->"
-
-SERVER_ARGS_TEMPLATE = [
-    "cie-mcp",
-    "{root}",
-    "--embedded",
-    "--policy",
-    "{policy}",
-]
 
 
 @dataclass
@@ -75,10 +69,33 @@ def detect_clients(home: Path, project_root: Path) -> list[str]:
     return found
 
 
+def _server_command() -> tuple[str, list[str]]:
+    """Spawn-robust (command, prefix-args) for the MCP CLIENT's process.
+
+    Native-compatibility fix (2026-08-31): a bare ``"cie-mcp"`` only
+    resolves via the *client's* PATH — which is NOT the PATH `cie init`
+    ran under (GUI-launched apps notoriously carry a minimal one), so a
+    bare name made the registered entry fail to spawn in exactly the
+    environment that matters. Resolution order:
+
+      1. absolute path of the console script (``shutil.which``) —
+         PATH-independent once resolved;
+      2. the interpreter running `cie init` via ``-m cie.mcp_server`` —
+         works from any venv/install where cie is importable (the same
+         fallback `tool-test-lab/dogfood_mcp_stdio_list.py` has had to
+         apply since R15; moved here so real clients get it for free).
+    """
+    exe = shutil.which("cie-mcp")
+    if exe:
+        return exe, []
+    return sys.executable, ["-m", "cie.mcp_server"]
+
+
 def _server_entry(root: Path, policy: str) -> dict:
+    command, prefix = _server_command()
     return {
-        "command": "cie-mcp",
-        "args": [str(root), "--embedded", "--policy", policy],
+        "command": command,
+        "args": [*prefix, str(root), "--embedded", "--policy", policy],
     }
 
 
@@ -122,6 +139,8 @@ def _codex_snippet(root: Path, policy: str) -> str:
 
 
 def _context_block(root: Path, policy: str) -> str:
+    command, prefix = _server_command()
+    shown = " ".join([command, *prefix, str(root), "--embedded", "--policy", policy])
     return f"""{BEGIN}
 ## cie — Code Insight Engine (managed by `cie init`)
 
@@ -131,8 +150,9 @@ stores). Call cie's MCP tools (`search_symbol`, `callers`, `callees`,
 `callers("name")` answers "who calls this" with receiver-resolved,
 confidence-tagged edges; grep cannot.
 
-- Server: `cie-mcp {root} --embedded --policy {policy}` (already
-  registered for this project by `cie init`).
+- Server (spawn-robust entry, as registered by `cie init` — absolute
+  path, or the venv interpreter via `-m` when the script isn't on the
+  client's PATH): `{shown}`
 - Share a snapshot: `cie export-html . --out snapshot.html` (static
   file, no server).
 - Re-index after landing changes: `cie index {root}`.

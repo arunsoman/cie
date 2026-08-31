@@ -100,7 +100,11 @@ cie init /path/to/your/project
 Detects installed MCP clients (Claude Code via project `.mcp.json`,
 Cursor via `~/.cursor/mcp.json`), registers the stdio server
 (idempotent, existing entries untouched), and writes managed context
-blocks into `AGENTS.md`/`CLAUDE.md`. Default policy is **readonly** —
+blocks into `AGENTS.md`/`CLAUDE.md`. Registered entries are
+**spawn-robust**: an absolute command path (or the interpreter via
+`-m cie.mcp_server` when the console script isn't on the client's PATH),
+so GUI-launched clients spawn the server without PATH surprises.
+Default policy is **readonly** —
 the client gets the read tools until you pass `--policy full` (the
 opt-in, not the default). Codex is detected and the exact TOML snippet
 printed (never auto-edited). Point it at Neo4j instead for a real

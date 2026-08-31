@@ -2335,5 +2335,21 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   ubuntu-only CI matrix; no MCP resources/prompts surface;
   sync_load_commit/sync_ast_delta/record_test_result/TestExecution all
   exist (impact/overlay are composites, not new graph machinery); no
-  tokenizer dep; watchdog Observer present in start_watch. Next update
-  appends here. Next update appends here.
+  tokenizer dep; watchdog Observer present in start_watch.
+- **2026-08-31 (implementation pass 20)** — native client compatibility
+  fixed + live-verified: `cie init` no longer registers a bare
+  `"cie-mcp"` command (unresolvable by GUI-launched clients whose
+  PATH lacks the venv bin — the real-world spawn failure); entries are
+  now spawn-robust (absolute script path, else the running interpreter
+  via `-m cie.mcp_server`) in `.mcp.json`, Cursor's config, and the
+  Codex TOML snippet alike; the managed context block shows the same
+  command. Verified NATIVELY with the real Claude Code CLI (2.1.251):
+  `cie init` → `claude mcp list` ✔ Connected → a one-shot
+  `claude -p` agent call of `search_symbol` through the server returned
+  the correct indexed file, entry spawned exactly as registered;
+  test-side PATH compensation removed (the entry is spawned as
+  written). Cursor/Codex not installed here: format-verified against
+  their documented config shapes (Cursor shares Claude Code's JSON
+  shape; Codex `[mcp_servers.*]` TOML) — noted as such, not claimed as
+  live. Suite 292 → 294 (init tests: 15 incl. two new resolution tests).
+  Next update appends here. Next update appends here.
