@@ -2460,3 +2460,32 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   the draft's §9 (format A/B/C/D, question wording, end card, corpus,
   0.1.3, cast hosting). No code change this pass. Suite 308 (ritual
   run below). Next update appends here.
+- **2026-08-31 (implementation pass 25)** — the 30-second README demo
+  PRODUCED, installed, and owner-approved (visual QC waived). Corpus
+  redirected by the owner mid-production: psf/requests → **cie
+  itself** (dogfooding), question re-targeted to `resolve_backend`.
+  Dogfooding first caught a REAL PRODUCT BUG: cie's own 308-test
+  suite resolved exactly **1 TESTS edge** (behavioral names + monkeypatch
+  starve heuristics 1-3) → testlink **heuristic (4): direct-calls
+  TESTS edges** (production-code targets only; conftest.py excluded;
+  no duplicates) — measured 1 → **562** TESTS edges on cie itself,
+  test_map(resolve_backend) 0 → 7 — released as **v0.1.4** so the
+  demo's clone ships it (suite 308 → 312; tag + GH release live; uv
+  tool reinstalled). Production (production-house style): PTY
+  recorder (pyte/PIL truecolor frames + asciinema v2 uncut casts,
+  prompt-gated typing, watcher cooldowns), 2 keeper takes — setup
+  (clone v0.1.4 → index 1,902/6,581/4,169 in ~1.9s → one-liner →
+  `claude mcp list` `✔ Connected`) and the agent session (99.2s,
+  claude TUI with ALL built-ins disallowed so cie's tools are the only
+  path — the agent returned the 7 pinning tests with line numbers,
+  citing "the specific bug fixed 2026-08-31"). Retake bugs found+fixed
+  in the recorder: child cwd, typing-buffer overwrite, prompt-redraw
+  race, PS1 glyph, trust-dialog default is "No, exit" (↓+Enter
+  required), --allowedTools grants-but-doesn't-restrict in TUI mode.
+  Post: 354 frames @12fps = 29.5s, 1000x585, palette GIF 4.1MB;
+  edit rule = time-compression only, content never edited. Installed
+  in README top (replacing the demo.svg EMBED — file kept, story
+  linked); shipped artifacts: docs/demo/{cie-demo-30s.gif (4.1MB),
+  resolve-backend-uncut.cast, setup-uncut.cast, production-log.md,
+  prod/ scripts}. CHANGELOG [Unreleased] entry added. Suite 312
+  (ritual). Next update appends here.

@@ -9,7 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet — 0.1.4's changes are directly below.
+### Added
+
+- **README top: a 30-second demo — cie, asked about itself** (owner
+  approved format A, final visual QC waived). Every second is a real
+  recorded session against a fresh clone of this repo at tag `v0.1.4`:
+  `cie index .` (1,902 nodes · 6,581 edges · 4,169 calls, ~1.9s), the
+  README one-liner registering it with Claude Code (`✔ Connected`),
+  then one plain-words question about `resolve_backend` answered from
+  cie's tools alone (built-ins disabled for the take): 7 pinning tests
+  with line numbers, including the regression test added for the
+  explicit-`auto` bug fixed the same day; ends with the one-file HTML
+  snapshot. Edit rule: time-compression only — content never edited —
+  and the uncut casts ship in-repo
+  (`docs/demo/{resolve-backend,setup}-uncut.cast`), plus the full
+  take/retake/QC record (`docs/demo/production-log.md`) and the
+  production scripts (`docs/demo/prod/`) for reproducibility. The
+  354-frame GIF is 4.1 MB; the earlier static `demo.svg` embed was
+  replaced (the file stays, story linked from the README caption).
 
 ## [0.1.4] - 2026-08-31 — direct-calls TESTS edges (dogfooding fix)
 

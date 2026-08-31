@@ -28,16 +28,27 @@ in the same graph as the code. It also extends to languages with no LSP
 and no tree-sitter grammar (proven on Nirdosha, a from-scratch language,
 via nothing but the compiler's own AST dump).
 
-![A real `cie-mcp` server answering "who really calls close()?" against psf/requests over the actual Model Context Protocol — `close()` is defined 4 times in that codebase, grep finds 6 raw matches with no way to tell which class each belongs to, callers() resolves 3 real ones through the actual call graph](./demo.svg)
+![30-second demo: cie, asked about itself](./docs/demo/cie-demo-30s.gif)
 
-*Every line above is a real command against a real clone of
-[`psf/requests`](https://github.com/psf/requests) (52k+ stars, not this
-project's own code) — `cie index .`, then a real MCP stdio client
-calling `callers("close")` on a running `cie-mcp --embedded` server.
-Reproduce it yourself: [`scripts/record_demo.sh`](scripts/record_demo.sh).
-Full methodology, including where this exact query under-resolves (3 of
-6 real call sites, a real gap not hidden here) is in
-[`docs/benchmarks-requests.md`](docs/benchmarks-requests.md).*
+*Every second is a real recorded session, nothing staged: this repo
+cloned from the public tag `v0.1.4`, `cie index .` in 1.9s (1,902
+nodes · 6,581 edges · 4,169 calls), the README one-liner registering it
+with Claude Code (`✔ Connected`), then ONE question in plain words —
+about `resolve_backend`, the storage-selection rule — answered from
+cie's tools alone (the agent's built-ins were disabled for the take:
+`callers` → `affected_by` → `test_map` were its only path). The agent
+returned the 7 pinning tests with line numbers, including the test
+added for the explicit-`auto` bug fixed that same day. The GIF is
+edited for time only — content is never edited; the uncut sessions
+ship in the repo:
+[`resolve-backend-uncut.cast`](docs/demo/resolve-backend-uncut.cast)
+(the agent take) and
+[`setup-uncut.cast`](docs/demo/setup-uncut.cast) (index → register →
+connected). Full take/QC record:
+[`docs/demo/production-log.md`](docs/demo/production-log.md). The
+earlier static demo ([`demo.svg`](./demo.svg) — the `close()`-on-
+requests story with its under-resolution disclosure) stays in the
+repo root.*
 
 **One real number, measured against a real 36-file codebase** (full
 methodology in [`docs/benchmarks.md`](docs/benchmarks.md), including a
