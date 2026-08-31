@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`vision.md` — "the far shore", linked from the README title line**
+  (the first thing on the repo's face, above the badges): the
+  project's *why* — five acts (the end of source code, immortal
+  software, the trust layer, companies that are graphs, the
+  excavation), no dates by design ("a compass, not a claim"). Ends
+  with a seeds-and-leaps audit in this repo's honesty idiom — every
+  section labeled by how much stands on running code today (immortal
+  software = shortest leap, adapter registry + task/QA fusion
+  already shipped; end of source code = biggest leap, nothing renders
+  a graph back into code yet) — and the trajectory anchored on a
+  dated suite number (312 as of 2026-08-31) per the dated-snapshot
+  convention. CONTRIBUTING.md is the closing door.
 - **README top: a 30-second demo — cie, asked about itself** (owner
   approved format A, final visual QC waived). Every second is a real
   recorded session against a fresh clone of this repo at tag `v0.1.4`:

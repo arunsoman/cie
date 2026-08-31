@@ -1,5 +1,7 @@
 # cie — the only code graph that knows which tasks and tests actually implement your code.
 
+> **Where this is going: [vision.md — the far shore](vision.md).** The graph becomes the software; repositories become its cache. Software that can always explain itself. *A compass, not a claim.*
+
 [![CI](https://github.com/kannamma-labs/cie/actions/workflows/ci.yml/badge.svg)](https://github.com/kannamma-labs/cie/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/kannamma-labs/cie?include_prereleases&label=release)](https://github.com/kannamma-labs/cie/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
