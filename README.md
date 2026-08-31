@@ -110,6 +110,15 @@ registration as one command inside Claude Code:
 claude mcp add cie -- $(command -v cie-mcp) /path/to/your/project --embedded --policy readonly
 ```
 
+**Multiple projects?** Run `cie init` inside each — clients namespace
+tools by server name, so several instances coexist in one client
+(`cie-web` / `cie-api` → `mcp__cie-web__search_symbol` vs
+`mcp__cie-api__search_symbol`; verified live with two projects in one
+Claude Code session, 2026-08-31). Many projects in one graph: Neo4j
+mode namespaces them (`--project`). First-class cross-project
+workspaces (impact and hybrid search across repos) are roadmap R28,
+gated on a real multi-repo user — see the repo's `roadmap.md`.
+
 > *(Verified live, 2026-08-31, with the real Claude Code CLI 2.1.251 —
 > not a mock client: `cie init` → `claude mcp list` shows
 > `cie … ✔ Connected` → a one-shot `claude -p` agent call of

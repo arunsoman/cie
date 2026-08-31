@@ -1570,6 +1570,32 @@ roots: qualified ids distinct, per-repo queries unchanged, workspace
 query returns both correctly labeled; no cross-root edge leakage
 (absent-by-construction test).
 
+**Addendum (2026-08-31, verified live — owner asked "shouldn't it
+support multi-project?").** Today's multi-project reality, measured:
+(1) **named instances in one client config work TODAY, embedded, no
+new code** — `cie-web` + `cie-api` registered in one Claude Code
+config, `claude mcp list` showed both `✔ Connected`, and a single
+`claude -p` session calling `mcp__cie-web__search_symbol` and
+`mcp__cie-api__search_symbol` returned the correct per-project files
+(`/tmp/cie-multi/{web/app.py,api/svc.py}` — clients namespace tools
+by server name, so instances coexist); (2) Claude Code project-scope
+is per-project by construction (each project's `.mcp.json` from its
+own `cie init`); (3) Neo4j mode namespaces many projects in one graph
+first-class (`--project`; node `project` property + query filters,
+`neo4j_repository.py` L451/L745/L270). **Found micro-gap:** `cie init`
+registers the FIXED name `"cie"` (`init.py` L36 `_CIE_SERVER_NAME`),
+so a USER-scope config (`~/.cursor/mcp.json`) can hold only one cie
+entry — a second project's init skips "already registered". Cheap
+fix when wanted: `--name cie-<alias>` (no identity re-shape). The
+tricky parts the owner intuited are real and stay in this item:
+cross-root id collisions (`{file}::{name}@{line}`), inter-repo
+call/import edges (absent-by-construction today — no cross-root edge
+leakage to preserve), hybrid ranking across aliases, Count Contract
+per-project vs aggregate, per-project policy. The gate stands: the
+owner's question is an interest signal, not yet a real workspace —
+promote when one exists (a concrete repo pair + what they want to
+ask across them).
+
 ---
 
 ### P3c — semantic layer completion
@@ -2374,3 +2400,18 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   -p` `search_symbol` returns the correct file. Artifacts:
   cie_mcp-0.1.2 sdist+wheel, twine PASSED, clean-venv rehearsal
   (85 read tools, real tool call). Suite 294. Next update appends here.
+- **2026-08-31 (implementation pass 22)** — multi-project question
+  answered by measurement, not opinion: (1) live-verified that
+  multiple projects work TODAY with zero new code — `cie-web` +
+  `cie-api` registered in one Claude Code config, both `✔ Connected`,
+  and one `claude -p` session calling both servers' `search_symbol`
+  returned the correct per-project files (client-side tool
+  namespacing by server name); (2) recorded in R28's addendum:
+  Neo4j mode already namespaces multi-project (`--project`, node
+  `project` property + filters), and the micro-gap found — `cie init`
+  registers the fixed name `"cie"`, so a user-scope config holds one
+  cie entry (candidate: `--name cie-<alias>`); (3) R28's gate kept:
+  the owner's question is an interest signal, not a real workspace.
+  README one-click section gained the "Multiple projects?" note with
+  the dated live verification. No code change this pass. Suite 294
+  (ritual). Next update appends here.
