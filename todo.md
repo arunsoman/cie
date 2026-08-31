@@ -2438,3 +2438,25 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   tests/test_backend_selection.py: 13 — 7 resolver branches + 5
   server-level incl. stdout-purity + parser; +1 CLI auto regression;
   init tests updated to canonical args). Next update appends here.
+- **2026-08-31 (planning pass 24)** — 30-second README demo planned +
+  script drafted for owner approval (`docs/demo-script-draft.md`;
+  NOTHING recorded/published — same gate as the launch/listing
+  drafts). Every beat verified live first: requests@5460f467 indexes
+  858 nodes / 1,822 edges (875 calls) in **0.86s**; `cie init` →
+  `claude mcp list` ✔ Connected; the USP beat — a real `claude -p`
+  session with ONLY cie's four tools allowed (search_symbol, callers,
+  affected_by, test_map) answered the `Session.close` impact question
+  with file:line callers, the every-`requests.get()`-triggers-it
+  insight, the one targeted test + a coverage-gap finding (1m13s
+  wall — hence the edit rule: time-compression only, content never
+  edited, uncut cast committed as proof); `cie export-html` = 224K
+  single-file dashboard (Overview / Task & test chains / Orphans) —
+  no SVG graph inside, and the script says so rather than implying
+  graph-viz. Beat sheet: clone → index (real-time, under a second) →
+  init/Connected → question → tool chain + answer → HTML snapshot in
+  browser → end card of pinned facts. Prerequisite caught: the script
+  uses `--backend`, which is unreleased — **v0.1.3 must be cut before
+  recording** so the demo shows shipped behavior. Owner checklist at
+  the draft's §9 (format A/B/C/D, question wording, end card, corpus,
+  0.1.3, cast hosting). No code change this pass. Suite 308 (ritual
+  run below). Next update appends here.
