@@ -169,3 +169,81 @@ def test_blast_radius_of_app_is_exact(svc):
     test provably exercises alpha). No less, no more."""
     got = _affected_files(svc, "app.py")
     assert got == EXPECT_AFFECTED_APP, f"blast radius of app.py wrong: {got}"
+
+# ---------------------------------------------------------------------------
+# Heuristic (4) — direct-calls TESTS edges (2026-08-31, dogfooding pass)
+#
+# Found by measuring cie on itself: 308 tests, behavioral names, monkeypatch
+# instead of @patch -> exactly ONE TESTS edge under heuristics (1)-(3). A
+# resolved calls edge from a test to a production symbol is the same proof
+# standard heuristic (2) upgrades on, so it now mints the edge directly.
+# The oracle below is, again, known by construction.
+# ---------------------------------------------------------------------------
+
+H4_FILES: dict[str, str] = {
+    "prod.py": "def compute(x):\n    return x * 2\n",
+    "conftest.py": "def make_seed():\n    return 1\n",
+    "test_behavior.py": (
+        "from prod import compute\n"
+        "import conftest\n"
+        "\n"
+        "def assist(v):\n"
+        "    return v\n"
+        "\n"
+        "def test_behavioral_name_exercises_compute():\n"
+        "    assert compute(assist(conftest.make_seed() * 2)) == 4\n"
+    ),
+}
+
+
+@pytest.fixture(scope="module")
+def svc_h4(tmp_path_factory):
+    root = tmp_path_factory.mktemp("h4")
+    for name, text in H4_FILES.items():
+        (root / name).write_text(text)
+    from cie.callgraph import resolve_call_edges
+    from cie.embedded_repository import EmbeddedRepository
+    from cie.extract import extract_many
+    from cie.testlink import resolve_test_edges
+
+    per_file = extract_many(root)
+    nodes = [n for ext in per_file for n in ext.nodes]
+    call_edges = resolve_call_edges(per_file)
+    test_edges = resolve_test_edges(per_file, call_edges)
+    edges = [e for ext in per_file for e in ext.edges] + call_edges + test_edges
+    EmbeddedRepository(root / ".cie" / "graph.db").load_extraction(nodes, edges)
+    return build_tool_service_embedded(root, task_tracking=False)
+
+
+def test_direct_call_links_behavioral_named_test(svc_h4):
+    """The dogfooding gap closed: `test_behavioral_name_exercises_compute`
+    calls `compute` (prod.py) with zero name overlap — TESTS edge exists,
+    EXTRACTED."""
+    res = _data(svc_h4.test_map("compute"))
+    assert len(res) == 1
+    assert res[0]["test"] == "test_behavioral_name_exercises_compute"
+    assert res[0]["implementation"] == "compute"
+    assert res[0]["confidence"] == "EXTRACTED"
+
+
+def test_direct_call_skips_test_file_helpers(svc_h4):
+    """`assist` is defined in the test file itself — test infrastructure,
+    not implementation: no TESTS edge may point at it."""
+    res = _data(svc_h4.test_map("assist"))
+    assert res == []
+
+
+def test_direct_call_skips_conftest_infrastructure(svc_h4):
+    """`make_seed` lives in conftest.py — not a test-glob file, but test
+    infrastructure all the same: no TESTS edge may point at it."""
+    res = _data(svc_h4.test_map("make_seed"))
+    assert res == []
+
+
+def test_direct_call_creates_no_duplicate_with_naming_match(svc):
+    """The original ground-truth fixture's `test_alpha` -> `alpha` pair
+    qualifies under BOTH heuristic (1)+(2) and (4) — exactly one edge."""
+    res = _data(svc.test_map("alpha"))
+    assert len(res) == 1
+    assert res[0]["test"] == "test_alpha"
+    assert res[0]["confidence"] == "EXTRACTED"

@@ -9,8 +9,8 @@ resolution. Runs as its own pass, AFTER `resolve_call_edges` (its output is
 one of this pass's three input signals — see below), given the same
 per-file `Extraction` list plus that pass's resolved `calls` edges.
 
-Three heuristics, matching the confirmed doc's three documented signals —
-deliberately not more:
+Four heuristics — (1)-(3) match the confirmed doc's three documented
+signals; (4) was added 2026-08-31 by the dogfooding pass (see below):
 
 1. Naming convention: `test_foo` -> a function/method literally named
    `foo`; a method `test_bar` declared inside a class named `TestFoo`/
@@ -30,6 +30,18 @@ deliberately not more:
    path is resolved to a node id via the SAME Python-module-resolution
    `_Index._resolve_python_module` already provides for imports. Always
    EXTRACTED — an explicit textual reference, not a name-similarity guess.
+4. Direct calls (2026-08-31): every resolved `calls` edge from a test
+   symbol to a symbol defined in PRODUCTION code (non-test file,
+   FUNC/METHOD/CLASS) creates a TESTS edge, EXTRACTED. Rationale, found
+   by dogfooding cie on itself: cie's own 308-test suite resolved
+   exactly ONE TESTS edge under (1)-(3) — modern suites use behavioral
+   names (`test_mcp_auto_serves_an_existing_index`, pytest best
+   practice), which starve the name gate, and `monkeypatch` instead of
+   `@patch`, which starves the decorator gate. A resolved calls edge is
+   the same proof standard (2) upgrades on, so it now creates the edge
+   directly. Tests calling helpers defined in test files or in
+   `conftest.py` still get no edge (those are test infrastructure,
+   not production code).
 
 What "test symbol" means: a FUNC/METHOD node whose file matches a test
 glob (`test_*.py`, `*_test.py`, `*.test.ts`, `*.test.tsx`, `*.spec.ts`,
@@ -37,11 +49,12 @@ glob (`test_*.py`, `*_test.py`, `*.test.ts`, `*.test.tsx`, `*.spec.ts`,
 convention (OR, not AND — either signal alone qualifies a node as a test
 symbol worth resolving TESTS edges from).
 
-Not exhaustive by design (see the module docstring's caveats in
-be-v2/docs/cie-grounding-slice-implementation.md): a test with an
-unconventional name that doesn't call its target and doesn't patch it by
-dotted string path will simply get no TESTS edge, same as any heuristic
-system. This is explicitly the intended scope, not a bug to fix later.
+Not exhaustive by design: a test with an unconventional name that
+doesn't DIRECTLY call its target and doesn't patch it by dotted string
+path (e.g. it only reaches it through a helper) still gets no TESTS
+edge, same as any heuristic system. (4) closed the biggest measured
+gap — behavioral names — not all of them, and that's the intended
+scope.
 """
 from __future__ import annotations
 
@@ -77,6 +90,18 @@ _STRING_LITERAL_RE = re.compile(r"""['"]([^'"]+)['"]""")
 def _is_test_file(source_file: str) -> bool:
     name = posixpath.basename((source_file or "").replace("\\", "/"))
     return any(fnmatch.fnmatch(name, glob) for glob in _TEST_FILE_GLOBS)
+
+
+def _is_production_file(source_file: str) -> bool:
+    """Heuristic (4)'s target gate: production code, i.e. NOT a test-glob
+    file AND NOT `conftest.py` — a conftest is test infrastructure
+    (fixtures/helpers), not implementation, so tests calling into it
+    must not mint TESTS edges. (`conftest.py` deliberately lives HERE,
+    not in `_TEST_FILE_GLOBS`: that set gates which nodes count as test
+    SOURCES, and a `test_*` helper inside a conftest still qualifies as
+    a test symbol by name — this gate is only about valid TARGETS.)"""
+    name = posixpath.basename((source_file or "").replace("\\", "/"))
+    return not _is_test_file(source_file) and name != "conftest.py"
 
 
 def _is_test_symbol_name(label: str) -> bool:
@@ -189,6 +214,16 @@ def resolve_test_edges(per_file: list[Extraction], call_edges: list[dict]) -> li
     for edge in call_edges:
         if edge.get("relation") == "calls":
             calls_from[edge.get("source", "")].add(edge.get("target", ""))
+    # Heuristic (4) lookup tables: a target qualifies only when it is
+    # defined in production code (non-test file) and is a real code
+    # symbol — not a file hub, not a helper defined in a test file.
+    node_file: dict[str, str] = {}
+    node_kind: dict[str, str] = {}
+    for ext in per_file:
+        for n in ext.nodes:
+            if n.get("id"):
+                node_file[n["id"]] = n.get("source_file", "") or ""
+                node_kind[n["id"]] = n.get("kind", "") or ""
 
     edges: list[dict] = []
     seen: set[tuple[str, str]] = set()
@@ -251,6 +286,26 @@ def resolve_test_edges(per_file: list[Extraction], call_edges: list[dict]) -> li
                 if key in seen:
                     continue
                 seen.add(key)
+                edges.append({
+                    "source": test_id, "target": target_id,
+                    "relation": "TESTS", "confidence": Confidence.EXTRACTED.value,
+                })
+
+            # Heuristic (4) — direct calls (2026-08-31; see the module
+            # docstring for the dogfooding rationale). Runs last so the
+            # naming/patch edges (same pair, same EXTRACTED standard)
+            # claim the `seen` slot first — no duplicates.
+            for target_id in sorted(calls_from.get(test_id, ())):
+                if target_id == test_id or (test_id, target_id) in seen:
+                    continue
+                target_file = node_file.get(target_id, "")
+                if not target_file or not _is_production_file(target_file):
+                    continue
+                if node_kind.get(target_id) not in (
+                    NodeKind.FUNC.value, NodeKind.METHOD.value, NodeKind.CLASS.value,
+                ):
+                    continue
+                seen.add((test_id, target_id))
                 edges.append({
                     "source": test_id, "target": target_id,
                     "relation": "TESTS", "confidence": Confidence.EXTRACTED.value,

@@ -990,8 +990,9 @@ class ToolService:
             return self._ok(
                 tool, [], started,
                 hint=f"no test found covering '{symbol}'; TESTS edges are "
-                     "naming-convention/calls-edge/@patch-target heuristics, "
-                     "not exhaustive - a non-conventionally-named test is missed",
+                     "naming-convention/@patch-target/direct-call heuristics, "
+                     "not exhaustive - a test that only reaches its target "
+                     "through a helper is missed",
             )
         results = [
             {

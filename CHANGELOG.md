@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet — 0.1.3's changes are directly below.
+### Added
+
+- **testlink heuristic (4) — direct-calls TESTS edges** (found by the
+  demo production pass, 2026-08-31: dogfooding cie on itself measured
+  **exactly ONE TESTS edge from a 308-test suite** — modern suites use
+  behavioral names (`test_mcp_auto_serves_an_existing_index`, pytest
+  best practice) which starve the naming gate, and `monkeypatch`
+  instead of `@patch`, which starves the decorator gate). A resolved
+  `calls` edge from a test symbol to a symbol defined in production
+  code now mints a TESTS edge directly, EXTRACTED — the same proof
+  standard heuristic (2) upgrades naming matches on, without the name
+  gate. Guards: targets must be FUNC/METHOD/CLASS in production files
+  (test-glob files and `conftest.py` are test infrastructure, never
+  targets); naming/patch edges claim the pair first (no duplicates);
+  measured on cie itself: **1 → 562 TESTS edges** (edges 5,992 →
+  6,553), `test_map(resolve_backend)` 0 → 7, `run_init` 0 → 12,
+  `build_tool_service_embedded` 0 → 18. Still honestly not exhaustive:
+  a test that only reaches its target through a helper gets no edge —
+  the `test_map` hint says so in those words. Suite 308 → 312 (four
+  ground-truth tests: behavioral link, test-file-helper skip,
+  conftest skip, no-duplicate).
 
 ## [0.1.3] - 2026-08-31 — one storage-backend selection rule, every front-end
 
