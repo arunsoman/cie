@@ -2352,4 +2352,25 @@ IMPACT` finding from the next delta scan pre-empts this tier.
   their documented config shapes (Cursor shares Claude Code's JSON
   shape; Codex `[mcp_servers.*]` TOML) — noted as such, not claimed as
   live. Suite 292 → 294 (init tests: 15 incl. two new resolution tests).
-  Next update appends here. Next update appends here.
+- **2026-08-31 (implementation pass 21)** — one-click install answered
+  with a verified release, not a claim. Gap found: README had install
+  strings but no one-click story, and the client deep-link docs were
+  unreachable for curl — and cie doesn't fit browser one-click anyway
+  (local stdio + per-project path + a policy the operator chooses —
+  exactly what `cie init` computes). Cut **v0.1.2** (111e10e, tag + GH
+  release live) so the one-click installs a ref that CONTAINS the
+  spawn-robust fix: README top now carries the verified one-click
+  (`uv tool install "cie-mcp[mcp] @ …@v0.1.2"` once, `cie init .`
+  per project) + the `claude mcp add` one-liner + a dated note stating
+  exactly what was live-verified vs format-verified; CHANGELOG
+  [0.1.2] carries the fix entry, the one-click entry, and R10's entry
+  moved VERBATIM from [Unreleased] with an attribution note (it
+  shipped in the v0.1.1 artifact — b6393de/279ee53 in tag v0.1.1 —
+  but had stayed under [Unreleased] through the rename cut). The
+  chain was run against the RELEASED tag exactly as README documents:
+  uv tool install @v0.1.2 → `cie`/`cie-mcp` on PATH (0.1.2) → `cie
+  init` writes the ABSOLUTE `~/.local/bin/cie-mcp` entry (resolution
+  order 1, live) → `claude mcp list` ✔ Connected → one-shot `claude
+  -p` `search_symbol` returns the correct file. Artifacts:
+  cie_mcp-0.1.2 sdist+wheel, twine PASSED, clean-venv rehearsal
+  (85 read tools, real tool call). Suite 294. Next update appends here.
