@@ -49,7 +49,7 @@ from cie import extract
 from cie import file_index as _file_index
 from cie import patch as _patch
 from cie import serialize as _serialize
-from cie.models import Confidence, Node, SymbolMatch
+from cie.models import Confidence, Node, NodeKind, SymbolMatch
 
 from cie.tools import blame as _blame
 from cie.tools import edit as _edit
@@ -85,6 +85,52 @@ HINT_EMPTY_CALLERS = (
     "call-graph coverage is partial until pass-2 inference runs; empty != unused"
 )
 HINT_EMPTY_FAILING_CONTEXT = "test node not indexed; load/reindex the test file first"
+
+#: `search_symbol`'s `kind` filter, validated against every value
+#: `NodeKind` actually defines (37 as of this writing, not just the 5
+#: extraction-time ones — see that enum's own docstring) — derived from
+#: the enum, never hand-copied, specifically because a hand-copied subset
+#: goes stale the moment NodeKind grows (confirmed live in a downstream
+#: consumer, atomic-forge's tools.py: a hardcoded {"function", "class"}
+#: silently rejected "method", a real kind its own Java/C++ parser
+#: produces). Before this guard, `kind="import"` (not a value anything in
+#: this graph has ever produced) returned the same generic "no symbol
+#: named 'X'" hint as a genuinely-absent name — confirmed live on
+#: astropy__astropy-14995 (2026-08-31): a downstream repair agent
+#: repeated variations of that exact query 8 times across 15 turns
+#: chasing an uncertainty that was never real, and aborted one turn after
+#: a correct patch was already staged. This is the shared core both the
+#: MCP and native-Python channels run through (`cie/mcp_server.py` wraps
+#: this same bound `ToolService`), so the fix lands on both at once.
+_VALID_NODE_KINDS = frozenset(k.value for k in NodeKind)
+
+#: `affected_by`'s only two real values. Every engine behind it
+#: (`InMemoryRepository.affected_by`, `Neo4jRepository.affected_by`,
+#: `HeuristicToolSet.affected_by`) only ever checks
+#: `direction == "incoming"` explicitly and treats anything else —
+#: including a typo like "INCOMING" or a reasonable guess like "both" —
+#: as "outgoing", silently, with no hint that the value wasn't
+#: recognized. Worse than the kind bug above: that one came back empty;
+#: this one comes back "ok": True with a specific, plausible, WRONG
+#: answer.
+_VALID_DIRECTIONS = frozenset({"incoming", "outgoing"})
+
+
+def _invalid_kind_hint(kind: str, valid: frozenset = _VALID_NODE_KINDS) -> Optional[str]:
+    if kind and kind not in valid:
+        return (f"kind={kind!r} is not a value this graph has ever produced "
+                "(check NodeKind for the real vocabulary, or drop the kind filter "
+                "to search every kind). For import-related lookups ('is X imported', "
+                "'where does X come from'), resolve_import answers that directly.")
+    return None
+
+
+def _invalid_direction_hint(direction: str, valid: frozenset = _VALID_DIRECTIONS) -> Optional[str]:
+    if direction not in valid:
+        return (f"direction={direction!r} is not a recognized value (valid: "
+                f"{', '.join(sorted(valid))}) — nothing was silently assumed; "
+                "pass one of these explicitly.")
+    return None
 
 
 def _elapsed_ms(started: float) -> int:
@@ -608,6 +654,9 @@ class ToolService:
         """Locate symbol definitions by name (T1.2)."""
         tool = "search_symbol"
         started = time.monotonic()
+        bad_kind_hint = _invalid_kind_hint(kind)
+        if bad_kind_hint:
+            return self._ok(tool, [], started, hint=bad_kind_hint)
         matches, exc = self._try_graph(
             tool, self._engine.search_symbols, name, kind, file_glob, limit,
         )
@@ -956,6 +1005,9 @@ class ToolService:
         it depends on (direction="outgoing")."""
         tool = "affected_by"
         started = time.monotonic()
+        bad_direction_hint = _invalid_direction_hint(direction)
+        if bad_direction_hint:
+            return self._ok(tool, [], started, hint=bad_direction_hint)
         hits, exc = self._try_graph(
             tool, self._engine.affected_by, file_path, max_depth, direction, max_results,
         )
@@ -1917,6 +1969,59 @@ class ToolService:
             for p in packages
         ]
         hint = None if results else "no packages yet; run dependency_graph_run first"
+        return self._ok(tool, results, started, hint=hint)
+
+    def vulnerability_scan_run(self, report_path: str) -> dict:
+        """Cross-reference existing `PACKAGE` nodes (run
+        `dependency_graph_run` first) against an externally-generated
+        pip-audit (`pip-audit --format=json`) or npm-audit (`npm audit
+        --json`) report — pure ingestion, cie runs no scanner itself and
+        makes no network call. A package the report names that has no
+        matching PACKAGE node yet still gets its finding written, just
+        without an AFFECTS edge until a later `dependency_graph_run`/
+        rescan picks it up.
+
+        `report_path` is jailed under this ToolService's project root
+        exactly like `view_file`/`write_file` — relative paths resolve
+        against the root (not the process's own CWD), and an absolute
+        path or `../` escape outside the root is refused rather than
+        read. Without this, an untrusted caller could point a "read this
+        audit report" tool at any file the process can see (or a
+        relative path could silently resolve against the wrong
+        directory depending on the caller's CWD) — the same class of gap
+        `_view._jail` exists to close for every other file-reading tool
+        on this surface."""
+        tool = "vulnerability_scan_run"
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, report_path)  # noqa: SLF001
+            result = self._engine.vulnerability_scan_run(
+                str(resolved), project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def vulnerabilities(self) -> dict:
+        """Every ingested vulnerability (`Vulnerability` node), with the
+        package it affects and whatever severity/fix-version the source
+        report carried."""
+        tool = "vulnerabilities"
+        started = time.monotonic()
+        try:
+            vulns = self._engine.vulnerabilities(project=self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"vuln_id": v.properties.get("vuln_id", v.label),
+             "package": v.properties.get("package_name", ""),
+             "ecosystem": v.properties.get("ecosystem", ""),
+             "severity": v.properties.get("severity", ""),
+             "fix_versions": v.properties.get("fix_versions", []),
+             "summary": v.properties.get("summary", "")}
+            for v in vulns
+        ]
+        hint = None if results else "no vulnerabilities yet; run vulnerability_scan_run first"
         return self._ok(tool, results, started, hint=hint)
 
     def doc_graph_run(self) -> dict:

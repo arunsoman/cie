@@ -71,6 +71,7 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     # graph-mutating "*_run" analysis passes (see module docstring)
     "clone_detect_run", "community_detect_run", "community_summarize_run",
     "contracts_run", "dependency_graph_run", "doc_graph_run",
+    "vulnerability_scan_run",
     "drift_detect_run", "implied_pages_run", "mock_registry_run",
     "performance_analyze_run", "state_machine_run",
     "subsystem_dependency_graph_run", "test_skeletons_run", "type_flow_run",

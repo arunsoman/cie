@@ -55,6 +55,38 @@ VIEW_WINDOW = 100
 #: symbol's OWN definition line from matching as a "call" of itself.
 _DEFINITION_KEYWORDS = r"(?:def|function|class|method)"
 
+#: `search_symbol`'s only real `kind` values here — this class is backed
+#: by `cie.tools.index.SymbolIndex`, whose own `Symbol.kind` type comment
+#: says it plainly: `# function | class | method`. NOT the same
+#: vocabulary as `cie.models.NodeKind` (the persisted-graph engine this
+#: class exists as a fallback for) — this index never sees the graph's
+#: other kinds at all. Guarded independently of `cie.tools.ToolService`'s
+#: own equivalent guard because this class has real external callers of
+#: its own (see this module's docstring — forge/tools.py's
+#: `LocalDiskBackend`), not just ToolService's internal fallback.
+_VALID_SYMBOL_KINDS = {"function", "class", "method"}
+
+#: Same unvalidated-enum shape as `kind` above, in `affected_by` below:
+#: any value other than exactly "incoming" silently became "outgoing"
+#: (`neighbor_key = "caller_file" if direction == "incoming" else
+#: "callee_file"`), with no signal the input wasn't understood.
+_VALID_DIRECTIONS = {"incoming", "outgoing"}
+
+
+def _invalid_kind_hint(kind: str) -> Optional[str]:
+    if kind and kind not in _VALID_SYMBOL_KINDS:
+        return (f"kind={kind!r} is not a recognized filter (valid: "
+                f"{', '.join(sorted(_VALID_SYMBOL_KINDS))}, or '' for any).")
+    return None
+
+
+def _invalid_direction_hint(direction: str) -> Optional[str]:
+    if direction not in _VALID_DIRECTIONS:
+        return (f"direction={direction!r} is not a recognized value (valid: "
+                f"{', '.join(sorted(_VALID_DIRECTIONS))}) — nothing was silently "
+                "assumed; pass one of these explicitly.")
+    return None
+
 
 def _envelope(tool: str, results: list, hint: Optional[str] = None,
               truncated: bool = False, total: Optional[int] = None, ok: bool = True) -> dict:
@@ -114,6 +146,9 @@ class HeuristicToolSet:
         return _envelope("file_skeleton", [{"path": path, "symbols": [s.as_hit() for s in syms]}])
 
     def search_symbol(self, name: str, kind: str = "") -> dict:
+        bad_kind_hint = _invalid_kind_hint(kind)
+        if bad_kind_hint:
+            return _envelope("search_symbol", [], hint=bad_kind_hint)
         hits = self.index.find(name, kind)[:LIST_CAP]
         if not hits:
             return _envelope("search_symbol", [],
@@ -215,6 +250,9 @@ class HeuristicToolSet:
         direction="incoming" (default) follows callers (what depends on
         this file); "outgoing" follows callees (what this file depends on).
         Confidence is always INFERRED, same caveat as callers/callees."""
+        bad_direction_hint = _invalid_direction_hint(direction)
+        if bad_direction_hint:
+            return _envelope("affected_by", [], hint=bad_direction_hint)
         seeds = [s.name for s in self.index.in_file(file_path)]
         if not seeds:
             return _envelope("affected_by", [], ok=False,

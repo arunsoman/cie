@@ -598,6 +598,63 @@ class QueryEngine:
         `dependency_graph_run`."""
         return self._repo.analysis_nodes(NodeKind.PACKAGE.value, project=project)
 
+    def vulnerability_scan_run(self, report_path: str, project: str = "") -> dict:
+        """Cross-reference already-extracted `PACKAGE` nodes against an
+        externally-generated pip-audit/npm-audit JSON report at
+        `report_path` (see `cie.data_model.resolve_vulnerability_nodes`).
+        Ingestion only — cie runs no scanner and makes no network call;
+        run `dependency_graph_run` first so there's something to attach
+        the result to.
+
+        `replace_analysis_nodes` replaces the WHOLE `Vulnerability` kind
+        for this project in one call — found by testing the update path:
+        a report is per-ecosystem (pip-audit only ever covers pypi,
+        npm-audit only ever covers npm), so scanning one after the other
+        for a mixed-language repo would otherwise silently wipe out the
+        OTHER ecosystem's last scan just because this one didn't mention
+        it. Carry forward every existing `Vulnerability` node (+ its
+        `AFFECTS` edge) whose ecosystem isn't the one this report just
+        spoke for, so each ecosystem's findings are independently
+        replaced rather than the whole kind clobbered on every scan."""
+        from pathlib import Path
+
+        from cie import data_model
+
+        packages = self._repo.analysis_nodes(NodeKind.PACKAGE.value, project=project)
+        fresh_nodes, fresh_edges, scanned_ecosystem = data_model.resolve_vulnerability_nodes(
+            packages, Path(report_path),
+        )
+
+        carried_nodes: list[dict] = []
+        carried_edges: list[dict] = []
+        for node in self._repo.analysis_nodes(NodeKind.VULNERABILITY.value, project=project):
+            if node.properties.get("ecosystem") == scanned_ecosystem:
+                continue
+            carried_nodes.append({
+                "id": node.id, "label": node.label, "kind": node.kind,
+                "source_file": node.source_file, **node.properties,
+            })
+            for rec in self._repo.get_neighbors(node.id, relation_filter="AFFECTS") or []:
+                if rec.edge.source != node.id:
+                    continue  # AFFECTS points FROM the vuln node; skip the reverse hop
+                carried_edges.append({
+                    "source": rec.edge.source, "target": rec.edge.target,
+                    "relation": rec.edge.relation, "confidence": rec.edge.confidence.value,
+                })
+
+        written = self._repo.replace_analysis_nodes(
+            NodeKind.VULNERABILITY.value,
+            carried_nodes + fresh_nodes, carried_edges + fresh_edges,
+            project=project,
+        )
+        return {"vulnerabilities_written": len(fresh_nodes), "affects_edges_written": len(fresh_edges),
+                "total_after_scan": written}
+
+    def vulnerabilities(self, project: str = "") -> list[Node]:
+        """Every `Vulnerability` node from the most recent
+        `vulnerability_scan_run`."""
+        return self._repo.analysis_nodes(NodeKind.VULNERABILITY.value, project=project)
+
     def doc_graph_run(self, repo_root: str, project: str = "") -> dict:
         """DM-13: parse markdown docs under `repo_root` into `DOCUMENT`
         nodes + `DESCRIBES` edges to code nodes they mention."""
