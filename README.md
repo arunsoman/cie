@@ -58,7 +58,7 @@ find it), and writes the agent context files:
 
 ```bash
 # once per machine (latest tag):
-uv tool install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.4"
+uv tool install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.5"
 
 # per project — from inside the project:
 cie index .        # ~1.9s on a 110-file repo
@@ -84,7 +84,7 @@ pip install "cie-mcp[http]"  # + the HTTP tool-mount (cie/routes.py)
 > get you this tool — never did). Import package stays `cie`; console
 > scripts stay `cie` and `cie-mcp`. GitHub installs are an equal
 > alternative:
-> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.4"`.
+> `pip install "cie-mcp[mcp] @ git+https://github.com/kannamma-labs/cie.git@v0.1.5"`.
 
 Core dependencies: Pydantic v2, tree-sitter (+ Python/JS/TS/Java/Go/
 Rust/C/C++/C# grammars), watchdog, Click, Rich; the Neo4j driver only

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet — 0.1.5's changes are directly below.
+
+## [0.1.5] - 2026-09-01 — AST/file-index single source, input validation hardening, vulnerability ingestion
+
 ### Added
 
 - **AST mirror + `get_meta`/`get_function` — cie as the single source
@@ -92,6 +96,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   production scripts (`docs/demo/prod/`) for reproducibility. The
   354-frame GIF is 4.1 MB; the earlier static `demo.svg` embed was
   replaced (the file stays, story linked from the README caption).
+- **Vulnerability ingestion — `vulnerability_scan_run`/`vulnerabilities`**
+  (new `Vulnerability` node kind, `cie/data_model.py`). Cross-references
+  already-extracted `PACKAGE` nodes against an externally-generated
+  pip-audit (`pip-audit --format=json`) or npm-audit (`npm audit --json`)
+  report into `Vulnerability` nodes + `AFFECTS` edges — an ingestion seam,
+  not a scanner: cie runs no scan itself and makes no network call (no
+  CVE/NVD database), the same "route around it" call `cie.graph_diff`
+  made for DM-05. A package the report names with no matching `PACKAGE`
+  node yet still gets its finding written, just without an edge, until a
+  later `dependency_graph_run`/rescan picks it up. `report_path` is
+  jailed under the project root (`_view._jail`), same as `view_file`/
+  `write_file` — found by testing the tool's path handling directly: an
+  earlier version resolved a relative path against the process's own CWD
+  instead of the root, and read an absolute or `../` path from anywhere
+  on disk with no restriction. Rescanning correctly clears a fixed
+  finding and replaces (never accumulates) within one ecosystem; found
+  by testing the update path that a naive rescan of ONE ecosystem's
+  report (pip-audit only ever covers pypi, npm-audit only ever covers
+  npm) would otherwise wipe out a DIFFERENT ecosystem's last scan —
+  fixed by carrying forward every existing `Vulnerability` node/edge
+  whose ecosystem isn't the one the current report speaks for. 16 tests
+  (`tests/test_vulnerability_scan.py`); surface 142 → 144.
+
+### Fixed
+
+- **`search_symbol`'s `kind` and `affected_by`'s `direction` are now
+  validated.** `kind="import"` (not a value this graph has ever
+  produced) returned the same generic "no symbol found" hint as a
+  genuinely-absent name — confirmed live on astropy__astropy-14995
+  (2026-08-31): a downstream repair agent (atomic-forge) repeated
+  variations of that exact query 8 times across 15 turns chasing an
+  uncertainty that was never real, and aborted one turn after a correct
+  patch was already staged. `kind` is now validated against every value
+  `NodeKind` actually defines, derived from the enum itself so it can't
+  go stale the way atomic-forge's own hand-copied `{"function", "class"}`
+  already had (silently rejecting "method", a real kind its Java/C++
+  parser produces). `affected_by`'s `direction` had the worse variant of
+  the same gap: every engine behind it treated anything other than
+  exactly `"incoming"` as `"outgoing"` silently — a typo like `"INCOMING"`
+  came back `ok: true` with a specific, plausible, WRONG answer, not an
+  empty result. Both guards land in `ToolService` (shared by the MCP and
+  native-Python channels) and independently in `HeuristicToolSet` (its
+  own external callers, e.g. `forge/tools.py`'s `LocalDiskBackend`,
+  bypass `ToolService`). 5 tests
+  (`tests/test_search_symbol_affected_by_validation.py`).
 
 ## [0.1.4] - 2026-08-31 — direct-calls TESTS edges (dogfooding fix)
 
@@ -768,6 +817,7 @@ embedded SQLite or Neo4j backend.
   server, so a client's `tools/list` never even names it — not merely
   refused at call time.
 
-[Unreleased]: https://github.com/kannamma-labs/cie/compare/v0.1.0a2...HEAD
+[Unreleased]: https://github.com/kannamma-labs/cie/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/kannamma-labs/cie/releases/tag/v0.1.5
 [0.1.0a2]: https://github.com/kannamma-labs/cie/releases/tag/v0.1.0a2
 [0.1.0a1]: https://github.com/kannamma-labs/cie/releases/tag/v0.1.0a1
