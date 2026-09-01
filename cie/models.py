@@ -63,6 +63,12 @@ class NodeKind(str, Enum):
     TYPE = "Type"
     PACKAGE = "Package"
     DOCUMENT = "Document"
+    #: VULNERABILITY - one advisory (from an externally-generated
+    #: pip-audit/npm-audit JSON report) affecting a specific PACKAGE node,
+    #: linked to it via an AFFECTS edge. Not a DM-spec item — cie ingests
+    #: an existing scan's output, it does not run one (no NVD/CVE lookup,
+    #: no network call; see `cie.data_model.resolve_vulnerability_nodes`).
+    VULNERABILITY = "Vulnerability"
     #: Section 14 (Confidence Framework) analysis-result kinds — same
     #: "never produced by extract.py, only by an on-demand cie.contracts/
     #: cie.test_synthesis/cie.state_machine/cie.consensus/cie.confidence/

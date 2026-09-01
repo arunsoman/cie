@@ -1971,6 +1971,59 @@ class ToolService:
         hint = None if results else "no packages yet; run dependency_graph_run first"
         return self._ok(tool, results, started, hint=hint)
 
+    def vulnerability_scan_run(self, report_path: str) -> dict:
+        """Cross-reference existing `PACKAGE` nodes (run
+        `dependency_graph_run` first) against an externally-generated
+        pip-audit (`pip-audit --format=json`) or npm-audit (`npm audit
+        --json`) report — pure ingestion, cie runs no scanner itself and
+        makes no network call. A package the report names that has no
+        matching PACKAGE node yet still gets its finding written, just
+        without an AFFECTS edge until a later `dependency_graph_run`/
+        rescan picks it up.
+
+        `report_path` is jailed under this ToolService's project root
+        exactly like `view_file`/`write_file` — relative paths resolve
+        against the root (not the process's own CWD), and an absolute
+        path or `../` escape outside the root is refused rather than
+        read. Without this, an untrusted caller could point a "read this
+        audit report" tool at any file the process can see (or a
+        relative path could silently resolve against the wrong
+        directory depending on the caller's CWD) — the same class of gap
+        `_view._jail` exists to close for every other file-reading tool
+        on this surface."""
+        tool = "vulnerability_scan_run"
+        started = time.monotonic()
+        try:
+            resolved = _view._jail(self._root, report_path)  # noqa: SLF001
+            result = self._engine.vulnerability_scan_run(
+                str(resolved), project=self._canonical_project(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        return self._ok(tool, [result], started)
+
+    def vulnerabilities(self) -> dict:
+        """Every ingested vulnerability (`Vulnerability` node), with the
+        package it affects and whatever severity/fix-version the source
+        report carried."""
+        tool = "vulnerabilities"
+        started = time.monotonic()
+        try:
+            vulns = self._engine.vulnerabilities(project=self._canonical_project())
+        except Exception as exc:  # noqa: BLE001
+            return self._guard(tool, started, exc)
+        results = [
+            {"vuln_id": v.properties.get("vuln_id", v.label),
+             "package": v.properties.get("package_name", ""),
+             "ecosystem": v.properties.get("ecosystem", ""),
+             "severity": v.properties.get("severity", ""),
+             "fix_versions": v.properties.get("fix_versions", []),
+             "summary": v.properties.get("summary", "")}
+            for v in vulns
+        ]
+        hint = None if results else "no vulnerabilities yet; run vulnerability_scan_run first"
+        return self._ok(tool, results, started, hint=hint)
+
     def doc_graph_run(self) -> dict:
         """DM-13: parse markdown docs under this ToolService's project
         root into `DOCUMENT` nodes + `DESCRIBES` edges."""

@@ -591,6 +591,8 @@ TOOLS: dict[str, Callable[[dict, str], dict]] = {
     "type_flow": _service_tool("type_flow"),
     "dependency_graph_run": _service_tool("dependency_graph_run"),
     "dependency_graph": _service_tool("dependency_graph"),
+    "vulnerability_scan_run": _service_tool("vulnerability_scan_run"),
+    "vulnerabilities": _service_tool("vulnerabilities"),
     "doc_graph_run": _service_tool("doc_graph_run"),
     "doc_search": _service_tool("doc_search"),
     # Section 14 (Confidence Framework Integration)
@@ -1295,7 +1297,7 @@ READ_ONLY_CIE_TOOLS: frozenset[str] = frozenset({
     "community_search",
     "accuracy_check", "freshness_report", "comprehensiveness_report", "salience_report",
     "related_edges", "validate_property_constraints",
-    "type_flow", "dependency_graph", "doc_search", "contracts",
+    "type_flow", "dependency_graph", "vulnerabilities", "doc_search", "contracts",
     "validate_types",
     "test_skeletons", "test_coverage",
     "state_machine", "fsm_validate",

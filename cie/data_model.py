@@ -433,6 +433,159 @@ def resolve_calls_external_edges(
     return edges
 
 
+# -- Vulnerability ingestion (SBOM/audit-report cross-reference) -------------
+#
+# Not a DM-spec item. Closes a gap named in this session's own review of
+# cie's blind spots: `dependency_graph_run` above parses manifests into
+# PACKAGE nodes but never cross-references them against a CVE/advisory
+# database. Building that database (NVD sync, OSV feed polling) is a
+# separate, much larger undertaking cie deliberately does not attempt —
+# same "route around it" call `cie.graph_diff` made for DM-05. What's
+# cheap and consistent with the rest of this module is the ingestion
+# half: accept an audit tool's own JSON report (`pip-audit
+# --format=json`, `npm audit --json` — both already run against the live
+# NVD/GitHub-Advisory data, cie doesn't need to duplicate that), cross-
+# reference it against already-extracted PACKAGE nodes by name, and write
+# the result as graph-queryable Vulnerability nodes + AFFECTS edges. cie
+# stays an ingestion/graph layer, not a scanner.
+
+#: Recognized report shapes. Each maps a raw report dict to
+#: `(ecosystem, [(package_name, vuln_id, severity, fix_versions, summary), ...])`
+#: rows — the common shape `resolve_vulnerability_nodes` turns into nodes,
+#: so adding a third format (e.g. a `cargo-audit` or `osv-scanner` export)
+#: means adding one more detector function here, not touching the caller.
+
+def _detect_pip_audit(report: dict) -> Optional[tuple[str, list[tuple]]]:
+    """`pip-audit --format=json` output: `{"dependencies": [{"name",
+    "version", "vulns": [{"id", "fix_versions", "description"}]}]}`."""
+    deps = report.get("dependencies")
+    if not isinstance(deps, list):
+        return None
+    rows = []
+    for dep in deps:
+        name = dep.get("name", "")
+        for vuln in dep.get("vulns") or []:
+            rows.append((
+                name, vuln.get("id", ""), "",
+                list(vuln.get("fix_versions") or []),
+                vuln.get("description", ""),
+            ))
+    return "pypi", rows
+
+
+def _detect_npm_audit(report: dict) -> Optional[tuple[str, list[tuple]]]:
+    """`npm audit --json` output (npm v7+): `{"vulnerabilities": {pkg_name:
+    {"severity", "via": [advisory_dict_or_upstream_pkg_name, ...]}}}`. Only
+    dict entries in `via` are advisories (an upstream package name is a
+    bare string — this package is vulnerable only because it depends on
+    that one, not itself the advisory's subject) — those are skipped, not
+    misread as an advisory with no id."""
+    vulns = report.get("vulnerabilities")
+    if not isinstance(vulns, dict):
+        return None
+    rows = []
+    for name, entry in vulns.items():
+        severity = entry.get("severity", "") if isinstance(entry, dict) else ""
+        for via in (entry.get("via") or []) if isinstance(entry, dict) else []:
+            if not isinstance(via, dict):
+                continue
+            vuln_id = str(via.get("source") or via.get("url") or via.get("title") or "")
+            cve = via.get("cve") or []
+            rows.append((
+                name, vuln_id or (cve[0] if cve else ""), via.get("severity", severity),
+                [], via.get("title", ""),
+            ))
+    return "npm", rows
+
+
+_REPORT_DETECTORS = (_detect_pip_audit, _detect_npm_audit)
+
+
+def resolve_vulnerability_nodes(
+    package_nodes: Sequence[Node], report_path: Path,
+) -> tuple[list[dict], list[dict], str]:
+    """Cross-reference `package_nodes` (the PACKAGE nodes a prior
+    `dependency_graph_run` already wrote) against an externally-generated
+    audit report at `report_path`, producing one `Vulnerability` node per
+    (package, advisory) pair plus an `AFFECTS` edge to the PACKAGE node it
+    hits — plus the detected ecosystem (`"pypi"`/`"npm"`) as a third
+    return value, even when there are zero findings.
+
+    That third value matters: a report format is per-ecosystem
+    (pip-audit only ever covers pypi, npm-audit only ever covers npm), so
+    the caller (`QueryEngine.vulnerability_scan_run`) needs to know which
+    ecosystem THIS scan spoke for even on an all-clear report with an
+    empty node list — otherwise a clean pip-audit rescan (every prior
+    pypi finding now fixed) couldn't be told apart from "this report
+    said nothing about any ecosystem", and stale pypi findings would
+    never get cleared. Inferring the ecosystem from `vuln_nodes[0]`
+    instead would silently break exactly that case.
+
+    Raises `FileNotFoundError` if `report_path` doesn't exist and
+    `ValueError` if it parses as JSON but matches neither recognized
+    report shape — both map straight through `ToolService._guard`'s
+    existing `not_found`/`validation` handling, the same pattern
+    `search_symbol`'s kind guard and `affected_by`'s direction guard use:
+    a clear, specific reason beats a silent empty result the caller can't
+    tell apart from "no vulnerabilities found".
+
+    A package the report names that has no matching PACKAGE node (report
+    generated before `dependency_graph_run` ran, or against a lockfile
+    cie doesn't parse) still gets its Vulnerability node written — just
+    with no AFFECTS edge, since there's nothing yet to attach it to.
+    Re-running this after `dependency_graph_run` picks up the edge on the
+    package id existing by then; the Neo4j/InMemory `replace_analysis_nodes`
+    edge-write is a MATCH, so a target that doesn't exist yet is simply
+    skipped rather than raising (the same contract `resolve_calls_external_edges`
+    relies on for FILE nodes above).
+    """
+    try:
+        report = json.loads(report_path.read_text())
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        raise FileNotFoundError(f"{report_path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{report_path} is not valid JSON: {exc}") from exc
+
+    detected = None
+    for detector in _REPORT_DETECTORS:
+        detected = detector(report)
+        if detected is not None:
+            break
+    if detected is None:
+        raise ValueError(
+            f"{report_path} matches neither recognized report shape "
+            "(pip-audit --format=json, npm audit --json)"
+        )
+    ecosystem, rows = detected
+
+    package_by_name = {
+        p.label: p.id for p in package_nodes if p.properties.get("ecosystem") == ecosystem
+    }
+
+    vuln_nodes: dict[str, dict] = {}
+    edges: list[dict] = []
+    for name, vuln_id, severity, fix_versions, summary in rows:
+        if not vuln_id:
+            continue
+        node_id = f"vuln::{ecosystem}::{name}::{vuln_id}"
+        vuln_nodes[node_id] = {
+            "id": node_id, "label": vuln_id, "kind": NodeKind.VULNERABILITY.value,
+            "package_name": name, "ecosystem": ecosystem, "vuln_id": vuln_id,
+            "severity": severity, "fix_versions": fix_versions, "summary": summary,
+            "source_file": str(report_path),
+        }
+        package_id = package_by_name.get(name)
+        if package_id:
+            edges.append({
+                "source": node_id, "target": package_id,
+                "relation": "AFFECTS", "confidence": "EXTRACTED",
+            })
+
+    return list(vuln_nodes.values()), edges, ecosystem
+
+
 # -- DM-13: documentation / concept graph -------------------------------------
 
 _MD_GLOB = "*.md"
