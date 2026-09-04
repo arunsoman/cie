@@ -38,6 +38,15 @@ APP_PY = (
     "    return beta()\n"
 )
 
+CLASS_APP_PY = (
+    "class Greeter:\n"
+    "    def greet(self, name: str) -> str:\n"
+    "        return name\n"
+    "\n"
+    "def alpha():\n"
+    "    return Greeter().greet(\"hello\")\n"
+)
+
 TASK_BATCH = {
     "tasks": [
         {
@@ -85,6 +94,18 @@ def indexed_project(runner):
     """The quickstart itself: a 1-file project, `cie index .` — nothing else."""
     with runner.isolated_filesystem():
         Path("app.py").write_text(APP_PY)
+        env = json.loads(
+            runner.invoke(cli, ["--json", "index", "."]).output
+        )
+        assert env["ok"] is True
+        yield Path.cwd()
+
+
+@pytest.fixture()
+def indexed_class_project(runner):
+    """An embedded graph with a class for signature and method queries."""
+    with runner.isolated_filesystem():
+        Path("app.py").write_text(CLASS_APP_PY)
         env = json.loads(
             runner.invoke(cli, ["--json", "index", "."]).output
         )
@@ -141,6 +162,34 @@ class TestQuickstartParity:
         )
         assert env["ok"] is True
 
+    def test_remaining_query_commands_answer_on_embedded(
+        self, runner, indexed_class_project
+    ):
+        env = _invoke_json(runner, ["signature", "alpha"])
+        assert env["results"]["signature"] == "alpha()"
+
+        env = _invoke_json(runner, ["methods", "Greeter"])
+        assert [method["signature"] for method in env["results"]] == [
+            "greet(self, name: str) -> str"
+        ]
+
+        # The embedded index does not calculate communities, but these CLI
+        # commands must still return their documented empty envelopes.
+        env = _invoke_json(runner, ["communities"])
+        assert env["results"] == []
+        env = _invoke_json(runner, ["community", "0"])
+        assert env["results"] == []
+
+        # Coverage read commands also answer against an indexed embedded graph
+        # before any external coverage producer has recorded measurements.
+        env = _invoke_json(runner, ["coverage:report"])
+        assert [(row["file_path"], row["measured"])
+                for row in env["results"]] == [
+            (str(indexed_class_project / "app.py"), False)
+        ]
+        env = _invoke_json(runner, ["coverage:trend"])
+        assert env["results"] == []
+
     def test_task_roundtrip_lands_in_sibling_tasks_db(
         self, runner, indexed_project
     ):
@@ -158,6 +207,12 @@ class TestQuickstartParity:
             runner.invoke(cli, ["--json", "tasks:get", "t1"]).output
         )
         assert env["results"][0]["file_path"] == "app.py"
+        env = _invoke_json(runner, ["tasks:closure", "t1"])
+        assert env["results"] == []
+        env = _invoke_json(runner, ["tasks:deps", "t1"])
+        assert env["results"] == []
+        env = _invoke_json(runner, ["validate:coverage"])
+        assert [gap["task_name"] for gap in env["results"]] == ["t1"]
         env = json.loads(
             runner.invoke(cli, ["--json", "validate:cycles"]).output
         )
