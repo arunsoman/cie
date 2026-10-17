@@ -24,6 +24,8 @@ pub enum Status {
 
 type Scenario = fn();
 
+
+#[derive(Clone, Copy)]
 pub struct Item {
     pub n: usize,
     pub name: &'static str,
@@ -85,8 +87,73 @@ pub fn registry() -> [Item; ACCEPTANCE_ITEM_COUNT] {
 
 /// The harness run: every dispatchable item must pass; the registry must be
 /// complete; the status table is printed for the release checklist.
+/// TASK-084: the authorized 26 → 31 extension. The base registry is
+/// immutable; exactly five items are appended once.
+pub const EXTENDED_ACCEPTANCE_ITEM_COUNT: usize = 31;
+
+/// The extended registry: base 26 + concept/CLI items 27-31. Deriving it
+/// from `registry()` (rather than re-listing) is what makes "raised exactly
+/// once" checkable — the meta-test pins identity of the first 26 entries.
+pub fn extended_registry() -> [Item; EXTENDED_ACCEPTANCE_ITEM_COUNT] {
+    let base = registry();
+    [
+        base[0], base[1], base[2], base[3], base[4], base[5], base[6], base[7], base[8], base[9],
+        base[10], base[11], base[12], base[13], base[14], base[15], base[16], base[17], base[18],
+        base[19], base[20], base[21], base[22], base[23], base[24], base[25],
+        g(27, "Concept nodes persisted + evidence (+six-key split)", scenarios::acc27_to_31_concept_behavior, "acceptance.rs + cie-storage task_078_six_keys.rs"),
+        g(28, "Four sources; LlmCandidate inert", scenarios::task_079_all_four_binding_sources_attach, "task_079_cart.rs"),
+        g(29, "Merge → DAG; cycles rejected", scenarios::acc27_to_31_concept_behavior, "acceptance.rs + cie-core task_080_cycle.rs"),
+        g(30, "Rollup == clean recompute", scenarios::acc27_to_31_concept_behavior, "acceptance.rs"),
+        g(31, "Invalidation along parent edges", common::acc31_parent_edge_invalidation, "cie-core task_082_invalidation.rs"),
+    ]
+}
+
+/// TASK-084 meta-test: the count was raised 26 → 31 exactly once, the base
+/// registry is untouched by the extension, and items 27-31 all resolve.
+#[test]
+fn task_084_extension_26_to_31_exactly_once_and_resolves() {
+    let _serial = common::SCENARIO_LOCK.lock().unwrap();
+    assert_eq!(ACCEPTANCE_ITEM_COUNT, 26, "locked base");
+    assert_eq!(EXTENDED_ACCEPTANCE_ITEM_COUNT, 31, "authorized extension");
+
+    let base = registry();
+    let ext = extended_registry();
+    // Extension applied exactly once: the first 26 entries are the base,
+    // verbatim (names, statuses, run pointers).
+    for (b, e) in base.iter().zip(ext.iter()) {
+        assert_eq!(b.n, e.n, "item numbering untouched");
+        assert_eq!(b.name, e.name);
+        assert_eq!(b.status, e.status);
+        assert_eq!(
+            b.run.map(|f| f as usize),
+            e.run.map(|f| f as usize),
+            "run pointer mismatch on item {}",
+            b.n
+        );
+    }
+    // Exactly five new items, numbered 27..=31.
+    for (offset, item) in ext[26..].iter().enumerate() {
+        assert_eq!(item.n, 27 + offset, "extension items are 27..=31 in order");
+    }
+
+    // All 31 resolve: green items dispatch and pass; deferred carry reason.
+    let mut green = 0usize;
+    let mut deferred = 0usize;
+    for item in &ext {
+        match item.status {
+            Status::Green => {
+                item.run.expect("green item dispatches")();
+                green += 1;
+            }
+            Status::Deferred(_) => deferred += 1,
+        }
+    }
+    assert_eq!((green, deferred), (29, 2), "29 green / 2 deferred after extension");
+}
+
 #[test]
 fn task_077_acceptance_harness_registry_and_dispatch() {
+    let _serial = common::SCENARIO_LOCK.lock().unwrap();
     let items = registry();
     assert_eq!(items.len(), ACCEPTANCE_ITEM_COUNT, "locked registry size");
 
