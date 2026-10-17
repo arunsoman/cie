@@ -50,6 +50,13 @@ pub trait LanguageAdapter: Send + Sync {
         ErrorModel::Unspecified
     }
 
+    /// TASK-067: per-language parse diagnostics (FR-3: each adapter owns
+    /// its own syntax judgment). Empty = clean; non-empty entries become
+    /// `FileError::Parse` for that path only — the batch never aborts.
+    fn parse_diagnostics(&self, _src: &str) -> Vec<String> {
+        Vec::new()
+    }
+
     fn matches_extension(&self, path: &str) -> bool {
         let ext = Path::new(path)
             .extension()

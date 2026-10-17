@@ -1,6 +1,8 @@
 //! Engine orchestration (PRD §12 pipeline): walk → hash → plan → extract →
 //! analyze → persist snapshot → report. Incremental by construction.
 
+
+pub mod pipeline;
 use cie_analysis::{self, AnalysisConfig};
 use cie_claims::persist::ClaimStoreExt;
 use cie_core::types::{content_hash, now_ns, Hash, Ns, RevId, SymbolId};

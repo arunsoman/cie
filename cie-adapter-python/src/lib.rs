@@ -34,6 +34,21 @@ impl cie_adapters::LanguageAdapter for PythonAdapter {
     fn error_model(&self) -> cie_adapters::ErrorModel {
         cie_adapters::ErrorModel::Raise
     }
+
+    /// TASK-067: tree-sitter syntax judgment for THIS language only.
+    fn parse_diagnostics(&self, src: &str) -> Vec<String> {
+        let mut parser = Parser::new();
+        if parser.set_language(&to_language()).is_err() {
+            return vec!["parser_unavailable".into()];
+        }
+        match parser.parse(src, None) {
+            Some(tree) if tree.root_node().has_error() => {
+                vec!["syntax error".into()]
+            }
+            Some(_) => vec![],
+            None => vec!["parse aborted".into()],
+        }
+    }
     fn dispatch_kind(&self) -> cie_adapters::DispatchKind {
         cie_adapters::DispatchKind::Dynamic
     }
