@@ -67,10 +67,85 @@ pub use petgraph::graph::NodeIndex;
 pub use petgraph::stable_graph::StableGraph;
 
 /// Typed symbol-level relation graph. Duplicate `(from, to, kind)` edges
-/// collapse; distinct kinds on the same pair coexist.
+/// collapse; distinct kinds on the same pair coexist. Serde is implemented
+/// manually over the node/edge tables so the graph persists as plain JSON
+/// (the petgraph serde feature is deliberately not required).
 #[derive(Debug, Clone, Default)]
 pub struct RelationGraph {
     inner: StableGraph<SymbolId, RelKind, petgraph::Directed, u32>,
+}
+
+/// Structural equality: same node weights and same edge set (StableGraph
+/// itself is not `PartialEq`).
+impl PartialEq for RelationGraph {
+    fn eq(&self, other: &Self) -> bool {
+        let self_nodes: std::collections::BTreeMap<u32, SymbolId> = self
+            .inner
+            .node_indices()
+            .filter_map(|i| self.inner.node_weight(i).map(|w| (i.index() as u32, *w)))
+            .collect();
+        let other_nodes: std::collections::BTreeMap<u32, SymbolId> = other
+            .inner
+            .node_indices()
+            .filter_map(|i| other.inner.node_weight(i).map(|w| (i.index() as u32, *w)))
+            .collect();
+        if self_nodes != other_nodes {
+            return false;
+        }
+        let self_edges: std::collections::BTreeSet<(u32, u32, RelKind)> =
+            self.edge_triples().map(|(a, b, k)| (a.index() as u32, b.index() as u32, k)).collect();
+        let other_edges: std::collections::BTreeSet<(u32, u32, RelKind)> =
+            other.edge_triples().map(|(a, b, k)| (a.index() as u32, b.index() as u32, k)).collect();
+        self_edges == other_edges
+    }
+}
+
+impl Serialize for RelationGraph {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Repr {
+            nodes: Vec<(u32, SymbolId)>,
+            edges: Vec<(u32, u32, RelKind)>,
+        }
+        let repr = Repr {
+            nodes: self
+                .inner
+                .node_indices()
+                .filter_map(|i| self.inner.node_weight(i).map(|w| (i.index() as u32, *w)))
+                .collect(),
+            edges: self
+                .inner
+                .edge_indices()
+                .filter_map(|e| {
+                    self.inner
+                        .edge_endpoints(e)
+                        .map(|(a, b)| (a.index() as u32, b.index() as u32, *self.inner.edge_weight(e).unwrap()))
+                })
+                .collect(),
+        };
+        repr.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for RelationGraph {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Repr {
+            nodes: Vec<(u32, SymbolId)>,
+            edges: Vec<(u32, u32, RelKind)>,
+        }
+        let repr = Repr::deserialize(deserializer)?;
+        let mut g = RelationGraph::new();
+        for (idx, sym) in repr.nodes {
+            let added = g.inner.add_node(sym);
+            debug_assert_eq!(added.index() as u32, idx, "dense node replay");
+        }
+        for (a, b, kind) in repr.edges {
+            let (a, b) = (NodeIndex::new(a as usize), NodeIndex::new(b as usize));
+            g.add_edge(a, b, kind);
+        }
+        Ok(g)
+    }
 }
 
 impl RelationGraph {

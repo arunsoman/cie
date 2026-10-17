@@ -248,7 +248,7 @@ pub struct ImportFact {
     pub line: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum AsyncKind {
     AsyncFn,
     Await,
@@ -292,6 +292,153 @@ impl LangFacts {
             analyzer: analyzer.into(),
             ..Default::default()
         }
+    }
+}
+
+
+/// §9 `AnalysisInput.facts` (TASK-010): every fact family plus the typed
+/// relation graph — the exact payload of an analysis run. `dedup()` collapses
+/// structurally identical facts deterministically (stable order by
+/// `(loc, id)` per family) and is idempotent, so the same revision always
+/// yields byte-stable facts (FR-4). `check_integrity()` rejects references
+/// to absent symbols as `CieError::DanglingReference` — dangling ids are
+/// errors, never silent edges (global rule 3).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TypedFacts {
+    pub symbols: Vec<SymbolFact>,
+    pub calls: Vec<CallSite>,
+    pub returns: Vec<ReturnSite>,
+    pub exceptions: Vec<ExceptionFact>,
+    pub assignments: Vec<AssignmentFact>,
+    pub ifs: Vec<IfSite>,
+    pub loops: Vec<LoopSite>,
+    pub sources: Vec<SourceSite>,
+    pub sinks: Vec<SinkSite>,
+    pub imports: Vec<ImportFact>,
+    pub async_facts: Vec<AsyncFact>,
+    pub relations: crate::relations::RelationGraph,
+}
+
+impl TypedFacts {
+    pub fn push_symbol(&mut self, fact: SymbolFact) {
+        self.symbols.push(fact);
+    }
+
+    pub fn push_call(&mut self, site: CallSite) {
+        self.calls.push(site);
+    }
+
+    pub fn push_exception(&mut self, fact: ExceptionFact) {
+        self.exceptions.push(fact);
+    }
+
+    /// Deterministic, idempotent dedup: per family, sort by the stable
+    /// `(loc, id)` key, then collapse adjacent structural duplicates.
+    pub fn dedup(&mut self) {
+        self.symbols.sort_by_key(|s| {
+            (
+                s.loc.path.clone(),
+                s.loc.start_line,
+                s.loc.end_line,
+                s.id,
+                s.kind,
+            )
+        });
+        self.symbols.dedup();
+
+        self.calls.sort_by_key(|c| (c.caller, c.line, c.callee_text.clone()));
+        self.calls.dedup();
+
+        self.returns
+            .sort_by_key(|r| (r.symbol, r.line, r.expr.clone()));
+        self.returns.dedup();
+
+        self.exceptions
+            .sort_by_key(|e| (e.symbol, e.line, e.kind_text.clone()));
+        self.exceptions.dedup();
+
+        self.assignments
+            .sort_by_key(|a| (a.symbol, a.line, a.var.clone()));
+        self.assignments.dedup();
+
+        self.ifs.sort_by_key(|i| (i.symbol, i.line, i.cond.clone()));
+        self.ifs.dedup();
+
+        self.loops.sort_by_key(|l| (l.symbol, l.line, l.body_start));
+        self.loops.dedup();
+
+        self.sources
+            .sort_by_key(|s| (s.symbol, s.line, s.var.clone()));
+        self.sources.dedup();
+
+        self.sinks
+            .sort_by_key(|s| (s.symbol, s.line, s.call_text.clone()));
+        self.sinks.dedup();
+
+        self.imports
+            .sort_by_key(|i| (i.module_symbol, i.line, i.module.clone()));
+        self.imports.dedup();
+
+        self.async_facts.sort_by_key(|a| (a.symbol, a.line, a.kind));
+        self.async_facts.dedup();
+    }
+
+    /// FR-2/FR-4 integrity gate: every `SymbolId` referenced by any family
+    /// must exist in `symbols`; resolved callees must exist too.
+    pub fn check_integrity(&self) -> Result<(), crate::protocol::CieError> {
+        let known: std::collections::BTreeSet<SymbolId> =
+            self.symbols.iter().map(|s| s.id).collect();
+        let mut dangler = |what: String,
+                           id: SymbolId,
+                           out: &mut Result<(), crate::protocol::CieError>| {
+            if !known.contains(&id) {
+                if out.is_ok() {
+                    *out = Err(crate::protocol::CieError::DanglingReference {
+                        what: format!("{what} {id:?}"),
+                    });
+                }
+            }
+        };
+        let mut out = Ok(());
+        for s in &self.symbols {
+            if let Some(p) = s.parent {
+                dangler("parent of".into(), p, &mut out);
+            }
+        }
+        for c in &self.calls {
+            dangler("caller of call".into(), c.caller, &mut out);
+            if let Callee::Resolved(id) = c.callee {
+                dangler("callee of call".into(), id, &mut out);
+            }
+        }
+        for r in &self.returns {
+            dangler("return in".into(), r.symbol, &mut out);
+        }
+        for e in &self.exceptions {
+            dangler("exception in".into(), e.symbol, &mut out);
+        }
+        for a in &self.assignments {
+            dangler("assignment in".into(), a.symbol, &mut out);
+        }
+        for i in &self.ifs {
+            dangler("if in".into(), i.symbol, &mut out);
+        }
+        for l in &self.loops {
+            dangler("loop in".into(), l.symbol, &mut out);
+        }
+        for s in &self.sources {
+            dangler("source in".into(), s.symbol, &mut out);
+        }
+        for s in &self.sinks {
+            dangler("sink in".into(), s.symbol, &mut out);
+        }
+        for i in &self.imports {
+            dangler("import in".into(), i.module_symbol, &mut out);
+        }
+        for a in &self.async_facts {
+            dangler("async in".into(), a.symbol, &mut out);
+        }
+        out
     }
 }
 
