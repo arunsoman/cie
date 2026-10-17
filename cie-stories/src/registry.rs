@@ -447,9 +447,12 @@ mod tests {
                 }
             }
         }
+        let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("cie-stories sits directly under the workspace root");
         for c in crates {
             assert!(
-                std::path::Path::new(&format!("/home/z/my-project/cie/{c}/Cargo.toml")).exists(),
+                workspace_root.join(&c).join("Cargo.toml").exists(),
                 "cited crate does not exist: {c}"
             );
         }
