@@ -291,6 +291,21 @@ pub struct LangFacts {
     pub async_facts: Vec<AsyncSite>,
     /// Constructs this adapter could not model — surfaced in evidence.
     pub unsupported: Vec<String>,
+    /// Resource-ownership effects (TASK-016/017/020): malloc/free/realloc,
+    /// borrows, moves — the §14.3 `Owns`/`Reads`/`Writes` raw material.
+    #[serde(default)]
+    pub resource_effects: Vec<ResourceEffect>,
+}
+
+/// One resource-ownership effect (§14.3 relations input): `kind_text` is
+/// the adapter-vouched operation (`malloc`, `free`, `realloc`, `move`,
+/// `borrow`, `drop`); `resource` is the expression text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceEffect {
+    pub symbol: SymbolId,
+    pub kind_text: String,
+    pub resource: String,
+    pub line: u32,
 }
 
 impl LangFacts {
