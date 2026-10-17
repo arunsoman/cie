@@ -24,6 +24,7 @@ pub mod archive;
 pub mod hnsw;
 pub mod kv;
 pub mod snapshot;
+pub mod tables;
 use cie_core::types::RevId;
 use serde::{Deserialize, Serialize};
 use std::fs;
