@@ -9,6 +9,12 @@ pub mod differential;
 pub mod engine;
 pub mod proptests;
 pub mod snapshot;
+pub mod timeline;
+
+pub use timeline::{
+    contract_timeline, BreakingConcern, BreakingKind, ContractTimeline, ImportMap,
+    InterfaceRevision,
+};
 
 pub use differential::{RelationState, RelationTrace};
 pub use engine::{AnalysisStatus, CancellationToken, Checkpoint, Engine, EngineBudget, RunOutcome, WorkItem};
