@@ -66,6 +66,13 @@ impl<'a> Labeler<'a> {
             return self.offline_record(prompt, now);
         }
 
+        // FR-4 provenance: an offline provider's output is NOT an LLM label —
+        // it is the deterministic rule-based result (acc #12).
+        let source: &str = if self.provider.kind() == crate::ProviderKind::Offline {
+            "offline"
+        } else {
+            "llm"
+        };
         match self.provider.complete(prompt, max_tokens) {
             Ok(label) if !label.is_empty() => {
                 // charge ~ tokens/4 estimate
@@ -76,14 +83,14 @@ impl<'a> Labeler<'a> {
                     cie_storage::CachedLabel {
                         label: label.clone(),
                         model_id: self.provider.id().to_string(),
-                        source: "llm".into(),
+                        source: source.into(),
                         created_ns: now,
                     },
                 );
                 LabelRecord {
                     label,
                     model_id: self.provider.id(),
-                    source: "llm",
+                    source,
                     created_ns: now,
                 }
             }

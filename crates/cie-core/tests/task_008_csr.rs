@@ -69,6 +69,10 @@ fn task_008_csr_rkyv_roundtrip() {
 #[test]
 #[ignore = "perf: cargo test -- --ignored"]
 fn task_008_csr_scan_perf() {
+    if cfg!(debug_assertions) {
+        eprintln!("perf gate skipped on debug build (run with --release)");
+        return;
+    }
     let csr = fixture_csr(1_000_000); // ~1M edges, built in-test
     let t0 = now_ns();
     let mut seen: u64 = 0;
