@@ -246,6 +246,8 @@ dependencies = [
  "cie-core",
  "cie-semantic",
  "serde",
+ "tree-sitter",
+ "tree-sitter-rust",
 ]
 
 [[package]]
