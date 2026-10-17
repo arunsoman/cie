@@ -121,3 +121,22 @@ Validation: **31 server tests, 3 Node data tests, 17 real-browser journeys passe
 strict server Clippy passed. The register now lists **67 partial / 80 pending**.
 This is recorded-evidence inspection and manual investigation support, not an
 autonomous investigator or an execution/replay engine.
+
+## Repository orientation increment
+
+The History & comparison area creates a private synthetic checkout sample on
+request, reads up to 50 Git commits without author identities, and compares exact
+retained supported source snapshots. Changed paths open before/after source text
+with freshness, hashes and secret-shaped-value removal. Source lookup never reads
+a caller-supplied live path. Git metadata commands disable fsmonitor hooks;
+synthetic history creation disables hooks/templates and uses explicit fixture
+identity/dates. No connected user source is modified.
+
+API: `POST /api/samples {kind:"checkout"}`,
+`GET /api/repositories/:id/history`,
+`POST /api/repositories/:id/compare {before,after}`,
+`POST /api/source {repositoryId,revisionId,file}`.
+
+Validation: **234 workspace tests passed; 11 ignored**, **19 browser journeys
+passed**, 3 Node data tests passed, strict server Clippy passed. The acceptance
+register now lists **72 partial / 75 pending**, with no complete-story assertion.

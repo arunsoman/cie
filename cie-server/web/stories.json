@@ -56,9 +56,12 @@
   {
     "id": "US-007",
     "title": "Try a ready-made sample repository",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "On-demand checkout fixture with real, explicitly synthetic dated Git history; advanced unsupported views remain unavailable.",
+    "evidence": [
+      "generated_sample_has_real_dated_synthetic_history_without_mutating_user_source",
+      "browser:sample-history"
+    ]
   },
   {
     "id": "US-008",
@@ -299,9 +302,11 @@
   {
     "id": "US-036",
     "title": "Compare code before and after a change",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Retained source snapshots can be compared with exact source inspection; candidate semantic/behavioral comparison pending.",
+    "evidence": [
+      "snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility"
+    ]
   },
   {
     "id": "US-037",
@@ -695,16 +700,20 @@
   {
     "id": "US-086",
     "title": "Prioritize maintenance work",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Bounded changed-path Git history without contributor identity; validated risk ranking pending.",
+    "evidence": [
+      "generated_sample_has_real_dated_synthetic_history_without_mutating_user_source"
+    ]
   },
   {
     "id": "US-087",
     "title": "Find code that changes together",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Per-commit changed-path groups available; co-change clustering/confidence and visual explanations pending.",
+    "evidence": [
+      "generated_sample_has_real_dated_synthetic_history_without_mutating_user_source"
+    ]
   },
   {
     "id": "US-088",
@@ -718,9 +727,11 @@
   {
     "id": "US-089",
     "title": "Track how an interface evolved",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Dated commits and retained source comparisons available; symbol-aware interface evolution pending.",
+    "evidence": [
+      "snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility"
+    ]
   },
   {
     "id": "US-090",

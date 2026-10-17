@@ -10,7 +10,7 @@
 | US-004: Work across several repositories | partial | Search across indexed snapshots preserves repository identity; cross-service contract resolution pending. | cross_repository_search_keeps_identical_names_separate |
 | US-005: Connect a hosted source | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-006: Watch and control background work | partial | Persistent jobs and cancellation before publication; browser reload acceptance included. | cancel_queued_job_blocks_publication, restart_marks_interrupted_jobs_failed_without_automatic_resume, browser:repository-index-reload |
-| US-007: Try a ready-made sample repository | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-007: Try a ready-made sample repository | partial | On-demand checkout fixture with real, explicitly synthetic dated Git history; advanced unsupported views remain unavailable. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source, browser:sample-history |
 | US-008: Ask a code-grounded question | partial | Deterministic evidence questions and explicit unknowns; unrestricted natural-language analysis pending. | unknown_question_does_not_return_unrelated_finding_as_answer |
 | US-009: See how my question was read | partial | Interpretation and explicit intent controls; ranked alternatives/confidence calibration pending. | explicit_route_and_symbol_selection_are_honored |
 | US-010: Ask several conditions at once | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
@@ -39,7 +39,7 @@
 | US-033: See every way a failure can arise | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-034: Walk through a transaction step by step | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-035: Trace who reads and writes data | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-036: Compare code before and after a change | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-036: Compare code before and after a change | partial | Retained source snapshots can be compared with exact source inspection; candidate semantic/behavioral comparison pending. | snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility |
 | US-037: Ask why unusual code exists | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-038: See trust boundaries and privilege walls | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-039: See recent trouble on the structure | partial | Recorded error events are visible with their reported timing; structural overlays and incident ingestion adapters pending. | browser:runtime-import |
@@ -89,10 +89,10 @@
 | US-083: Compare two profiles | partial | Multiple profile reports can be retained; normalized cross-profile comparison pending. | imported_observations_map_only_exact_source_and_never_claim_execution |
 | US-084: Investigate a performance regression | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-085: Identify optimization opportunities | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-086: Prioritize maintenance work | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-087: Find code that changes together | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-086: Prioritize maintenance work | partial | Bounded changed-path Git history without contributor identity; validated risk ranking pending. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source |
+| US-087: Find code that changes together | partial | Per-commit changed-path groups available; co-change clustering/confidence and visual explanations pending. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source |
 | US-088: Protect contributor privacy | partial | Workspace does not collect history/authorship; privacy-aware historical analytics pending. | browser:privacy-disclosure |
-| US-089: Track how an interface evolved | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-089: Track how an interface evolved | partial | Dated commits and retained source comparisons available; symbol-aware interface evolution pending. | snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility |
 | US-090: Find documentation gaps | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-091: Collaborate without widening access | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-092: Export and bookmark understanding | partial | JSON/Markdown exports preserve full answer caveats; visual artifact export and bookmarks pending. | node:export-caveats, browser:export |

@@ -73,6 +73,13 @@ partial.update({
 82: ('Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements.', ['browser:runtime-import']),
 83: ('Multiple profile reports can be retained; normalized cross-profile comparison pending.', ['imported_observations_map_only_exact_source_and_never_claim_execution'])
 })
+partial.update({
+7: ('On-demand checkout fixture with real, explicitly synthetic dated Git history; advanced unsupported views remain unavailable.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source','browser:sample-history']),
+36: ('Retained source snapshots can be compared with exact source inspection; candidate semantic/behavioral comparison pending.', ['snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility']),
+86: ('Bounded changed-path Git history without contributor identity; validated risk ranking pending.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source']),
+87: ('Per-commit changed-path groups available; co-change clustering/confidence and visual explanations pending.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source']),
+89: ('Dated commits and retained source comparisons available; symbol-aware interface evolution pending.', ['snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility'])
+})
 rows=[]
 for number,title in re.findall(r'^### US-(\d+): (.+)$',source,re.M):
     n=int(number); note,evidence=partial.get(n,('Not implemented in the product workspace. No acceptance completion is claimed.',[]))

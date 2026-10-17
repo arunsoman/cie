@@ -24,12 +24,16 @@ impl App {
                 "At least one allowed repository root is required",
             ));
         }
-        let roots = allowed_roots
+        let mut roots = allowed_roots
             .into_iter()
             .map(std::fs::canonicalize)
             .collect::<std::io::Result<Vec<_>>>()?;
+        let storage = Storage::open(data)?;
+        let samples = storage.directory.join("samples");
+        std::fs::create_dir_all(&samples)?;
+        roots.push(std::fs::canonicalize(samples)?);
         Ok(Arc::new(Self {
-            storage: Storage::open(data)?,
+            storage,
             allowed_roots: roots,
             index_lock: Mutex::new(()),
         }))
@@ -37,6 +41,9 @@ impl App {
     pub fn dispatch(self: &Arc<Self>, method: &str, path: &str, body: &[u8]) -> Result<Value> {
         if body.len() > 1024 * 1024 {
             return Err(Error::new(413, "REQUEST_LIMIT", "Request exceeds 1 MiB"));
+        }
+        if let Some(result) = crate::orientation::dispatch(self, method, path, body) {
+            return result;
         }
         if let Some(result) = crate::observations::dispatch(self, method, path, body) {
             return result;

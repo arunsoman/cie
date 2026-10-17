@@ -631,3 +631,92 @@ fn investigation_with_deleted_answer_reference_remains_challenged_after_resume()
     assert_eq!(view["challenged"], true);
     assert_eq!(view["missingReferences"], 1);
 }
+
+#[test]
+fn generated_sample_has_real_dated_synthetic_history_without_mutating_user_source() {
+    let f = Fixture::new();
+    let before = fs::read(f.root.join("auth.py")).unwrap();
+    let sample = f.call("POST", "/api/samples", json!({"kind":"checkout"}));
+    assert_eq!(sample["synthetic"], true);
+    let id = sample["repository"]["id"].as_str().unwrap();
+    let root = PathBuf::from(sample["repository"]["path"].as_str().unwrap());
+    assert!(root.join(".git").exists());
+    assert!(!f.root.join(".git").exists());
+    assert_eq!(fs::read(f.root.join("auth.py")).unwrap(), before);
+    let history = f.call("GET", &format!("/api/repositories/{id}/history"), json!({}));
+    assert_eq!(history["commits"].as_array().unwrap().len(), 2);
+    assert_eq!(history["authorshipCollected"], false);
+    assert!(
+        history["commits"][0]["timestampSeconds"].as_u64().unwrap()
+            > history["commits"][1]["timestampSeconds"].as_u64().unwrap()
+    );
+    assert!(!serde_json::to_string(&history)
+        .unwrap()
+        .contains("fixture@localhost"));
+    let repeated = f.call("POST", "/api/samples", json!({"kind":"checkout"}));
+    assert_eq!(repeated["repository"]["id"], id);
+    f.index(id);
+}
+#[test]
+fn snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility() {
+    let f = Fixture::new();
+    let id = f.connect();
+    let before = f.index(&id);
+    fs::write(
+        f.root.join("new.ts"),
+        "export function added() { return 3; }\n",
+    )
+    .unwrap();
+    fs::write(f.root.join("auth.py"), "def changed():\n    return False\n").unwrap();
+    let after = f.index(&id);
+    let diff = f.call(
+        "POST",
+        &format!("/api/repositories/{id}/compare"),
+        json!({"before":before,"after":after}),
+    );
+    let rows = diff["differences"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(
+        rows.iter().find(|r| r["file"] == "new.ts").unwrap()["status"],
+        "added"
+    );
+    assert!(diff["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g.as_str().unwrap().contains("semantic compatibility")));
+}
+#[test]
+fn source_view_uses_snapshot_not_live_path_and_removes_secret_shapes() {
+    let f = Fixture::new();
+    fs::write(
+        f.root.join("auth.py"),
+        "def old():\n    password = 'sensitivefixturevalue'\n    return True\n",
+    )
+    .unwrap();
+    let id = f.connect();
+    let revision = f.index(&id);
+    fs::write(f.root.join("auth.py"), "def live():\n    return False\n").unwrap();
+    let source = f.call(
+        "POST",
+        "/api/source",
+        json!({"repositoryId":id,"revisionId":revision,"file":"auth.py"}),
+    );
+    assert!(source["text"].as_str().unwrap().contains("def old"));
+    assert!(!source["text"]
+        .as_str()
+        .unwrap()
+        .contains("sensitivefixturevalue"));
+    assert_eq!(source["freshness"], "stale");
+    assert!(f
+        .app
+        .dispatch(
+            "POST",
+            "/api/source",
+            &serde_json::to_vec(
+                &json!({"repositoryId":id,"revisionId":revision,"file":"../outside"})
+            )
+            .unwrap()
+        )
+        .is_err());
+}

@@ -226,6 +226,12 @@ fn handle(stream: &mut TcpStream, app: &Arc<App>, address: SocketAddr, token: &s
                         include_bytes!("../web/app.js").to_vec(),
                     ))
                 }
+                "/orientation.js" => {
+                    return Ok((
+                        "text/javascript; charset=utf-8",
+                        include_bytes!("../web/orientation.js").to_vec(),
+                    ));
+                }
                 "/observations.js" => {
                     return Ok((
                         "text/javascript; charset=utf-8",

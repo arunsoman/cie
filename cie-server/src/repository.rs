@@ -40,6 +40,7 @@ pub fn capture(root: &Path) -> Result<Capture> {
     let mut paths = vec![];
     let mut skipped = vec![];
     let git = Command::new("git")
+        .args(["-c", "core.fsmonitor=false"])
         .arg("-C")
         .arg(root)
         .args(["rev-parse", "--show-toplevel"])
@@ -52,6 +53,7 @@ pub fn capture(root: &Path) -> Result<Capture> {
         .and_then(|p| fs::canonicalize(p.trim()).ok());
     if git_root.as_deref() == Some(root) {
         let output = Command::new("git")
+            .args(["-c", "core.fsmonitor=false"])
             .arg("-C")
             .arg(root)
             .args([
@@ -174,6 +176,7 @@ pub fn capture(root: &Path) -> Result<Capture> {
         sources.insert(relative, text);
     }
     let git_head = Command::new("git")
+        .args(["-c", "core.fsmonitor=false"])
         .arg("-C")
         .arg(root)
         .args(["rev-parse", "--verify", "HEAD"])
