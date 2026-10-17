@@ -17,6 +17,9 @@ rkyv = { workspace = true }
 rustc-hash = { workspace = true }
 dashmap = { workspace = true }
 quick_cache = { workspace = true }
+hnsw_rs = { workspace = true }
+memmap2 = { workspace = true }
+zstd = { workspace = true }
 sled = { workspace = true, optional = true }
 redb = { workspace = true, optional = true }
 
@@ -25,3 +28,6 @@ default = ["backend-sled"]
 backend-sled = ["dep:sled"]
 backend-redb = ["dep:redb"]
 
+
+[dev-dependencies]
+cie-relations = { workspace = true }
