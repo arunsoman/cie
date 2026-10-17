@@ -6,8 +6,12 @@
 
 use cie_core::types::{ContractId, SymbolId};
 pub mod findings;
+pub mod naming;
+pub mod registry;
 
 pub use findings::{Finding, FindingKind};
+pub use naming::{Action, Label, LabelSource, NamingAdapter, NamingKind, NamingRecord};
+pub use registry::ContractRegistry;
 
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +82,12 @@ pub enum ObligationKind {
     MustValidateInput,
     MustHandleErrors,
     MustNotLeakSecrets,
+    /// TASK-039: name/implementation-mismatch obligation (FR-10/FR-11).
+    /// Enters the registry only as `Authority::InferredCandidate`.
+    Naming,
+    /// TASK-041: mined sequencing obligation ("commit requires prior begin").
+    /// Enters the registry only as `Authority::InferredCandidate`.
+    Protocol,
     Custom(String),
 }
 
@@ -90,6 +100,8 @@ impl ObligationKind {
             ObligationKind::MustValidateInput => "must_validate_input".into(),
             ObligationKind::MustHandleErrors => "must_handle_errors".into(),
             ObligationKind::MustNotLeakSecrets => "must_not_leak_secrets".into(),
+            ObligationKind::Naming => "naming".into(),
+            ObligationKind::Protocol => "protocol".into(),
             ObligationKind::Custom(s) => format!("custom:{s}"),
         }
     }
@@ -101,6 +113,9 @@ pub enum ContractSource {
     NamingConvention,
     /// Derived from a document claim (drift pipeline); carries the claim id.
     Claim(u32),
+    /// TASK-079: proposed by an LLM (binding source 4). Inert — pairs only
+    /// with `Authority::LlmCandidate` and can never decide a verdict.
+    Llm,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

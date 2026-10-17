@@ -365,7 +365,9 @@ version = "0.3.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
+ "cie-summary",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
