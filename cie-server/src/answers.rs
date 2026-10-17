@@ -113,7 +113,7 @@ fn terms(question: &str) -> Vec<String> {
         .map(str::to_string)
         .collect()
 }
-fn secret_safe(text: &str) -> String {
+pub(crate) fn secret_safe(text: &str) -> String {
     static SECRET: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let pattern=SECRET.get_or_init(||regex::Regex::new(r#"(?i)(?:gh[pousr]_[a-z0-9_]{20,}|sk-(?:live-)?[a-z0-9_-]{16,}|AKIA[A-Z0-9]{16}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*[\"'][^\"'\r\n]{6,}[\"'])"#).expect("constant secret regex"));
     pattern

@@ -245,9 +245,12 @@
   {
     "id": "US-029",
     "title": "Overlay tests and runtime on any map",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Imported trace/profile/test records with exact source mapping; overlays on every structural map and time-window filtering pending.",
+    "evidence": [
+      "imported_observations_map_only_exact_source_and_never_claim_execution",
+      "browser:runtime-import"
+    ]
   },
   {
     "id": "US-030",
@@ -317,9 +320,11 @@
   {
     "id": "US-039",
     "title": "See recent trouble on the structure",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Recorded error events are visible with their reported timing; structural overlays and incident ingestion adapters pending.",
+    "evidence": [
+      "browser:runtime-import"
+    ]
   },
   {
     "id": "US-040",
@@ -377,9 +382,11 @@
   {
     "id": "US-047",
     "title": "Connect profiling data to code",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Profile imports require actual sample counts and exact hash mapping; flame graphs and profiler-specific adapters pending.",
+    "evidence": [
+      "observations_reject_mismatch_cycles_duplicates_and_invalid_intervals"
+    ]
   },
   {
     "id": "US-048",
@@ -506,30 +513,38 @@
   {
     "id": "US-064",
     "title": "Start an investigation from a symptom",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Symptom-based investigation records persist with explicit hypotheses; automated evidence collection pending.",
+    "evidence": [
+      "investigations_checkpoint_competing_hypotheses_without_promoting_them"
+    ]
   },
   {
     "id": "US-065",
     "title": "Compare competing explanations",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Competing hypotheses can record supporting and counter-evidence; automatic ranking and falsification pending.",
+    "evidence": [
+      "investigations_checkpoint_competing_hypotheses_without_promoting_them"
+    ]
   },
   {
     "id": "US-066",
     "title": "Direct an investigation while it runs",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Investigators add evidence and checkpoint notes while retaining exact scope; automated running-step steering pending.",
+    "evidence": [
+      "browser:investigation-checkpoint"
+    ]
   },
   {
     "id": "US-067",
     "title": "Trust the investigation's bookkeeping",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Exact-snapshot reference validation and missing/disputed evidence remain challenged; automated action bookkeeping pending.",
+    "evidence": [
+      "investigation_with_deleted_answer_reference_remains_challenged_after_resume"
+    ]
   },
   {
     "id": "US-068",
@@ -541,23 +556,29 @@
   {
     "id": "US-069",
     "title": "Ask for the next discriminating step",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Explicit next discriminating step saved per hypothesis; automatic discriminating-step selection pending.",
+    "evidence": [
+      "investigations_checkpoint_competing_hypotheses_without_promoting_them"
+    ]
   },
   {
     "id": "US-070",
     "title": "Resume an investigation later",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Durable paused checkpoints reopen with independent freshness checks; automatic work continuation pending.",
+    "evidence": [
+      "browser:investigation-checkpoint"
+    ]
   },
   {
     "id": "US-071",
     "title": "Assemble an incident explanation",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Investigation export preserves hypotheses, evidence IDs and uncertainty; synthesized incident explanation pending.",
+    "evidence": [
+      "investigation_with_deleted_answer_reference_remains_challenged_after_resume"
+    ]
   },
   {
     "id": "US-072",
@@ -585,30 +606,38 @@
   {
     "id": "US-075",
     "title": "Compare structure with observed runtime",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Exact-source-hash runtime mappings and unmapped records exposed; linked structural/runtime comparison pending.",
+    "evidence": [
+      "imported_observations_map_only_exact_source_and_never_claim_execution"
+    ]
   },
   {
     "id": "US-076",
     "title": "Replay a recorded request",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Recorded event timeline and parent relationships available; execution replay and alternate paths pending.",
+    "evidence": [
+      "browser:runtime-import"
+    ]
   },
   {
     "id": "US-077",
     "title": "Compare environments and flags",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Reports retain explicit environment and revision; side-by-side environment/flag comparison pending.",
+    "evidence": [
+      "imported_observations_become_stale_when_source_changes"
+    ]
   },
   {
     "id": "US-078",
     "title": "Distinguish causes from coincidence",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Imported timing and parent links explicitly do not establish causal necessity; intervention evidence pending.",
+    "evidence": [
+      "imported_observations_map_only_exact_source_and_never_claim_execution"
+    ]
   },
   {
     "id": "US-079",
@@ -634,16 +663,20 @@
   {
     "id": "US-082",
     "title": "Explain a slow operation",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements.",
+    "evidence": [
+      "browser:runtime-import"
+    ]
   },
   {
     "id": "US-083",
     "title": "Compare two profiles",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Multiple profile reports can be retained; normalized cross-profile comparison pending.",
+    "evidence": [
+      "imported_observations_map_only_exact_source_and_never_claim_execution"
+    ]
   },
   {
     "id": "US-084",

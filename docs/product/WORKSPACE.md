@@ -96,3 +96,28 @@ matrix require their own named tests and remain tracked separately.
 - [Full acceptance register](STATUS.md): 51 partial, 96 pending, 0 fully complete.
   Browser tests verify the delivered subset; they do not certify all criteria of
   the product-wide stories. The register lists remaining obligations explicitly.
+
+## Recorded evidence and investigation increment
+
+`Runtime & investigations` accepts caller-supplied trace, profile or test records.
+Events retain their reported time axis, outcomes, environment and producer. Source
+mapping requires an exact retained revision, file, line and content hash. Unmapped
+records remain unmapped. Durations describe submitted intervals; they do not prove
+causality, complete coverage, production performance or an execution performed by
+CIE. Identical report submissions return the original report ID.
+
+Investigations retain symptoms, competing hypotheses, supporting/counter-evidence
+IDs, proposed discriminating steps and checkpoint notes. References must belong
+to the same exact repository/snapshot. Paused records reopen after reload with a
+freshness check. Deleted or disputed evidence remains visibly challenged even
+when a user resumes. No workload or proposed next step is executed automatically.
+
+API: `GET/POST /api/observations`, `GET/DELETE /api/observations/:id`,
+`GET/POST /api/investigations`, `GET /api/investigations/:id`,
+`POST /api/investigations/:id/hypotheses`,
+`POST /api/investigations/:id/checkpoint`.
+
+Validation: **31 server tests, 3 Node data tests, 17 real-browser journeys passed**;
+strict server Clippy passed. The register now lists **67 partial / 80 pending**.
+This is recorded-evidence inspection and manual investigation support, not an
+autonomous investigator or an execution/replay engine.

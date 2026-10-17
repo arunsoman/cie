@@ -130,6 +130,10 @@ pub struct FeatureDraft {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
+    #[serde(default)]
+    pub observations: Vec<Observation>,
+    #[serde(default)]
+    pub investigations: Vec<Investigation>,
     pub schema: u32,
     pub next_id: u64,
     pub repositories: Vec<Repository>,
@@ -142,6 +146,8 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            observations: vec![],
+            investigations: vec![],
             schema: 1,
             next_id: 1,
             repositories: vec![],
@@ -193,3 +199,52 @@ impl From<std::io::Error> for Error {
     }
 }
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ObservedEvent {
+    pub id: String,
+    pub parent_id: Option<String>,
+    pub name: String,
+    pub start_micros: u64,
+    pub end_micros: u64,
+    pub outcome: String,
+    pub file: Option<String>,
+    pub line: Option<u32>,
+    pub source_hash: Option<String>,
+    pub samples: Option<u64>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Observation {
+    pub id: String,
+    pub repository_id: String,
+    pub revision_id: String,
+    pub environment: String,
+    pub producer: String,
+    pub kind: String,
+    pub events: Vec<ObservedEvent>,
+    pub created_ns: u64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Hypothesis {
+    pub id: String,
+    pub statement: String,
+    pub status: String,
+    pub support: Vec<String>,
+    pub counter_evidence: Vec<String>,
+    pub next_step: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Investigation {
+    pub id: String,
+    pub repository_id: String,
+    pub revision_id: String,
+    pub symptom: String,
+    pub status: String,
+    pub hypotheses: Vec<Hypothesis>,
+    pub notes: Vec<String>,
+    pub created_ns: u64,
+}

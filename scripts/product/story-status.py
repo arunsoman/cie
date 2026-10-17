@@ -55,6 +55,24 @@ partial = {
 145: ('Unknowns and missing evidence disclosed; future adapters need degradation tests.', ['unknown_question_does_not_return_unrelated_finding_as_answer']),
 146: ('Atomic persistence, process lock and interruption handling; backups/restore and complete idempotency pending.', ['failed_transaction_does_not_change_persisted_or_in_memory_state','storage_rejects_concurrent_owners_and_corruption']),
 147: ('Full 147-story acceptance register with named checks; independent evaluation harness pending.', ['node:story-register'])}
+partial.update({
+29: ('Imported trace/profile/test records with exact source mapping; overlays on every structural map and time-window filtering pending.', ['imported_observations_map_only_exact_source_and_never_claim_execution','browser:runtime-import']),
+39: ('Recorded error events are visible with their reported timing; structural overlays and incident ingestion adapters pending.', ['browser:runtime-import']),
+47: ('Profile imports require actual sample counts and exact hash mapping; flame graphs and profiler-specific adapters pending.', ['observations_reject_mismatch_cycles_duplicates_and_invalid_intervals']),
+64: ('Symptom-based investigation records persist with explicit hypotheses; automated evidence collection pending.', ['investigations_checkpoint_competing_hypotheses_without_promoting_them']),
+65: ('Competing hypotheses can record supporting and counter-evidence; automatic ranking and falsification pending.', ['investigations_checkpoint_competing_hypotheses_without_promoting_them']),
+66: ('Investigators add evidence and checkpoint notes while retaining exact scope; automated running-step steering pending.', ['browser:investigation-checkpoint']),
+67: ('Exact-snapshot reference validation and missing/disputed evidence remain challenged; automated action bookkeeping pending.', ['investigation_with_deleted_answer_reference_remains_challenged_after_resume']),
+69: ('Explicit next discriminating step saved per hypothesis; automatic discriminating-step selection pending.', ['investigations_checkpoint_competing_hypotheses_without_promoting_them']),
+70: ('Durable paused checkpoints reopen with independent freshness checks; automatic work continuation pending.', ['browser:investigation-checkpoint']),
+71: ('Investigation export preserves hypotheses, evidence IDs and uncertainty; synthesized incident explanation pending.', ['investigation_with_deleted_answer_reference_remains_challenged_after_resume']),
+75: ('Exact-source-hash runtime mappings and unmapped records exposed; linked structural/runtime comparison pending.', ['imported_observations_map_only_exact_source_and_never_claim_execution']),
+76: ('Recorded event timeline and parent relationships available; execution replay and alternate paths pending.', ['browser:runtime-import']),
+77: ('Reports retain explicit environment and revision; side-by-side environment/flag comparison pending.', ['imported_observations_become_stale_when_source_changes']),
+78: ('Imported timing and parent links explicitly do not establish causal necessity; intervention evidence pending.', ['imported_observations_map_only_exact_source_and_never_claim_execution']),
+82: ('Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements.', ['browser:runtime-import']),
+83: ('Multiple profile reports can be retained; normalized cross-profile comparison pending.', ['imported_observations_map_only_exact_source_and_never_claim_execution'])
+})
 rows=[]
 for number,title in re.findall(r'^### US-(\d+): (.+)$',source,re.M):
     n=int(number); note,evidence=partial.get(n,('Not implemented in the product workspace. No acceptance completion is claimed.',[]))

@@ -247,7 +247,8 @@ fn cancel_queued_job_blocks_publication() {
 #[test]
 fn restart_marks_interrupted_jobs_failed_without_automatic_resume() {
     let dir = std::env::temp_dir().join(format!(
-        "cie-restart-{}",
+        "cie-restart-{}-{}",
+        std::process::id(),
         SEQ.fetch_add(1, Ordering::SeqCst)
     ));
     let storage = Storage::open(&dir).unwrap();
@@ -277,7 +278,11 @@ fn restart_marks_interrupted_jobs_failed_without_automatic_resume() {
 }
 #[test]
 fn storage_rejects_concurrent_owners_and_corruption() {
-    let dir = std::env::temp_dir().join(format!("cie-lock-{}", SEQ.fetch_add(1, Ordering::SeqCst)));
+    let dir = std::env::temp_dir().join(format!(
+        "cie-lock-{}-{}",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::SeqCst)
+    ));
     let storage = Storage::open(&dir).unwrap();
     assert!(Storage::open(&dir).is_err());
     drop(storage);
@@ -436,4 +441,193 @@ fn deleting_a_tracked_file_does_not_make_future_indexing_fail() {
     let capture = cie_server::repository::capture(&fs::canonicalize(&f.root).unwrap()).unwrap();
     assert!(capture.sources.contains_key("auth.py"));
     assert!(!capture.sources.contains_key("deleted.py"));
+}
+
+fn observation_body(f: &Fixture, repo: &str, revision: &str) -> Value {
+    let state = f.app.storage.read().unwrap();
+    let rev = state
+        .repositories
+        .iter()
+        .find(|r| r.id == repo)
+        .unwrap()
+        .revisions
+        .iter()
+        .find(|r| r.id == revision)
+        .unwrap();
+    let hash = cie_core::types::hash_hex(&cie_core::types::content_hash(
+        rev.sources["auth.py"].as_bytes(),
+    ));
+    json!({"repositoryId":repo,"revisionId":revision,"environment":"test","producer":"test-recorder","kind":"trace","events":[{"id":"root","name":"request","startMicros":0,"endMicros":200,"outcome":"error"},{"id":"child","parentId":"root","name":"allowed","startMicros":20,"endMicros":100,"outcome":"ok","file":"auth.py","line":1,"sourceHash":hash}]})
+}
+#[test]
+fn imported_observations_map_only_exact_source_and_never_claim_execution() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let body = observation_body(&f, &repo, &rev);
+    let o = f.call("POST", "/api/observations", body.clone());
+    assert_eq!(o["mapped"], 1);
+    assert_eq!(o["unmapped"], 1);
+    assert_eq!(o["provenance"]["executionVerifiedByCie"], false);
+    assert_eq!(o["items"][1]["durationMicros"], 80);
+    assert_eq!(o["edges"][0]["kind"], "reportedParent");
+    let repeated = f.call("POST", "/api/observations", body);
+    assert_eq!(o["observation"]["id"], repeated["observation"]["id"]);
+    assert_eq!(f.app.storage.read().unwrap().observations.len(), 1);
+}
+#[test]
+fn observations_reject_mismatch_cycles_duplicates_and_invalid_intervals() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let body = observation_body(&f, &repo, &rev);
+    for (field, value) in [
+        ("sourceHash", json!("wrong")),
+        ("line", json!(9999)),
+        ("endMicros", json!(1)),
+        ("parentId", json!("absent")),
+    ] {
+        let mut b = body.clone();
+        b["events"][1][field] = value;
+        assert!(f
+            .app
+            .dispatch(
+                "POST",
+                "/api/observations",
+                &serde_json::to_vec(&b).unwrap()
+            )
+            .is_err());
+    }
+    let mut b = body.clone();
+    b["events"][0]["parentId"] = json!("child");
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/observations",
+                &serde_json::to_vec(&b).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "CYCLIC_TRACE"
+    );
+    let mut b = body;
+    b["events"][1]["id"] = json!("root");
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/observations",
+                &serde_json::to_vec(&b).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "DUPLICATE_EVENT"
+    );
+    assert!(f.app.storage.read().unwrap().observations.is_empty());
+}
+#[test]
+fn investigations_checkpoint_competing_hypotheses_without_promoting_them() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let answer = f.ask(&repo, "overview");
+    let aid = answer["answer"]["id"].as_str().unwrap();
+    let i=f.call("POST","/api/investigations",json!({"repositoryId":repo,"revisionId":rev,"symptom":"Authorization intermittently fails"}));
+    let id = i["investigation"]["id"].as_str().unwrap();
+    let route = format!("/api/investigations/{id}/hypotheses");
+    let result=f.call("POST",&route,json!({"statement":"Input varies","support":[aid],"counterEvidence":[],"nextStep":"Record failing input with permission"}));
+    assert_eq!(result["claimClass"], "hypothesis");
+    assert_eq!(
+        result["investigation"]["hypotheses"][0]["status"],
+        "proposed"
+    );
+    f.call(
+        "POST",
+        &format!("/api/investigations/{id}/checkpoint"),
+        json!({"status":"paused","note":"Waiting for recorder output"}),
+    );
+    let stored = f.app.storage.read().unwrap();
+    assert_eq!(stored.investigations[0].status, "paused");
+    assert_eq!(stored.investigations[0].notes.len(), 1);
+    let bad = json!({"statement":"Wrong scope","support":["missing"],"counterEvidence":[],"nextStep":"Read exact evidence"});
+    assert_eq!(
+        f.app
+            .dispatch("POST", &route, &serde_json::to_vec(&bad).unwrap())
+            .unwrap_err()
+            .code,
+        "INVALID_REFERENCE"
+    );
+}
+#[test]
+fn deleting_observation_challenges_dependents_and_repository_delete_cascades() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let o = f.call(
+        "POST",
+        "/api/observations",
+        observation_body(&f, &repo, &rev),
+    );
+    let oid = o["observation"]["id"].as_str().unwrap();
+    let i = f.call(
+        "POST",
+        "/api/investigations",
+        json!({"repositoryId":repo,"revisionId":rev,"symptom":"Failure"}),
+    );
+    let id = i["investigation"]["id"].as_str().unwrap();
+    f.call("POST",&format!("/api/investigations/{id}/hypotheses"),json!({"statement":"Recorder shows failure","support":[oid],"counterEvidence":[],"nextStep":"Inspect cause independently"}));
+    f.call("DELETE", &format!("/api/observations/{oid}"), json!({}));
+    assert_eq!(
+        f.app.storage.read().unwrap().investigations[0].status,
+        "evidenceMissing"
+    );
+    f.call("DELETE", &format!("/api/repositories/{repo}"), json!({}));
+    let s = f.app.storage.read().unwrap();
+    assert!(s.observations.is_empty());
+    assert!(s.investigations.is_empty());
+}
+#[test]
+fn imported_observations_become_stale_when_source_changes() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let o = f.call(
+        "POST",
+        "/api/observations",
+        observation_body(&f, &repo, &rev),
+    );
+    let id = o["observation"]["id"].as_str().unwrap();
+    fs::write(f.root.join("auth.py"), "def changed():\n    pass\n").unwrap();
+    let view = f.call("GET", &format!("/api/observations/{id}"), json!({}));
+    assert_eq!(view["freshness"], "stale");
+    assert_eq!(
+        view["items"][1]["citation"]["excerpt"],
+        "def allowed(value):"
+    );
+}
+
+#[test]
+fn investigation_with_deleted_answer_reference_remains_challenged_after_resume() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let answer = f.ask(&repo, "overview");
+    let aid = answer["answer"]["id"].as_str().unwrap();
+    let i = f.call(
+        "POST",
+        "/api/investigations",
+        json!({"repositoryId":repo,"revisionId":rev,"symptom":"Failure"}),
+    );
+    let id = i["investigation"]["id"].as_str().unwrap();
+    f.call("POST",&format!("/api/investigations/{id}/hypotheses"),json!({"statement":"Static calls may explain failure","support":[aid],"counterEvidence":[],"nextStep":"Observe failing execution"}));
+    f.call("DELETE", &format!("/api/answers/{aid}"), json!({}));
+    f.call(
+        "POST",
+        &format!("/api/investigations/{id}/checkpoint"),
+        json!({"status":"open","note":"Continuing with missing evidence disclosed"}),
+    );
+    let view = f.call("GET", &format!("/api/investigations/{id}"), json!({}));
+    assert_eq!(view["challenged"], true);
+    assert_eq!(view["missingReferences"], 1);
 }

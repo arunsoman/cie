@@ -32,7 +32,7 @@
 | US-026: Inspect an element's full story | partial | Shared inspector shows evidence, analyzer detail and relationships; editor URI integration pending. | browser:source-inspection |
 | US-027: Keep multiple views aligned | partial | Static views share item identity; runtime mappings pending. | browser:representation-parity |
 | US-028: Express a proposed change visually | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-029: Overlay tests and runtime on any map | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-029: Overlay tests and runtime on any map | partial | Imported trace/profile/test records with exact source mapping; overlays on every structural map and time-window filtering pending. | imported_observations_map_only_exact_source_and_never_claim_execution, browser:runtime-import |
 | US-030: Trust the drawing itself | partial | Disjoint rows and edge lanes outside nodes; crossings documented, sophisticated layout pending. | node:projection-layout |
 | US-031: See the architecture that answers my question | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-032: Investigate a failure from a stack trace | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
@@ -42,7 +42,7 @@
 | US-036: Compare code before and after a change | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-037: Ask why unusual code exists | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-038: See trust boundaries and privilege walls | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-039: See recent trouble on the structure | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-039: See recent trouble on the structure | partial | Recorded error events are visible with their reported timing; structural overlays and incident ingestion adapters pending. | browser:runtime-import |
 | US-040: Find where races are possible | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-041: Preview removing a component | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-042: See how well behaviour is tested | partial | Static test reachability only; assertion/execution evidence pending. | static_test_map_never_claims_executed_coverage |
@@ -50,7 +50,7 @@
 | US-044: See implicit concepts in the code | partial | Engine concept nodes exposed as inference with citations; business interpretation requires review. | answers_have_real_citations_and_shared_graph_population |
 | US-045: Audit which policies are enforced | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-046: Judge where change is risky | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-047: Connect profiling data to code | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-047: Connect profiling data to code | partial | Profile imports require actual sample counts and exact hash mapping; flame graphs and profiler-specific adapters pending. | observations_reject_mismatch_cycles_duplicates_and_invalid_intervals |
 | US-048: See routes and what guards them | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-049: Ask for a diagram of my own | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-050: Extract and curate concept cards | partial | Concept candidates and claim review; full concept-card curation pending. | refutation_hides_claim_and_edges_without_upgrading_confirmation |
@@ -67,26 +67,26 @@
 | US-061: Follow cross-repository contracts | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-062: Judge dependency importance and upgrades | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-063: Ask questions of a built artifact | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-064: Start an investigation from a symptom | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-065: Compare competing explanations | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-066: Direct an investigation while it runs | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-067: Trust the investigation's bookkeeping | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-064: Start an investigation from a symptom | partial | Symptom-based investigation records persist with explicit hypotheses; automated evidence collection pending. | investigations_checkpoint_competing_hypotheses_without_promoting_them |
+| US-065: Compare competing explanations | partial | Competing hypotheses can record supporting and counter-evidence; automatic ranking and falsification pending. | investigations_checkpoint_competing_hypotheses_without_promoting_them |
+| US-066: Direct an investigation while it runs | partial | Investigators add evidence and checkpoint notes while retaining exact scope; automated running-step steering pending. | browser:investigation-checkpoint |
+| US-067: Trust the investigation's bookkeeping | partial | Exact-snapshot reference validation and missing/disputed evidence remain challenged; automated action bookkeeping pending. | investigation_with_deleted_answer_reference_remains_challenged_after_resume |
 | US-068: Reproduce an intermittent defect | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-069: Ask for the next discriminating step | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-070: Resume an investigation later | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-071: Assemble an incident explanation | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-069: Ask for the next discriminating step | partial | Explicit next discriminating step saved per hypothesis; automatic discriminating-step selection pending. | investigations_checkpoint_competing_hypotheses_without_promoting_them |
+| US-070: Resume an investigation later | partial | Durable paused checkpoints reopen with independent freshness checks; automatic work continuation pending. | browser:investigation-checkpoint |
+| US-071: Assemble an incident explanation | partial | Investigation export preserves hypotheses, evidence IDs and uncertainty; synthesized incident explanation pending. | investigation_with_deleted_answer_reference_remains_challenged_after_resume |
 | US-072: Triage defect candidates honestly | partial | Analyzer findings labelled inference with evidence; runtime confirmation and full triage workflow pending. | unknown_question_does_not_return_unrelated_finding_as_answer |
 | US-073: Back candidates with runtime evidence and isolated runs | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-074: Collect performance candidates | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-075: Compare structure with observed runtime | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-076: Replay a recorded request | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-077: Compare environments and flags | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-078: Distinguish causes from coincidence | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-075: Compare structure with observed runtime | partial | Exact-source-hash runtime mappings and unmapped records exposed; linked structural/runtime comparison pending. | imported_observations_map_only_exact_source_and_never_claim_execution |
+| US-076: Replay a recorded request | partial | Recorded event timeline and parent relationships available; execution replay and alternate paths pending. | browser:runtime-import |
+| US-077: Compare environments and flags | partial | Reports retain explicit environment and revision; side-by-side environment/flag comparison pending. | imported_observations_become_stale_when_source_changes |
+| US-078: Distinguish causes from coincidence | partial | Imported timing and parent links explicitly do not establish causal necessity; intervention evidence pending. | imported_observations_map_only_exact_source_and_never_claim_execution |
 | US-079: Find possible race windows | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-080: Find deadlocks and lock contention | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-081: Investigate distributed consistency | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-082: Explain a slow operation | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-083: Compare two profiles | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-082: Explain a slow operation | partial | Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements. | browser:runtime-import |
+| US-083: Compare two profiles | partial | Multiple profile reports can be retained; normalized cross-profile comparison pending. | imported_observations_map_only_exact_source_and_never_claim_execution |
 | US-084: Investigate a performance regression | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-085: Identify optimization opportunities | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-086: Prioritize maintenance work | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
