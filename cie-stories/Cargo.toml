@@ -21,3 +21,7 @@ cie-store = { path = "../cie-store" }
 cie-fault = { path = "../cie-fault" }
 cie-viz = { path = "../cie-viz" }
 cie-adapters = { path = "../cie-adapters" }
+cie-contract = { path = "../cie-contract" }
+cie-counterexample = { path = "../cie-counterexample" }
+cie-summary = { path = "../cie-summary" }
+cie-concepts = { path = "../cie-concepts" }

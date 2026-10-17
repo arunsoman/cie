@@ -11,6 +11,9 @@ pub mod s1_repo;
 pub mod s2_answers;
 pub mod s3_viz;
 pub mod s4_catalog;
+pub mod s5_concepts;
+pub mod s6_arch;
+pub mod s7_investigations;
 
 /// Deep check registry — story id → check.
 pub fn deep_check(id: &str) -> Option<Result<(), String>> {
@@ -56,6 +59,26 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-049" => s4_catalog::us_049,
         // US-037/039/041/043/046/047/048: partial with named gaps or
         // planned; evidence is the named suite — audit-only.
+        // ---- Behaviour, concepts and business rules ----
+        "US-050" => s5_concepts::us_050,
+        "US-051" => s5_concepts::us_051,
+        "US-053" => s5_concepts::us_053,
+        "US-054" => s5_concepts::us_054,
+        "US-055" => s5_concepts::us_055,
+        "US-056" => s5_concepts::us_056,
+        // US-052: partial (adapter-limited) — audit-only.
+        // ---- Architecture, dependencies and impact ----
+        "US-057" => s6_arch::us_057,
+        "US-058" => s6_arch::us_058,
+        "US-060" => s6_arch::us_060,
+        // US-059/061: partial/audit; US-062/063: planned.
+        // ---- Debugging and investigations ----
+        "US-065" => s7_investigations::us_065,
+        "US-067" => s7_investigations::us_067,
+        "US-068" => s7_investigations::us_068,
+        "US-072" => s7_investigations::us_072,
+        "US-074" => s7_investigations::us_074,
+        // US-064/066/069/070/071/073: audit-only (covered patterns).
         _ => return None,
     };
     Some(std::panic::catch_unwind(f).unwrap_or_else(|p| {
@@ -78,7 +101,8 @@ mod tests {
         for id in [
             "US-005", "US-007", "US-009", "US-010", "US-012", "US-020", "US-022", "US-023",
             "US-024", "US-028", "US-037", "US-039", "US-041", "US-043", "US-046", "US-047",
-            "US-048",
+            "US-048", "US-052", "US-059", "US-061", "US-062", "US-063", "US-064", "US-066",
+            "US-069", "US-070", "US-071", "US-073",
         ] {
             assert!(deep_check(id).is_none(), "{id} has no deep check by design");
         }

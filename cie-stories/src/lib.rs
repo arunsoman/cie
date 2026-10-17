@@ -38,6 +38,9 @@ pub const DEEP_CHECKS: &[&str] = &[
     "US-018", "US-019", "US-021", "US-025", "US-026", "US-027", "US-029", "US-030", "US-031",
     "US-032", "US-033", "US-034", "US-035", "US-036", "US-038", "US-040", "US-042", "US-044",
     "US-045", "US-049",
+    // batch E — concepts/rules, architecture, investigations
+    "US-050", "US-051", "US-053", "US-054", "US-055", "US-056", "US-057", "US-058", "US-060",
+    "US-065", "US-067", "US-068", "US-072", "US-074",
 ];
 
 /// Total number of stories in the catalogue (147).

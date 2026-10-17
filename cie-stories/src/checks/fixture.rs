@@ -33,6 +33,7 @@ def charge(user, amount):
 
 def refund(user, amount):
     _ = authorize(user)
+    print(\"refunding\", user)
     return {\"user\": user, \"refund\": amount}
 ";
 
