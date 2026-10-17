@@ -433,9 +433,11 @@ dependencies = [
 name = "cie-fault"
 version = "0.3.0"
 dependencies = [
+ "cie-contract",
  "cie-core",
  "cie-semantic",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
