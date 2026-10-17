@@ -80,13 +80,22 @@ partial.update({
 87: ('Per-commit changed-path groups available; co-change clustering/confidence and visual explanations pending.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source']),
 89: ('Dated commits and retained source comparisons available; symbol-aware interface evolution pending.', ['snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility'])
 })
+partial.update({
+10: ('Explicit bounded intersection/union/complement queries preserve true/false/unknown membership; unrestricted natural-language compound routing pending.', ['compound_queries_preserve_unknown_under_negative_missing_effect','compound_query_union_and_complement_use_one_exact_population','browser:compound-query']),
+11: ('Up to six explicit read-only steps with dependency selection and durable independent results; autonomous natural-language planning pending.', ['composed_analysis_retains_completed_steps_when_dependency_is_ambiguous','browser:composed-analysis']),
+17: ('Durable per-step results and idempotent resume across answer/checkpoint interruption; broader provider recovery pending.', ['resuming_after_answer_publication_before_step_checkpoint_is_idempotent']),
+146: ('Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending.', ['ownership_release_is_not_delayed_by_an_inherited_descriptor','question_request_ids_deduplicate_and_refuse_changed_input_or_revision'])
+})
+completed = {
+143: ('Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass.', ['node:theme-contrast','browser:theme-persistence'])
+}
 rows=[]
 for number,title in re.findall(r'^### US-(\d+): (.+)$',source,re.M):
-    n=int(number); note,evidence=partial.get(n,('Not implemented in the product workspace. No acceptance completion is claimed.',[]))
-    rows.append(dict(id=f'US-{n:03}',title=title,status='partial' if n in partial else 'pending',note=note,evidence=evidence))
+    n=int(number); note,evidence=completed.get(n,partial.get(n,('Not implemented in the product workspace. No acceptance completion is claimed.',[])))
+    rows.append(dict(id=f'US-{n:03}',title=title,status='complete' if n in completed else 'partial' if n in partial else 'pending',note=note,evidence=evidence))
 assert len(rows)==147 and len({r['id'] for r in rows})==147
 (root/'cie-server/web/stories.json').write_text(json.dumps(rows,indent=2)+'\n')
-lines=['# Product acceptance register','','147 stories. **No full story is claimed complete yet.** Named checks below verify bounded capabilities, not all criteria of each story.','', '| Story | Status | Delivered scope and remaining obligations | Named checks |','|---|---|---|---|']
+lines=['# Product acceptance register','','147 stories. Complete stories have explicit acceptance checks; partial capabilities do not count as complete stories.','', '| Story | Status | Delivered scope and remaining obligations | Named checks |','|---|---|---|---|']
 lines += [f"| {r['id']}: {r['title']} | {r['status']} | {r['note']} | {', '.join(r['evidence']) or 'None'} |" for r in rows]
 (root/'docs/product/STATUS.md').write_text('\n'.join(lines)+'\n')
-print(f"{len(rows)} stories: {len(partial)} partial, {147-len(partial)} pending, 0 complete")
+print({status:sum(r["status"]==status for r in rows) for status in ["complete","partial","pending"]})

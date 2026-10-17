@@ -720,3 +720,177 @@ fn source_view_uses_snapshot_not_live_path_and_removes_secret_shapes() {
         )
         .is_err());
 }
+
+#[test]
+fn compound_queries_preserve_unknown_under_negative_missing_effect() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    f.app
+        .storage
+        .transaction(|s| {
+            for summary in &mut s.repositories[0].revisions[0].snapshot.summaries {
+                summary.effects.clear();
+                summary.complete = true;
+            }
+            Ok(())
+        })
+        .unwrap();
+    let q=f.call("POST","/api/queries",json!({"repositoryId":repo,"revisionId":rev,"expression":{"op":"all","args":[{"op":"name","value":"authorize"},{"op":"not","arg":{"op":"effect","value":"network"}}]}}));
+    assert_eq!(q["population"]["matched"], 0);
+    assert!(q["population"]["unknown"].as_u64().unwrap() > 0);
+    for i in q["answer"]["items"].as_array().unwrap() {
+        assert_eq!(i["detail"]["queryDecision"], "unknown");
+        assert!(i["label"].as_str().unwrap().contains("authorize"));
+        assert_eq!(i["claimClass"], "analyzerInference");
+    }
+    let id = q["answer"]["id"].as_str().unwrap();
+    let exported = f.call("GET", &format!("/api/answers/{id}/export"), json!({}));
+    assert_eq!(q["answer"]["items"], exported["answer"]["items"]);
+}
+#[test]
+fn compound_query_union_and_complement_use_one_exact_population() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let q=f.call("POST","/api/queries",json!({"repositoryId":repo,"revisionId":rev,"expression":{"op":"any","args":[{"op":"name","value":"authorize"},{"op":"name","value":"allowed"}]},"includeUnknown":false}));
+    assert!(q["population"]["matched"].as_u64().unwrap() >= 2);
+    assert_eq!(q["population"]["unknown"], 0);
+    for i in q["answer"]["items"].as_array().unwrap() {
+        assert_eq!(i["detail"]["queryDecision"], "true");
+        assert!(
+            i["label"].as_str().unwrap().contains("authorize")
+                || i["label"].as_str().unwrap().contains("allowed")
+        );
+    }
+    let selected: std::collections::BTreeSet<_> = q["answer"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    for edge in q["answer"]["edges"].as_array().unwrap() {
+        assert!(selected.contains(edge["from"].as_str().unwrap()));
+        assert!(selected.contains(edge["to"].as_str().unwrap()));
+    }
+}
+#[test]
+fn compound_queries_reject_unbounded_expressions_and_foreign_comparison() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let mut expr = json!({"op":"name","value":"authorize"});
+    for _ in 0..10 {
+        expr = json!({"op":"not","arg":expr});
+    }
+    for expression in [
+        expr,
+        json!({"op":"changed","beforeRevisionId":"foreign"}),
+        json!({"op":"effect","value":"made_up_effect"}),
+        json!({"op":"all","args":[]}),
+    ] {
+        let body = json!({"repositoryId":repo,"revisionId":rev,"expression":expression});
+        assert!(f
+            .app
+            .dispatch("POST", "/api/queries", &serde_json::to_vec(&body).unwrap())
+            .is_err());
+    }
+}
+
+#[test]
+fn composed_analysis_retains_completed_steps_when_dependency_is_ambiguous() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    let p=f.call("POST","/api/plans",json!({"repositoryId":repo,"steps":[{"question":"overview"},{"question":"show callers","intent":"callers","fromStep":0},{"question":"findings","intent":"findings"}]}));
+    assert_eq!(p["plan"]["status"], "partial");
+    assert!(p["plan"]["steps"][0]["answerId"].is_string());
+    assert_eq!(p["plan"]["steps"][1]["status"], "failed");
+    assert!(p["plan"]["steps"][1]["issue"]
+        .as_str()
+        .unwrap()
+        .contains("AMBIGUOUS_DEPENDENCY"));
+    assert!(p["plan"]["steps"][2]["answerId"].is_string());
+    let aid = p["plan"]["steps"][0]["answerId"].as_str().unwrap();
+    let id = p["plan"]["id"].as_str().unwrap();
+    f.call("DELETE", &format!("/api/answers/{aid}"), json!({}));
+    let view = f.call("GET", &format!("/api/plans/{id}"), json!({}));
+    assert_eq!(view["missingAnswers"], 1);
+    assert!(view["results"][0]["error"].is_string());
+}
+#[test]
+fn resuming_after_answer_publication_before_step_checkpoint_is_idempotent() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    let p=f.call("POST","/api/plans",json!({"repositoryId":repo,"steps":[{"question":"overview"},{"question":"find allowed","intent":"search"}]}));
+    let id = p["plan"]["id"].as_str().unwrap();
+    let aid = p["plan"]["steps"][1]["answerId"].clone();
+    let count = f.app.storage.read().unwrap().answers.len();
+    f.app
+        .storage
+        .transaction(|s| {
+            let p = &mut s.plans[0];
+            p.status = "interrupted".into();
+            p.steps[1].status = "interrupted".into();
+            p.steps[1].answer_id = None;
+            Ok(())
+        })
+        .unwrap();
+    let resumed = f.call("POST", &format!("/api/plans/{id}/resume"), json!({}));
+    assert_eq!(resumed["plan"]["steps"][1]["answerId"], aid);
+    assert_eq!(f.app.storage.read().unwrap().answers.len(), count);
+    f.app
+        .storage
+        .transaction(|s| {
+            s.plans[0].status = "interrupted".into();
+            Ok(())
+        })
+        .unwrap();
+    fs::write(f.root.join("auth.py"), "def changed():\n    return False\n").unwrap();
+    assert_eq!(
+        f.app
+            .dispatch("POST", &format!("/api/plans/{id}/resume"), b"{}")
+            .unwrap_err()
+            .code,
+        "STALE_PLAN"
+    );
+}
+#[test]
+fn question_request_ids_deduplicate_and_refuse_changed_input_or_revision() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let revision = f.index(&repo);
+    let q = json!({"repositoryId":repo,"question":"overview","expectedRevision":revision,"requestId":"stable-request"});
+    let first = f.call("POST", "/api/questions", q.clone());
+    let second = f.call("POST", "/api/questions", q.clone());
+    assert_eq!(first["answer"]["id"], second["answer"]["id"]);
+    assert_eq!(f.app.storage.read().unwrap().answers.len(), 1);
+    let mut conflict = q.clone();
+    conflict["question"] = json!("findings");
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/questions",
+                &serde_json::to_vec(&conflict).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "REQUEST_ID_CONFLICT"
+    );
+    let mut wrong = q;
+    wrong["requestId"] = json!("fresh-request");
+    wrong["expectedRevision"] = json!("missing-snapshot");
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/questions",
+                &serde_json::to_vec(&wrong).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "REVISION_CHANGED"
+    );
+}

@@ -84,16 +84,23 @@
   {
     "id": "US-010",
     "title": "Ask several conditions at once",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Explicit bounded intersection/union/complement queries preserve true/false/unknown membership; unrestricted natural-language compound routing pending.",
+    "evidence": [
+      "compound_queries_preserve_unknown_under_negative_missing_effect",
+      "compound_query_union_and_complement_use_one_exact_population",
+      "browser:compound-query"
+    ]
   },
   {
     "id": "US-011",
     "title": "Combine several questions into one analysis",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Up to six explicit read-only steps with dependency selection and durable independent results; autonomous natural-language planning pending.",
+    "evidence": [
+      "composed_analysis_retains_completed_steps_when_dependency_is_ambiguous",
+      "browser:composed-analysis"
+    ]
   },
   {
     "id": "US-012",
@@ -144,9 +151,9 @@
     "id": "US-017",
     "title": "Recover when something goes wrong mid-answer",
     "status": "partial",
-    "note": "Saved results survive reload and interrupted indexing fails explicitly; durable multi-step investigation continuation pending.",
+    "note": "Durable per-step results and idempotent resume across answer/checkpoint interruption; broader provider recovery pending.",
     "evidence": [
-      "restart_marks_interrupted_jobs_failed_without_automatic_resume"
+      "resuming_after_answer_publication_before_step_checkpoint_is_idempotent"
     ]
   },
   {
@@ -1140,9 +1147,10 @@
   {
     "id": "US-143",
     "title": "Read comfortably in any theme",
-    "status": "partial",
-    "note": "Persistent light/dark/high-contrast themes and reduced motion CSS; contrast audit pending.",
+    "status": "complete",
+    "note": "Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass.",
     "evidence": [
+      "node:theme-contrast",
       "browser:theme-persistence"
     ]
   },
@@ -1169,10 +1177,10 @@
     "id": "US-146",
     "title": "Trust that interruptions never corrupt state",
     "status": "partial",
-    "note": "Atomic persistence, process lock and interruption handling; backups/restore and complete idempotency pending.",
+    "note": "Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending.",
     "evidence": [
-      "failed_transaction_does_not_change_persisted_or_in_memory_state",
-      "storage_rejects_concurrent_owners_and_corruption"
+      "ownership_release_is_not_delayed_by_an_inherited_descriptor",
+      "question_request_ids_deduplicate_and_refuse_changed_input_or_revision"
     ]
   },
   {

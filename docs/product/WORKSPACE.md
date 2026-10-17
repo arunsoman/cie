@@ -140,3 +140,30 @@ API: `POST /api/samples {kind:"checkout"}`,
 Validation: **234 workspace tests passed; 11 ignored**, **19 browser journeys
 passed**, 3 Node data tests passed, strict server Clippy passed. The acceptance
 register now lists **72 partial / 75 pending**, with no complete-story assertion.
+
+## Compound analysis and interruption safety increment
+
+`POST /api/queries` evaluates bounded explicit set expressions over one retained
+symbol population. Intersection, union and complement use true/false/unknown
+logic. Missing analyzer effects, tags and test reachability are unknown even
+under NOT. Exact filters and membership decisions survive in answers and exports.
+The browser exposes the same decisions in graph, table and outline.
+
+`GET/POST /api/plans`, `GET /api/plans/:id`, and
+`POST /api/plans/:id/{cancel,resume}` support up to six explicit read-only steps.
+An earlier step can supply a target only when it contains exactly one unchallenged
+symbol. Every completed answer persists independently; failed dependent steps do
+not discard later independent results. Resumption requires current source evidence.
+Per-step request IDs deduplicate the crash window between answer publication and
+step checkpointing. Questions also accept `requestId` and `expectedRevision`;
+reusing an ID with different input fails instead of returning an unrelated answer.
+
+A concurrent-process regression exposed inherited lock descriptors delaying
+workspace ownership release. Storage now explicitly unlocks on close, with a
+regression holding a duplicate descriptor open throughout the ownership transfer.
+
+Validation: **242 workspace tests passed, 11 ignored; 21 real-browser journeys
+passed; 4 Node data/contrast tests passed; strict server Clippy passed.**
+US-143 has named acceptance evidence for persistent themes, renderer recoloring,
+text/control contrast, visible focus and reduced motion. Register: **1 complete,
+73 partial, 73 pending**. The remaining stories are not represented as complete.

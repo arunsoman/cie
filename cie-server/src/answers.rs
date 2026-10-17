@@ -3,7 +3,7 @@ use cie_core::types::{content_hash, hash_hex, SymbolId};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Question {
     pub repository_id: String,
@@ -11,6 +11,8 @@ pub struct Question {
     pub intent: Option<Intent>,
     pub symbol_id: Option<String>,
     pub parent_answer: Option<String>,
+    pub expected_revision: Option<String>,
+    pub request_id: Option<String>,
 }
 pub fn route(question: &str) -> Intent {
     let q = question.to_lowercase();
@@ -146,7 +148,11 @@ pub fn citation(
         excerpt,
     })
 }
-fn symbol_item(repo: &Repository, rev: &Revision, s: &cie_semantic::facts::SymbolFact) -> Item {
+pub(crate) fn symbol_item(
+    repo: &Repository,
+    rev: &Revision,
+    s: &cie_semantic::facts::SymbolFact,
+) -> Item {
     let summary = rev.snapshot.summaries.iter().find(|sum| sum.sym == s.id);
     Item {
         id: format!("symbol:{}", s.id.0),
@@ -215,6 +221,8 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
         edges: vec![],
         preferred_view: "table".into(),
         parent_answer: request.parent_answer.clone(),
+        request_id: request.request_id.clone(),
+        request_fingerprint: Some(request_fingerprint(request)?),
         created_ns: now(),
     };
     let summaries: BTreeMap<_, _> = rev.snapshot.summaries.iter().map(|s| (s.sym, s)).collect();
@@ -458,4 +466,10 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
         challenged,
         hidden_claims: hidden.len(),
     })
+}
+
+pub(crate) fn request_fingerprint(request: &Question) -> Result<String> {
+    serde_json::to_vec(request)
+        .map(|bytes| hash_hex(&content_hash(&bytes)))
+        .map_err(|_| Error::new(500, "SERIALIZE", "Cannot fingerprint request"))
 }

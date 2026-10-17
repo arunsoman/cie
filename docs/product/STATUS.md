@@ -1,6 +1,6 @@
 # Product acceptance register
 
-147 stories. **No full story is claimed complete yet.** Named checks below verify bounded capabilities, not all criteria of each story.
+147 stories. Complete stories have explicit acceptance checks; partial capabilities do not count as complete stories.
 
 | Story | Status | Delivered scope and remaining obligations | Named checks |
 |---|---|---|---|
@@ -13,14 +13,14 @@
 | US-007: Try a ready-made sample repository | partial | On-demand checkout fixture with real, explicitly synthetic dated Git history; advanced unsupported views remain unavailable. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source, browser:sample-history |
 | US-008: Ask a code-grounded question | partial | Deterministic evidence questions and explicit unknowns; unrestricted natural-language analysis pending. | unknown_question_does_not_return_unrelated_finding_as_answer |
 | US-009: See how my question was read | partial | Interpretation and explicit intent controls; ranked alternatives/confidence calibration pending. | explicit_route_and_symbol_selection_are_honored |
-| US-010: Ask several conditions at once | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-011: Combine several questions into one analysis | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-010: Ask several conditions at once | partial | Explicit bounded intersection/union/complement queries preserve true/false/unknown membership; unrestricted natural-language compound routing pending. | compound_queries_preserve_unknown_under_negative_missing_effect, compound_query_union_and_complement_use_one_exact_population, browser:compound-query |
+| US-011: Combine several questions into one analysis | partial | Up to six explicit read-only steps with dependency selection and durable independent results; autonomous natural-language planning pending. | composed_analysis_retains_completed_steps_when_dependency_is_ambiguous, browser:composed-analysis |
 | US-012: Continue with follow-ups and steering | partial | Visible removable parent/selection context; general steering and editor context pending. | browser:selection-follow-up |
 | US-013: Choose the audience and level of detail | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-014: Inspect and challenge a claim | partial | Citations and required explanation for review/refutation; complete dependency invalidation/counterarguments pending. | refutation_hides_claim_and_edges_without_upgrading_confirmation, browser:review-refutation |
 | US-015: Distinguish proven, inferred, hypothesised and unknown | partial | Static observations and analyzer inference labelled consistently; runtime/hypothesis evidence classes pending. | browser:representation-parity |
 | US-016: Keep several answers side by side | partial | Saved answer tabs, close/export and evidence-gone refusal; concurrent answer generation pending. | saved_workspace_validates_answer_references, browser:workspace-reload |
-| US-017: Recover when something goes wrong mid-answer | partial | Saved results survive reload and interrupted indexing fails explicitly; durable multi-step investigation continuation pending. | restart_marks_interrupted_jobs_failed_without_automatic_resume |
+| US-017: Recover when something goes wrong mid-answer | partial | Durable per-step results and idempotent resume across answer/checkpoint interruption; broader provider recovery pending. | resuming_after_answer_publication_before_step_checkpoint_is_idempotent |
 | US-018: Receive a view that fits the question | partial | Static relationships use graph/table; unsupported timeline/measurement views explain missing data. | browser:gallery-unavailable |
 | US-019: Switch representation without changing meaning | partial | Graph/table/outline preserve identical items and edges; other evidence-specific representations pending. | node:projection-layout, browser:representation-parity |
 | US-020: Browse everything the product can draw | partial | Small truthful available/unavailable gallery; full catalogue pending. | browser:gallery-unavailable |
@@ -146,8 +146,8 @@
 | US-140: Operate everything from the keyboard | partial | Native controls and graph arrow navigation; all future canvases need acceptance testing. | browser:keyboard-graph |
 | US-141: Use the product with a screen reader | partial | Outline/table list all current items/links; full screen-reader audit pending. | browser:representation-parity |
 | US-142: Never depend on colour alone | partial | Text status/class labels and dashed inference; full notation audit pending. | browser:representation-parity |
-| US-143: Read comfortably in any theme | partial | Persistent light/dark/high-contrast themes and reduced motion CSS; contrast audit pending. | browser:theme-persistence |
+| US-143: Read comfortably in any theme | complete | Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass. | node:theme-contrast, browser:theme-persistence |
 | US-144: Never see stale answers as current | partial | Freshness, unknown, no-index and failed states separate; full denial-aware scope accounting pending. | missing_index_and_outside_roots_are_distinct_errors, changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats |
 | US-145: Get graceful degradation instead of guesses | partial | Unknowns and missing evidence disclosed; future adapters need degradation tests. | unknown_question_does_not_return_unrelated_finding_as_answer |
-| US-146: Trust that interruptions never corrupt state | partial | Atomic persistence, process lock and interruption handling; backups/restore and complete idempotency pending. | failed_transaction_does_not_change_persisted_or_in_memory_state, storage_rejects_concurrent_owners_and_corruption |
+| US-146: Trust that interruptions never corrupt state | partial | Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending. | ownership_release_is_not_delayed_by_an_inherited_descriptor, question_request_ids_deduplicate_and_refuse_changed_input_or_revision |
 | US-147: See the product verify itself | partial | Full 147-story acceptance register with named checks; independent evaluation harness pending. | node:story-register |

@@ -52,6 +52,18 @@ impl Storage {
                 "Unsupported workspace schema",
             ));
         }
+        for plan in &mut state.plans {
+            if ["queued", "running", "cancelling"].contains(&plan.status.as_str()) {
+                plan.status = "interrupted".into();
+                for step in &mut plan.steps {
+                    if ["queued", "running"].contains(&step.status.as_str()) {
+                        step.status = "interrupted".into();
+                        step.issue =
+                            Some("Interrupted; explicitly resume after freshness checks".into());
+                    }
+                }
+            }
+        }
         for job in &mut state.jobs {
             if job.active() {
                 job.state = "failed".into();
@@ -112,5 +124,35 @@ impl Storage {
         std::fs::File::open(&self.directory)?.sync_all()?;
         *guard = next;
         Ok(result)
+    }
+}
+
+impl Drop for Storage {
+    fn drop(&mut self) {
+        // A concurrent fork can briefly inherit this open file description before
+        // exec closes CLOEXEC descriptors. Explicit unlock releases ownership
+        // immediately instead of waiting for every inherited reference to close.
+        let _ = fs2::FileExt::unlock(&self._lock);
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn ownership_release_is_not_delayed_by_an_inherited_descriptor() {
+        let dir = std::env::temp_dir().join(format!(
+            "cie-inherited-{}-{}",
+            std::process::id(),
+            crate::model::now()
+        ));
+        let storage = Storage::open(&dir).unwrap();
+        let inherited = storage._lock.try_clone().unwrap();
+        drop(storage);
+        let next = Storage::open(&dir).unwrap();
+        assert!(Storage::open(&dir).is_err());
+        drop(inherited);
+        assert!(Storage::open(&dir).is_err());
+        drop(next);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

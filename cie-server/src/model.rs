@@ -96,6 +96,10 @@ pub struct Answer {
     pub edges: Vec<Edge>,
     pub preferred_view: String,
     pub parent_answer: Option<String>,
+    #[serde(default)]
+    pub request_id: Option<String>,
+    #[serde(default)]
+    pub request_fingerprint: Option<String>,
     pub created_ns: u64,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -133,6 +137,8 @@ pub struct State {
     #[serde(default)]
     pub observations: Vec<Observation>,
     #[serde(default)]
+    pub plans: Vec<AnalysisPlan>,
+    #[serde(default)]
     pub investigations: Vec<Investigation>,
     pub schema: u32,
     pub next_id: u64,
@@ -147,6 +153,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             observations: vec![],
+            plans: vec![],
             investigations: vec![],
             schema: 1,
             next_id: 1,
@@ -246,5 +253,27 @@ pub struct Investigation {
     pub status: String,
     pub hypotheses: Vec<Hypothesis>,
     pub notes: Vec<String>,
+    pub created_ns: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisStep {
+    pub question: String,
+    pub intent: Option<Intent>,
+    pub symbol_id: Option<String>,
+    pub from_step: Option<usize>,
+    pub status: String,
+    pub answer_id: Option<String>,
+    pub issue: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisPlan {
+    pub id: String,
+    pub repository_id: String,
+    pub revision_id: String,
+    pub status: String,
+    pub steps: Vec<AnalysisStep>,
     pub created_ns: u64,
 }

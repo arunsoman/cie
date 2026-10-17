@@ -15,3 +15,7 @@ pub mod runtime {
 pub mod observations;
 
 pub mod orientation;
+
+pub mod queries;
+
+pub mod plans;

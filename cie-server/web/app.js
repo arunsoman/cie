@@ -3,7 +3,7 @@
 const Evidence = {
   project(answer, filter = "", hidden = new Set()) {
     const term = filter.toLowerCase();
-    const items = answer.items.filter(i => !hidden.has(i.id) && `${i.label} ${i.kind} ${i.claimClass}`.toLowerCase().includes(term));
+    const items = answer.items.filter(i => !hidden.has(i.id) && `${i.label} ${i.kind} ${i.claimClass} ${i.detail?.queryDecision || ""}`.toLowerCase().includes(term));
     const ids = new Set(items.map(i => i.id));
     return {items, edges: answer.edges.filter(e => ids.has(e.from) && ids.has(e.to))};
   },
@@ -25,7 +25,7 @@ const Evidence = {
     return [`# ${clean(a.question)}`, "", `Repository: ${a.repositoryId} · revision: ${a.revisionId}`,
       `Status: ${a.status} · freshness: ${rendered.freshness} · challenged: ${rendered.challenged}`, "", a.summary,
       "", "## Evidence gaps", ...a.gaps.map(g => `- ${clean(g)}`), "", "## Items",
-      ...a.items.flatMap(i => [`- ${clean(i.label)} [${i.claimClass}]`, ...i.citations.map(c => `  - ${clean(c.file)}:${c.startLine}–${c.endLine}; snapshot ${c.revisionId}; hash ${c.sourceHash}`)]),
+      ...a.items.flatMap(i => [`- ${clean(i.label)} [${i.claimClass}]${i.detail?.queryDecision ? ` [query decision: ${i.detail.queryDecision}]` : ""}`, ...i.citations.map(c => `  - ${clean(c.file)}:${c.startLine}–${c.endLine}; snapshot ${c.revisionId}; hash ${c.sourceHash}`)]),
       "", "## Relationships", ...a.edges.map(e => `- ${e.from} → ${e.to}: ${e.kind} [${e.claimClass}]`)].join("\n");
   }
 };
@@ -135,20 +135,20 @@ function boot() {
   function itemButton(item) {return button(item.label, () => inspect(item));}
   function table(p, box) {
     const wrap = el("div", undefined, "table-wrap"), t = el("table"), caption = el("caption", "Evidence population with static relationships"); t.append(caption);
-    const head = el("thead"), row = el("tr"); ["Element", "Kind", "How known", "Connections", "Focus"].forEach(text => {const th = el("th", text); th.scope = "col"; row.append(th);}); head.append(row); t.append(head);
+    const head = el("thead"), row = el("tr"); ["Element", "Kind", "How known", "Query membership", "Connections", "Focus"].forEach(text => {const th = el("th", text); th.scope = "col"; row.append(th);}); head.append(row); t.append(head);
     const body = el("tbody");
-    for (const i of p.items) {const tr = el("tr"); const name = el("td"); name.append(itemButton(i)); tr.append(name, el("td", i.kind), el("td", i.claimClass), el("td", p.edges.filter(e => e.from === i.id || e.to === i.id).map(e => `${e.from} → ${e.to} [${e.kind}]`).join("; ") || "No represented links")); const focus = el("td"); focus.append(button("Hide locally", () => {hidden.add(i.id); renderPopulation();})); tr.append(focus); body.append(tr);} t.append(body); wrap.append(t); box.append(wrap);
+    for (const i of p.items) {const tr = el("tr"); const name = el("td"); name.append(itemButton(i)); tr.append(name, el("td", i.kind), el("td", i.claimClass), el("td", i.detail?.queryDecision || "Not filtered"), el("td", p.edges.filter(e => e.from === i.id || e.to === i.id).map(e => `${e.from} → ${e.to} [${e.kind}]`).join("; ") || "No represented links")); const focus = el("td"); focus.append(button("Hide locally", () => {hidden.add(i.id); renderPopulation();})); tr.append(focus); body.append(tr);} t.append(body); wrap.append(t); box.append(wrap);
   }
   function outline(p, box) {
     const list = el("ol", undefined, "outline");
-    for (const i of p.items) {const li = el("li"); li.append(itemButton(i), el("span", ` — ${i.kind}; ${i.claimClass}`)); const edges = p.edges.filter(e => e.from === i.id); if (edges.length) {const links = el("ul"); edges.forEach(e => links.append(el("li", `${e.kind} → ${p.items.find(n => n.id === e.to)?.label || e.to} [${e.claimClass}]`))); li.append(links);} list.append(li);} box.append(list);
+    for (const i of p.items) {const li = el("li"); li.append(itemButton(i), el("span", ` — ${i.kind}; ${i.claimClass}${i.detail?.queryDecision ? `; query ${i.detail.queryDecision}` : ""}`)); const edges = p.edges.filter(e => e.from === i.id); if (edges.length) {const links = el("ul"); edges.forEach(e => links.append(el("li", `${e.kind} → ${p.items.find(n => n.id === e.to)?.label || e.to} [${e.claimClass}]`))); li.append(links);} list.append(li);} box.append(list);
   }
   function graph(p, box) {
     const layout = Evidence.layout(p), ns = "http://www.w3.org/2000/svg", svgEl = (tag, attrs) => {const e = document.createElementNS(ns, tag); for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, String(v)); return e;};
     box.append(el("p", "Layout: fixed readable rows; edges route outside unrelated nodes. Edge lanes may overlap. Positions carry no causal or importance meaning. Scroll to reach all items.", "legend"));
     const wrap = el("div", undefined, "graph-wrap"), svg = svgEl("svg", {width: layout.width, height: layout.height, tabindex: 0, role: "group", "aria-label": `Evidence graph: ${p.items.length} nodes, ${p.edges.length} links. Arrow keys select; Enter inspects. Table and Outline contain every item and link.`});
     layout.edges.forEach(e => {const path = svgEl("path", {d:e.path}); const title = svgEl("title", {}); title.textContent = `${e.from} → ${e.to}: ${e.kind} [${e.claimClass}]`; path.append(title); svg.append(path);});
-    const groups = layout.nodes.map(n => {const g = svgEl("g", {class:n.claimClass === "analyzerInference" ? "inference" : ""}); g.append(svgEl("rect", {x:n.x, y:n.y, width:n.width, height:n.height, rx:5})); const label = svgEl("text", {x:n.x+12,y:n.y+23}); label.textContent = n.label.length > 53 ? n.label.slice(0,50)+"…" : n.label; const known = svgEl("text", {x:n.x+12,y:n.y+44}); known.textContent = `[${n.claimClass}] ${n.kind}`; const title = svgEl("title", {}); title.textContent = `${n.label}: ${n.claimClass}; ${n.kind}`; g.append(label,known,title); g.addEventListener("click", () => run(() => inspect(n))); svg.append(g); return g;});
+    const groups = layout.nodes.map(n => {const g = svgEl("g", {class:n.claimClass === "analyzerInference" ? "inference" : ""}); g.append(svgEl("rect", {x:n.x, y:n.y, width:n.width, height:n.height, rx:5})); const label = svgEl("text", {x:n.x+12,y:n.y+23}); label.textContent = n.label.length > 53 ? n.label.slice(0,50)+"…" : n.label; const known = svgEl("text", {x:n.x+12,y:n.y+44}); known.textContent = `[${n.claimClass}] ${n.kind}${n.detail?.queryDecision ? `; ${n.detail.queryDecision}` : ""}`; const title = svgEl("title", {}); title.textContent = `${n.label}: ${n.claimClass}; ${n.kind}${n.detail?.queryDecision ? `; query membership ${n.detail.queryDecision}` : ""}`; g.append(label,known,title); g.addEventListener("click", () => run(() => inspect(n))); svg.append(g); return g;});
     let index = 0;
     function select() {groups.forEach((g,i) => g.classList.toggle("selected", i === index)); svg.setAttribute("aria-label", `${p.items[index].label}; ${p.items[index].claimClass}. ${p.edges.filter(e => e.from === p.items[index].id || e.to === p.items[index].id).length} connections. Enter inspects.`); groups[index].scrollIntoView({block:"nearest",inline:"nearest"});}
     svg.addEventListener("keydown", event => {if (["ArrowDown","ArrowRight","ArrowUp","ArrowLeft","Home","End","Enter"].includes(event.key)) {event.preventDefault(); if (event.key === "Enter") run(() => inspect(p.items[index])); else {if (event.key === "Home") index=0; else if (event.key === "End") index=p.items.length-1; else index=Math.max(0,Math.min(p.items.length-1,index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1))); select();}}});
@@ -172,6 +172,7 @@ function boot() {
   function renderStories() {const term=$("story-filter").value.toLowerCase(), rows=capabilities.stories.filter(s=>`${s.id} ${s.title} ${s.status}`.toLowerCase().includes(term));const counts={};capabilities.stories.forEach(s=>counts[s.status]=(counts[s.status]||0)+1);$("story-counts").textContent=`${capabilities.stories.length} stories · ${Object.entries(counts).map(([k,v])=>`${v} ${k}`).join(" · ")} · ${rows.length} shown`;const box=$("stories");box.replaceChildren();for (const s of rows) {const c=el("div",undefined,"story");c.append(el("h3",`${s.id}: ${s.title}`),el("p",s.status,"badge"),el("p",s.note),el("small",`Evidence: ${(s.evidence||[]).join("; ") || "No acceptance evidence yet"}`));box.append(c);}}
   $("story-filter").addEventListener("input",renderStories);
   function renderGallery() {const entries=[["Table","Exact evidence population and represented connections.","overview"],["Graph","Static call or concept relationships; no runtime order implied.","callers"],["Outline","Accessible reading order of every item and outgoing link.","concepts"],["Timeline","Unavailable: current answers do not contain ordered event evidence.",null],["Latency chart","Unavailable: current snapshots have no imported latency measurements.",null],["Runtime replay","Unavailable: no recorded request or runtime import adapter.",null]];for (const [name,description,intent] of entries) {const c=el("div",undefined,"card");c.append(el("h2",name),el("p",description));if(intent)c.append(button("Prepare question",()=>{page("investigate");$("intent").value=intent;$("question").value=intent === "callers"?"Show callers of ":intent;$("question").focus();}));$("gallery").append(c);}}
+  document.addEventListener("cie-open-answer", event => run(async () => {openAnswers.add(event.detail.answer.id); await refresh(); showAnswer(event.detail);}));
   document.addEventListener("cie-state-changed", () => run(refresh));
   async function start() {await refresh();capabilities=await api("/api/capabilities");renderStories();renderGallery();const last=state.workspaces[0]?.activeAnswer;if(last && openAnswers.has(last))await loadAnswer(last);announce("Local workspace ready. No cloud model is connected.");}
   run(start);
