@@ -4,6 +4,19 @@
 //! (the §9 protocol needs them cycle-free); this crate re-exports them and
 //! adds the fact-dependent builders.
 
+pub mod readiness;
+pub mod workload;
+
+pub use readiness::{
+    capacity_outcome, external_verdicts, overall_tone, readiness_rollup, Calibration,
+    CapacityModel, CapacityOutcome, CapacityScenario, ExpectedResultSource, ExternalCheck,
+    ExternalVerdict, ModelState, ObservedBucket, ReadinessCheck, ReadinessSection,
+    ReadinessStatus, Waiver,
+};
+pub use workload::{
+    classify_claim, ClaimClass, ClassifiedCandidate, PerfCandidate, TimingEntry, Workload,
+    WorkloadManifest,
+};
 pub use cie_core::evidence::{Coverage, Evidence};
 
 use cie_core::types::SymbolId;
