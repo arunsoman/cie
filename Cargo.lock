@@ -470,6 +470,7 @@ dependencies = [
  "cie-relations",
  "cie-semantic",
  "cie-store",
+ "cie-stories",
  "cie-viz",
  "clap",
  "rayon",
@@ -689,6 +690,14 @@ dependencies = [
  "sha2",
  "sled",
  "zstd",
+]
+
+[[package]]
+name = "cie-stories"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

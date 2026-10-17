@@ -1,6 +1,7 @@
 //! cie — Code Intelligence Engine CLI.
 //!
-//! Commands: ingest, analyze, concepts, drift, impact, report, ingest-org.
+//! Commands: ingest, analyze, concepts, drift, impact, report, ingest-org,
+//! viz, stories.
 
 use cie_drift::persist::DriftStoreExt;
 use cie_incremental::SnapshotStoreExt;
@@ -163,6 +164,41 @@ pub enum Command {
         /// Write the spec to a file instead of stdout
         #[arg(long)]
         out: Option<PathBuf>,
+    },
+    /// User-story catalogue and coverage (CIE-US layer, 147 stories)
+    Stories {
+        #[command(subcommand)]
+        cmd: StoriesCmd,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum StoriesCmd {
+    /// List stories with dispositions (filterable)
+    List {
+        #[arg(long)]
+        section: Option<String>,
+        #[arg(long)]
+        disposition: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show one story in full with its coverage entry
+    Show { id: String },
+    /// Coverage report — honest totals, no fake percentages
+    Coverage {
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        md: bool,
+    },
+    /// Verify a story (registry audit; deep suites land per section)
+    Verify {
+        /// Story id (US-042); omit to verify all
+        #[arg(long)]
+        id: Option<String>,
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -732,6 +768,146 @@ fn run(cli: Cli) -> i32 {
                 }
             }
         }
+        Command::Stories { cmd } => run_stories(cmd),
+    }
+}
+
+fn run_stories(cmd: StoriesCmd) -> i32 {
+    use cie_stories::{registry::Disposition, verify::Verdict};
+    match cmd {
+        StoriesCmd::List {
+            section,
+            disposition,
+            json,
+        } => {
+            let disp_filter = disposition.as_deref().and_then(|d| match d {
+                "delivered" => Some(Disposition::Delivered),
+                "partial" => Some(Disposition::Partial),
+                "planned" => Some(Disposition::Planned),
+                _ => None,
+            });
+            if disposition.is_some() && disp_filter.is_none() {
+                eprintln!("error: --disposition must be delivered|partial|planned");
+                return 1;
+            }
+            let rows: Vec<_> = cie_stories::coverage::all_story_coverage()
+                .into_iter()
+                .filter(|r| section.as_deref().is_none_or(|s| r.section == s))
+                .filter(|r| disp_filter.is_none_or(|d| r.disposition == d))
+                .collect();
+            if rows.is_empty() {
+                eprintln!("no stories match the given filters");
+                return 1;
+            }
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rows).unwrap_or_default()
+                );
+            } else {
+                for r in &rows {
+                    println!(
+                        "{:<7} {:<10} {} — {}",
+                        r.id,
+                        r.disposition.as_str(),
+                        r.title,
+                        r.section
+                    );
+                }
+                println!("{} story(ies) listed", rows.len());
+            }
+            0
+        }
+        StoriesCmd::Show { id } => {
+            let Some(story) = cie_stories::Story::by_id(&id) else {
+                eprintln!("error: unknown story id {id} (expected US-001..US-147)");
+                return 1;
+            };
+            println!("{}", cie_stories::format_story(story));
+            if let Some(entry) = cie_stories::registry::entry_for(&id) {
+                println!("\nEngine coverage: {}", entry.disposition.as_str());
+                for cap in entry.capabilities {
+                    println!("  capability: {cap}");
+                }
+                if !entry.note.is_empty() {
+                    println!("  note: {}", entry.note);
+                }
+            }
+            0
+        }
+        StoriesCmd::Coverage { json, md } => {
+            let report = cie_stories::coverage::CoverageReport::build();
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report.to_json()).unwrap_or_default());
+            } else if md {
+                print!("{}", report.render_markdown());
+            } else {
+                println!(
+                    "{:<48} {:>9} {:>8} {:>8} {:>6}",
+                    "section", "delivered", "partial", "planned", "total"
+                );
+                for s in &report.sections {
+                    println!(
+                        "{:<48} {:>9} {:>8} {:>8} {:>6}",
+                        truncate(&s.section, 47),
+                        s.delivered,
+                        s.partial,
+                        s.planned,
+                        s.total
+                    );
+                }
+                println!(
+                    "{:<48} {:>9} {:>8} {:>8} {:>6}",
+                    "TOTAL", report.delivered, report.partial, report.planned, report.total
+                );
+                println!(
+                    "\ndispositions count engine-level delivery; partial stays partial, planned stays absent."
+                );
+            }
+            0
+        }
+        StoriesCmd::Verify { id, json } => {
+            let verdicts = match id {
+                Some(id) => vec![cie_stories::verify::verify_story(&id)],
+                None => cie_stories::verify::verify_all(),
+            };
+            let unknown = verdicts
+                .iter()
+                .any(|v| matches!(v, Verdict::Unknown { .. }));
+            if json {
+                println!("{}", serde_json::to_string_pretty(&verdicts).unwrap_or_default());
+            } else {
+                for v in &verdicts {
+                    match v {
+                        Verdict::AuditPass { story, disposition, evidence_count } => {
+                            println!("{story}: audit-pass ({disposition}, {evidence_count} capability refs)");
+                        }
+                        Verdict::Pass { story, check } => {
+                            println!("{story}: pass ({check})");
+                        }
+                        Verdict::Planned { story, reason } => {
+                            println!("{story}: planned — {reason}");
+                        }
+                        Verdict::Unknown { id } => {
+                            println!("{id}: unknown story id");
+                        }
+                    }
+                }
+            }
+            if unknown { 1 } else { 0 }
+        }
+    }
+}
+
+fn truncate(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        s
+    } else {
+        let mut end = max;
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        &s[..end]
     }
 }
 

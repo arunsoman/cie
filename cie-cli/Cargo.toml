@@ -16,6 +16,7 @@ name = "cie_cli"
 path = "src/lib.rs"
 
 [dependencies]
+cie-stories = { path = "../cie-stories" }
 cie-core = { workspace = true }
 cie-semantic = { workspace = true }
 cie-relations = { workspace = true }
