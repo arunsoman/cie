@@ -5,6 +5,7 @@
 //! adds the fact-dependent builders.
 
 pub mod readiness;
+pub mod scope;
 pub mod workload;
 
 pub use readiness::{
@@ -17,6 +18,7 @@ pub use workload::{
     classify_claim, ClaimClass, ClassifiedCandidate, PerfCandidate, TimingEntry, Workload,
     WorkloadManifest,
 };
+pub use scope::{lens_view, Lens, LensView, ScopeEvent, ScopeEventKind, ScopeFreeze};
 pub use cie_core::evidence::{Coverage, Evidence};
 
 use cie_core::types::SymbolId;

@@ -11,6 +11,9 @@ use cie_contract::Authority;
 use cie_core::types::{ConceptNodeId, Ns, NsDelta, SymbolId};
 use serde::{Deserialize, Serialize};
 pub mod persist;
+pub mod overlap;
+
+pub use overlap::{overlap_matrix, reuse_verdict, Overlap, OverlapMatrix, ReuseVerdict};
 
 pub use persist::{ConceptNodeCore, ConceptNodeSix, ConceptStoreExt, RollupView};
 
