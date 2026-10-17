@@ -12,12 +12,14 @@ pub mod facts;
 pub mod findings;
 pub mod incremental;
 pub mod interner;
+pub mod protocol;
 pub mod summary;
 pub mod types;
 
 // Crate-root re-exports: the §14.1/§9 primitives every crate (and every
 // instructor sketch) imports as `use cie_core::{Ns, RevId, hash, …}`.
 pub use crate::interner::{InternedStr, Interner, StrInterner};
+pub use crate::protocol::{AnalysisInput, AnalysisOutput, CieError, RevisionId, CI_TOLERANCE};
 pub use crate::types::*;
 
 pub mod prelude {
