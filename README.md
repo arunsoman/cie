@@ -119,3 +119,15 @@ docs/PRD-v1.0.md       # full product specification
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Local evidence workspace
+
+```sh
+cargo run -p cie-server --bin cie-workspace -- --allow-root /path/to/projects --data /private/cie-data
+```
+
+Open the printed localhost URL. Connect and index a repository, ask a supported
+question, then inspect citations or switch between graph, table and outline.
+Cloud egress is disabled. See [workspace contracts](docs/product/WORKSPACE.md)
+and the [147-story acceptance register](docs/product/STATUS.md) for delivered
+capabilities and remaining work.

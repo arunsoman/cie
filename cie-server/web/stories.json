@@ -1,1 +1,1143 @@
-[]
+[
+  {
+    "id": "US-001",
+    "title": "Connect a repository",
+    "status": "partial",
+    "note": "Local connection, exact captured revision; hosted and branch selection pending.",
+    "evidence": [
+      "index_publishes_immutable_sources_without_modifying_repository"
+    ]
+  },
+  {
+    "id": "US-002",
+    "title": "Know what the product understands",
+    "status": "partial",
+    "note": "Engine coverage and unresolved/unsupported records shown; full mixed-language boundary view pending.",
+    "evidence": [
+      "static_test_map_never_claims_executed_coverage"
+    ]
+  },
+  {
+    "id": "US-003",
+    "title": "Keep understanding current",
+    "status": "partial",
+    "note": "Freshness rechecked against current sources; granular invalidation and incremental view refresh pending.",
+    "evidence": [
+      "changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats"
+    ]
+  },
+  {
+    "id": "US-004",
+    "title": "Work across several repositories",
+    "status": "partial",
+    "note": "Search across indexed snapshots preserves repository identity; cross-service contract resolution pending.",
+    "evidence": [
+      "cross_repository_search_keeps_identical_names_separate"
+    ]
+  },
+  {
+    "id": "US-005",
+    "title": "Connect a hosted source",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-006",
+    "title": "Watch and control background work",
+    "status": "partial",
+    "note": "Persistent jobs and cancellation before publication; browser reload acceptance included.",
+    "evidence": [
+      "cancel_queued_job_blocks_publication",
+      "restart_marks_interrupted_jobs_failed_without_automatic_resume",
+      "browser:repository-index-reload"
+    ]
+  },
+  {
+    "id": "US-007",
+    "title": "Try a ready-made sample repository",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-008",
+    "title": "Ask a code-grounded question",
+    "status": "partial",
+    "note": "Deterministic evidence questions and explicit unknowns; unrestricted natural-language analysis pending.",
+    "evidence": [
+      "unknown_question_does_not_return_unrelated_finding_as_answer"
+    ]
+  },
+  {
+    "id": "US-009",
+    "title": "See how my question was read",
+    "status": "partial",
+    "note": "Interpretation and explicit intent controls; ranked alternatives/confidence calibration pending.",
+    "evidence": [
+      "explicit_route_and_symbol_selection_are_honored"
+    ]
+  },
+  {
+    "id": "US-010",
+    "title": "Ask several conditions at once",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-011",
+    "title": "Combine several questions into one analysis",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-012",
+    "title": "Continue with follow-ups and steering",
+    "status": "partial",
+    "note": "Visible removable parent/selection context; general steering and editor context pending.",
+    "evidence": [
+      "browser:selection-follow-up"
+    ]
+  },
+  {
+    "id": "US-013",
+    "title": "Choose the audience and level of detail",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-014",
+    "title": "Inspect and challenge a claim",
+    "status": "partial",
+    "note": "Citations and required explanation for review/refutation; complete dependency invalidation/counterarguments pending.",
+    "evidence": [
+      "refutation_hides_claim_and_edges_without_upgrading_confirmation",
+      "browser:review-refutation"
+    ]
+  },
+  {
+    "id": "US-015",
+    "title": "Distinguish proven, inferred, hypothesised and unknown",
+    "status": "partial",
+    "note": "Static observations and analyzer inference labelled consistently; runtime/hypothesis evidence classes pending.",
+    "evidence": [
+      "browser:representation-parity"
+    ]
+  },
+  {
+    "id": "US-016",
+    "title": "Keep several answers side by side",
+    "status": "partial",
+    "note": "Saved answer tabs, close/export and evidence-gone refusal; concurrent answer generation pending.",
+    "evidence": [
+      "saved_workspace_validates_answer_references",
+      "browser:workspace-reload"
+    ]
+  },
+  {
+    "id": "US-017",
+    "title": "Recover when something goes wrong mid-answer",
+    "status": "partial",
+    "note": "Saved results survive reload and interrupted indexing fails explicitly; durable multi-step investigation continuation pending.",
+    "evidence": [
+      "restart_marks_interrupted_jobs_failed_without_automatic_resume"
+    ]
+  },
+  {
+    "id": "US-018",
+    "title": "Receive a view that fits the question",
+    "status": "partial",
+    "note": "Static relationships use graph/table; unsupported timeline/measurement views explain missing data.",
+    "evidence": [
+      "browser:gallery-unavailable"
+    ]
+  },
+  {
+    "id": "US-019",
+    "title": "Switch representation without changing meaning",
+    "status": "partial",
+    "note": "Graph/table/outline preserve identical items and edges; other evidence-specific representations pending.",
+    "evidence": [
+      "node:projection-layout",
+      "browser:representation-parity"
+    ]
+  },
+  {
+    "id": "US-020",
+    "title": "Browse everything the product can draw",
+    "status": "partial",
+    "note": "Small truthful available/unavailable gallery; full catalogue pending.",
+    "evidence": [
+      "browser:gallery-unavailable"
+    ]
+  },
+  {
+    "id": "US-021",
+    "title": "Drill from system to code",
+    "status": "partial",
+    "note": "Concept/symbol items open exact source citations; full multi-level navigation pending.",
+    "evidence": [
+      "browser:source-inspection"
+    ]
+  },
+  {
+    "id": "US-022",
+    "title": "Zoom without losing readability",
+    "status": "partial",
+    "note": "Readable fixed rows and scroll; semantic zoom and viewport indicators pending.",
+    "evidence": [
+      "node:projection-layout"
+    ]
+  },
+  {
+    "id": "US-023",
+    "title": "Magnify locally without disturbing the map",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-024",
+    "title": "Point at things and ask about them",
+    "status": "partial",
+    "note": "Individual symbol selection used in follow-up; lasso/matrix selection pending.",
+    "evidence": [
+      "browser:selection-follow-up"
+    ]
+  },
+  {
+    "id": "US-025",
+    "title": "Control focus and hidden information",
+    "status": "partial",
+    "note": "Local filter/hide/reveal preserves source answer; salience factor explanations and pin/boost pending.",
+    "evidence": [
+      "node:projection-layout"
+    ]
+  },
+  {
+    "id": "US-026",
+    "title": "Inspect an element's full story",
+    "status": "partial",
+    "note": "Shared inspector shows evidence, analyzer detail and relationships; editor URI integration pending.",
+    "evidence": [
+      "browser:source-inspection"
+    ]
+  },
+  {
+    "id": "US-027",
+    "title": "Keep multiple views aligned",
+    "status": "partial",
+    "note": "Static views share item identity; runtime mappings pending.",
+    "evidence": [
+      "browser:representation-parity"
+    ]
+  },
+  {
+    "id": "US-028",
+    "title": "Express a proposed change visually",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-029",
+    "title": "Overlay tests and runtime on any map",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-030",
+    "title": "Trust the drawing itself",
+    "status": "partial",
+    "note": "Disjoint rows and edge lanes outside nodes; crossings documented, sophisticated layout pending.",
+    "evidence": [
+      "node:projection-layout"
+    ]
+  },
+  {
+    "id": "US-031",
+    "title": "See the architecture that answers my question",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-032",
+    "title": "Investigate a failure from a stack trace",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-033",
+    "title": "See every way a failure can arise",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-034",
+    "title": "Walk through a transaction step by step",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-035",
+    "title": "Trace who reads and writes data",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-036",
+    "title": "Compare code before and after a change",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-037",
+    "title": "Ask why unusual code exists",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-038",
+    "title": "See trust boundaries and privilege walls",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-039",
+    "title": "See recent trouble on the structure",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-040",
+    "title": "Find where races are possible",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-041",
+    "title": "Preview removing a component",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-042",
+    "title": "See how well behaviour is tested",
+    "status": "partial",
+    "note": "Static test reachability only; assertion/execution evidence pending.",
+    "evidence": [
+      "static_test_map_never_claims_executed_coverage"
+    ]
+  },
+  {
+    "id": "US-043",
+    "title": "See ownership and knowledge risk",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-044",
+    "title": "See implicit concepts in the code",
+    "status": "partial",
+    "note": "Engine concept nodes exposed as inference with citations; business interpretation requires review.",
+    "evidence": [
+      "answers_have_real_citations_and_shared_graph_population"
+    ]
+  },
+  {
+    "id": "US-045",
+    "title": "Audit which policies are enforced",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-046",
+    "title": "Judge where change is risky",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-047",
+    "title": "Connect profiling data to code",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-048",
+    "title": "See routes and what guards them",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-049",
+    "title": "Ask for a diagram of my own",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-050",
+    "title": "Extract and curate concept cards",
+    "status": "partial",
+    "note": "Concept candidates and claim review; full concept-card curation pending.",
+    "evidence": [
+      "refutation_hides_claim_and_edges_without_upgrading_confirmation"
+    ]
+  },
+  {
+    "id": "US-051",
+    "title": "Browse the business-concept hierarchy",
+    "status": "partial",
+    "note": "Concept hierarchy relationships exposed; level-aware navigation pending.",
+    "evidence": [
+      "answers_have_real_citations_and_shared_graph_population"
+    ]
+  },
+  {
+    "id": "US-052",
+    "title": "Locate an existing feature",
+    "status": "partial",
+    "note": "Lexical symbol search with citations; behavior-equivalent feature discovery pending.",
+    "evidence": [
+      "cross_repository_search_keeps_identical_names_separate"
+    ]
+  },
+  {
+    "id": "US-053",
+    "title": "Discover distributed business rules",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-054",
+    "title": "Compare intended and actual behaviour",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-055",
+    "title": "Understand workflow states and failures",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-056",
+    "title": "Detect misleading names",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-057",
+    "title": "Explore system structure",
+    "status": "partial",
+    "note": "Static symbol/call graph and source inspection; architecture grouping pending.",
+    "evidence": [
+      "answers_have_real_citations_and_shared_graph_population"
+    ]
+  },
+  {
+    "id": "US-058",
+    "title": "Find the change blast radius",
+    "status": "partial",
+    "note": "Reverse static call reachability; non-call/configuration effects pending.",
+    "evidence": [
+      "explicit_route_and_symbol_selection_are_honored"
+    ]
+  },
+  {
+    "id": "US-059",
+    "title": "Compare architectural alternatives",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-060",
+    "title": "Discover potential service boundaries",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-061",
+    "title": "Follow cross-repository contracts",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-062",
+    "title": "Judge dependency importance and upgrades",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-063",
+    "title": "Ask questions of a built artifact",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-064",
+    "title": "Start an investigation from a symptom",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-065",
+    "title": "Compare competing explanations",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-066",
+    "title": "Direct an investigation while it runs",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-067",
+    "title": "Trust the investigation's bookkeeping",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-068",
+    "title": "Reproduce an intermittent defect",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-069",
+    "title": "Ask for the next discriminating step",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-070",
+    "title": "Resume an investigation later",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-071",
+    "title": "Assemble an incident explanation",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-072",
+    "title": "Triage defect candidates honestly",
+    "status": "partial",
+    "note": "Analyzer findings labelled inference with evidence; runtime confirmation and full triage workflow pending.",
+    "evidence": [
+      "unknown_question_does_not_return_unrelated_finding_as_answer"
+    ]
+  },
+  {
+    "id": "US-073",
+    "title": "Back candidates with runtime evidence and isolated runs",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-074",
+    "title": "Collect performance candidates",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-075",
+    "title": "Compare structure with observed runtime",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-076",
+    "title": "Replay a recorded request",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-077",
+    "title": "Compare environments and flags",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-078",
+    "title": "Distinguish causes from coincidence",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-079",
+    "title": "Find possible race windows",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-080",
+    "title": "Find deadlocks and lock contention",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-081",
+    "title": "Investigate distributed consistency",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-082",
+    "title": "Explain a slow operation",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-083",
+    "title": "Compare two profiles",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-084",
+    "title": "Investigate a performance regression",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-085",
+    "title": "Identify optimization opportunities",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-086",
+    "title": "Prioritize maintenance work",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-087",
+    "title": "Find code that changes together",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-088",
+    "title": "Protect contributor privacy",
+    "status": "partial",
+    "note": "Workspace does not collect history/authorship; privacy-aware historical analytics pending.",
+    "evidence": [
+      "browser:privacy-disclosure"
+    ]
+  },
+  {
+    "id": "US-089",
+    "title": "Track how an interface evolved",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-090",
+    "title": "Find documentation gaps",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-091",
+    "title": "Collaborate without widening access",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-092",
+    "title": "Export and bookmark understanding",
+    "status": "partial",
+    "note": "JSON/Markdown exports preserve full answer caveats; visual artifact export and bookmarks pending.",
+    "evidence": [
+      "node:export-caveats",
+      "browser:export"
+    ]
+  },
+  {
+    "id": "US-093",
+    "title": "Save and resume a workspace",
+    "status": "partial",
+    "note": "Persistent workspaces and saved answers reopen; collaboration and wider view-state persistence pending.",
+    "evidence": [
+      "saved_workspace_validates_answer_references",
+      "browser:workspace-reload"
+    ]
+  },
+  {
+    "id": "US-094",
+    "title": "Understand authorization",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-095",
+    "title": "Trace sensitive information",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-096",
+    "title": "Find policy enforcement gaps",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-097",
+    "title": "Review code-security and secret findings",
+    "status": "partial",
+    "note": "Engine static findings and secret-shaped excerpt removal; full security assessment pending.",
+    "evidence": [
+      "answers_have_real_citations_and_shared_graph_population"
+    ]
+  },
+  {
+    "id": "US-098",
+    "title": "Assess packages and licences",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-099",
+    "title": "Explore a hypothetical change",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-100",
+    "title": "Explore capacity and failure scenarios",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-101",
+    "title": "Compare isolated experiments",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-102",
+    "title": "Study a workflow digital twin",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-103",
+    "title": "Know the limits of predictions",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-104",
+    "title": "Describe a new feature naturally",
+    "status": "partial",
+    "note": "Feature prompt and acceptance criteria saved as planning only; implementation pending.",
+    "evidence": [
+      "feature_request_records_criteria_without_pretending_to_build"
+    ]
+  },
+  {
+    "id": "US-105",
+    "title": "Answer only material questions",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-106",
+    "title": "Discover equivalent or overlapping features",
+    "status": "partial",
+    "note": "Lexical overlap hints explicitly not equivalence; semantic comparison pending.",
+    "evidence": [
+      "feature_request_records_criteria_without_pretending_to_build"
+    ]
+  },
+  {
+    "id": "US-107",
+    "title": "Resolve conflicting requirements",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-108",
+    "title": "Review a complete feature contract",
+    "status": "partial",
+    "note": "Explicit draft criteria and snapshot reference; complete contract/authority validation pending.",
+    "evidence": [
+      "feature_request_records_criteria_without_pretending_to_build"
+    ]
+  },
+  {
+    "id": "US-109",
+    "title": "Understand feature impact before building",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-110",
+    "title": "Revise scope while work proceeds",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-111",
+    "title": "Build an isolated candidate",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-112",
+    "title": "Follow a dedicated feature wizard",
+    "status": "partial",
+    "note": "Dedicated planning area; full candidate/diff/validation wizard pending.",
+    "evidence": [
+      "browser:feature-planning"
+    ]
+  },
+  {
+    "id": "US-113",
+    "title": "Inspect where changes occur",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-114",
+    "title": "Inspect final code and exact differences",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-115",
+    "title": "Preview feature behaviour",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-116",
+    "title": "Review new dependencies and data changes",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-117",
+    "title": "See whether the candidate builds",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-118",
+    "title": "Inspect tests related to the requirements",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-119",
+    "title": "Trust independent acceptance evidence",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-120",
+    "title": "Inspect security and performance readiness",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-121",
+    "title": "Request fixes and rerun checks",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-122",
+    "title": "Download a diff or patch",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-123",
+    "title": "Check and apply against my destination",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-124",
+    "title": "Create and iterate a draft pull request",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-125",
+    "title": "Trace prompt-caused mutations",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-126",
+    "title": "Coordinate several related changes",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-127",
+    "title": "Freeze a release scope",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-128",
+    "title": "Read readiness through stakeholder lenses",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-129",
+    "title": "Approve release items safely",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-130",
+    "title": "Prepare rollout and recovery",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-131",
+    "title": "Connect production anomalies to prior changes",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-132",
+    "title": "Share editor context on my terms",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-133",
+    "title": "Navigate definitions and references from the editor",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-134",
+    "title": "Give coding agents evidence-shaped answers",
+    "status": "partial",
+    "note": "Read-only bounded evidence HTTP questions; agent protocol adapter pending.",
+    "evidence": [
+      "request:session-origin",
+      "source_text_and_input_limits_fail_explicitly"
+    ]
+  },
+  {
+    "id": "US-135",
+    "title": "Work locally by default",
+    "status": "partial",
+    "note": "Offline deterministic engine/API/UI; broader stories still bounded by available adapters.",
+    "evidence": [
+      "browser:privacy-disclosure"
+    ]
+  },
+  {
+    "id": "US-136",
+    "title": "Decide what may leave my machine",
+    "status": "partial",
+    "note": "Cloud egress disabled; configurable approved-provider flow and send audit pending.",
+    "evidence": [
+      "browser:privacy-disclosure"
+    ]
+  },
+  {
+    "id": "US-137",
+    "title": "Switch models and understand model failures",
+    "status": "pending",
+    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
+    "evidence": []
+  },
+  {
+    "id": "US-138",
+    "title": "Control cost, progress and cancellation",
+    "status": "partial",
+    "note": "Staged progress and cancel publication controls; token costs and resumable computation pending.",
+    "evidence": [
+      "cancel_queued_job_blocks_publication"
+    ]
+  },
+  {
+    "id": "US-139",
+    "title": "Manage access, retention and deletion",
+    "status": "partial",
+    "note": "Local deletion cascades derived records; tenant isolation/RBAC/retention governance pending.",
+    "evidence": [
+      "deletion_removes_all_derived_views_but_not_connected_source"
+    ]
+  },
+  {
+    "id": "US-140",
+    "title": "Operate everything from the keyboard",
+    "status": "partial",
+    "note": "Native controls and graph arrow navigation; all future canvases need acceptance testing.",
+    "evidence": [
+      "browser:keyboard-graph"
+    ]
+  },
+  {
+    "id": "US-141",
+    "title": "Use the product with a screen reader",
+    "status": "partial",
+    "note": "Outline/table list all current items/links; full screen-reader audit pending.",
+    "evidence": [
+      "browser:representation-parity"
+    ]
+  },
+  {
+    "id": "US-142",
+    "title": "Never depend on colour alone",
+    "status": "partial",
+    "note": "Text status/class labels and dashed inference; full notation audit pending.",
+    "evidence": [
+      "browser:representation-parity"
+    ]
+  },
+  {
+    "id": "US-143",
+    "title": "Read comfortably in any theme",
+    "status": "partial",
+    "note": "Persistent light/dark/high-contrast themes and reduced motion CSS; contrast audit pending.",
+    "evidence": [
+      "browser:theme-persistence"
+    ]
+  },
+  {
+    "id": "US-144",
+    "title": "Never see stale answers as current",
+    "status": "partial",
+    "note": "Freshness, unknown, no-index and failed states separate; full denial-aware scope accounting pending.",
+    "evidence": [
+      "missing_index_and_outside_roots_are_distinct_errors",
+      "changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats"
+    ]
+  },
+  {
+    "id": "US-145",
+    "title": "Get graceful degradation instead of guesses",
+    "status": "partial",
+    "note": "Unknowns and missing evidence disclosed; future adapters need degradation tests.",
+    "evidence": [
+      "unknown_question_does_not_return_unrelated_finding_as_answer"
+    ]
+  },
+  {
+    "id": "US-146",
+    "title": "Trust that interruptions never corrupt state",
+    "status": "partial",
+    "note": "Atomic persistence, process lock and interruption handling; backups/restore and complete idempotency pending.",
+    "evidence": [
+      "failed_transaction_does_not_change_persisted_or_in_memory_state",
+      "storage_rejects_concurrent_owners_and_corruption"
+    ]
+  },
+  {
+    "id": "US-147",
+    "title": "See the product verify itself",
+    "status": "partial",
+    "note": "Full 147-story acceptance register with named checks; independent evaluation harness pending.",
+    "evidence": [
+      "node:story-register"
+    ]
+  }
+]

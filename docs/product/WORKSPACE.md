@@ -11,8 +11,9 @@ cargo run -p cie-server --bin cie-workspace -- --allow-root /path/to/your/projec
 # Open http://127.0.0.1:4317
 ```
 
-This initial increment supplies a local JSON API and analysis services. The web
-interface is delivered in the following tested increment. The app is single-user,
+The local browser workspace uses the JSON API and analysis services. It provides
+repository/job controls, saved answers, evidence inspection, reviews, exports,
+linked graph/table/outline views, feature planning and a story-status register. The app is single-user,
 loopback-only, offline and has no hosted model egress. It does not merge, approve,
 deploy, generate or apply source changes. The existing `cie` CLI still works.
 
@@ -78,3 +79,20 @@ matrix require their own named tests and remain tracked separately.
   Host/origin/session checks, cancellation publication, interrupted jobs, atomic
   persistence, immutable citations, stale sources and claim refutation.
 - Browser acceptance and the complete story-by-story matrix are pending.
+
+## Browser increment validation
+
+- `node --test scripts/product/evidence.test.cjs`: 3 passed.
+- `cargo test -p cie-server --locked`: 25 passed.
+- `cargo clippy -p cie-server --all-targets --no-deps --locked -- -D warnings`: passed for server targets.
+- Real headless Chrome against the compiled Rust server: **15 journeys passed**,
+  including reload persistence, keyboard graph navigation, source inspection,
+  refutation, export, saved workspaces, theme persistence and stale source checks.
+  No API mocks were used.
+- Reproduce: `cargo build -p cie-server --bin cie-workspace --locked`, then
+  `node scripts/product/browser.cjs` with Playwright/Chromium installed. Set
+  `CIE_CHROMIUM` to an alternative compatible Chrome/headless-shell binary.
+  The test exits unsuccessfully when its browser cannot launch.
+- [Full acceptance register](STATUS.md): 51 partial, 96 pending, 0 fully complete.
+  Browser tests verify the delivered subset; they do not certify all criteria of
+  the product-wide stories. The register lists remaining obligations explicitly.
