@@ -42,6 +42,8 @@ pub struct IngestOutcome {
     pub project_dir: PathBuf,
     pub reverse_deps: std::collections::BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>>,
     pub test_map: cie_analysis::testing::TestMap,
+    /// TASK-030: per-file summary reuse counters for this pass.
+    pub summary_reuse: cie_analysis::behavior::SummaryReuseStats,
 }
 
 /// Rebuild the call graph + test map from stored summaries.
@@ -156,12 +158,19 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
                 reach: Default::default(),
                 tests_of: Default::default(),
             },
+            summary_reuse: Default::default(),
         });
     }
 
     let deadline: Option<Ns> = opts
         .budget_ms
         .map(|ms| now_ns() + ms * 1_000_000);
+
+    // TASK-030: load the prior snapshot to seed summary reuse.
+    let prior_snapshot: Option<RevSnapshot> = match prev_index.as_ref() {
+        Some(idx) if idx.last_rev > 0 => store.load_snapshot(idx.last_rev)?,
+        _ => None,
+    };
 
     // Read + extract current files.
     let mut files: Vec<(String, LangId, String)> = vec![];
@@ -177,6 +186,55 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     let registry = cie_langs::default_registry();
     let extracted = cie_langs::extract_project(&files, &registry);
+
+    // TASK-030: assemble the reuse plan — per-file (blake3(file),
+    // blake3(dep set)) keys against the prior analysis.
+    let current_hashes: BTreeMap<String, [u8; 32]> = current
+        .iter()
+        .map(|(p, (h, _))| (p.clone(), *h))
+        .collect();
+    let mut current_deps: BTreeMap<String, std::collections::BTreeSet<String>> =
+        BTreeMap::new();
+    for facts in &extracted.per_file {
+        let entry = current_deps.entry(facts.path.clone()).or_default();
+        for c in &facts.calls {
+            if let cie_core::facts::Callee::Resolved(id) = c.callee {
+                if let Some(sym) = extracted.store.get(id) {
+                    entry.insert(sym.loc.path.clone());
+                }
+            }
+        }
+    }
+    let mut plan30 = cie_analysis::behavior::ReusePlan {
+        prior_keys: BTreeMap::new(),
+        prior_summaries: BTreeMap::new(),
+        current_hashes: current_hashes.clone(),
+        current_deps,
+    };
+    if let Some(prev) = &prior_snapshot {
+        let qual_of: BTreeMap<u32, (String, String)> = prev
+            .symbols
+            .iter()
+            .map(|s| (s.id.0, (s.loc.path.clone(), s.qual_name.clone())))
+            .collect();
+        for sum in &prev.summaries {
+            if let Some((path, qual)) = qual_of.get(&sum.sym.0) {
+                plan30
+                    .prior_summaries
+                    .insert((path.clone(), qual.clone()), sum.clone());
+            }
+        }
+        for entry in &prev.summary_cache {
+            plan30
+                .prior_keys
+                .insert(entry.path.clone(), (entry.file_hash, entry.deps_hash));
+        }
+    }
+    let reuse_ref = if plan30.prior_keys.is_empty() {
+        None
+    } else {
+        Some(&plan30)
+    };
 
     // Labeler: LLM or offline; labels never decide anything.
     let mut label_cache = store.load_labels().unwrap_or_default();
@@ -207,7 +265,8 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         deadline_ns: deadline,
         include_coverage_gaps: opts.include_coverage_gaps,
     };
-    let analysis = cie_analysis::analyze(&extracted.store, &extracted.per_file, rev, &cfg, &label_fn);
+    let analysis =
+        cie_analysis::analyze(&extracted.store, &extracted.per_file, rev, &cfg, &label_fn, reuse_ref);
 
     // Persist label cache (LLM provenance recorded per PRD §63).
     store.save_labels(&label_cache)?;
@@ -255,6 +314,19 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         warnings: vec![],
         ingest_wall_ns: wall,
         incremental: false,
+        summary_cache: plan30
+            .current_hashes
+            .keys()
+            .map(|path| cie_storage::SummaryCacheEntry {
+                path: path.clone(),
+                file_hash: plan30.current_hashes[path],
+                deps_hash: plan30.dep_hash(path),
+            })
+            .collect(),
+        summary_reuse: Some(cie_storage::ReuseStats {
+            reused_files: analysis.summary_reuse.reused_files,
+            recomputed_files: analysis.summary_reuse.recomputed_files,
+        }),
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
     // orphaned call edges survive a tombstoned deletion.
@@ -271,6 +343,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         project_dir: project.to_path_buf(),
         reverse_deps,
         test_map,
+        summary_reuse: analysis.summary_reuse,
     })
 }
 
@@ -301,6 +374,7 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
         project_dir: project.to_path_buf(),
         reverse_deps,
         test_map,
+        summary_reuse: Default::default(),
     })
 }
 

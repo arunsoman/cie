@@ -57,6 +57,28 @@ pub struct RevSnapshot {
     pub warnings: Vec<String>,
     pub ingest_wall_ns: u64,
     pub incremental: bool,
+    /// TASK-030: per-file (blake3(file), blake3(dep set)) keys valid for
+    /// THIS snapshot's summaries — the next pass reuses on both-match.
+    #[serde(default)]
+    pub summary_cache: Vec<SummaryCacheEntry>,
+    /// TASK-030: reuse counters recorded for this revision.
+    #[serde(default)]
+    pub summary_reuse: Option<ReuseStats>,
+}
+
+/// One file's summary-reuse cache key.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SummaryCacheEntry {
+    pub path: String,
+    pub file_hash: [u8; 32],
+    pub deps_hash: [u8; 32],
+}
+
+/// Summary reuse counters (TASK-030).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReuseStats {
+    pub reused_files: usize,
+    pub recomputed_files: usize,
 }
 
 /// Cross-repo merged concept (FR-46 / §55).

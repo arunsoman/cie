@@ -4,6 +4,7 @@
 //! `complete = false` — never silently "no defect".
 
 use cie_core::facts::{BuiltinKind, Callee, LangFacts, RhsKind, SymbolStore};
+use serde::{Deserialize, Serialize};
 use cie_core::summary::{builtin_effects, EffectKind, FunctionSummary};
 use cie_core::types::{Ns, RevId, SymbolId};
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,6 +13,58 @@ pub struct BehaviorResult {
     pub summaries: BTreeMap<SymbolId, FunctionSummary>,
     /// callee -> callers (reverse dependencies, PRD FR-8).
     pub reverse_deps: BTreeMap<SymbolId, BTreeSet<SymbolId>>,
+    /// TASK-030 reuse counters for this pass.
+    pub reuse: SummaryReuseStats,
+}
+
+/// TASK-030 reuse counters: `reused_files` had summaries carried over
+/// verbatim (unchanged file AND unchanged dependency set); `recomputed_files`
+/// were rebuilt this pass (changed file ⇒ recompute plus transitive
+/// reverse-deps via the fixpoint).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SummaryReuseStats {
+    pub reused_files: usize,
+    pub recomputed_files: usize,
+}
+
+/// TASK-030 reuse decision inputs, assembled by the engine from the prior
+/// snapshot. A file is reusable iff its content hash AND its dep-set hash
+/// (`blake3` over the sorted content hashes of the files its resolved
+/// callees live in) match the prior analysis.
+#[derive(Debug, Clone, Default)]
+pub struct ReusePlan {
+    /// path -> (file hash, dep-set hash) valid at the prior analysis.
+    pub prior_keys: BTreeMap<String, ([u8; 32], [u8; 32])>,
+    /// Prior summaries keyed by (path, qual_name) — stable identity across
+    /// revisions where raw symbol ids are not.
+    pub prior_summaries: BTreeMap<(String, String), FunctionSummary>,
+    /// Current per-file content hashes.
+    pub current_hashes: BTreeMap<String, [u8; 32]>,
+    /// Current dep-set: file -> sorted paths of files its callees live in.
+    pub current_deps: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl ReusePlan {
+    /// blake3 over the sorted dep file hashes (the "dep set" half of the
+    /// (blake3(file), blake3(dep set)) cache key).
+    pub fn dep_hash(&self, path: &str) -> [u8; 32] {
+        let mut buf: Vec<u8> = vec![];
+        if let Some(deps) = self.current_deps.get(path) {
+            for d in deps {
+                buf.extend_from_slice(self.current_hashes.get(d).unwrap_or(&[0; 32]));
+            }
+        }
+        cie_core::types::content_hash(&buf)
+    }
+
+    /// True when `path` may reuse its prior summaries this pass.
+    pub fn is_reusable(&self, path: &str) -> bool {
+        let Some(file_hash) = self.current_hashes.get(path) else {
+            return false;
+        };
+        let deps_hash = self.dep_hash(path);
+        self.prior_keys.get(path) == Some(&(*file_hash, deps_hash))
+    }
 }
 
 pub fn is_auth_name(name: &str) -> bool {
@@ -61,9 +114,45 @@ pub fn compute_summaries(
     rev: RevId,
     deadline_ns: Option<Ns>,
 ) -> BehaviorResult {
+    compute_summaries_with_reuse(store, per_file, rev, deadline_ns, None)
+}
+
+/// TASK-030: summary computation with per-file reuse. A file whose content
+/// hash and dep-set hash both match the prior analysis reuses its stored
+/// `FunctionSummary`s verbatim (only rev/sym re-stamped); every other file
+/// is recomputed and the fixpoint re-propagates into its transitive
+/// reverse-deps (absorb is monotone, so reused seeds converge to the same
+/// fixpoint as a clean recompute — pinned by the reuse test).
+pub fn compute_summaries_with_reuse(
+    store: &SymbolStore,
+    per_file: &[LangFacts],
+    rev: RevId,
+    deadline_ns: Option<Ns>,
+    reuse: Option<&ReusePlan>,
+) -> BehaviorResult {
     let now = cie_core::types::now_ns();
     let mut summaries: BTreeMap<SymbolId, FunctionSummary> = BTreeMap::new();
     let mut reverse_deps: BTreeMap<SymbolId, BTreeSet<SymbolId>> = BTreeMap::new();
+    let mut stats = SummaryReuseStats::default();
+
+    // Decide reuse once per file.
+    let reusable_paths: BTreeMap<String, bool> = match reuse {
+        Some(p) => p
+            .current_hashes
+            .keys()
+            .map(|k| (k.clone(), p.is_reusable(k)))
+            .collect(),
+        None => BTreeMap::new(),
+    };
+    if reuse.is_some() {
+        for reusable in reusable_paths.values() {
+            if *reusable {
+                stats.reused_files += 1;
+            } else {
+                stats.recomputed_files += 1;
+            }
+        }
+    }
 
     // Seed per-function facts. Symbol facts live in the global store;
     // per_file carries the behavior facts keyed by global symbol id.
@@ -72,8 +161,25 @@ pub fn compute_summaries(
             continue;
         }
         let sid = sym.id;
-        let mut s = FunctionSummary::empty(sid, rev, now);
-
+        let prior = reuse.and_then(|p| {
+            if reusable_paths.get(&sym.loc.path).copied().unwrap_or(false) {
+                p.prior_summaries
+                    .get(&(sym.loc.path.clone(), sym.qual_name.clone()))
+            } else {
+                None
+            }
+        });
+        let mut s = match prior {
+            Some(prev) => {
+                let mut s = prev.clone();
+                s.sym = sid;
+                s.rev = rev;
+                s
+            }
+            None => FunctionSummary::empty(sid, rev, now),
+        };
+        let fresh = prior.is_none();
+        if fresh {
         for facts in per_file {
             for call in facts.calls.iter().filter(|c| c.caller == sid) {
                 match &call.callee {
@@ -102,7 +208,6 @@ pub fn compute_summaries(
                     }
                     Callee::Resolved(id) => {
                         s.callees.push(*id);
-                        reverse_deps.entry(*id).or_default().insert(sid);
                     }
                     Callee::Unresolved(reason) => {
                         s.unresolved_callees
@@ -160,6 +265,7 @@ pub fn compute_summaries(
                 s.path_conditions.push(i.cond.clone());
             }
         }
+        }
 
         // returning false/none explicitly is also a failure path
         if s.returns_constants.contains("false") || s.returns_constants.contains("none") {
@@ -190,6 +296,13 @@ pub fn compute_summaries(
         }
 
         summaries.insert(sid, s);
+    }
+
+    // Reverse dependencies from the final callee lists (covers reused files).
+    for (caller, s) in &summaries {
+        for c in &s.callees {
+            reverse_deps.entry(*c).or_default().insert(*caller);
+        }
     }
 
     // Fixpoint effect propagation over resolved edges (bounded).
@@ -229,5 +342,6 @@ pub fn compute_summaries(
     BehaviorResult {
         summaries,
         reverse_deps,
+        reuse: stats,
     }
 }

@@ -22,6 +22,8 @@ use std::collections::BTreeMap;
 
 pub struct AnalysisOutput {
     pub summaries: BTreeMap<SymbolId, FunctionSummary>,
+    /// TASK-030 counters: files whose summaries were reused vs recomputed.
+    pub summary_reuse: behavior::SummaryReuseStats,
     pub reverse_deps: BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>>,
     pub callees_of: BTreeMap<SymbolId, Vec<SymbolId>>,
     pub findings: Vec<Finding>,
@@ -54,11 +56,12 @@ pub fn analyze(
     rev: RevId,
     cfg: &AnalysisConfig,
     label_fn: hierarchy::LabelFn,
+    reuse: Option<&behavior::ReusePlan>,
 ) -> AnalysisOutput {
     let start = cie_core::types::now_ns();
 
-    // L4 stage 1: behavior extraction.
-    let beh = behavior::compute_summaries(store, per_file, rev, cfg.deadline_ns);
+    // L4 stage 1: behavior extraction (TASK-030: reuse where deps unchanged).
+    let beh = behavior::compute_summaries_with_reuse(store, per_file, rev, cfg.deadline_ns, reuse);
     let callees_of: BTreeMap<SymbolId, Vec<SymbolId>> = beh
         .summaries
         .iter()
@@ -163,6 +166,7 @@ pub fn analyze(
     ];
 
     AnalysisOutput {
+        summary_reuse: beh.reuse,
         summaries: beh.summaries,
         reverse_deps: beh.reverse_deps,
         callees_of,
