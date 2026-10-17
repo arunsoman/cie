@@ -494,6 +494,11 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
             line,
             body_start: bs,
             body_end: be,
+            loc: cie_core::types::SourceLocation::span_bytes(
+                cie_core::types::FileId(0),
+                bs,
+                be,
+            ),
         });
         ctx.loop_stack.push((bs, be));
         let mut c = node.walk();

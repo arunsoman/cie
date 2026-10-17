@@ -180,6 +180,9 @@ pub struct IfSite {
     pub line: u32,
     pub cond: String,
     pub cond_vars: Vec<String>,
+    /// §14.1 byte span of the branch (TASK-032: findings cite the branch).
+    #[serde(default)]
+    pub loc: cie_core::types::SourceLocation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -195,6 +198,9 @@ pub struct LoopSite {
     pub line: u32,
     pub body_start: u32,
     pub body_end: u32,
+    /// §14.1 byte span of the loop header (TASK-032).
+    #[serde(default)]
+    pub loc: cie_core::types::SourceLocation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

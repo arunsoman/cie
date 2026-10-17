@@ -2,9 +2,11 @@
 //! testing, concepts/hierarchy and drift, plus the orchestration engine.
 
 pub mod behavior;
+pub mod pathcond;
 pub mod conformance;
 pub mod fca;
 pub use cie_contract::findings;
+pub use pathcond::{PathCond, PathCondition, PathCondExtraction, Pred, Cmp};
 pub mod hierarchy;
 pub mod security;
 pub mod testing;

@@ -69,7 +69,7 @@ impl EffectKind {
 /// Bottom-up interprocedural summary (PRD §18 / FR-5). Versioned by `rev`,
 /// invalidatable, and tagged with the analysis conditions under which it
 /// was computed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionSummary {
     pub sym: SymbolId,
     pub inputs: Vec<String>,

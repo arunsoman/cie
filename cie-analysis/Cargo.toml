@@ -21,4 +21,5 @@ serde_json = { workspace = true }
 cie-incremental = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
+smallvec = { workspace = true, features = ["serde"] }
 petgraph = { workspace = true }
