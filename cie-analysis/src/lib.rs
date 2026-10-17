@@ -3,7 +3,11 @@
 
 pub mod beliefs;
 pub mod behavior;
+pub mod alternatives;
 pub mod concurrency;
+pub mod endpoints;
+pub mod impact_dims;
+pub mod query;
 pub mod pathcond;
 pub mod predicates;
 pub mod conformance;
