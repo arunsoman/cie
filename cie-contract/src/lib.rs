@@ -8,6 +8,7 @@ use cie_core::types::{ContractId, SymbolId};
 pub mod findings;
 pub mod beliefs;
 pub mod houdini;
+pub mod obligations;
 pub mod protocols;
 pub mod naming;
 pub mod registry;
@@ -15,6 +16,7 @@ pub mod registry;
 pub use findings::{Finding, FindingKind};
 pub use beliefs::{Belief, BeliefFactor, FactorGraph, Family, Predicate, SiteRef};
 pub use houdini::{Houdini, RefutedEntry};
+pub use obligations::{obligations, EffectProvenance, Event, State, StateModel, StateModelBuilder, Transition};
 pub use protocols::{ProtocolExpr, ProtocolMiner, SurvivingCandidate, Traces};
 pub use naming::{Action, Label, LabelSource, NamingAdapter, NamingKind, NamingRecord};
 pub use registry::ContractRegistry;
@@ -94,6 +96,14 @@ pub enum ObligationKind {
     /// TASK-041: mined sequencing obligation ("commit requires prior begin").
     /// Enters the registry only as `Authority::InferredCandidate`.
     Protocol,
+    /// TASK-052/FR-15: SAFETY — a bad state must never be reached
+    /// ("fulfillment requires established authorization"). Distinct kind:
+    /// never conflated with Liveness.
+    Safety,
+    /// TASK-052/FR-15: LIVENESS — a good state is eventually reached
+    /// ("every debit eventually reaches fulfillment or an effective
+    /// refund"). Distinct kind: never conflated with Safety.
+    Liveness,
     Custom(String),
 }
 
@@ -108,6 +118,8 @@ impl ObligationKind {
             ObligationKind::MustNotLeakSecrets => "must_not_leak_secrets".into(),
             ObligationKind::Naming => "naming".into(),
             ObligationKind::Protocol => "protocol".into(),
+            ObligationKind::Safety => "safety".into(),
+            ObligationKind::Liveness => "liveness".into(),
             ObligationKind::Custom(s) => format!("custom:{s}"),
         }
     }
