@@ -2,7 +2,15 @@
 
 **A staged, evidence-backed code-analysis platform.** CIE ingests code and documents, extracts typed facts, function summaries, contracts, concepts and hierarchy, verifies conformance mechanically, and reports document–code drift — with evidence, provenance, nanosecond timestamps, incremental correctness, and an LLM confined to the labeling layer.
 
-This repository is the **v0.1.0 foundation release** implementing PRD slices 0–10 (foundation, conformance, concepts & hierarchy, drift, multi-language, native LLM, folder assimilation, security slice, testing slice) per the spec in [`docs/PRD-v1.0.md`](docs/PRD-v1.0.md).
+This repository is the **v0.2.0 contract-fidelity release**: every instructor task marked
+*partial* in the 84-task cross-check is now implemented to its validation contract (identity
+newtypes, RevisionAllocator, §9 protocol + `CieError`/`CI_TOLERANCE`, typed relation graph +
+CSR freeze + FOW PDG, tombstones, per-file/per-symbol summary reuse, adapter semantics tables,
+the runnable 31-item acceptance harness, six-key concept persistence, cycle rejection,
+`--max-depth`, parent-edge invalidation, rst/adoc/html ingestion, persisted ClaimStore and
+recovery-lite findings). v0.1.0 implemented PRD slices 0–10; the plan and the 84-task
+disposition live in [`docs/V0_2_PLAN.md`](docs/V0_2_PLAN.md) and
+[`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
 
 ## Quickstart
 
@@ -64,21 +72,24 @@ cie report examples/bankapp --as-of-rev 1
 
 ## Acceptance suite coverage (PRD §70)
 
-| Suite | Status in v0.1.0 |
+| Suite | Status in v0.2.0 |
 |---|---|
-| Foundation #1–#7 (authorize examples) | ✅ `crates/cie-cli/tests/acceptance.rs` |
+| Foundation #1–#7 (authorize examples) | ✅ `crates/cie-cli/tests/acceptance.rs` (+ tombstone assertions) |
 | Ingestion #8, #10, #11 (polyglot, re-ingest, time travel) | ✅ |
-| LLM #12–#14 (offline labels, cache, budget downgrade) | ✅ unit tests (`cie-llm`) |
-| Storage #15–#16 (sled/rkyv latency targets) | ⏳ L1 backend swap planned (file-backed JSON now) |
-| Drift #17–#26 | ✅ #18, #19, #20, #21, #22, #23, #26 (+ #17/#24/#25 partial — rule extractor achieves ≥60% recall without LLM) |
-| Concepts #27–#31 | ✅ |
+| LLM #12–#14 (offline labels, cache, budget downgrade) | ✅ pinned (`cie-llm` trio + harness dispatch) |
+| Storage #15–#16 (latency targets) | ✅ #15 shipped subset perf-gated (`perf_suite.rs`); #16 deferred → v1.0 |
+| Drift #17–#26 | ✅ all pinned — #17 ≥90% non-Unknown, #24 cached re-run ≤5%, #25 ≥60% LLM-off |
+| Concepts #27–#31 | ✅ (+ six-key persistence, cycle rejection, parent-edge invalidation) |
 | Runtime #32–#36 (OTel ingestion, FR-45) | ⏳ Slice 19 |
 | Multi-repo #37–#40 (FR-46) | ⚠️ basic merged-concept graph via `cie ingest-org` |
 | Spot checks #41–#44, #46 | ✅ (layering, taint, N+1, dead code, min test set) |
 | Spot checks #45, #47, #48, #49 | ⚠️ partial (`impact`, mermaid output) |
-| Spot check #50 (SMT proofs) | ⏳ CAP-13, not in v0.1 |
+| Spot check #50 (SMT proofs) | ⏳ CAP-13, v1.0 (needs PDG substrate — shipped in v0.2) |
 
-Run everything: `cargo test` (30 tests: 18 acceptance + 12 unit).
+Run everything: `cargo test` (≈90 tests: acceptance + harness + sketch-fidelity + units;
+perf gates via `cargo test --release -- --ignored`). The registry of record is
+`crates/cie-cli/tests/acceptance_harness.rs` — **24 green / 2 deferred** of the base 26,
+**29 green / 2 deferred** of the TASK-084 extension to 31.
 
 ## Example
 

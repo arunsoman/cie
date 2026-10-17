@@ -131,6 +131,23 @@ work packages · **v0.3** / **v1.0** = scheduled on the roadmap · **stretch** =
 
 ## 4. v0.2 change log per task
 
-See git history: one commit per instructor task (`v0.2: TASK-0XX ...`). The acceptance-exit
-matrix lives in `docs/V0_2_PLAN.md` Appendix B; the harness registry (`tests/acceptance_harness.rs`)
-is the runnable source of truth.
+All 32 *partial* dispositions from §3 are implemented in v0.2 (one commit per task group):
+
+| WP | Tasks closed | Where |
+|---|---|---|
+| WP-0 | 001 (deviation documented), traceability | `docs/TRACEABILITY.md`, workspace 0.2.0 |
+| WP-1 | 002, 003, 004, 005, 010 | `hash`/`BLAKE3_EMPTY`/`RevisionAllocator`/`ClockSource`; §14.1 newtypes + `Interner<T>`/`StrInterner`/`InternedStr`; §9 protocol + `CieError` + `CI_TOLERANCE`; `LanguageTable::v1`; `TypedFacts` dedup + integrity — sketch tests `task_002..010` |
+| WP-2 | 028, 030, 056 | tombstones + purge; per-file summary reuse; symbol-level dirty worklist (+ FR-4 determinism fix) |
+| WP-3 | 007, 008, 009 | `RelKind`/`RelationGraph`; `CsrGraph` + rkyv + 1M-edge gate; FOW `Pdg` + bounded backward slice |
+| WP-4 | 011, 027/061, 063/065/066, 072/073/075/076, 077 | semantics tables + FR-18 guard (acc #9); perf suite (acc #15 subset); LLM trio (#12–14); drift #17/#24/#25; harness 26 items |
+| WP-5 | 078, 079, 080, 082, 083, 084 | six `concept_node:*` keys; cart fixture + four binding sources (LlmCandidate inert); cycle rejection; `--max-depth`; parent-edge invalidation; 26→31 meta-test |
+| WP-6 | 071, 073, 054(subset) | rst/adoc/html ingestion; persisted ClaimStore; IgnoredErrorValue + bare-except recovery gaps |
+
+Runnable source of truth: `crates/cie-cli/tests/acceptance_harness.rs` — base 26 items
+(24 green / 2 deferred: #15 perf-subset shipped, #16 zero-copy deferred to v1.0) and the
+TASK-084 extension to 31 (29 green / 2 deferred). Perf gates bind on release builds
+(`cargo test --release -- --ignored`). Documented sketch adaptations are in §2 above.
+
+Out-of-scope tasks (24) remain scheduled exactly as §3 states: v0.3 (adapters 015–018/021,
+deep JS/TS/Go/Rust, path conditions, IFDS, recovery, naming adapters, rayon walk) and
+v1.0 (SMT/CEGAR 047–051, HNSW 059, zero-copy 060, dd 057, L3 archive 062, sled/redb 024).
