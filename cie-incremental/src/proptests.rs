@@ -114,7 +114,7 @@ impl IncrWorld {
     }
 
     /// Symbol id for a name (resolves through the file that owns it).
-    fn ids_in_file(&self, path: &str) -> Vec<SymbolId> {
+    pub fn ids_in_file(&self, path: &str) -> Vec<SymbolId> {
         self.files
             .get(path)
             .map(|r| r.symbols.clone())
@@ -157,10 +157,13 @@ impl IncrWorld {
             self.findings.insert(id, fh0);
             ids.push(id);
         }
+        // the file must be in the repo BEFORE recomputing: dep edges are
+        // derived from the file's current content (the two-pass contract
+        // above — intra-file calls resolve immediately)
+        self.repo.insert(path.to_string(), content);
         for id in &ids {
             self.recompute_from_source(*id);
         }
-        self.repo.insert(path.to_string(), content);
         self.files.insert(
             path.to_string(),
             FileRecord {
@@ -345,12 +348,14 @@ impl IncrWorld {
                 _ => return false,
             }
         }
-        // pending callees: callers live, callees NOT live (they'd be deps)
-        for (callee, callers) in &self.pending_callees {
-            if self.symbols.contains_key(callee) || callers.is_empty() {
+        // pending callees: keyed by CALLER (waiting for callees to appear)
+        // — the caller must be live and every waited-on callee NOT live
+        // (a live callee would be a dep, not a wait)
+        for (caller, missing) in &self.pending_callees {
+            if !self.symbols.contains_key(caller) || missing.is_empty() {
                 return false;
             }
-            if callers.iter().any(|c| !self.symbols.contains_key(c)) {
+            if missing.iter().any(|c| self.symbols.contains_key(c)) {
                 return false;
             }
         }

@@ -10,6 +10,9 @@ pub mod engine;
 pub mod proptests;
 pub mod snapshot;
 pub mod timeline;
+pub mod whatif;
+
+pub use whatif::{simulate, Consequence, ConsequenceKind, HypotheticalChange, WhatIfResult, WHATIF_LABEL};
 
 pub use timeline::{
     contract_timeline, BreakingConcern, BreakingKind, ContractTimeline, ImportMap,
