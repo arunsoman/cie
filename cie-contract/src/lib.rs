@@ -6,10 +6,12 @@
 
 use cie_core::types::{ContractId, SymbolId};
 pub mod findings;
+pub mod beliefs;
 pub mod naming;
 pub mod registry;
 
 pub use findings::{Finding, FindingKind};
+pub use beliefs::{Belief, BeliefFactor, FactorGraph, Family, Predicate, SiteRef};
 pub use naming::{Action, Label, LabelSource, NamingAdapter, NamingKind, NamingRecord};
 pub use registry::ContractRegistry;
 
