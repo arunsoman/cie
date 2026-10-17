@@ -3,6 +3,9 @@
 //! serialization and the human/mermaid renderers.
 
 pub mod causal;
+pub mod conflicts;
+
+pub use conflicts::{ConflictEvent, ConflictLedger, ConflictRecord, ConflictStatus, EventKind, ResolutionOption, Statement};
 pub mod outputs;
 pub mod persist;
 pub mod pipeline;

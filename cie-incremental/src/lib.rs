@@ -10,7 +10,14 @@ pub mod engine;
 pub mod proptests;
 pub mod snapshot;
 pub mod timeline;
+pub mod attrib;
+pub mod diffgen;
+pub mod steer;
 pub mod whatif;
+
+pub use diffgen::{edit_script, side_by_side, unified_diff, FileDiff, Hunk, HunkLine, Tag};
+pub use attrib::{attribute, Attribution, AttributionLedger, ChangeClass};
+pub use steer::{Board, SteerSession};
 
 pub use whatif::{simulate, Consequence, ConsequenceKind, HypotheticalChange, WhatIfResult, WHATIF_LABEL};
 
