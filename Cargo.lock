@@ -298,6 +298,7 @@ dependencies = [
  "cie-concepts",
  "cie-contract",
  "cie-core",
+ "cie-counterexample",
  "cie-evidence",
  "cie-incremental",
  "cie-relations",

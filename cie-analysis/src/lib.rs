@@ -4,6 +4,7 @@
 pub mod beliefs;
 pub mod behavior;
 pub mod pathcond;
+pub mod predicates;
 pub mod conformance;
 pub mod fca;
 pub use cie_contract::findings;
