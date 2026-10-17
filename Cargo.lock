@@ -470,6 +470,7 @@ dependencies = [
  "cie-relations",
  "cie-semantic",
  "cie-store",
+ "cie-viz",
  "clap",
  "rayon",
  "serde",
@@ -699,6 +700,20 @@ dependencies = [
  "cie-semantic",
  "rustc-hash",
  "serde",
+]
+
+[[package]]
+name = "cie-viz"
+version = "1.0.0"
+dependencies = [
+ "cie-concepts",
+ "cie-core",
+ "cie-incremental",
+ "cie-semantic",
+ "cie-summary",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

@@ -28,6 +28,7 @@ cie-concepts = { workspace = true }
 cie-claims = { workspace = true }
 cie-drift = { workspace = true }
 cie-incremental = { workspace = true }
+cie-viz = { workspace = true }
 cie-llm = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }

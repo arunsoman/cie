@@ -2,3 +2,4 @@
 .cie/
 *.tmp
 Cargo.lock.bak
+node_modules

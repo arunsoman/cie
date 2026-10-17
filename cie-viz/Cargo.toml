@@ -1,0 +1,18 @@
+[package]
+name = "cie-viz"
+description = "CIE-VIZ ViewSpec producer + epistemic gate (FR-9 output protocol; CIE-VIZ PRD §3–§4)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-concepts = { workspace = true }
+cie-incremental = { workspace = true }
+cie-summary = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }

@@ -141,6 +141,29 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// ViewSpec producer + epistemic gate (CIE-VIZ: FR-9 output protocol).
+    /// Produces a sealed semantic-graph ViewSpec JSON for the G6 adapter, or
+    /// validates an existing spec against the gate + content hash.
+    Viz {
+        path: PathBuf,
+        /// Validate this ViewSpec JSON instead of producing one (exit 1 on
+        /// any gate violation or hash mismatch).
+        #[arg(long)]
+        validate: Option<PathBuf>,
+        /// Engine id for render-hash verification in --validate mode
+        /// (default: engine-neutral baseline, VIZ-10: CIE names no engine)
+        #[arg(long)]
+        engine: Option<String>,
+        /// Salience-bounded element cap (default 2000, VIZ-I-06)
+        #[arg(long)]
+        max_elements: Option<usize>,
+        /// Force a layout strategy (verbatim G6 name); default auto-selects
+        #[arg(long)]
+        layout: Option<String>,
+        /// Write the spec to a file instead of stdout
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
 }
 
 fn lang_list(spec: &Option<Vec<String>>) -> Option<Vec<LangId>> {
@@ -563,6 +586,114 @@ fn run(cli: Cli) -> i32 {
                 Ok(None) => {
                     eprintln!("error: no snapshot for rev {rev}");
                     1
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    1
+                }
+            }
+        }
+        Command::Viz {
+            path,
+            validate,
+            engine,
+            max_elements,
+            layout,
+            out,
+        } => {
+            // ---- validate mode: gate + hash recompute on an existing spec
+            if let Some(spec_path) = validate {
+                let raw = match std::fs::read_to_string(&spec_path) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("error reading spec {spec_path:?}: {e}");
+                        return 1;
+                    }
+                };
+                let spec: cie_viz::ViewSpec = match serde_json::from_str(&raw) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("error: spec is not a valid ViewSpec (VIZ-A-01 schema): {e}");
+                        return 1;
+                    }
+                };
+                let mut failed = false;
+                match cie_viz::gate::validate(&spec) {
+                    Ok(()) => println!(
+                        "gate: OK ({} elements, {} edges)",
+                        spec.elements.len(),
+                        spec.edges.len()
+                    ),
+                    Err(violations) => {
+                        failed = true;
+                        for v in &violations {
+                            println!("{v}");
+                        }
+                    }
+                }
+                // PRD §3 hash split: semantic is the cache key, render is
+                // the artifact key (engine-bound; "" = producer baseline).
+                let engine_id = engine.as_deref().unwrap_or("");
+                if !cie_viz::hash::verify_semantic(&spec) {
+                    failed = true;
+                    println!(
+                        "SEMANTIC_HASH_MISMATCH [spec] stored {} != computed {}",
+                        spec.semantic_hash,
+                        cie_viz::hash::compute_semantic(&spec)
+                    );
+                } else {
+                    println!("semantic hash: OK ({})", spec.semantic_hash);
+                }
+                if !cie_viz::hash::verify_render(&spec, engine_id) {
+                    failed = true;
+                    println!(
+                        "RENDER_HASH_MISMATCH [spec] stored {} != computed {} (engine '{engine_id}')",
+                        spec.render_hash,
+                        cie_viz::hash::compute_render(&spec, engine_id)
+                    );
+                } else if engine_id.is_empty() {
+                    println!("render hash: OK (engine-neutral baseline)");
+                } else {
+                    println!("render hash: OK (engine '{engine_id}')");
+                }
+                return if failed { 1 } else { 0 };
+            }
+
+            // ---- produce mode: ingest → RevSnapshot → sealed ViewSpec
+            let opts = IngestOptions::default();
+            let path = path.canonicalize().unwrap_or(path);
+            match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
+                Ok(outcome) => {
+                    let produce_opts = cie_viz::ProduceOptions {
+                        max_elements: max_elements.unwrap_or(cie_viz::ELEMENT_CAP),
+                        layout: layout.clone(),
+                    };
+                    match cie_viz::produce(&outcome.snapshot, &produce_opts) {
+                        Ok(spec) => {
+                            let json = serde_json::to_string_pretty(&spec).unwrap_or_default();
+                            match out {
+                                Some(f) => {
+                                    if let Err(e) = std::fs::write(&f, json + "\n") {
+                                        eprintln!("error writing {f:?}: {e}");
+                                        return 1;
+                                    }
+                                    println!(
+                                        "wrote {}: {} elements, {} edges, semantic {}",
+                                        f.display(),
+                                        spec.elements.len(),
+                                        spec.edges.len(),
+                                        spec.semantic_hash
+                                    );
+                                }
+                                None => println!("{json}"),
+                            }
+                            0
+                        }
+                        Err(e) => {
+                            eprintln!("error: producer output failed its own gate: {e}");
+                            1
+                        }
+                    }
                 }
                 Err(e) => {
                     eprintln!("error: {e}");
