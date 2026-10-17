@@ -50,6 +50,17 @@ pub enum EdgeReason {
 }
 
 impl EdgeReason {
+    /// Parse the `as_str()` rendering (six-key storage roundtrip, TASK-078).
+    pub fn parse(s: &str) -> EdgeReason {
+        match s {
+            "package_containment" => EdgeReason::PackageContainment,
+            "cluster_cohesion" => EdgeReason::ClusterCohesion,
+            "fca_subsumption" => EdgeReason::FcaSubsumption,
+            "call_ownership" => EdgeReason::CallOwnership,
+            _ => EdgeReason::ClusterCohesion,
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             EdgeReason::PackageContainment => "package_containment",
