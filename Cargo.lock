@@ -201,6 +201,8 @@ dependencies = [
  "cie-core",
  "cie-semantic",
  "serde",
+ "tree-sitter",
+ "tree-sitter-javascript",
 ]
 
 [[package]]
