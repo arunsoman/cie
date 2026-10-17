@@ -163,3 +163,45 @@ TASK-084 extension to 31 (29 green / 2 deferred). Perf gates bind on release bui
 Out-of-scope tasks (24) remain scheduled exactly as §3 states: v0.3 (adapters 015–018/021,
 deep JS/TS/Go/Rust, path conditions, IFDS, recovery, naming adapters, rayon walk) and
 v1.0 (SMT/CEGAR 047–051, HNSW 059, zero-copy 060, dd 057, L3 archive 062, sled/redb 024).
+
+## 5. v0.3 → v1.0 completion record (84/84 tasks implemented)
+
+The v0.3 sprint and the v1.0 hardening pass closed every remaining task, one commit
+each, all pushed to `main`. Per-task dispositions in §3 above are superseded by this
+record (verdict: **done** for all rows).
+
+| Tasks | Where / notable artifacts |
+|---|---|
+| 001, 006 | 30-crate §10 scaffold (flat root, gate D-1); §14.2 fact families |
+| 013–021 | 9 deep language adapters (JS/TS/Java/C/C++/C#/Go/Rust/PHP) with FR-3 semantics tables |
+| 022 | cross-language FR-3 SemanticsGuard over the adapter registry |
+| 029, 037 | two-dimensional budgets + cancellation checkpoints; §14.9 content-addressed record store |
+| 032, 034/035 | path conditions over ValueId; IFDS exploded supergraph + instances |
+| 039, 040 | naming adapter (lexicon, FR-10 labels, guarded registry); Engler signals + Kremenek factor graph |
+| 041 | protocol mining (k-bounded automata) + Houdini refutation with content-addressed log |
+| 043 | predicate extraction (requires DSL) + budgeted bounded checker (Unknown/TimedOut never clean) |
+| 052, 053, 054 | FR-15 state machines (RefundCalled ≠ Refunded); LDFI planner + SimInjector; Yuan et al. error-handling detectors |
+| 058 | deletion-correctness proptest (256 cases, clean-recompute oracle, no_orphan_records) |
+| 067 | §17.2 parallel walk (gitignore, shebang detection, rayon, per-file isolation) |
+| 047 | budgeted SMT (interval-narrowing backend; `smt-z3` feature = system libz3 C FFI swap) |
+| 048 | CEGAR loop (predicate abstraction, spurious refinement, metrics) |
+| 049 | SLAM product checking (suspected-vs-established authority split) |
+| 050 | bounded symbolic execution (§7 qualification, repro-test concretization) |
+| 051 | §14.9 counterexample packaging (min_hits shrinker, byte-equivalence roundtrip) |
+| 024, 027 | sled/redb/MemKv behind one KvStore trait; typed latency-gated tables (50 ns/30 ns/5 µs gates) |
+| 057 | differential relation maintenance (multiset updates, retraction through dataflow, as-of frontier) |
+| 059, 060, 062 | HNSW k-NN store; zero-copy rkyv+memmap2 snapshots; L3 columnar zstd archive (byte-equivalent restore) |
+| 071 | PDF text-layer extraction (FlateDecode + Tj/TJ) + honest OCR seam (SystemTesseract probe / NoOcr fallback) |
+
+**Documented deviations added in this phase** (same discipline as §2):
+- `differential-dataflow` crate → in-house differential trace semantics (timely's
+  worker-scope model does not compose with the synchronous revisioned engine; the §7
+  multiset/retraction/frontier/as-of semantics are provided deterministically).
+- Apache `parquet` → in-house columnar zstd-per-column writer (arrow/parquet build
+  surface is outside the offline-first story; a feature flag can swap it later).
+- OCR → `OcrProvider` seam with a SystemTesseract runtime probe and the deterministic
+  NoOcr fallback that reports `ocr_unavailable` instead of inventing text (FR-28).
+- TASK-047 default backend is pure-Rust interval narrowing (sound + complete for the
+  conjunctive unary language); `smt-z3` links system libz3 via C FFI as specified.
+- Perf timings use batched per-op measurement to defeat vDSO clock-read noise on
+  virtualized hosts; gated paths allocate nothing (§15.5).
