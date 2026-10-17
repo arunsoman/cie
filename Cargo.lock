@@ -696,6 +696,7 @@ dependencies = [
 name = "cie-stories"
 version = "1.0.0"
 dependencies = [
+ "cie-adapters",
  "cie-analysis",
  "cie-claims",
  "cie-core",
@@ -706,6 +707,7 @@ dependencies = [
  "cie-llm",
  "cie-semantic",
  "cie-store",
+ "cie-viz",
  "serde",
  "serde_json",
 ]

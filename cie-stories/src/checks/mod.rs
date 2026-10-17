@@ -9,6 +9,8 @@
 pub mod fixture;
 pub mod s1_repo;
 pub mod s2_answers;
+pub mod s3_viz;
+pub mod s4_catalog;
 
 /// Deep check registry — story id → check.
 pub fn deep_check(id: &str) -> Option<Result<(), String>> {
@@ -29,6 +31,31 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-016" => s2_answers::us_016,
         "US-017" => s2_answers::us_017,
         // US-009, US-010, US-012: model/product-layer parts — audit only.
+        // ---- Interactive visual exploration ----
+        "US-018" => s3_viz::us_018,
+        "US-019" => s3_viz::us_019,
+        "US-021" => s3_viz::us_021,
+        "US-025" => s3_viz::us_025,
+        "US-026" => s3_viz::us_026,
+        "US-027" => s3_viz::us_027,
+        "US-029" => s3_viz::us_029,
+        "US-030" => s3_viz::us_030,
+        // US-020/022/023/024/028: host-side or audit-only.
+        // ---- The visual catalogue ----
+        "US-031" => s4_catalog::us_031,
+        "US-032" => s4_catalog::us_032,
+        "US-033" => s4_catalog::us_033,
+        "US-034" => s4_catalog::us_034,
+        "US-035" => s4_catalog::us_035,
+        "US-036" => s4_catalog::us_036,
+        "US-038" => s4_catalog::us_038,
+        "US-040" => s4_catalog::us_040,
+        "US-042" => s4_catalog::us_042,
+        "US-044" => s4_catalog::us_044,
+        "US-045" => s4_catalog::us_045,
+        "US-049" => s4_catalog::us_049,
+        // US-037/039/041/043/046/047/048: partial with named gaps or
+        // planned; evidence is the named suite — audit-only.
         _ => return None,
     };
     Some(std::panic::catch_unwind(f).unwrap_or_else(|p| {
@@ -48,7 +75,11 @@ mod tests {
         ] {
             assert!(deep_check(id).is_some(), "{id} should have a deep check");
         }
-        for id in ["US-005", "US-007", "US-009", "US-010", "US-012", "US-018"] {
+        for id in [
+            "US-005", "US-007", "US-009", "US-010", "US-012", "US-020", "US-022", "US-023",
+            "US-024", "US-028", "US-037", "US-039", "US-041", "US-043", "US-046", "US-047",
+            "US-048",
+        ] {
             assert!(deep_check(id).is_none(), "{id} has no deep check by design");
         }
     }

@@ -210,8 +210,8 @@ pub fn us_016() -> Result<(), String> {
 /// and every fault cites lineage-edge provenance with an audit hash.
 pub fn us_017() -> Result<(), String> {
     use cie_fault::ldfi::{
-        Fault, LdfiPlanner, LdfiUnknown, LineageEdge, LineageGraph, LineageKind, Property,
-        RoundLimits, SimInjector,
+        Fault, LdfiPlanner, LdfiUnknown, LineageGraph, LineageKind, Property, RoundLimits,
+        SimInjector,
     };
     // Empty lineage → honest unknown, never a fabricated result.
     let mut empty = LdfiPlanner::new(LineageGraph::empty(), SimInjector::new());
@@ -221,12 +221,6 @@ pub fn us_017() -> Result<(), String> {
     }
     // Real lineage: a→b→c with a state update; Drop of any chain edge breaks it.
     let mut g = LineageGraph::empty();
-    let _edge = |id: &str, from: &str, to: &str, kind: LineageKind| LineageEdge {
-        id: id.into(),
-        kind,
-        from: from.into(),
-        to: to.into(),
-    };
     // The modeled TASK-052 success chain (see SimInjector): the fixture
     // mirrors it so Drop faults actually bite the modeled chain.
     g.add("e1", LineageKind::Message, "debit", "ledger");

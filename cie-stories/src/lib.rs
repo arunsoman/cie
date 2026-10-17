@@ -31,8 +31,13 @@ pub use verify::{Verdict, verify_story};
 
 /// Deep checks available so far (batches land section by section).
 pub const DEEP_CHECKS: &[&str] = &[
+    // batch C — repo access + answers
     "US-001", "US-002", "US-003", "US-004", "US-006", "US-008", "US-011", "US-013", "US-014",
     "US-015", "US-016", "US-017",
+    // batch D — visual exploration + catalogue
+    "US-018", "US-019", "US-021", "US-025", "US-026", "US-027", "US-029", "US-030", "US-031",
+    "US-032", "US-033", "US-034", "US-035", "US-036", "US-038", "US-040", "US-042", "US-044",
+    "US-045", "US-049",
 ];
 
 /// Total number of stories in the catalogue (147).

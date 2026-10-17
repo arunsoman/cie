@@ -19,3 +19,5 @@ cie-analysis = { path = "../cie-analysis" }
 cie-llm = { path = "../cie-llm" }
 cie-store = { path = "../cie-store" }
 cie-fault = { path = "../cie-fault" }
+cie-viz = { path = "../cie-viz" }
+cie-adapters = { path = "../cie-adapters" }
