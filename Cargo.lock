@@ -459,9 +459,12 @@ dependencies = [
 name = "cie-counterexample"
 version = "0.3.0"
 dependencies = [
+ "cie-contract",
  "cie-core",
  "cie-semantic",
+ "cie-store",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

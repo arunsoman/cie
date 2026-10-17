@@ -9,7 +9,10 @@ repository.workspace = true
 
 [dependencies]
 cie-core = { workspace = true }
+serde_json = { workspace = true }
 cie-semantic = { workspace = true }
+cie-contract = { workspace = true }
+cie-store = { workspace = true }
 serde = { workspace = true }
 
 [features]
@@ -17,3 +20,6 @@ default = []
 # Link system libz3 (4.13.x) via the hand-written C FFI instead of the
 # pure-Rust bit-blast fallback solver. Requires libz3 on the link path.
 smt-z3 = []
+
+[dev-dependencies]
+serde_json = { workspace = true }
