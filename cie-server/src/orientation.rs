@@ -46,8 +46,12 @@ fn sample(app: &Arc<App>) -> Result<Value> {
     // or changes a user-supplied repository.
     let repo=app.storage.transaction(|s|{
         if let Some(r)=s.repositories.iter().find(|r|Path::new(&r.path)==root){return Ok(r.clone());}
-        if root.exists(){return Err(Error::new(409,"SAMPLE_EXISTS","An unconnected sample directory already exists. Inspect it before retrying; it was not overwritten."));}
         if s.repositories.len()>=32{return Err(Error::new(409,"REPOSITORY_QUOTA","Repository limit reached"));}
+        if root.exists(){
+            let safe_existing=fs::symlink_metadata(&root).is_ok_and(|m|m.is_dir()&&!m.file_type().is_symlink())&&fs::read_to_string(root.join("README.md")).is_ok_and(|text|text.starts_with("# Synthetic checkout sample\n"));
+            if !safe_existing{return Err(Error::new(409,"SAMPLE_EXISTS","An unknown sample directory exists. It was not changed or overwritten."));}
+            let r=Repository{id:s.id("repo"),name:"Synthetic checkout sample".into(),path:root.to_string_lossy().into(),revisions:vec![]};s.repositories.push(r.clone());return Ok(r);
+        }
         fs::create_dir_all(&root)?;
         let create=(||->Result<()>{
             fs::write(root.join("README.md"),"# Synthetic checkout sample\n\nGenerated evaluation fixture, not production evidence. Its Git history uses explicit synthetic dates. The second revision intentionally introduces a misleading authorize implementation. No real payment or inventory operation occurs. The regression also weakens the test expectation; passing that test would not independently establish the intended authorization behavior.\n")?;

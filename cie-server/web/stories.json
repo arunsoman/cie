@@ -687,26 +687,31 @@
     "id": "US-082",
     "title": "Explain a slow operation",
     "status": "partial",
-    "note": "Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements.",
+    "note": "Capture metadata, reported intervals, omissions and exact source links remain inspectable; complete CPU/wait/resource attribution and validated bottleneck analysis pending.",
     "evidence": [
-      "browser:runtime-import"
+      "equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement"
     ]
   },
   {
     "id": "US-083",
     "title": "Compare two profiles",
-    "status": "partial",
-    "note": "Multiple profile reports can be retained; normalized cross-profile comparison pending.",
+    "status": "complete",
+    "note": "Two imported profiles are compared under explicit declared equivalence. Verdicts include reasons/limits, incompatible populations are rejected, and failed captures remain visible in the metric table.",
     "evidence": [
-      "imported_observations_map_only_exact_source_and_never_claim_execution"
+      "equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement",
+      "profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row",
+      "profiles_without_workload_metadata_remain_importable_but_not_fairly_comparable",
+      "browser:profile-comparison"
     ]
   },
   {
     "id": "US-084",
     "title": "Investigate a performance regression",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Profile comparisons expose declared workload/environment differences, failed and omitted populations, and reject unfair improvement claims; independent behavior regression execution pending.",
+    "evidence": [
+      "profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row"
+    ]
   },
   {
     "id": "US-085",
@@ -1134,8 +1139,9 @@
     "id": "US-139",
     "title": "Manage access, retention and deletion",
     "status": "partial",
-    "note": "Local deletion cascades derived records; tenant isolation/RBAC/retention governance pending.",
+    "note": "Server-owned record deletion cascades and clears cached evidence across open browser tabs; tenant isolation, RBAC and governed retention remain pending.",
     "evidence": [
+      "browser:deletion-clears-other-tabs",
       "deletion_removes_all_derived_views_but_not_connected_source"
     ]
   },

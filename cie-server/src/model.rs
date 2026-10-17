@@ -243,6 +243,8 @@ pub struct Observation {
     pub producer: String,
     pub kind: String,
     pub events: Vec<ObservedEvent>,
+    #[serde(default)]
+    pub measurement: Option<ProfileMeasurement>,
     pub created_ns: u64,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -337,4 +339,20 @@ pub struct ScenarioRun {
     pub reachable_states: Vec<String>,
     pub unknown_guards: Vec<String>,
     pub created_ns: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProfileMeasurement {
+    pub workload_key: String,
+    pub environment_key: String,
+    pub expected_operations: u64,
+    pub recorded_operations: u64,
+    pub failed_operations: u64,
+    pub omitted_operations: u64,
+    pub lost_samples: u64,
+    pub elapsed_micros: u64,
+    pub sampling_interval_micros: u64,
+    pub warmup_micros: u64,
+    pub capture_complete: bool,
 }

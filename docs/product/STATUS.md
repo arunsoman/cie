@@ -85,9 +85,9 @@
 | US-079: Find possible race windows | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-080: Find deadlocks and lock contention | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-081: Investigate distributed consistency | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-082: Explain a slow operation | partial | Per-event observed durations shown without extrapolation; bottleneck attribution and percentiles need representative measurements. | browser:runtime-import |
-| US-083: Compare two profiles | partial | Multiple profile reports can be retained; normalized cross-profile comparison pending. | imported_observations_map_only_exact_source_and_never_claim_execution |
-| US-084: Investigate a performance regression | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-082: Explain a slow operation | partial | Capture metadata, reported intervals, omissions and exact source links remain inspectable; complete CPU/wait/resource attribution and validated bottleneck analysis pending. | equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement |
+| US-083: Compare two profiles | complete | Two imported profiles are compared under explicit declared equivalence. Verdicts include reasons/limits, incompatible populations are rejected, and failed captures remain visible in the metric table. | equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement, profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row, profiles_without_workload_metadata_remain_importable_but_not_fairly_comparable, browser:profile-comparison |
+| US-084: Investigate a performance regression | partial | Profile comparisons expose declared workload/environment differences, failed and omitted populations, and reject unfair improvement claims; independent behavior regression execution pending. | profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row |
 | US-085: Identify optimization opportunities | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-086: Prioritize maintenance work | partial | Bounded changed-path Git history without contributor identity; validated risk ranking pending. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source |
 | US-087: Find code that changes together | partial | Per-commit changed-path groups available; co-change clustering/confidence and visual explanations pending. | generated_sample_has_real_dated_synthetic_history_without_mutating_user_source |
@@ -142,7 +142,7 @@
 | US-136: Decide what may leave my machine | partial | Cloud egress disabled; configurable approved-provider flow and send audit pending. | browser:privacy-disclosure |
 | US-137: Switch models and understand model failures | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-138: Control cost, progress and cancellation | partial | Staged progress and cancel publication controls; token costs and resumable computation pending. | cancel_queued_job_blocks_publication |
-| US-139: Manage access, retention and deletion | partial | Local deletion cascades derived records; tenant isolation/RBAC/retention governance pending. | deletion_removes_all_derived_views_but_not_connected_source |
+| US-139: Manage access, retention and deletion | partial | Server-owned record deletion cascades and clears cached evidence across open browser tabs; tenant isolation, RBAC and governed retention remain pending. | browser:deletion-clears-other-tabs, deletion_removes_all_derived_views_but_not_connected_source |
 | US-140: Operate everything from the keyboard | partial | Native controls and graph arrow navigation; all future canvases need acceptance testing. | browser:keyboard-graph |
 | US-141: Use the product with a screen reader | partial | Outline/table list all current items/links; full screen-reader audit pending. | browser:representation-parity |
 | US-142: Never depend on colour alone | partial | Text status/class labels and dashed inference; full notation audit pending. | browser:representation-parity |

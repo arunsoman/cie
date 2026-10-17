@@ -42,6 +42,9 @@ impl App {
         if body.len() > 1024 * 1024 {
             return Err(Error::new(413, "REQUEST_LIMIT", "Request exceeds 1 MiB"));
         }
+        if let Some(result) = crate::profiles::dispatch(self, method, path, body) {
+            return result;
+        }
         if let Some(result) = crate::scenarios::dispatch(self, method, path, body) {
             return result;
         }

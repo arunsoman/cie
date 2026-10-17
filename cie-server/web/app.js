@@ -48,6 +48,7 @@ function boot() {
       const response = await fetch(path, {method, headers: {"X-Cie-Token": token, ...(data !== undefined ? {"Content-Type": "application/json"} : {})}, body: data === undefined ? undefined : JSON.stringify(data), signal: controller.signal});
       const result = await response.json();
       if (!response.ok) throw new Error(`${result.error?.code || response.status}: ${result.error?.message || "Request failed"}`);
+      if(method === "DELETE") window.cieNotifyDeletion?.();
       return result;
     } catch (error) {
       if (error.name === "AbortError") throw new Error("The request timed out. Saved answers are preserved. Refresh state before retrying a write; it may have completed.");
@@ -78,7 +79,7 @@ function boot() {
       const card = el("div", undefined, "card"); card.append(el("strong", r.name), el("small", r.path), el("p", r.revisions.length ? `${r.revisions.length} snapshots · ${r.revisions.at(-1).symbols} symbols` : "Not indexed yet"));
       const busy = state.jobs.some(j => j.repositoryId === r.id && ["queued", "running", "cancelling"].includes(j.state));
       const index = button(busy ? "Index job active" : "Index snapshot", async () => {await api(`/api/repositories/${r.id}/index`, "POST", {}); await refresh(); announce("Index job queued. Results publish only after completion and freshness checks.");}); index.disabled = busy;
-      card.append(index, button("Inspect scope", () => inspectRepository(r.id)), button("Delete derived records", async () => {if (!confirm(`Delete derived records for ${r.name}? Source files remain unchanged.`)) return; await api(`/api/repositories/${r.id}`, "DELETE"); if (active?.answer.repositoryId === r.id) {active = null; $("answer").replaceChildren(el("p", "Repository evidence was deleted. No saved conclusion is displayed."));} await refresh();})); $("repositories").append(card);
+      card.append(index, button("Inspect scope", () => inspectRepository(r.id)), button("Delete derived records", async () => {if (!confirm(`Delete derived records for ${r.name}? Source files remain unchanged. Open workspace tabs will refresh to clear cached evidence.`)) return; await api(`/api/repositories/${r.id}`, "DELETE"); if (active?.answer.repositoryId === r.id) {active = null; $("answer").replaceChildren(el("p", "Repository evidence was deleted. No saved conclusion is displayed."));} await refresh();})); $("repositories").append(card);
     }
     $("jobs").replaceChildren();
     for (const j of state.jobs.slice(-8).reverse()) {
@@ -114,7 +115,7 @@ function boot() {
     if (a.gaps.length) {const d = el("details"); d.open = true; d.append(el("summary", `Evidence gaps (${a.gaps.length})`)); const list = el("ul"); a.gaps.forEach(g => list.append(el("li", g))); d.append(list); box.append(d);}
     if (active.hiddenClaims) box.append(el("p", `${active.hiddenClaims} refuted claims withheld; historical evidence retained.`, "warning"));
     const actions = el("div", undefined, "view-tools");
-    actions.append(button("Recheck freshness", () => loadAnswer(a.id)), button("Export JSON", async () => {const current = await api(`/api/answers/${a.id}/export`); download(`${a.id}.json`, JSON.stringify(current, null, 2), "application/json");}), button("Export Markdown", async () => {const current = await api(`/api/answers/${a.id}/export`); download(`${a.id}.md`, Evidence.markdown(current), "text/markdown");}), button("Close tab", () => {openAnswers.delete(a.id); active = null; parent = null; selected = null; box.replaceChildren(el("p", "Answer closed. It remains in saved workspaces.")); renderTabs(); renderContext();}), button("Delete saved answer", async () => {if (!confirm("Delete this answer and its reviews?")) return; await api(`/api/answers/${a.id}`, "DELETE"); active = null; parent = null; selected = null; box.replaceChildren(el("p", "Answer deleted.")); await refresh(); renderContext();})); box.append(actions);
+    actions.append(button("Recheck freshness", () => loadAnswer(a.id)), button("Export JSON", async () => {const current = await api(`/api/answers/${a.id}/export`); download(`${a.id}.json`, JSON.stringify(current, null, 2), "application/json");}), button("Export Markdown", async () => {const current = await api(`/api/answers/${a.id}/export`); download(`${a.id}.md`, Evidence.markdown(current), "text/markdown");}), button("Close tab", () => {openAnswers.delete(a.id); active = null; parent = null; selected = null; box.replaceChildren(el("p", "Answer closed. It remains in saved workspaces.")); renderTabs(); renderContext();}), button("Delete saved answer", async () => {if (!confirm("Delete this answer and its reviews? Open workspace tabs will refresh.")) return; await api(`/api/answers/${a.id}`, "DELETE"); active = null; parent = null; selected = null; box.replaceChildren(el("p", "Answer deleted.")); await refresh(); renderContext();})); box.append(actions);
     if (a.intent === "concepts") actions.append(button("Concept judgments and engine scores", async () => {
       const report = await api(`/api/concept-reviews/${a.repositoryId}/${a.revisionId}`);
       document.getElementById("concept-judgments")?.remove();

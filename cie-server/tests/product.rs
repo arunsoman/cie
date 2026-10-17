@@ -1118,3 +1118,83 @@ fn scenario_evidence_deletion_is_challenged_and_repository_deletion_cascades_run
     assert!(s.workflow_models.is_empty());
     assert!(s.scenario_runs.is_empty());
 }
+
+fn profile_body(repo: &str, revision: &str, elapsed: u64) -> Value {
+    json!({"repositoryId":repo,"revisionId":revision,"environment":"test","producer":"fixture-profiler","kind":"profile","events":[{"id":"cpu","name":"work","startMicros":0,"endMicros":elapsed,"outcome":"ok","samples":5}],"measurement":{"workloadKey":"ten-authorizations","environmentKey":"fixed-fixture-env","expectedOperations":10,"recordedOperations":10,"failedOperations":0,"omittedOperations":0,"lostSamples":0,"elapsedMicros":elapsed,"samplingIntervalMicros":100,"warmupMicros":0,"captureComplete":true}})
+}
+#[test]
+fn equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let a = f.call("POST", "/api/observations", profile_body(&repo, &rev, 2000));
+    let b = f.call("POST", "/api/observations", profile_body(&repo, &rev, 1000));
+    let r=f.call("POST","/api/profile-comparisons",json!({"baselineId":a["observation"]["id"],"candidateId":b["observation"]["id"],"equivalenceNote":"Same declared fixture workload and environment"}));
+    assert_eq!(r["comparisonEligible"], true);
+    assert_eq!(r["verdict"], "recordedElapsedLower");
+    assert_eq!(r["recordedElapsedDeltaMicros"], -1000);
+    assert_eq!(r["performanceImprovementEstablished"], false);
+    assert_eq!(r["equivalenceVerifiedByCie"], false);
+    assert_eq!(r["rows"].as_array().unwrap().len(), 2);
+}
+#[test]
+fn profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let a = f.call("POST", "/api/observations", profile_body(&repo, &rev, 2000));
+    for (field, value) in [
+        ("failedOperations", json!(1)),
+        ("recordedOperations", json!(5)),
+        ("lostSamples", json!(2)),
+        ("environmentKey", json!("different-environment")),
+        ("samplingIntervalMicros", json!(200)),
+    ] {
+        let mut body = profile_body(&repo, &rev, 100);
+        body["measurement"][field] = value;
+        body["events"][0]["outcome"] = json!("error");
+        let b = f.call("POST", "/api/observations", body);
+        let comparison=f.call("POST","/api/profile-comparisons",json!({"baselineId":a["observation"]["id"],"candidateId":b["observation"]["id"],"equivalenceNote":"User declares equivalence but metadata differs"}));
+        assert_eq!(comparison["verdict"], "notComparable", "{field}");
+        assert_eq!(comparison["rows"].as_array().unwrap().len(), 2);
+        assert_eq!(comparison["rows"][1]["reportedErrorRecords"], 1);
+        assert!(!comparison["reasons"].as_array().unwrap().is_empty());
+    }
+}
+#[test]
+fn profiles_without_workload_metadata_remain_importable_but_not_fairly_comparable() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let a = f.call("POST", "/api/observations", profile_body(&repo, &rev, 2000));
+    let mut body = profile_body(&repo, &rev, 1000);
+    body.as_object_mut().unwrap().remove("measurement");
+    let b = f.call("POST", "/api/observations", body);
+    let r=f.call("POST","/api/profile-comparisons",json!({"baselineId":a["observation"]["id"],"candidateId":b["observation"]["id"],"equivalenceNote":"Metadata unavailable for this capture"}));
+    assert_eq!(r["verdict"], "notComparable");
+    assert!(r["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r.as_str().unwrap().contains("metadata is missing")));
+}
+
+#[test]
+fn deleted_sample_connection_can_be_recreated_without_overwriting_edited_source() {
+    let f = Fixture::new();
+    let first = f.call("POST", "/api/samples", json!({"kind":"checkout"}));
+    let id = first["repository"]["id"].as_str().unwrap();
+    let path = PathBuf::from(first["repository"]["path"].as_str().unwrap());
+    fs::write(
+        path.join("checkout.py"),
+        "def manually_edited():\n    return True\n",
+    )
+    .unwrap();
+    f.call("DELETE", &format!("/api/repositories/{id}"), json!({}));
+    let recreated = f.call("POST", "/api/samples", json!({"kind":"checkout"}));
+    assert_ne!(recreated["repository"]["id"], id);
+    assert_eq!(recreated["repository"]["path"], first["repository"]["path"]);
+    assert!(fs::read_to_string(path.join("checkout.py"))
+        .unwrap()
+        .contains("manually_edited"));
+}

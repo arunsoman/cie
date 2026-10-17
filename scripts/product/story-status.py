@@ -99,7 +99,13 @@ partial.update({
 102: ('Declared workflow state/transition exploration and witness traces are supported; implementation-derived digital-twin execution pending.', ['reachability_matches_independent_transitive_closure_oracle']),
 103: ('Model assumptions, unknown guards, finite bounds and non-runtime result classes stay explicit; broader prediction validation pending.', ['scenario_models_reject_foreign_evidence_invalid_edges_and_unknown_disabled_actions','browser:declared-scenario'])
 })
+partial.update({
+82: ('Capture metadata, reported intervals, omissions and exact source links remain inspectable; complete CPU/wait/resource attribution and validated bottleneck analysis pending.', ['equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement']),
+84: ('Profile comparisons expose declared workload/environment differences, failed and omitted populations, and reject unfair improvement claims; independent behavior regression execution pending.', ['profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row']),
+139: ('Server-owned record deletion cascades and clears cached evidence across open browser tabs; tenant isolation, RBAC and governed retention remain pending.', ['browser:deletion-clears-other-tabs','deletion_removes_all_derived_views_but_not_connected_source'])
+})
 completed = {
+83: ('Two imported profiles are compared under explicit declared equivalence. Verdicts include reasons/limits, incompatible populations are rejected, and failed captures remain visible in the metric table.', ['equivalent_profile_comparison_describes_recorded_delta_without_claiming_improvement','profile_comparison_rejects_dropped_work_or_failures_but_retains_every_row','profiles_without_workload_metadata_remain_importable_but_not_fairly_comparable','browser:profile-comparison']),
 7: ('On-demand multi-language checkout fixture has real explicitly synthetic dated history, source/rules/concept material and an intentional naming regression. It never modifies connected user source.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source','browser:sample-history','browser:naming-anomaly']),
 56: ('Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing','browser:naming-anomaly']),
 143: ('Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass.', ['node:theme-contrast','browser:theme-persistence'])

@@ -48,6 +48,7 @@ struct Import {
     producer: String,
     kind: String,
     events: Vec<ObservedEvent>,
+    measurement: Option<ProfileMeasurement>,
 }
 fn validate_events(req: &Import, rev: &Revision) -> Result<()> {
     if !["trace", "profile", "tests"].contains(&req.kind.as_str())
@@ -59,6 +60,9 @@ fn validate_events(req: &Import, rev: &Revision) -> Result<()> {
             "INVALID_OBSERVATIONS",
             "Use trace, profile or tests with 1–2000 records",
         ));
+    }
+    if let Some(measurement) = &req.measurement {
+        crate::profiles::validate(measurement)?;
     }
     text(&req.environment, 120)?;
     text(&req.producer, 120)?;
@@ -190,6 +194,7 @@ pub fn dispatch(app: &Arc<App>, method: &str, path: &str, body: &[u8]) -> Option
                         && o.producer == req.producer
                         && o.kind == req.kind
                         && o.events == req.events
+                        && o.measurement == req.measurement
                 }) {
                     return Ok(existing.clone());
                 }
@@ -208,6 +213,7 @@ pub fn dispatch(app: &Arc<App>, method: &str, path: &str, body: &[u8]) -> Option
                     producer: req.producer,
                     kind: req.kind,
                     events: req.events,
+                    measurement: req.measurement,
                     created_ns: now(),
                 };
                 s.observations.push(o.clone());

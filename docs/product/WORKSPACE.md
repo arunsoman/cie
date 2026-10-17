@@ -217,3 +217,27 @@ Validation: **249 workspace tests passed, 11 ignored; 25 real-browser journeys
 passed; 4 Node tests passed; strict server Clippy passed**. Register:
 **3 complete, 80 partial, 64 pending**. These are conditional model explorations,
 not an automatic production digital twin or runtime fault-injection engine.
+
+## Profile comparison and deletion propagation increment
+
+Imported profiles may include an explicit `measurement` object containing
+workload/environment keys, expected/recorded/failed/omitted operation counters,
+lost samples, elapsed capture time, sampling interval, warmup and completeness.
+`POST /api/profile-comparisons {baselineId,candidateId,equivalenceNote}` preserves
+both populations and rejects fair-comparison eligibility when those conditions
+are missing or differ. A lower recorded elapsed capture remains an observation,
+not an established performance improvement, request latency percentile or
+statistically significant result. Failed captures are never silently dropped.
+
+Deleting server-owned derived records refreshes every open workspace tab through
+a same-origin notification carrying no repository identifiers or source. Cached
+inspectors and form inputs clear; downloaded artifacts remain outside product
+control. Source repositories stay intact. A deleted generated-sample connection
+can be recreated without overwriting edited sample source.
+
+Validation: **53 server tests, 27 real-browser journeys, 4 Node tests passed**;
+strict server Clippy passed. The two-tab test holds an open source inspector while
+another tab deletes the repository, then checks that cached source and inputs are
+cleared in both tabs and the original source file remains intact.
+Acceptance register: **4 complete, 80 partial, 63 pending**. Complete stories:
+US-007, US-056, US-083, US-143. Remaining obligations are explicit in STATUS.md.
