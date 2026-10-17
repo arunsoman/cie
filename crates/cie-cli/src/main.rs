@@ -2,6 +2,7 @@
 //!
 //! Commands: ingest, analyze, concepts, drift, impact, report, ingest-org.
 
+pub mod docs;
 pub mod engine;
 
 use clap::{Parser as ClapParser, ValueEnum};

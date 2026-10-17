@@ -475,6 +475,14 @@ pub fn run_drift(
 ) -> std::io::Result<(cie_core::drift::DriftReport, IngestOutcome)> {
     let raw = run_ingest(project, opts)?;
 
+    // TASK-071: cheap ingestion formats — normalize rst/adoc/html to plain
+    // prose before hashing and claim extraction (markdown/text pass through).
+    let normalized_docs: Vec<(String, String)> = docs
+        .iter()
+        .map(|(name, content)| (name.clone(), crate::docs::normalize_doc(name, content)))
+        .collect();
+    let docs: &[(String, String)] = &normalized_docs;
+
     // TASK-076 / acc #24: identical code + identical docs ⇒ reuse the
     // persisted drift report (re-run ≤ 5% of first-run wall time). Code
     // identity is the sorted (path, content hash) file index — cheap to
@@ -498,6 +506,16 @@ pub fn run_drift(
     let mut claims = vec![];
     for (name, content) in docs {
         claims.extend(cie_analysis::drift::extract_claims(name, content, now));
+    }
+
+    // TASK-073: persist claims with (doc, span, kind, modality) provenance;
+    // identical (doc, text) claims dedup onto one entry across runs.
+    {
+        let mut claim_store = drift_store.load_claim_store()?;
+        for c in &claims {
+            claim_store.insert(c.clone());
+        }
+        drift_store.save_claim_store(&claim_store)?;
     }
     let mappings = cie_analysis::drift::map_claims(&claims, &outcome.store, &{
         let mut m = BTreeMap::new();

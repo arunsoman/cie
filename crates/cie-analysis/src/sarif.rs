@@ -66,6 +66,7 @@ fn human_kind(k: &FindingKind) -> &'static str {
         FindingKind::UnconditionalSuccess => "Unconditional success",
         FindingKind::IgnoredRejection => "Ignored rejection",
         FindingKind::SwallowedException => "Swallowed exception",
+        FindingKind::IgnoredErrorValue => "Ignored error value",
         FindingKind::ExceptionToSuccess => "Exception converted to success",
         FindingKind::AuthzBypass => "Authorization bypass",
         FindingKind::HardcodedSecret => "Hardcoded secret",

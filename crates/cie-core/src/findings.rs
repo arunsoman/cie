@@ -45,6 +45,9 @@ pub enum FindingKind {
     LayeringViolation,
     CoverageGap,
     UnresolvedExternal,
+    /// TASK-054 recovery-lite: an error-producing call's value is assigned
+    /// to a throwaway (`_`, `_var`) — the error path is silently ignored.
+    IgnoredErrorValue,
 }
 
 impl FindingKind {
@@ -67,6 +70,7 @@ impl FindingKind {
             FindingKind::LayeringViolation => "layering_violation",
             FindingKind::CoverageGap => "coverage_gap",
             FindingKind::UnresolvedExternal => "unresolved_external",
+            FindingKind::IgnoredErrorValue => "ignored_error_value",
         }
     }
 
@@ -89,6 +93,9 @@ impl FindingKind {
             | FindingKind::OrphanCode
             | FindingKind::CoverageGap => Severity::Low,
             FindingKind::UnresolvedExternal => Severity::Info,
+            // Recovery-lite (TASK-054): ignored error values are robustness
+            // hypotheses until a checker proves the error path matters.
+            FindingKind::IgnoredErrorValue => Severity::Info,
         }
     }
 }

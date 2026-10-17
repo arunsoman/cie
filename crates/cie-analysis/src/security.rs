@@ -65,6 +65,74 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
         }
     }
 
+    // ---- SEC-3 recovery-lite (TASK-054 subset): ignored error values ----
+    // A call whose value is assigned to a throwaway (`_`, `_var`) discards
+    // the error path. Derived from existing AssignmentFact facts — no
+    // obligation solver (that stays v0.3/v1.0).
+    for facts in per_file {
+        for a in &facts.assignments {
+            if a.rhs_kind != RhsKind::Call {
+                continue;
+            }
+            let throwaway = a.var == "_" || (a.var.starts_with('_') && a.var.len() > 1);
+            if !throwaway {
+                continue;
+            }
+            let Some(sym) = store.get(a.symbol) else { continue };
+            seq += 1;
+            findings.push(Finding {
+                id: format!("F-{rev}-S{seq:04}"),
+                kind: FindingKind::IgnoredErrorValue,
+                severity: FindingKind::IgnoredErrorValue.default_severity(),
+                symbol: a.symbol,
+                symbol_name: sym.qual_name.clone(),
+                message: format!(
+                    "result of a call is assigned to throwaway '{}' (line {}) — error path ignored",
+                    a.var, a.line
+                ),
+                evidence_lines: vec![a.line],
+                remediation: "Match/unwrap the error explicitly, or document why ignoring is safe".into(),
+                authority: cie_core::contract::Authority::InferredCandidate,
+                rule: "sec/SEC-004".into(),
+                tags: vec!["robustness".into(), "recovery".into()],
+            });
+        }
+    }
+
+    // SEC-3b: bare except whose handler cannot recover — an exception fact
+    // with is_bare and NO re-raise inside the same enclosing function.
+    for facts in per_file {
+        let re_raises: std::collections::BTreeSet<SymbolId> = facts
+            .exceptions
+            .iter()
+            .filter(|x| x.in_handler)
+            .map(|x| x.symbol)
+            .collect();
+        for x in &facts.exceptions {
+            if !x.is_bare || re_raises.contains(&x.symbol) {
+                continue;
+            }
+            let Some(sym) = store.get(x.symbol) else { continue };
+            seq += 1;
+            findings.push(Finding {
+                id: format!("F-{rev}-S{seq:04}"),
+                kind: FindingKind::SwallowedException,
+                severity: FindingKind::SwallowedException.default_severity(),
+                symbol: x.symbol,
+                symbol_name: sym.qual_name.clone(),
+                message: format!(
+                    "bare except in '{}' (line {}) has no re-raise — swallowed error has no recovery path",
+                    sym.name, x.line
+                ),
+                evidence_lines: vec![x.line],
+                remediation: "Catch typed errors and re-raise or convert; never swallow bare".into(),
+                authority: cie_core::contract::Authority::InferredCandidate,
+                rule: "sec/SEC-005".into(),
+                tags: vec!["robustness".into(), "recovery".into()],
+            });
+        }
+    }
+
     // ---- SEC-2 taint-lite (CAP-2.1/2.2) ----
     for facts in per_file {
         // Group per enclosing function.
