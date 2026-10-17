@@ -194,3 +194,26 @@ Validation: **45 server tests, 23 real-browser journeys, 4 Node tests passed**;
 strict server Clippy passed. Current acceptance register: **3 complete,
 74 partial, 70 pending**. Complete stories: US-007, US-056 and US-143.
 The remaining story obligations are tracked individually in STATUS.md.
+
+## Declared workflow scenario increment
+
+The Workflow scenarios area stores finite user-declared state/transition graphs
+and runs bounded reachability queries against them. Unknown guards are treated as
+possibly enabled and are named in witness traces. Disabling transition IDs is an
+explicit counterfactual operation. Results distinguish a conditional witness,
+no witness within the bound, and no path in the declared finite graph. None means
+runtime safety, eventual refund, fairness or a production performance prediction.
+No guard code or source workload is executed. Missing/disputed referenced evidence
+stays challenged, and deleting a repository removes its models and scenario runs.
+
+API: `GET/POST /api/workflow-models`, `GET/DELETE /api/workflow-models/:id`,
+`POST /api/workflow-models/:id/explore`,
+`GET /api/scenario-runs`, `GET /api/scenario-runs/:id`.
+Bounds: 64 states, 256 transitions, 128-step queries, 100 models, 500 saved runs.
+An independent transitive-closure oracle checks the reachability implementation
+on generated finite graphs, including disabled and unknown guards.
+
+Validation: **249 workspace tests passed, 11 ignored; 25 real-browser journeys
+passed; 4 Node tests passed; strict server Clippy passed**. Register:
+**3 complete, 80 partial, 64 pending**. These are conditional model explorations,
+not an automatic production digital twin or runtime fault-injection engine.

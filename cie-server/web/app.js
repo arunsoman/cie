@@ -180,7 +180,22 @@ function boot() {
   function renderFeatures() {const box=$("feature-drafts");box.replaceChildren();for (const f of state.features) {const c=el("div",undefined,"card");c.append(el("h2",f.prompt),el("p",`${f.status} · ${f.repositoryId} · ${f.revisionId}`));const list=el("ol");f.criteria.forEach(s=>list.append(el("li",s)));c.append(list,el("p",`Name overlap hints: ${f.relatedSymbols.join(", ") || "none"}`));f.limitations.forEach(s=>c.append(el("p",s,"muted")));box.append(c);}}
   function renderStories() {const term=$("story-filter").value.toLowerCase(), rows=capabilities.stories.filter(s=>`${s.id} ${s.title} ${s.status}`.toLowerCase().includes(term));const counts={};capabilities.stories.forEach(s=>counts[s.status]=(counts[s.status]||0)+1);$("story-counts").textContent=`${capabilities.stories.length} stories · ${Object.entries(counts).map(([k,v])=>`${v} ${k}`).join(" · ")} · ${rows.length} shown`;const box=$("stories");box.replaceChildren();for (const s of rows) {const c=el("div",undefined,"story");c.append(el("h3",`${s.id}: ${s.title}`),el("p",s.status,"badge"),el("p",s.note),el("small",`Evidence: ${(s.evidence||[]).join("; ") || "No acceptance evidence yet"}`));box.append(c);}}
   $("story-filter").addEventListener("input",renderStories);
-  function renderGallery() {const entries=[["Table","Exact evidence population and represented connections.","overview"],["Graph","Static call or concept relationships; no runtime order implied.","callers"],["Outline","Accessible reading order of every item and outgoing link.","concepts"],["Timeline","Unavailable: current answers do not contain ordered event evidence.",null],["Latency chart","Unavailable: current snapshots have no imported latency measurements.",null],["Runtime replay","Unavailable: no recorded request or runtime import adapter.",null]];for (const [name,description,intent] of entries) {const c=el("div",undefined,"card");c.append(el("h2",name),el("p",description));if(intent)c.append(button("Prepare question",()=>{page("investigate");$("intent").value=intent;$("question").value=intent === "callers"?"Show callers of ":intent;$("question").focus();}));$("gallery").append(c);}}
+  function renderGallery() {
+    const entries=[
+      ["Table","Exact evidence population and represented connections.","overview"],
+      ["Graph","Static call or concept relationships; no runtime order implied.","callers"],
+      ["Outline","Accessible reading order of every item and outgoing link.","concepts"],
+      ["Rule catalogue","Extracted declarations and candidate obligations, with approval limits.","rules"],
+      ["Behavior summaries","Static modeled effects, not proof of successful execution.","behaviors"],
+      ["Naming anomalies","Name expectations versus observed model effects; candidates only.","naming"],
+      ["Recorded timeline","Imported event intervals; producer execution and clock accuracy are not independently attested.",null,"observations"],
+      ["Workflow scenario","Reachability in a user-declared graph; not production simulation.",null,"scenarios"],
+      ["History and comparison","Bounded Git metadata and retained source-text comparisons.",null,"orientation"],
+      ["Latency chart","Unavailable: representative workload distributions and a latency chart adapter are not available.",null],
+      ["Runtime replay","Unavailable: recorded events can be inspected, but no execution replay engine is available.",null]
+    ];
+    for(const [name,description,intent,area] of entries){const c=el("div",undefined,"card");c.append(el("h2",name),el("p",description));if(intent)c.append(button("Prepare question",()=>{page("investigate");$("intent").value=intent;$("question").value=intent==="callers"?"Show callers of ":intent;$("question").focus();}));if(area)c.append(button("Open evidence area",()=>document.querySelector(`[data-page="${area}"]`).click()));$("gallery").append(c);}
+  }
   document.addEventListener("cie-open-answer", event => run(async () => {openAnswers.add(event.detail.answer.id); await refresh(); showAnswer(event.detail);}));
   document.addEventListener("cie-state-changed", () => run(refresh));
   async function start() {await refresh();capabilities=await api("/api/capabilities");renderStories();renderGallery();const last=state.workspaces[0]?.activeAnswer;if(last && openAnswers.has(last))await loadAnswer(last);announce("Local workspace ready. No cloud model is connected.");}

@@ -144,6 +144,10 @@ pub struct State {
     #[serde(default)]
     pub concept_reviews: Vec<ConceptReview>,
     #[serde(default)]
+    pub workflow_models: Vec<WorkflowModel>,
+    #[serde(default)]
+    pub scenario_runs: Vec<ScenarioRun>,
+    #[serde(default)]
     pub investigations: Vec<Investigation>,
     pub schema: u32,
     pub next_id: u64,
@@ -160,6 +164,8 @@ impl Default for State {
             observations: vec![],
             plans: vec![],
             concept_reviews: vec![],
+            workflow_models: vec![],
+            scenario_runs: vec![],
             investigations: vec![],
             schema: 1,
             next_id: 1,
@@ -292,5 +298,43 @@ pub struct ConceptReview {
     pub item_id: String,
     pub verdict: String,
     pub reason: String,
+    pub created_ns: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelTransition {
+    pub id: String,
+    pub from: String,
+    pub to: String,
+    pub event: String,
+    pub guard_status: String,
+    pub guard_note: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowModel {
+    pub id: String,
+    pub repository_id: String,
+    pub revision_id: String,
+    pub name: String,
+    pub states: Vec<String>,
+    pub initial_state: String,
+    pub transitions: Vec<ModelTransition>,
+    pub evidence_ids: Vec<String>,
+    pub created_ns: u64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScenarioRun {
+    pub id: String,
+    pub model_id: String,
+    pub target_state: String,
+    pub max_steps: u32,
+    pub disabled_transitions: Vec<String>,
+    pub classification: String,
+    pub witness: Vec<String>,
+    pub reachable_states: Vec<String>,
+    pub unknown_guards: Vec<String>,
     pub created_ns: u64,
 }

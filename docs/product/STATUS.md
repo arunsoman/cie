@@ -58,7 +58,7 @@
 | US-052: Locate an existing feature | partial | Lexical symbol search with citations; behavior-equivalent feature discovery pending. | cross_repository_search_keeps_identical_names_separate |
 | US-053: Discover distributed business rules | partial | Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending. | naming_anomaly_compares_promised_permission_check_with_observed_printing |
 | US-054: Compare intended and actual behaviour | partial | Naming expectations, related declarations and modeled effects are inspectable; approved-requirement binding and complete mismatch classification pending. | naming_anomaly_compares_promised_permission_check_with_observed_printing |
-| US-055: Understand workflow states and failures | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-055: Understand workflow states and failures | partial | User-declared states, events and guard assumptions can be inspected and explored; automatic implementation-derived workflow/recovery extraction pending. | declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds |
 | US-056: Detect misleading names | complete | Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation. | naming_anomaly_compares_promised_permission_check_with_observed_printing, browser:naming-anomaly |
 | US-057: Explore system structure | partial | Static symbol/call graph and source inspection; architecture grouping pending. | answers_have_real_citations_and_shared_graph_population |
 | US-058: Find the change blast radius | partial | Reverse static call reachability; non-call/configuration effects pending. | explicit_route_and_symbol_selection_are_honored |
@@ -102,11 +102,11 @@
 | US-096: Find policy enforcement gaps | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-097: Review code-security and secret findings | partial | Engine static findings and secret-shaped excerpt removal; full security assessment pending. | answers_have_real_citations_and_shared_graph_population |
 | US-098: Assess packages and licences | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-099: Explore a hypothetical change | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-100: Explore capacity and failure scenarios | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-101: Compare isolated experiments | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-102: Study a workflow digital twin | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-103: Know the limits of predictions | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-099: Explore a hypothetical change | partial | Explicit transition-disable counterfactuals produce conditional graph witnesses; code-change consequences and runtime validation pending. | declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds |
+| US-100: Explore capacity and failure scenarios | partial | Bounded declared failure scenarios are supported without runtime effects; quantitative capacity/latency predictions require validated workload models. | browser:declared-scenario |
+| US-101: Compare isolated experiments | partial | Conditional graph results are retained with their exact assumptions; isolated execution experiments and normalized comparisons pending. | browser:scenario-reload |
+| US-102: Study a workflow digital twin | partial | Declared workflow state/transition exploration and witness traces are supported; implementation-derived digital-twin execution pending. | reachability_matches_independent_transitive_closure_oracle |
+| US-103: Know the limits of predictions | partial | Model assumptions, unknown guards, finite bounds and non-runtime result classes stay explicit; broader prediction validation pending. | scenario_models_reject_foreign_evidence_invalid_edges_and_unknown_disabled_actions, browser:declared-scenario |
 | US-104: Describe a new feature naturally | partial | Feature prompt and acceptance criteria saved as planning only; implementation pending. | feature_request_records_criteria_without_pretending_to_build |
 | US-105: Answer only material questions | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-106: Discover equivalent or overlapping features | partial | Lexical overlap hints explicitly not equivalence; semantic comparison pending. | feature_request_records_criteria_without_pretending_to_build |

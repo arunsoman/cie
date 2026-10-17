@@ -464,9 +464,11 @@
   {
     "id": "US-055",
     "title": "Understand workflow states and failures",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "User-declared states, events and guard assumptions can be inspected and explored; automatic implementation-derived workflow/recovery extraction pending.",
+    "evidence": [
+      "declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds"
+    ]
   },
   {
     "id": "US-056",
@@ -823,37 +825,48 @@
   {
     "id": "US-099",
     "title": "Explore a hypothetical change",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Explicit transition-disable counterfactuals produce conditional graph witnesses; code-change consequences and runtime validation pending.",
+    "evidence": [
+      "declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds"
+    ]
   },
   {
     "id": "US-100",
     "title": "Explore capacity and failure scenarios",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Bounded declared failure scenarios are supported without runtime effects; quantitative capacity/latency predictions require validated workload models.",
+    "evidence": [
+      "browser:declared-scenario"
+    ]
   },
   {
     "id": "US-101",
     "title": "Compare isolated experiments",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Conditional graph results are retained with their exact assumptions; isolated execution experiments and normalized comparisons pending.",
+    "evidence": [
+      "browser:scenario-reload"
+    ]
   },
   {
     "id": "US-102",
     "title": "Study a workflow digital twin",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Declared workflow state/transition exploration and witness traces are supported; implementation-derived digital-twin execution pending.",
+    "evidence": [
+      "reachability_matches_independent_transitive_closure_oracle"
+    ]
   },
   {
     "id": "US-103",
     "title": "Know the limits of predictions",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Model assumptions, unknown guards, finite bounds and non-runtime result classes stay explicit; broader prediction validation pending.",
+    "evidence": [
+      "scenario_models_reject_foreign_evidence_invalid_edges_and_unknown_disabled_actions",
+      "browser:declared-scenario"
+    ]
   },
   {
     "id": "US-104",

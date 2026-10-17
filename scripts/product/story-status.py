@@ -91,6 +91,14 @@ partial.update({
 53: ('Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing']),
 54: ('Naming expectations, related declarations and modeled effects are inspectable; approved-requirement binding and complete mismatch classification pending.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing'])
 })
+partial.update({
+55: ('User-declared states, events and guard assumptions can be inspected and explored; automatic implementation-derived workflow/recovery extraction pending.', ['declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds']),
+99: ('Explicit transition-disable counterfactuals produce conditional graph witnesses; code-change consequences and runtime validation pending.', ['declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds']),
+100: ('Bounded declared failure scenarios are supported without runtime effects; quantitative capacity/latency predictions require validated workload models.', ['browser:declared-scenario']),
+101: ('Conditional graph results are retained with their exact assumptions; isolated execution experiments and normalized comparisons pending.', ['browser:scenario-reload']),
+102: ('Declared workflow state/transition exploration and witness traces are supported; implementation-derived digital-twin execution pending.', ['reachability_matches_independent_transitive_closure_oracle']),
+103: ('Model assumptions, unknown guards, finite bounds and non-runtime result classes stay explicit; broader prediction validation pending.', ['scenario_models_reject_foreign_evidence_invalid_edges_and_unknown_disabled_actions','browser:declared-scenario'])
+})
 completed = {
 7: ('On-demand multi-language checkout fixture has real explicitly synthetic dated history, source/rules/concept material and an intentional naming regression. It never modifies connected user source.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source','browser:sample-history','browser:naming-anomaly']),
 56: ('Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing','browser:naming-anomaly']),

@@ -21,3 +21,5 @@ pub mod queries;
 pub mod plans;
 
 pub mod concept_reviews;
+
+pub mod scenarios;

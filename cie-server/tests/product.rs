@@ -1013,3 +1013,108 @@ fn concept_answer_respects_display_cap() {
         .iter()
         .any(|g| g.as_str().unwrap().contains("500")));
 }
+
+fn workflow_body(repo: &str, revision: &str) -> Value {
+    json!({"repositoryId":repo,"revisionId":revision,"name":"Declared recovery model","states":["Paid","Pending","Fulfilled","Stranded","Refunded"],"initialState":"Paid","evidenceIds":[],"transitions":[{"id":"submit","from":"Paid","to":"Pending","event":"submit","guardStatus":"enabled","guardNote":"Assumed model edge"},{"id":"success","from":"Pending","to":"Fulfilled","event":"provider success","guardStatus":"unknown","guardNote":"Provider behavior not observed"},{"id":"failure","from":"Pending","to":"Stranded","event":"failure without refund","guardStatus":"unknown","guardNote":"Hypothetical failure branch"},{"id":"retry","from":"Stranded","to":"Refunded","event":"refund retry","guardStatus":"unknown","guardNote":"Assumed recovery path"}]})
+}
+#[test]
+fn declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let before = fs::read(f.root.join("auth.py")).unwrap();
+    let m = f.call("POST", "/api/workflow-models", workflow_body(&repo, &rev));
+    let id = m["model"]["id"].as_str().unwrap();
+    let r = f.call(
+        "POST",
+        &format!("/api/workflow-models/{id}/explore"),
+        json!({"targetState":"Stranded","maxSteps":8,"disabledTransitions":[]}),
+    );
+    assert_eq!(r["executionPerformed"], false);
+    assert_eq!(r["claimClass"], "conditionalModelResult");
+    assert_eq!(r["run"]["classification"], "conditionalWitness");
+    assert_eq!(r["run"]["witness"], json!(["submit", "failure"]));
+    assert_eq!(r["run"]["unknownGuards"], json!(["failure"]));
+    assert_eq!(fs::read(f.root.join("auth.py")).unwrap(), before);
+    let cutoff = f.call(
+        "POST",
+        &format!("/api/workflow-models/{id}/explore"),
+        json!({"targetState":"Stranded","maxSteps":1,"disabledTransitions":[]}),
+    );
+    assert_eq!(cutoff["run"]["classification"], "notFoundWithinBound");
+    let counter = f.call(
+        "POST",
+        &format!("/api/workflow-models/{id}/explore"),
+        json!({"targetState":"Stranded","maxSteps":8,"disabledTransitions":["failure"]}),
+    );
+    assert_eq!(
+        counter["run"]["classification"],
+        "notReachableInDeclaredGraph"
+    );
+    assert!(counter["gaps"].as_array().unwrap().iter().any(|g| g
+        .as_str()
+        .unwrap()
+        .contains("not proof that no implementation path")));
+}
+#[test]
+fn scenario_models_reject_foreign_evidence_invalid_edges_and_unknown_disabled_actions() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let body = workflow_body(&repo, &rev);
+    for (field, value) in [
+        ("to", json!("undeclared")),
+        ("guardStatus", json!("definitely_safe")),
+    ] {
+        let mut invalid = body.clone();
+        invalid["transitions"][0][field] = value;
+        assert!(f
+            .app
+            .dispatch(
+                "POST",
+                "/api/workflow-models",
+                &serde_json::to_vec(&invalid).unwrap()
+            )
+            .is_err());
+    }
+    let mut foreign = body.clone();
+    foreign["evidenceIds"] = json!(["missing-answer"]);
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/workflow-models",
+                &serde_json::to_vec(&foreign).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "FOREIGN_EVIDENCE"
+    );
+    let m = f.call("POST", "/api/workflow-models", body);
+    let id = m["model"]["id"].as_str().unwrap();
+    assert_eq!(f.app.dispatch("POST",&format!("/api/workflow-models/{id}/explore"),&serde_json::to_vec(&json!({"targetState":"Stranded","maxSteps":8,"disabledTransitions":["invented"]})).unwrap()).unwrap_err().code,"SCENARIO_SCOPE");
+}
+#[test]
+fn scenario_evidence_deletion_is_challenged_and_repository_deletion_cascades_runs() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let answer = f.ask(&repo, "overview");
+    let aid = answer["answer"]["id"].as_str().unwrap();
+    let mut body = workflow_body(&repo, &rev);
+    body["evidenceIds"] = json!([aid]);
+    let m = f.call("POST", "/api/workflow-models", body);
+    let id = m["model"]["id"].as_str().unwrap();
+    f.call(
+        "POST",
+        &format!("/api/workflow-models/{id}/explore"),
+        json!({"targetState":"Stranded","maxSteps":8,"disabledTransitions":[]}),
+    );
+    f.call("DELETE", &format!("/api/answers/{aid}"), json!({}));
+    let challenged = f.call("GET", &format!("/api/workflow-models/{id}"), json!({}));
+    assert_eq!(challenged["challenged"], true);
+    f.call("DELETE", &format!("/api/repositories/{repo}"), json!({}));
+    let s = f.app.storage.read().unwrap();
+    assert!(s.workflow_models.is_empty());
+    assert!(s.scenario_runs.is_empty());
+}
