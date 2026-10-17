@@ -42,12 +42,156 @@ pub trait LanguageAdapter: Send + Sync {
         &[]
     }
 
+    /// Error/exception model row (§16, TASK-022): how THIS language
+    /// signals failure. The SemanticsGuard consults this to admit or
+    /// refuse cross-language rules (FR-3) — one table row per adapter,
+    /// never a global constant.
+    fn error_model(&self) -> ErrorModel {
+        ErrorModel::Unspecified
+    }
+
     fn matches_extension(&self, path: &str) -> bool {
         let ext = Path::new(path)
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
         self.extensions().contains(&ext)
+    }
+}
+
+/// Error/exception model (TASK-022, §16): the table row the guard reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum ErrorModel {
+    /// raise/throw/try/catch — a completed call ESTABLISHES its effect
+    /// (Python, JS/TS, Java, C++, C#, PHP).
+    Raise,
+    /// Errors are values — a bare call does NOT establish success; the
+    /// error must be checked (Go `if err != nil`, Rust `Result`/`?`).
+    ErrorValue,
+    /// Error-code conventions (-1/NULL/errno) — the caller must check the
+    /// returned code (C).
+    ErrorCode,
+    #[default]
+    Unspecified,
+}
+
+/// TASK-022: one admission per registered adapter — the cross-language
+/// FR-3 verdict with its FR-4 evidence.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Admission {
+    pub lang: LangId,
+    pub fired: bool,
+    pub evidence: cie_core::evidence::Evidence,
+}
+
+/// Cross-language semantics guard (FR-3 over FR-18): matrix-driven —
+/// iterates `registry.adapters()` (no hardcoded language list), so adding
+/// an adapter automatically extends the matrix. A candidate rule fires for
+/// a language only where that language's adapter TABLES vouch for it;
+/// every refusal is recorded with evidence (FR-4, global rule 6), never
+/// silently dropped and never converted into a clean verdict (global rule 3).
+pub struct SemanticsGuard;
+
+/// A candidate rule under evaluation (Houdini-style candidate, cf. §7):
+/// "a call to `target` establishes `effect`".
+pub struct CandidateRule {
+    /// Callee name the rule is about (e.g. "authorize").
+    pub call_target: String,
+    /// Effect the rule claims the call establishes.
+    pub effect: String,
+}
+
+impl SemanticsGuard {
+    /// Evaluate `rule` over every registered adapter against the fixture
+    /// sources (one file per language, same `authorize()` intent).
+    pub fn evaluate(
+        rule: &CandidateRule,
+        registry: &LanguageRegistry,
+        fixtures: &std::collections::BTreeMap<String, String>,
+    ) -> Vec<Admission> {
+        let mut out = vec![];
+        for adapter in registry.adapters() {
+            let lang = adapter.id();
+            let mut ev = cie_core::evidence::Evidence::new(0, "semantics-guard", 0);
+            // Locate this language's fixture (extension match).
+            let ext = adapter.extensions().first().copied().unwrap_or("");
+            let Some((path, src)) = fixtures
+                .iter()
+                .find(|(p, _)| p.ends_with(&format!(".{ext}")))
+                .map(|(p, s)| (p.clone(), s.clone()))
+            else {
+                ev.assumptions
+                    .push(format!("no fixture for {ext} — admission still recorded (FR-4)"));
+                out.push(Admission { lang, fired: false, evidence: ev });
+                continue;
+            };
+            let mut facts = adapter.extract(&path, &src);
+            // Same-file resolution: the guard evaluates one fixture file per
+            // language, so run the cross-file resolver over this single file
+            // (extract_project does this for multi-file ingests).
+            {
+                let mut table = cie_core::types::FileTable::new();
+                table.intern_with_source(&path, src.as_bytes());
+                let store =
+                    cie_semantic::facts::SymbolStore::build_with_files(facts.symbols.clone(), table);
+                resolution::resolve_project(&store, std::slice::from_mut(&mut facts));
+            }
+            let model = adapter.error_model();
+            // The rule can only fire where BOTH hold (§16.1 vouches):
+            //  1. the language's error model is Raise — a completed call
+            //     establishes its effect (Go/Rust/C vouch AGAINST);
+            //  2. the `rule.call_target` call resolves to a symbol in-tree.
+            let resolved = facts
+                .calls
+                .iter()
+                .any(|c| c.callee_text == rule.call_target && c.callee.is_resolved());
+            match model {
+                ErrorModel::Raise if resolved => {
+                    ev.assumptions.push(format!(
+                        "rule admitted: Raise model + resolved call ({} vouches)",
+                        adapter.analyzer()
+                    ));
+                    out.push(Admission { lang, fired: true, evidence: ev });
+                }
+                ErrorModel::Raise => {
+                    ev.assumptions.push(format!(
+                        "refused: Raise model but the {:?} call did not resolve in-tree (FR-4)",
+                        rule.call_target
+                    ));
+                    for c in &facts.calls {
+                        if let Callee::Unresolved(r) = &c.callee {
+                            ev.unresolved
+                                .push(format!("{}: {}", c.callee_text, r.clone()));
+                        }
+                    }
+                    out.push(Admission { lang, fired: false, evidence: ev });
+                }
+                model => {
+                    ev.assumptions.push(format!(
+                        "refused: {:?} error model — a bare {:?} call does not establish {:?} (FR-3: {} vouches against)",
+                        model, rule.call_target, rule.effect, adapter.analyzer()
+                    ));
+                    for c in &facts.calls {
+                        if let Callee::Unresolved(r) = &c.callee {
+                            ev.unresolved
+                                .push(format!("{}: {}", c.callee_text, r.clone()));
+                        }
+                    }
+                    out.push(Admission { lang, fired: false, evidence: ev });
+                }
+            }
+        }
+        out
+    }
+}
+
+/// Local resolvedness check used by the guard.
+trait ResolutionMark {
+    fn is_resolved(&self) -> bool;
+}
+impl ResolutionMark for Callee {
+    fn is_resolved(&self) -> bool {
+        matches!(self, Callee::Resolved(_))
     }
 }
 

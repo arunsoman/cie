@@ -201,6 +201,11 @@ impl LanguageAdapter for JavaScriptAdapter {
     fn id(&self) -> LangId {
         LangId::JavaScript
     }
+    /// §16 error model row (TASK-022): vouched by this adapter.
+    fn error_model(&self) -> cie_adapters::ErrorModel {
+        cie_adapters::ErrorModel::Raise
+    }
+
     fn extensions(&self) -> &'static [&'static str] {
         &["js", "jsx", "mjs", "cjs"]
     }

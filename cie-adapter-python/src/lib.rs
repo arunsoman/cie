@@ -30,6 +30,10 @@ impl cie_adapters::LanguageAdapter for PythonAdapter {
     // TASK-011 semantics tables (§16 #1): Python vouches for dynamic
     // dispatch, arbitrary-precision ints + binary64 floats, and its
     // swallow-friendly exception/async conventions.
+    /// §16 #1: raise/try/except — a completed call establishes its effect.
+    fn error_model(&self) -> cie_adapters::ErrorModel {
+        cie_adapters::ErrorModel::Raise
+    }
     fn dispatch_kind(&self) -> cie_adapters::DispatchKind {
         cie_adapters::DispatchKind::Dynamic
     }

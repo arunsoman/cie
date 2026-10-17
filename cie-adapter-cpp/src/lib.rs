@@ -332,6 +332,11 @@ impl LanguageAdapter for CppAdapter {
     fn id(&self) -> LangId {
         LangId::Cpp
     }
+    /// §16 error model row (TASK-022): vouched by this adapter.
+    fn error_model(&self) -> cie_adapters::ErrorModel {
+        cie_adapters::ErrorModel::Raise
+    }
+
     fn extensions(&self) -> &'static [&'static str] {
         &["cpp", "cc", "cxx", "hpp", "hh"]
     }

@@ -154,10 +154,17 @@ fn walk_php(ctx: &mut PhpCtx, node: tree_sitter::Node) {
                 .any(|c| callee_text.starts_with(&format!("{c}::")));
             let callee = if reflective {
                 Callee::Unresolved("reflective".into())
-            } else if object_known {
-                Callee::Unresolved("pending".into()) // resolution links
+            } else if callee_text.contains("->") || callee_text.contains("::") {
+                if object_known {
+                    // Class visible in-tree — resolution may link it.
+                    Callee::Unresolved("pending".into())
+                } else {
+                    // Property-based dispatch on unknown receiver (§16 #10).
+                    Callee::Unresolved("dynamic_dispatch".into())
+                }
             } else {
-                Callee::Unresolved("dynamic_dispatch".into())
+                // Plain function call — resolution links by name.
+                Callee::Unresolved("pending".into())
             };
             ctx.facts.calls.push(CallSite {
                 caller: ctx.func,
@@ -276,6 +283,11 @@ impl LanguageAdapter for PhpAdapter {
     fn id(&self) -> LangId {
         LangId::Php
     }
+    /// §16 error model row (TASK-022): vouched by this adapter.
+    fn error_model(&self) -> cie_adapters::ErrorModel {
+        cie_adapters::ErrorModel::Raise
+    }
+
     fn extensions(&self) -> &'static [&'static str] {
         &["php", "php3", "php4", "php5", "phtml"]
     }

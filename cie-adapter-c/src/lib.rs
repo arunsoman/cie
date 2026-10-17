@@ -237,6 +237,11 @@ impl LanguageAdapter for CAdapter {
     fn id(&self) -> LangId {
         LangId::C
     }
+    /// §16 error model row (TASK-022): vouched by this adapter.
+    fn error_model(&self) -> cie_adapters::ErrorModel {
+        cie_adapters::ErrorModel::ErrorCode
+    }
+
     fn extensions(&self) -> &'static [&'static str] {
         &["c", "h"]
     }
