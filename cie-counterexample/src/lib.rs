@@ -8,10 +8,12 @@
 //! `bounded` (TASK-043 bounded predicate checking).
 
 pub mod bounded;
+pub mod intsmt;
 pub mod smt;
 
 pub use bounded::{
     BoundedChecker, Conclusion, Counterexample, ExtractedPredicate, PathAtomSet, Status,
     Verdict,
 };
+pub use intsmt::{Constrained, ICmp, IntTerm, IntVar, SmtEncoder, SmtModel, SmtOutcome, SmtUnknownReason};
 pub use smt::{Budget, BudgetedSolver, CheckStatus, Solve, Term};
