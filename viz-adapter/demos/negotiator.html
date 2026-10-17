@@ -1,0 +1,122 @@
+<!doctype html>
+<!-- CIE-VIZ-MULTI: the same ViewSpec through the negotiator + both
+     adapter families — G6 (full fidelity) and Mermaid (degraded,
+     disclosed). The page demonstrates VIZ-28/29/30: engine decision
+     banner, layout chip, fidelity banner, all named decisions. -->
+<html>
+<meta charset="utf-8" />
+<title>CIE-VIZ-MULTI · negotiator + fidelity disclosure</title>
+<body style="margin:0;background:#0d1117;color:#c9d1d9;font-family:monospace">
+<div id="banners" style="padding:10px 14px"></div>
+<div style="display:flex;gap:8px;padding:0 14px">
+  <div id="g6" style="width:600px;height:460px;border:1px solid #30363d"></div>
+  <pre id="mm" style="width:400px;height:460px;overflow:auto;border:1px solid #30363d;margin:0;padding:8px;font-size:11px"></pre>
+</div>
+<script type="module">
+// The adapter layer is framework-free; this demo inlines the modules it
+// needs (a bundler would import 'cie-viz-engines').
+const DASH   = { Fact: undefined, Inference: [6,4], Hypothesis: [2,4], Fog: [1,3] };
+const STROKE = { Fact: '#2ea043', Inference: '#d29922', Hypothesis: '#f85149', Fog: '#8b949e' };
+const CLASS  = { Fact: 'cieFact', Inference: 'cieInference', Hypothesis: 'cieHypothesis', Fog: 'cieFog' };
+
+// ── One ViewSpec, no engine id anywhere (VIZ-10) ────────────────────────
+const spec = {
+  elements: [
+    { id: 'gateway',  elementKind: 'concept', displayMode: 'Fact',       label: 'Gateway',
+      evidence: { file: 'gw.py', start: 1, end: 20 },  salience: { factors: ['TASK_MATCH'], weight: .9, whyShown: 'root' }, fields: {} },
+    { id: 'payments', elementKind: 'symbol',  displayMode: 'Inference',  label: 'Payment.authorize', claimId: 'C-0042',
+      evidence: { file: 'pay.py', start: 21, end: 40 }, salience: { factors: ['STRUCTURAL_CENTRALITY'], weight: .7, whyShown: 'fan-in' }, fields: {} },
+    { id: 'ledger',   elementKind: 'file',    displayMode: 'Fog',        label: 'ledger.py', claimId: 'C-0100',
+      fogReason: 'dynamic import unresolved', evidence: { file: 'ledger.py', start: 41, end: 60 },
+      salience: { factors: ['RECENCY'], weight: .2, whyShown: 'recent' }, fields: {} },
+  ],
+  edges: [
+    { id: 'e1', source: 'gateway', target: 'payments', edgeKind: 'calls', displayMode: 'Fact', evidence: { file: 'gw.py', start: 2, end: 3 } },
+    { id: 'e2', source: 'payments', target: 'ledger', edgeKind: 'writes', displayMode: 'Inference', evidence: { file: 'pay.py', start: 4, end: 5 } },
+  ],
+  footer: { facts: 1, inferences: 1, hypotheses: 0, fog: 1, stale: 0,
+            caption: 'Display categories, not a confidence score.' },
+  gaps: [], hidden: [],
+  scope: { revision: 42, environments: [], coverage: { analyzed: true } },
+  layoutHint: { strategy: 'dagre' },
+};
+
+// ── Negotiation (pure, PRD §6) ──────────────────────────────────────────
+const CAPS = {
+  g6:       { fisheye: true,  interactive: true },
+  jointjs:  { fisheye: false, interactive: true },
+  reactflow:{ fisheye: false, interactive: true },
+  mermaid:  { fisheye: false, interactive: false },
+};
+const ORDER = ['g6', 'jointjs', 'reactflow', 'mermaid'];
+const LIMITS = { g6: 10000, jointjs: 5000, reactflow: 2000, mermaid: 500 };
+
+function chooseEngine(request, preferred) {
+  const decisions = ORDER.map((id) => {
+    const reasons = [];
+    for (const [cap, needed] of Object.entries(request.required))
+      if (needed && !CAPS[id][cap]) reasons.push(`capability ${cap} unavailable`);
+    if (request.graphSize.nodes > LIMITS[id]) reasons.push(`nodes exceed maxNodes ${LIMITS[id]}`);
+    return { engineId: id, eligible: reasons.length === 0, reasons };
+  });
+  const eligible = decisions.filter((d) => d.eligible).map((d) => d.engineId);
+  const rendered = preferred && eligible.includes(preferred)
+    ? preferred : eligible.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))[0];
+  const head = preferred && preferred !== rendered
+    ? `Preferred: ${preferred} ✗ (${decisions.find((d) => d.engineId === preferred).reasons.join('; ')}) · Rendered: ${rendered}`
+    : `Rendered: ${rendered}`;
+  return { rendered, decisions, headline: head };
+}
+
+// ── User requires fisheye + prefers mermaid → negotiated to g6 (VIZ-06/28)
+const decision = chooseEngine(
+  { required: { fisheye: true }, preferred: 'mermaid', graphSize: { nodes: spec.elements.length, edges: spec.edges.length } },
+  'mermaid');
+const layoutChip = { fidelity: 'Exact', text: `Layout: dagre` };
+const fidelity = decision.rendered === 'mermaid' ? 'Degraded' : 'Full';
+
+const banners = document.getElementById('banners');
+banners.innerHTML = [
+  `<div>▸ ${decision.headline}</div>`,
+  `<div>▸ ${layoutChip.text}${layoutChip.fidelity !== 'Exact' ? ' ⚠' : ''}</div>`,
+  fidelity !== 'Full'
+    ? `<div style="color:#d29922">▸ ⚠ Epistemic encoding degraded on ${decision.rendered} — the text outline is authoritative.</div>`
+    : `<div style="color:#2ea043">▸ Epistemic encoding: Full</div>`,
+].join('<br/>');
+
+// ── G6 panel (full fidelity) ────────────────────────────────────────────
+const { Graph } = await import('https://esm.sh/@antv/g6@5');
+const g6 = new Graph({
+  container: 'g6',
+  data: {
+    nodes: spec.elements.map((el) => ({ id: el.id, data: { label: el.label, displayMode: el.displayMode, weight: el.salience.weight } })),
+    edges: spec.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, data: { displayMode: e.displayMode, edgeKind: e.edgeKind } })),
+  },
+  node: { style: {
+    stroke: (d) => STROKE[d.data.displayMode], lineDash: (d) => DASH[d.data.displayMode],
+    lineWidth: (d) => (d.data.displayMode === 'Fact' ? 2 : 1.5),
+    size: (d) => 20 + d.data.weight * 40, labelText: (d) => d.data.label, labelPlacement: 'bottom',
+    badge: (d) => (d.data.displayMode === 'Fog' ? [{ text: '?', placement: 'right-top' }] : []),
+  }},
+  edge: { style: { lineDash: (d) => DASH[d.data.displayMode], stroke: (d) => STROKE[d.data.displayMode], endArrow: true, labelText: (d) => d.data.edgeKind } },
+  layout: { type: 'dagre', rankdir: 'LR' },
+  plugins: [{ type: 'fisheye', key: 'cie-fisheye', trigger: 'pointermove', d: 1.5, r: 120 }],
+});
+await g6.render();
+
+// ── Mermaid panel (degraded, disclosed) ─────────────────────────────────
+document.getElementById('mm').textContent = [
+  'flowchart TD',
+  ...spec.elements.map((el) => `  ${el.id}[${el.label}]:::${CLASS[el.displayMode]}`),
+  ...spec.edges.map((e) => `  ${e.source} ${e.displayMode === 'Fact' ? '-->' : '-.->'} |${e.edgeKind}| ${e.target}`),
+  'classDef cieFact stroke:#2ea043,stroke-width:2px',
+  'classDef cieInference stroke:#d29922,stroke-width:1.5px,stroke-dasharray:6 4',
+  'classDef cieHypothesis stroke:#f85149,stroke-width:1.5px,stroke-dasharray:2 4',
+  'classDef cieFog fill:#8b949e,stroke:#8b949e,color:#ffffff',
+  '',
+  '%% Fog degrades to grey fill — no hatched fill in Mermaid (disclosed).',
+  '%% The text outline (A11Y) is authoritative when fidelity is degraded.',
+].join('\n');
+</script>
+</body>
+</html>

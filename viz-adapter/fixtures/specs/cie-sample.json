@@ -1,0 +1,250 @@
+{
+  "elements": [
+    {
+      "id": "c0",
+      "elementKind": "domain",
+      "displayMode": "Inference",
+      "label": "Project",
+      "evidence": {
+        "file": "src/cart.py",
+        "start": 0,
+        "end": 419
+      },
+      "claimId": "C-0000",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Domain concept with 7 traced symbol(s), provenance rule"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "rule",
+        "symbols": 7
+      }
+    },
+    {
+      "id": "c1",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/cart.py",
+      "evidence": {
+        "file": "src/cart.py",
+        "start": 0,
+        "end": 419
+      },
+      "claimId": "C-0001",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 5 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c2",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/payment.py",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 0,
+        "end": 157
+      },
+      "claimId": "C-0002",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c3",
+      "elementKind": "entity",
+      "displayMode": "Inference",
+      "label": "Cart",
+      "evidence": {
+        "file": "src/cart.py",
+        "start": 0,
+        "end": 419
+      },
+      "claimId": "C-0003",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Entity concept with 5 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 5
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c4",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "PaymentGateway",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 0,
+        "end": 157
+      },
+      "claimId": "C-0004",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c2"
+    },
+    {
+      "id": "c5",
+      "elementKind": "invariant",
+      "displayMode": "Inference",
+      "label": "'authorize' must perform real authorization before returning success",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 26,
+        "end": 157
+      },
+      "claimId": "C-0005",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Invariant concept with 1 traced symbol(s), provenance rule:contract"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "rule:contract",
+        "symbols": 1
+      },
+      "parentId": "c2"
+    }
+  ],
+  "edges": [
+    {
+      "id": "h1",
+      "source": "c0",
+      "target": "c1",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/cart.py",
+        "start": 0,
+        "end": 419
+      }
+    },
+    {
+      "id": "h2",
+      "source": "c0",
+      "target": "c2",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 0,
+        "end": 157
+      }
+    },
+    {
+      "id": "h3",
+      "source": "c1",
+      "target": "c3",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/cart.py",
+        "start": 0,
+        "end": 419
+      }
+    },
+    {
+      "id": "h4",
+      "source": "c2",
+      "target": "c4",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 0,
+        "end": 157
+      }
+    },
+    {
+      "id": "h5",
+      "source": "c2",
+      "target": "c5",
+      "edgeKind": "call_ownership",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/payment.py",
+        "start": 26,
+        "end": 157
+      }
+    }
+  ],
+  "footer": {
+    "facts": 0,
+    "inferences": 6,
+    "hypotheses": 0,
+    "fog": 0,
+    "stale": 0,
+    "caption": "Display categories, not a confidence score."
+  },
+  "gaps": [],
+  "hidden": [],
+  "scope": {
+    "revision": 1,
+    "environments": [],
+    "coverage": {
+      "analyzed": true,
+      "ratio": 0.5555556
+    }
+  },
+  "layoutHint": {
+    "strategy": "compact-box"
+  },
+  "semanticHash": "sha256:d12f5661696b02ecc647b1e34502e99203262f256843124eafad7487730237e5",
+  "renderHash": "sha256:05a42e7f38460066d31aa9e9ecdace2750164973e704225b63dbf358ce000fca"
+}

@@ -1,0 +1,164 @@
+{
+  "elements": [
+    {
+      "id": "checkout",
+      "elementKind": "concept",
+      "displayMode": "Fact",
+      "label": "Checkout",
+      "evidence": {
+        "file": "checkout.py",
+        "start": 88,
+        "end": 120
+      },
+      "salience": {
+        "factors": [
+          "TASK_MATCH"
+        ],
+        "weight": 0.9,
+        "whyShown": "matches question"
+      }
+    },
+    {
+      "id": "authorize",
+      "elementKind": "symbol",
+      "displayMode": "Inference",
+      "label": "PaymentGateway.authorize",
+      "claimId": "C-0042",
+      "evidence": {
+        "file": "payment.py",
+        "start": 19,
+        "end": 31
+      },
+      "salience": {
+        "factors": [
+          "STRUCTURAL_CENTRALITY"
+        ],
+        "weight": 0.7,
+        "whyShown": "called by checkout"
+      }
+    },
+    {
+      "id": "fulfill",
+      "elementKind": "symbol",
+      "displayMode": "Fact",
+      "label": "Order.fulfill",
+      "evidence": {
+        "file": "order.py",
+        "start": 64,
+        "end": 91
+      },
+      "salience": {
+        "factors": [
+          "TASK_MATCH"
+        ],
+        "weight": 0.8,
+        "whyShown": "terminal step"
+      }
+    },
+    {
+      "id": "topup",
+      "elementKind": "symbol",
+      "displayMode": "Hypothesis",
+      "label": "Inventory.top_up",
+      "claimId": "C-0099",
+      "counterArgument": "no test asserts top-up idempotency",
+      "evidence": {
+        "file": "inventory.py",
+        "start": 41,
+        "end": 58
+      },
+      "salience": {
+        "factors": [
+          "USER_OVERRIDE"
+        ],
+        "weight": 0.4,
+        "whyShown": "pinned"
+      }
+    },
+    {
+      "id": "legacy",
+      "elementKind": "file",
+      "displayMode": "Fog",
+      "label": "legacy/refund.py",
+      "claimId": "C-0100",
+      "fogReason": "dynamic import unresolved",
+      "evidence": {
+        "file": "legacy/refund.py",
+        "start": 1,
+        "end": 10
+      },
+      "salience": {
+        "factors": [
+          "RECENCY"
+        ],
+        "weight": 0.2,
+        "whyShown": "recently changed"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "checkout",
+      "target": "authorize",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "checkout.py",
+        "start": 92,
+        "end": 92
+      }
+    },
+    {
+      "id": "e2",
+      "source": "checkout",
+      "target": "fulfill",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "checkout.py",
+        "start": 101,
+        "end": 101
+      }
+    },
+    {
+      "id": "e3",
+      "source": "fulfill",
+      "target": "topup",
+      "edgeKind": "calls",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "order.py",
+        "start": 77,
+        "end": 77
+      }
+    }
+  ],
+  "footer": {
+    "facts": 2,
+    "inferences": 1,
+    "hypotheses": 1,
+    "fog": 1,
+    "stale": 0,
+    "caption": "Display categories, not a confidence score."
+  },
+  "gaps": [],
+  "hidden": [],
+  "scope": {
+    "revision": 42,
+    "environments": [],
+    "coverage": {
+      "analyzed": true
+    }
+  },
+  "layoutHint": {
+    "strategy": "dagre",
+    "params": {
+      "rankdir": "LR",
+      "nodesep": 60,
+      "ranksep": 120
+    }
+  },
+  "semanticHash": "sha256:a41326acc372d251dc38aa2cbe0c22d24295d8539bccef4f0d98be02178a1e57",
+  "renderHash": "sha256:f9e3a07810b6a71644f915a1c30f6b1329cd19a4a8e8bdd3f51c9fdba05189e8"
+}

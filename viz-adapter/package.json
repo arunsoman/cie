@@ -1,0 +1,17 @@
+{
+  "name": "cie-viz-engines",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CIE-VIZ-MULTI adapter layer — negotiator + engine adapters (g6/jointjs/reactflow/mermaid) over the ViewSpec contract",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4"
+  }
+}
