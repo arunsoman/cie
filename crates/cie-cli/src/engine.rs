@@ -328,12 +328,11 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &mut label_cache,
         &budget,
     ));
-    let label_fn = |intent: &[String], fallback: &str| -> String {
-        labeler_cell
-            .borrow_mut()
-            .label_concept(intent, fallback)
-            .label
-    };
+    let label_fn =
+        |intent: &[String], fallback: &str| -> (String, &'static str) {
+            let rec = labeler_cell.borrow_mut().label_concept(intent, fallback);
+            (rec.label, rec.source)
+        };
 
     // TASK-002: revision chain continues from the persisted meta head, so a
     // process restart never reuses a RevId (§15.1 global rule 7).

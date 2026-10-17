@@ -15,7 +15,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Label function hook: the CLI supplies either the offline deterministic
 /// labeler or an LLM-backed one. Labels never decide membership.
-pub type LabelFn<'a> = &'a dyn Fn(&[String], &str) -> String;
+/// Label provider: returns (label, source) where source is the
+/// LabelRecord source ("llm" | "offline" | "cache") — TASK-079 binds
+/// LLM-proposed labels as inert `LlmCandidate` rules.
+pub type LabelFn<'a> = &'a dyn Fn(&[String], &str) -> (String, &'static str);
 
 pub fn build_hierarchy(
     store: &SymbolStore,
@@ -150,7 +153,7 @@ pub fn build_hierarchy(
         if concept.intent.is_empty() || concept.extent.len() < 2 {
             continue;
         }
-        let label = label_fn(
+        let (label, label_source) = label_fn(
             &concept.intent.iter().cloned().collect::<Vec<_>>(),
             &fca::concept_label(&concept.intent),
         );
@@ -162,6 +165,19 @@ pub fn build_hierarchy(
         n.confidence = 0.8; // derived concept, mechanical but heuristic scope
         let id = dag.push(n);
         dag.link_child(root, id);
+
+        // TASK-079: an LLM-proposed label binds as an inert LlmCandidate
+        // rule — visible, traceable, never decisive (acceptance #28).
+        if label_source == "llm" {
+            if let Some(node) = dag.get_mut(id) {
+                node.rules.push(RuleRef {
+                    contract: 9_000_000u32 + u32::from(id),
+                    kind: format!("llm-label:{}", node.label),
+                    authority: cie_core::contract::Authority::LlmCandidate,
+                });
+                node.provenance = "label:llm".into();
+            }
+        }
 
         // Extra DAG edge: majority module (ClusterCohesion) when most of the
         // extent lives in one file (acceptance #30 — multi-parent, traceable).
