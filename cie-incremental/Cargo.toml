@@ -1,0 +1,19 @@
+[package]
+name = "cie-incremental"
+description = "Incremental engine: hash-diff invalidation, tombstones, dirty worklist, revision diff"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-summary = { workspace = true }
+cie-store = { workspace = true }
+cie-concepts = { workspace = true }
+cie-contract = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }

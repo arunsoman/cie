@@ -1,0 +1,16 @@
+[package]
+name = "cie-concepts"
+description = "ConceptNode DAG: six storage keys, four binding sources, cycle rejection, rollups"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-store = { workspace = true }
+cie-contract = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

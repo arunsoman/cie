@@ -1,0 +1,17 @@
+[package]
+name = "cie-adapter-python"
+description = "Python adapter (dynamic dispatch, async/await, bare-except exceptions)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-adapters = { workspace = true }
+serde = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-language = { workspace = true }
+tree-sitter-python = { workspace = true }

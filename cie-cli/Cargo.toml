@@ -1,0 +1,35 @@
+[package]
+name = "cie-cli"
+description = "Code Intelligence Engine CLI (cie): ingest, analyze, concepts, drift, impact, report"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "cie"
+path = "src/main.rs"
+
+[lib]
+name = "cie_cli"
+path = "src/lib.rs"
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-relations = { workspace = true }
+cie-adapters = { workspace = true }
+cie-store = { workspace = true }
+cie-analysis = { workspace = true }
+cie-contract = { workspace = true }
+cie-ingest = { workspace = true }
+cie-concepts = { workspace = true }
+cie-claims = { workspace = true }
+cie-drift = { workspace = true }
+cie-incremental = { workspace = true }
+cie-llm = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rayon = { workspace = true }

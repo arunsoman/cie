@@ -1,0 +1,13 @@
+[package]
+name = "cie-fault"
+description = "Recovery obligations, lineage-driven fault injection, error-handling failure ranking"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+serde = { workspace = true }

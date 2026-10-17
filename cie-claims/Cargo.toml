@@ -1,0 +1,17 @@
+[package]
+name = "cie-claims"
+description = "Typed claim extraction and the persisted ClaimStore with provenance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-llm = { workspace = true }
+cie-store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }

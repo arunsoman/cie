@@ -1,0 +1,16 @@
+[package]
+name = "cie-core"
+description = "Core primitives: scalar types, identity newtypes, interner, protocol, SourceLocation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+rkyv = { workspace = true }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }

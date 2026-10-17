@@ -1,0 +1,21 @@
+[package]
+name = "cie-adapters"
+description = "LanguageAdapter trait, §16.1 semantics tables, light-engine, resolution helpers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rustc-hash = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-language = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-rust = { workspace = true }

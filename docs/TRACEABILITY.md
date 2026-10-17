@@ -25,7 +25,19 @@ The 30-crate scaffold decision (gate D-1) is deferred to v0.3 where the five new
 ## 2. Sketch-fidelity mapping (Phase 0–2 validation sketches)
 
 The instructor sketches are the binding validation contract. They compile as-written modulo these
-documented, single-point mappings:
+documented, single-point mappings (v0.3 30-crate scaffold additions):
+
+| v0.3 deviation | Reason |
+|---|---|
+| Flat root layout (member dirs are siblings of the root manifest, not under `crates/`) | the TASK-001 sketch reads `CARGO_MANIFEST_DIR/../Cargo.toml` — the binding path — which only resolves for the flat layout |
+| `default_registry()` lives in `cie-ingest` (composition root), not `cie-adapters` | Rust forbids trait-crate → adapter-crate cycles; the one-line registration contract is unchanged |
+| `Finding`/`FindingKind` live in `cie-contract` (re-exported by `cie-analysis`) | findings are contract-check outputs; keeps `cie-incremental`/`cie-drift` cycle-free |
+| `Evidence`/`Coverage` scalar shapes live in `cie-core` (re-exported by `cie-evidence`) | §9 `AnalysisInput`/`AnalysisOutput` are sketch-pinned to `cie-core` |
+| §9 `AnalysisInput<F, C>` / `AnalysisOutput<D>` are generic with `()` defaults | the §9 seam stays in `cie-core` without depending on `cie-semantic` |
+| `z3` links as system libz3 via hand-written C FFI (feature `smt-z3`), not the `z3` Rust crate | the crate needs bindgen/libclang, outside the offline-first story; a pure-Rust bit-blast fallback is the default backend (TASK-047) |
+| `rustc_hash` sketch spelling = `rustc-hash` manifest key | Cargo hyphenation |
+
+Original v0.1/v0.2 mappings:
 
 | Sketch symbol | Delivered symbol | Note |
 |---|---|---|

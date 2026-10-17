@@ -1,0 +1,18 @@
+[package]
+name = "cie-semantic"
+description = "Typed fact families (§14 facts), SymbolKind, LangId and the §16 v1 language table"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-relations = { workspace = true }
+petgraph = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rkyv = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }

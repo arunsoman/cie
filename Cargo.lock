@@ -144,24 +144,175 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
-name = "cie-analysis"
-version = "0.2.0"
+name = "cie-adapter-c"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-cpp"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-csharp"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-go"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-java"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-javascript"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-php"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-python"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+ "tree-sitter",
+ "tree-sitter-language",
+ "tree-sitter-python",
+]
+
+[[package]]
+name = "cie-adapter-rust"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-typescript"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapters"
+version = "0.3.0"
 dependencies = [
  "cie-core",
+ "cie-semantic",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "tree-sitter",
+ "tree-sitter-go",
+ "tree-sitter-javascript",
+ "tree-sitter-language",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+]
+
+[[package]]
+name = "cie-analysis"
+version = "0.3.0"
+dependencies = [
+ "cie-adapters",
+ "cie-concepts",
+ "cie-contract",
+ "cie-core",
+ "cie-evidence",
+ "cie-incremental",
+ "cie-relations",
+ "cie-semantic",
+ "cie-summary",
+ "petgraph",
  "regex",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cie-claims"
+version = "0.3.0"
+dependencies = [
+ "blake3",
+ "cie-core",
+ "cie-llm",
+ "cie-semantic",
+ "cie-store",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "cie-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "cie-adapters",
  "cie-analysis",
+ "cie-claims",
+ "cie-concepts",
+ "cie-contract",
  "cie-core",
- "cie-langs",
+ "cie-drift",
+ "cie-incremental",
+ "cie-ingest",
  "cie-llm",
- "cie-storage",
+ "cie-relations",
+ "cie-semantic",
+ "cie-store",
  "clap",
  "rayon",
  "serde",
@@ -169,11 +320,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "cie-concepts"
+version = "0.3.0"
+dependencies = [
+ "cie-contract",
+ "cie-core",
+ "cie-semantic",
+ "cie-store",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cie-contract"
+version = "0.3.0"
+dependencies = [
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
 name = "cie-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "blake3",
- "petgraph",
  "rkyv",
  "rustc-hash",
  "serde",
@@ -182,39 +353,177 @@ dependencies = [
 ]
 
 [[package]]
-name = "cie-langs"
-version = "0.2.0"
+name = "cie-counterexample"
+version = "0.3.0"
 dependencies = [
  "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-docs"
+version = "0.3.0"
+dependencies = [
+ "cie-claims",
+ "cie-core",
+ "cie-semantic",
  "serde",
  "serde_json",
- "tree-sitter",
- "tree-sitter-go",
- "tree-sitter-javascript",
- "tree-sitter-language",
- "tree-sitter-python",
- "tree-sitter-rust",
- "tree-sitter-typescript",
+]
+
+[[package]]
+name = "cie-drift"
+version = "0.3.0"
+dependencies = [
+ "cie-analysis",
+ "cie-claims",
+ "cie-concepts",
+ "cie-contract",
+ "cie-core",
+ "cie-evidence",
+ "cie-semantic",
+ "cie-store",
+ "cie-summary",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cie-evidence"
+version = "0.3.0"
+dependencies = [
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-fault"
+version = "0.3.0"
+dependencies = [
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-incremental"
+version = "0.3.0"
+dependencies = [
+ "blake3",
+ "cie-concepts",
+ "cie-contract",
+ "cie-core",
+ "cie-semantic",
+ "cie-store",
+ "cie-summary",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cie-ingest"
+version = "0.3.0"
+dependencies = [
+ "blake3",
+ "cie-adapter-c",
+ "cie-adapter-cpp",
+ "cie-adapter-csharp",
+ "cie-adapter-go",
+ "cie-adapter-java",
+ "cie-adapter-javascript",
+ "cie-adapter-php",
+ "cie-adapter-python",
+ "cie-adapter-rust",
+ "cie-adapter-typescript",
+ "cie-adapters",
+ "cie-analysis",
+ "cie-claims",
+ "cie-concepts",
+ "cie-contract",
+ "cie-core",
+ "cie-docs",
+ "cie-drift",
+ "cie-incremental",
+ "cie-llm",
+ "cie-semantic",
+ "cie-store",
+ "cie-summary",
+ "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "cie-llm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "blake3",
  "cie-core",
- "cie-storage",
+ "cie-store",
  "serde",
  "serde_json",
+ "thiserror",
  "ureq",
 ]
 
 [[package]]
-name = "cie-storage"
-version = "0.2.0"
+name = "cie-relations"
+version = "0.3.0"
+dependencies = [
+ "cie-core",
+ "cie-semantic",
+ "petgraph",
+ "rkyv",
+ "serde",
+]
+
+[[package]]
+name = "cie-semantic"
+version = "0.3.0"
+dependencies = [
+ "cie-core",
+ "cie-relations",
+ "petgraph",
+ "rkyv",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+]
+
+[[package]]
+name = "cie-server"
+version = "0.3.0"
 dependencies = [
  "cie-core",
  "serde",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "cie-store"
+version = "0.3.0"
+dependencies = [
+ "blake3",
+ "cie-core",
+ "rkyv",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cie-summary"
+version = "0.3.0"
+dependencies = [
+ "blake3",
+ "cie-core",
+ "cie-semantic",
+ "rustc-hash",
+ "serde",
 ]
 
 [[package]]
@@ -592,6 +901,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
+dependencies = [
+ "libc",
+ "wasi",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "munge"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -926,6 +1246,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
 
 [[package]]
+name = "socket2"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1017,6 +1347,31 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "tokio"
+version = "1.53.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+dependencies = [
+ "libc",
+ "mio",
+ "pin-project-lite",
+ "socket2",
+ "tokio-macros",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
 
 [[package]]
 name = "tree-sitter"

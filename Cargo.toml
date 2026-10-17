@@ -1,22 +1,50 @@
 [workspace]
 resolver = "2"
+# TASK-001: the 30 PRD §10 member crates. Flat root layout: each member is a
+# sibling of this manifest, so the instructor sketch path
+# `CARGO_MANIFEST_DIR/../Cargo.toml` resolves here (TRACEABILITY §2).
 members = [
-    "crates/cie-core",
-    "crates/cie-storage",
-    "crates/cie-langs",
-    "crates/cie-analysis",
-    "crates/cie-llm",
-    "crates/cie-cli",
+    "cie-core",
+    "cie-semantic",
+    "cie-relations",
+    "cie-adapters",
+    "cie-adapter-python",
+    "cie-adapter-javascript",
+    "cie-adapter-typescript",
+    "cie-adapter-java",
+    "cie-adapter-c",
+    "cie-adapter-cpp",
+    "cie-adapter-csharp",
+    "cie-adapter-go",
+    "cie-adapter-rust",
+    "cie-adapter-php",
+    "cie-ingest",
+    "cie-evidence",
+    "cie-summary",
+    "cie-contract",
+    "cie-analysis",
+    "cie-incremental",
+    "cie-concepts",
+    "cie-counterexample",
+    "cie-fault",
+    "cie-store",
+    "cie-llm",
+    "cie-docs",
+    "cie-claims",
+    "cie-drift",
+    "cie-cli",
+    "cie-server",
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 authors = ["Arun Soman"]
 repository = "https://github.com/arunsoman/cie"
 
 [workspace.dependencies]
+# ---- §10 key third-party crates (declared once, inherited via workspace = true) ----
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 blake3 = "1"
@@ -24,6 +52,25 @@ rayon = "1"
 regex = "1"
 clap = { version = "4", features = ["derive"] }
 ureq = { version = "2", features = ["json"] }
+anyhow = "1"
+tracing = "0.1"
+thiserror = "2"
+dashmap = "6"
+rustc-hash = "2"
+smallvec = "1"
+bitvec = "1"
+memmap2 = "0.9"
+rkyv = "0.8"
+petgraph = "0.7"
+sled = "0.34"
+hnsw_rs = "0.3"
+differential-dataflow = "0.25"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net"] }
+# z3: the engine links system libz3 (4.13.x) through the hand-written C FFI
+# in cie-counterexample::smt behind the non-default `smt-z3` feature. The
+# `z3` Rust crate itself is intentionally NOT depended on: it needs
+# bindgen/libclang, which is outside the offline-first build story. Pure-Rust
+# bit-blast fallback solver ships as the default backend (TASK-047).
 tree-sitter = "0.25"
 tree-sitter-language = "0.1"
 tree-sitter-python = "0.23"
@@ -31,14 +78,42 @@ tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-go = "0.23"
 tree-sitter-rust = "0.23"
-petgraph = "0.7"
-rkyv = "0.8"
+tree-sitter-java = "0.23"
+tree-sitter-c = "0.24"
+tree-sitter-cpp = "0.23"
+tree-sitter-c-sharp = "0.23"
+tree-sitter-php = "0.25"
 
-cie-core = { path = "crates/cie-core" }
-cie-storage = { path = "crates/cie-storage" }
-cie-langs = { path = "crates/cie-langs" }
-cie-analysis = { path = "crates/cie-analysis" }
-cie-llm = { path = "crates/cie-llm" }
+# ---- internal crates ----
+cie-core = { path = "cie-core" }
+cie-semantic = { path = "cie-semantic" }
+cie-relations = { path = "cie-relations" }
+cie-adapters = { path = "cie-adapters" }
+cie-adapter-python = { path = "cie-adapter-python" }
+cie-adapter-javascript = { path = "cie-adapter-javascript" }
+cie-adapter-typescript = { path = "cie-adapter-typescript" }
+cie-adapter-java = { path = "cie-adapter-java" }
+cie-adapter-c = { path = "cie-adapter-c" }
+cie-adapter-cpp = { path = "cie-adapter-cpp" }
+cie-adapter-csharp = { path = "cie-adapter-csharp" }
+cie-adapter-go = { path = "cie-adapter-go" }
+cie-adapter-rust = { path = "cie-adapter-rust" }
+cie-adapter-php = { path = "cie-adapter-php" }
+cie-ingest = { path = "cie-ingest" }
+cie-evidence = { path = "cie-evidence" }
+cie-summary = { path = "cie-summary" }
+cie-contract = { path = "cie-contract" }
+cie-analysis = { path = "cie-analysis" }
+cie-incremental = { path = "cie-incremental" }
+cie-concepts = { path = "cie-concepts" }
+cie-counterexample = { path = "cie-counterexample" }
+cie-fault = { path = "cie-fault" }
+cie-store = { path = "cie-store" }
+cie-llm = { path = "cie-llm" }
+cie-docs = { path = "cie-docs" }
+cie-claims = { path = "cie-claims" }
+cie-drift = { path = "cie-drift" }
+cie-cli = { path = "cie-cli" }
 
 [profile.release]
 opt-level = 3

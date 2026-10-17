@@ -1,0 +1,37 @@
+[package]
+name = "cie-ingest"
+description = "Folder assimilation pipeline: walk, hash, parse via the adapter registry, incremental re-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-adapters = { workspace = true }
+cie-adapter-python = { workspace = true }
+cie-adapter-javascript = { workspace = true }
+cie-adapter-typescript = { workspace = true }
+cie-adapter-java = { workspace = true }
+cie-adapter-c = { workspace = true }
+cie-adapter-cpp = { workspace = true }
+cie-adapter-csharp = { workspace = true }
+cie-adapter-go = { workspace = true }
+cie-adapter-rust = { workspace = true }
+cie-adapter-php = { workspace = true }
+cie-store = { workspace = true }
+cie-incremental = { workspace = true }
+cie-docs = { workspace = true }
+cie-summary = { workspace = true }
+cie-concepts = { workspace = true }
+cie-analysis = { workspace = true }
+cie-llm = { workspace = true }
+cie-claims = { workspace = true }
+cie-drift = { workspace = true }
+cie-contract = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rayon = { workspace = true }
+blake3 = { workspace = true }

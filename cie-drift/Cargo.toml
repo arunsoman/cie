@@ -1,0 +1,21 @@
+[package]
+name = "cie-drift"
+description = "Drift pipeline: claims to mappings to verification, reports, reverse drift, SARIF"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-claims = { workspace = true }
+cie-analysis = { workspace = true }
+cie-contract = { workspace = true }
+cie-summary = { workspace = true }
+cie-concepts = { workspace = true }
+cie-evidence = { workspace = true }
+cie-store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

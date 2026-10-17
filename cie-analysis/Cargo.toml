@@ -1,0 +1,24 @@
+[package]
+name = "cie-analysis"
+description = "Behavior detectors, conformance, security and testing slices, FCA, hierarchy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-relations = { workspace = true }
+cie-adapters = { workspace = true }
+cie-evidence = { workspace = true }
+cie-summary = { workspace = true }
+cie-concepts = { workspace = true }
+cie-contract = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+cie-incremental = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+petgraph = { workspace = true }

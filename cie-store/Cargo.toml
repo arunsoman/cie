@@ -1,0 +1,16 @@
+[package]
+name = "cie-store"
+description = "Revisioned KV store (§15.1 namespaces) — JSON engine; sled/redb backends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+rkyv = { workspace = true }
+rustc-hash = { workspace = true }
