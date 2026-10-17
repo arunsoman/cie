@@ -19,3 +19,5 @@ pub mod orientation;
 pub mod queries;
 
 pub mod plans;
+
+pub mod concept_reviews;

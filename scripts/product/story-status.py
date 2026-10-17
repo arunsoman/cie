@@ -86,7 +86,14 @@ partial.update({
 17: ('Durable per-step results and idempotent resume across answer/checkpoint interruption; broader provider recovery pending.', ['resuming_after_answer_publication_before_step_checkpoint_is_idempotent']),
 146: ('Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending.', ['ownership_release_is_not_delayed_by_an_inherited_descriptor','question_request_ids_deduplicate_and_refuse_changed_input_or_revision'])
 })
+partial.update({
+50: ('Concept extraction runs with cancellable indexing; exact-snapshot refutations persist across answers, with minimum-sample judgment summaries. Card-set version comparison remains pending.', ['refuted_concept_remains_withheld_across_answers_and_answer_deletion','browser:concept-curation']),
+53: ('Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing']),
+54: ('Naming expectations, related declarations and modeled effects are inspectable; approved-requirement binding and complete mismatch classification pending.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing'])
+})
 completed = {
+7: ('On-demand multi-language checkout fixture has real explicitly synthetic dated history, source/rules/concept material and an intentional naming regression. It never modifies connected user source.', ['generated_sample_has_real_dated_synthetic_history_without_mutating_user_source','browser:sample-history','browser:naming-anomaly']),
+56: ('Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation.', ['naming_anomaly_compares_promised_permission_check_with_observed_printing','browser:naming-anomaly']),
 143: ('Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass.', ['node:theme-contrast','browser:theme-persistence'])
 }
 rows=[]

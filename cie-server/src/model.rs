@@ -78,6 +78,9 @@ pub enum Intent {
     Tests,
     Findings,
     Concepts,
+    Rules,
+    Behaviors,
+    Naming,
     Unknown,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -139,6 +142,8 @@ pub struct State {
     #[serde(default)]
     pub plans: Vec<AnalysisPlan>,
     #[serde(default)]
+    pub concept_reviews: Vec<ConceptReview>,
+    #[serde(default)]
     pub investigations: Vec<Investigation>,
     pub schema: u32,
     pub next_id: u64,
@@ -154,6 +159,7 @@ impl Default for State {
         Self {
             observations: vec![],
             plans: vec![],
+            concept_reviews: vec![],
             investigations: vec![],
             schema: 1,
             next_id: 1,
@@ -275,5 +281,16 @@ pub struct AnalysisPlan {
     pub revision_id: String,
     pub status: String,
     pub steps: Vec<AnalysisStep>,
+    pub created_ns: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConceptReview {
+    pub repository_id: String,
+    pub revision_id: String,
+    pub item_id: String,
+    pub verdict: String,
+    pub reason: String,
     pub created_ns: u64,
 }

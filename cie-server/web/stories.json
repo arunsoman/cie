@@ -56,11 +56,12 @@
   {
     "id": "US-007",
     "title": "Try a ready-made sample repository",
-    "status": "partial",
-    "note": "On-demand checkout fixture with real, explicitly synthetic dated Git history; advanced unsupported views remain unavailable.",
+    "status": "complete",
+    "note": "On-demand multi-language checkout fixture has real explicitly synthetic dated history, source/rules/concept material and an intentional naming regression. It never modifies connected user source.",
     "evidence": [
       "generated_sample_has_real_dated_synthetic_history_without_mutating_user_source",
-      "browser:sample-history"
+      "browser:sample-history",
+      "browser:naming-anomaly"
     ]
   },
   {
@@ -418,9 +419,10 @@
     "id": "US-050",
     "title": "Extract and curate concept cards",
     "status": "partial",
-    "note": "Concept candidates and claim review; full concept-card curation pending.",
+    "note": "Concept extraction runs with cancellable indexing; exact-snapshot refutations persist across answers, with minimum-sample judgment summaries. Card-set version comparison remains pending.",
     "evidence": [
-      "refutation_hides_claim_and_edges_without_upgrading_confirmation"
+      "refuted_concept_remains_withheld_across_answers_and_answer_deletion",
+      "browser:concept-curation"
     ]
   },
   {
@@ -444,16 +446,20 @@
   {
     "id": "US-053",
     "title": "Discover distributed business rules",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending.",
+    "evidence": [
+      "naming_anomaly_compares_promised_permission_check_with_observed_printing"
+    ]
   },
   {
     "id": "US-054",
     "title": "Compare intended and actual behaviour",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Naming expectations, related declarations and modeled effects are inspectable; approved-requirement binding and complete mismatch classification pending.",
+    "evidence": [
+      "naming_anomaly_compares_promised_permission_check_with_observed_printing"
+    ]
   },
   {
     "id": "US-055",
@@ -465,9 +471,12 @@
   {
     "id": "US-056",
     "title": "Detect misleading names",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "complete",
+    "note": "Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation.",
+    "evidence": [
+      "naming_anomaly_compares_promised_permission_check_with_observed_printing",
+      "browser:naming-anomaly"
+    ]
   },
   {
     "id": "US-057",

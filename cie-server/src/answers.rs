@@ -16,6 +16,18 @@ pub struct Question {
 }
 pub fn route(question: &str) -> Intent {
     let q = question.to_lowercase();
+    if q.contains("misleading name") || q.contains("naming mismatch") {
+        return Intent::Naming;
+    }
+    if q.contains("business rule") || q.contains("invariant") || q.trim() == "rules" {
+        return Intent::Rules;
+    }
+    if q.contains("behaviors")
+        || q.contains("behaviours")
+        || q.contains("what does") && !q.contains("call")
+    {
+        return Intent::Behaviors;
+    }
     if ["caller", "who calls", "called by"]
         .iter()
         .any(|s| q.contains(s))
@@ -58,6 +70,22 @@ pub fn route(question: &str) -> Intent {
 }
 fn terms(question: &str) -> Vec<String> {
     let stop = [
+        "rules",
+        "rule",
+        "business",
+        "invariants",
+        "invariant",
+        "behaviors",
+        "behaviours",
+        "behavior",
+        "behaviour",
+        "does",
+        "do",
+        "naming",
+        "mismatch",
+        "misleading",
+        "names",
+        "name",
         "who",
         "what",
         "where",
@@ -299,7 +327,7 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
                 }
             }
             Intent::Concepts => {
-                for c in &rev.snapshot.concepts.nodes {
+                for c in rev.snapshot.concepts.nodes.iter().take(500) {
                     let citations = c
                         .symbols
                         .iter()
@@ -307,7 +335,7 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
                         .filter_map(|id| rev.snapshot.symbols.iter().find(|s| s.id == *id))
                         .filter_map(|s| citation(repo, rev, s, None))
                         .collect();
-                    answer.items.push(Item{id:format!("concept:{}",c.id),label:c.label.clone(),kind:c.kind.as_str().into(),claim_class:"analyzerInference".into(),citations,detail:json!({"symbols":c.symbols,"behaviors":c.behaviors,"rules":c.rules,"scope":"Inferred concept; source membership does not verify business meaning"})});
+                    answer.items.push(Item{id:format!("concept:{}",c.id),label:c.label.clone(),kind:c.kind.as_str().into(),claim_class:"analyzerInference".into(),citations,detail:json!({"symbols":c.symbols,"behaviors":c.behaviors,"rules":c.rules,"confidenceScore":c.confidence,"provenance":c.provenance,"primaryEdgeReason":c.primary_edge,"extraParents":c.extra_edges,"scope":"Inferred concept; source membership does not verify business meaning. Confidence is an uncalibrated engine score, not a probability of business truth."})});
                     if let Some(parent) = c.parent {
                         answer.edges.push(Edge {
                             from: format!("concept:{}", parent),
@@ -319,6 +347,79 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
                 }
                 answer.preferred_view = "graph".into();
             }
+            Intent::Rules => {
+                for contract in &rev.snapshot.contracts {
+                    if (!query.is_empty() || request.symbol_id.is_some())
+                        && !contract.symbols.iter().any(|s| selected.contains(s))
+                    {
+                        continue;
+                    }
+                    let citations = contract
+                        .symbols
+                        .iter()
+                        .filter_map(|id| rev.snapshot.symbols.iter().find(|s| s.id == *id))
+                        .take(3)
+                        .filter_map(|s| citation(repo, rev, s, None))
+                        .collect();
+                    answer.items.push(Item{id:format!("rule:{}",contract.id),label:secret_safe(&contract.expr),kind:contract.obligation.as_str(),claim_class:"analyzerInference".into(),citations,detail:json!({"engineAuthority":contract.authority,"source":contract.source,"symbols":contract.symbols,"scope":"Extracted declaration or candidate obligation. Engine authority does not establish business approval or universal runtime enforcement."})});
+                    if answer.items.len() >= 500 {
+                        break;
+                    }
+                }
+                gaps.push("This is an extracted obligation catalogue, not an approved policy register. Missing or inconsistent paths require examination before claiming a confirmed defect.".into());
+            }
+            Intent::Behaviors => {
+                for summary in &rev.snapshot.summaries {
+                    if (!query.is_empty() || request.symbol_id.is_some())
+                        && !selected.contains(&summary.sym)
+                    {
+                        continue;
+                    }
+                    let Some(symbol) = rev.snapshot.symbols.iter().find(|s| s.id == summary.sym)
+                    else {
+                        continue;
+                    };
+                    let effects: Vec<_> = summary.effects.iter().map(|e| e.as_str()).collect();
+                    answer.items.push(Item{id:format!("behavior:{}",summary.sym.0),label:format!("{}: {}",symbol.qual_name,if effects.is_empty(){"no effects recorded".into()}else{effects.join(", ")}),kind:"staticBehaviorSummary".into(),claim_class:"analyzerInference".into(),citations:citation(repo,rev,symbol,None).into_iter().collect(),detail:json!({"symbolId":summary.sym.0.to_string(),"summary":summary,"scope":"Recorded effects are static analyzer interpretations. No recorded effect is not proof of runtime absence; unresolved/dynamic behavior remains unknown."})});
+                    if answer.items.len() >= 500 {
+                        break;
+                    }
+                }
+                gaps.push("Static summaries describe the analyzer's supported model; they are not observations of successful execution or exhaustive behavioral specifications.".into());
+            }
+            Intent::Naming => {
+                let store = cie_semantic::facts::SymbolStore::build(rev.snapshot.symbols.clone());
+                let summaries = rev
+                    .snapshot
+                    .summaries
+                    .iter()
+                    .map(|s| (s.sym, s.clone()))
+                    .collect();
+                for record in
+                    cie_contract::NamingAdapter::default().run(&store, &summaries, rev.snapshot.rev)
+                {
+                    if (!query.is_empty() || request.symbol_id.is_some())
+                        && !selected.contains(&record.subject)
+                    {
+                        continue;
+                    }
+                    let Some(symbol) = rev.snapshot.symbols.iter().find(|s| s.id == record.subject)
+                    else {
+                        continue;
+                    };
+                    let related: Vec<_> = rev
+                        .snapshot
+                        .contracts
+                        .iter()
+                        .filter(|c| c.symbols.contains(&record.subject))
+                        .collect();
+                    answer.items.push(Item{id:format!("naming:{}",record.subject.0),label:format!("{}: {}",symbol.qual_name,record.kind.as_str()),kind:record.kind.as_str().into(),claim_class:"analyzerInference".into(),citations:citation(repo,rev,symbol,None).into_iter().collect(),detail:json!({"symbolId":record.subject.0.to_string(),"promisedByName":record.promised,"observedEffects":record.observed,"missingInModel":record.missing,"relatedObligations":related,"scope":"A naming lexicon expectation is a concern, not an established business requirement. Missing modeled actions are not proof of runtime absence. A confirmed violation needs an established obligation and adequate evidence."})});
+                    if answer.items.len() >= 500 {
+                        break;
+                    }
+                }
+                gaps.push("Name/implementation mismatches are candidates. The lexicon can be wrong, and unresolved or dynamic calls can hide effects. No confirmed business violation is claimed by naming alone.".into());
+            }
             Intent::Unknown => {
                 selected.clear();
                 answer.status = "unknown".into();
@@ -326,7 +427,11 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
             }
         }
     }
-    if !matches!(intent, Intent::Findings | Intent::Concepts) && answer.status != "unknown" {
+    if !matches!(
+        intent,
+        Intent::Findings | Intent::Concepts | Intent::Rules | Intent::Behaviors | Intent::Naming
+    ) && answer.status != "unknown"
+    {
         answer.items = rev
             .snapshot
             .symbols
@@ -339,7 +444,10 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
     if answer.items.len() >= 500 {
         gaps.push("Display population capped at 500 items; refine the question.".into());
     }
-    if !matches!(intent, Intent::Findings | Intent::Concepts) {
+    if !matches!(
+        intent,
+        Intent::Findings | Intent::Concepts | Intent::Rules | Intent::Behaviors | Intent::Naming
+    ) {
         let nodes: BTreeSet<_> = answer.items.iter().map(|i| i.id.clone()).collect();
         for sum in &rev.snapshot.summaries {
             for callee in &sum.callees {
@@ -403,6 +511,7 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
 pub struct RenderedAnswer {
     pub answer: Answer,
     pub freshness: String,
+    pub freshness_scope: &'static str,
     pub challenged: bool,
     pub hidden_claims: usize,
 }
@@ -433,6 +542,19 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
     for review in state.reviews.iter().filter(|r| r.answer_id == id) {
         decisions.insert(&review.item_id, &review.verdict);
     }
+    let mut concept_decisions = BTreeMap::new();
+    for review in state
+        .concept_reviews
+        .iter()
+        .filter(|r| r.repository_id == answer.repository_id && r.revision_id == answer.revision_id)
+    {
+        concept_decisions.insert(&review.item_id, &review.verdict);
+    }
+    for (item, verdict) in &concept_decisions {
+        if answer.items.iter().any(|i| &i.id == *item) {
+            decisions.insert(*item, *verdict);
+        }
+    }
     let hidden: BTreeSet<_> = decisions
         .iter()
         .filter(|(_, v)| v.as_str() == "refute")
@@ -444,10 +566,23 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
         .retain(|e| !hidden.contains(&e.from) && !hidden.contains(&e.to));
     let challenged = decisions.values().any(|v| v.as_str() != "confirm")
         || answer.parent_answer.as_ref().is_some_and(|parent| {
-            state
-                .reviews
-                .iter()
-                .any(|r| r.answer_id == *parent && r.verdict != "confirm")
+            let global_challenge =
+                state
+                    .answers
+                    .iter()
+                    .find(|a| a.id == *parent)
+                    .is_some_and(|a| {
+                        a.items.iter().any(|i| {
+                            concept_decisions
+                                .get(&i.id)
+                                .is_some_and(|v| v.as_str() != "confirm")
+                        })
+                    });
+            global_challenge
+                || state
+                    .reviews
+                    .iter()
+                    .any(|r| r.answer_id == *parent && r.verdict != "confirm")
         });
     if challenged {
         answer.status = "challenged".into();
@@ -462,6 +597,7 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
     }
     Ok(RenderedAnswer {
         freshness: crate::repository::freshness(repo, rev).into(),
+        freshness_scope: crate::repository::FRESHNESS_SCOPE,
         answer,
         challenged,
         hidden_claims: hidden.len(),

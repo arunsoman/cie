@@ -167,3 +167,30 @@ passed; 4 Node data/contrast tests passed; strict server Clippy passed.**
 US-143 has named acceptance evidence for persistent themes, renderer recoloring,
 text/control contrast, visible focus and reduced motion. Register: **1 complete,
 73 partial, 73 pending**. The remaining stories are not represented as complete.
+
+## Rule, behavior and concept-review increment
+
+Questions now expose `rules`, `behaviors` and `naming` intents. Naming cards show
+name-derived expectations beside modeled effects and exact source. The sample's
+`authorize()` that prints `hello world` is detected without claiming that its name
+alone establishes an approved requirement or confirmed business violation.
+
+Concept refutations are scoped to the exact repository/revision and remain active
+across saved/new answers even if the originating answer is deleted. The concept
+judgment panel permits inspection and revision of hidden-card decisions without
+promoting inference to proof. User-agreement summaries require 30 distinct reviewed
+cards; bins require five judgments. Engine scores remain explicitly uncalibrated,
+and generated samples are excluded from those agreement summaries. All concepts
+retain their original historical source membership. The 500-item display cap is
+now enforced for concept answers as well as the other populations.
+
+The generated checkout example now includes Python domain code, a TypeScript
+client, a JavaScript formatter, a Java gateway interface and an intentionally
+unsupported file. Its dated Git regression also weakens a test expectation,
+explicitly illustrating why a passing modified test need not be an independent
+oracle. No real transaction is executed.
+
+Validation: **45 server tests, 23 real-browser journeys, 4 Node tests passed**;
+strict server Clippy passed. Current acceptance register: **3 complete,
+74 partial, 70 pending**. Complete stories: US-007, US-056 and US-143.
+The remaining story obligations are tracked individually in STATUS.md.

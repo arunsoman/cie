@@ -42,6 +42,9 @@ impl App {
         if body.len() > 1024 * 1024 {
             return Err(Error::new(413, "REQUEST_LIMIT", "Request exceeds 1 MiB"));
         }
+        if let Some(result) = crate::concept_reviews::dispatch(self, method, path) {
+            return result;
+        }
         if let Some(result) = crate::plans::dispatch(self, method, path, body) {
             return result;
         }
@@ -57,7 +60,7 @@ impl App {
         let parts: Vec<_> = path.trim_matches('/').split('/').collect();
         match (method,parts.as_slice()){
  ("GET",["api","health"])=>Ok(json!({"status":"ready","version":env!("CARGO_PKG_VERSION"),"mode":"singleUserLocal","cloudEnabled":false})),
- ("GET",["api","capabilities"])=>Ok(json!({"mode":"deterministicLocal","supportedQuestions":["overview","search","callers","callees","impact","tests","findings","concepts"],"representations":["table","graph","outline"],"unavailable":["runtime causality","capacity prediction","arbitrary charts without measurements","autonomous implementation","hosted model egress","multi-tenant access control"],"stories":serde_json::from_str::<Value>(include_str!("../web/stories.json")).unwrap_or(json!([]))})),
+ ("GET",["api","capabilities"])=>Ok(json!({"mode":"deterministicLocal","supportedQuestions":["overview","search","callers","callees","impact","tests","findings","concepts","rules","behaviors","naming"],"representations":["table","graph","outline"],"unavailable":["runtime causality","capacity prediction","arbitrary charts without measurements","autonomous implementation","hosted model egress","multi-tenant access control"],"stories":serde_json::from_str::<Value>(include_str!("../web/stories.json")).unwrap_or(json!([]))})),
  ("GET",["api","state"])=>{let s=self.storage.read()?;Ok(json!({"repositories":s.repositories.iter().map(|r|json!({"id":r.id,"name":r.name,"path":r.path,"revisions":r.revisions.iter().map(|v|json!({"id":v.id,"createdNs":v.created_ns,"gitHead":v.git_head,"symbols":v.snapshot.symbols.len(),"findings":v.snapshot.findings.len()})).collect::<Vec<_>>() })).collect::<Vec<_>>(),"jobs":s.jobs,"answers":s.answers.iter().map(|a|json!({"id":a.id,"repositoryId":a.repository_id,"revisionId":a.revision_id,"question":a.question,"status":a.status})).collect::<Vec<_>>(),"workspaces":s.workspaces,"features":s.features,"privacy":{"cloudEnabled":false,"authorshipCollected":false,"scope":"One local user; no multi-tenant or remote access guarantee"}}))},
  ("POST",["api","repositories"])=>{
  #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Connect{path:String,name:Option<String>}
@@ -66,7 +69,7 @@ impl App {
 if let Some(repo)=s.repositories.iter().find(|r|Path::new(&r.path)==root){return Ok(repo.clone())}let repo=Repository{id:s.id("repo"),name,path:root.to_string_lossy().into(),revisions:vec![]};s.repositories.push(repo.clone());Ok(repo)})?;Ok(json!(repo))
  },
  ("DELETE",["api","repositories",id])=>{self.storage.transaction(|s|{if s.jobs.iter().any(|j|j.repository_id==*id&&j.active()){return Err(Error::new(409,"JOB_ACTIVE","Cancel active jobs before deleting this repository"))}
-if !s.repositories.iter().any(|r|r.id==*id){return Err(not_found())}let removed:std::collections::BTreeSet<_>=s.answers.iter().filter(|a|a.repository_id==*id).map(|a|a.id.clone()).collect();s.repositories.retain(|r|r.id!=*id);s.jobs.retain(|j|j.repository_id!=*id);s.answers.retain(|a|a.repository_id!=*id);s.features.retain(|f|f.repository_id!=*id);s.observations.retain(|o|o.repository_id!=*id);s.investigations.retain(|i|i.repository_id!=*id);s.plans.retain(|p|p.repository_id!=*id);s.reviews.retain(|r|!removed.contains(&r.answer_id));for w in &mut s.workspaces{w.answer_ids.retain(|a|!removed.contains(a));if w.active_answer.as_ref().is_some_and(|a|removed.contains(a)){w.active_answer=None;}}Ok(())})?;Ok(json!({"deleted":true,"scope":"Derived workspace records deleted; connected source files were not changed"}))},
+if !s.repositories.iter().any(|r|r.id==*id){return Err(not_found())}let removed:std::collections::BTreeSet<_>=s.answers.iter().filter(|a|a.repository_id==*id).map(|a|a.id.clone()).collect();s.repositories.retain(|r|r.id!=*id);s.jobs.retain(|j|j.repository_id!=*id);s.answers.retain(|a|a.repository_id!=*id);s.features.retain(|f|f.repository_id!=*id);s.observations.retain(|o|o.repository_id!=*id);s.investigations.retain(|i|i.repository_id!=*id);s.plans.retain(|p|p.repository_id!=*id);s.concept_reviews.retain(|c|c.repository_id!=*id);s.reviews.retain(|r|!removed.contains(&r.answer_id));for w in &mut s.workspaces{w.answer_ids.retain(|a|!removed.contains(a));if w.active_answer.as_ref().is_some_and(|a|removed.contains(a)){w.active_answer=None;}}Ok(())})?;Ok(json!({"deleted":true,"scope":"Derived workspace records deleted; connected source files were not changed"}))},
  ("POST",["api","repositories",id,"index"])=>Ok(json!(self.start_job(id)?)),
  ("GET",["api","repositories",id])=>{let s=self.storage.read()?;let r=s.repositories.iter().find(|r|r.id==*id).ok_or_else(not_found)?;let latest=r.revisions.last();Ok(json!({"id":r.id,"name":r.name,"revision":latest.map(|v|&v.id),"gitHead":latest.and_then(|v|v.git_head.clone()),"freshness":latest.map(|v|repository::freshness(r,v)).unwrap_or("notIndexed"),"coverage":latest.map(|v|&v.snapshot.coverage),"evidence":latest.map(|v|&v.snapshot.evidence),"skipped":latest.map(|v|&v.skipped),"symbolCount":latest.map(|v|v.snapshot.symbols.len()).unwrap_or(0)}))},
  ("POST",["api","jobs",id,"cancel"])=>{self.storage.transaction(|s|{let j=s.jobs.iter_mut().find(|j|j.id==*id).ok_or_else(not_found)?;if j.active(){j.state="cancelling".into();j.issue=Some("Cancellation requested. Active analysis may continue until its budget ends; publication is blocked.".into());}Ok(json!(j))})},
@@ -83,7 +86,8 @@ if s.repositories.iter().find(|r|r.id==req.repository_id).and_then(|r|r.revision
  ("POST",["api","reviews"])=>{
  #[derive(Deserialize)]#[serde(rename_all="camelCase",deny_unknown_fields)]struct Feedback{answer_id:String,item_id:String,verdict:String,reason:String}
  let r:Feedback=parse(body)?;validate_text(&r.reason,2000)?;if r.reason.trim().len()<5||!["confirm","dispute","refute"].contains(&r.verdict.as_str()){return Err(Error::new(400,"INVALID_REVIEW","Choose confirm, dispute or refute and give a meaningful explanation"))}
- self.storage.transaction(|s|{let a=s.answers.iter().find(|a|a.id==r.answer_id).ok_or_else(not_found)?;if !a.items.iter().any(|i|i.id==r.item_id){return Err(Error::new(400,"UNKNOWN_ITEM","Claim not in this answer"))}s.reviews.push(Review{answer_id:r.answer_id.clone(),item_id:r.item_id,verdict:r.verdict,reason:r.reason,created_ns:now()});Ok(())})?;Ok(json!(answers::render(&self.storage.read()?,&r.answer_id)?))
+ self.storage.transaction(|s|{let a=s.answers.iter().find(|a|a.id==r.answer_id).ok_or_else(not_found)?;if !a.items.iter().any(|i|i.id==r.item_id){return Err(Error::new(400,"UNKNOWN_ITEM","Claim not in this answer"))}
+if r.item_id.starts_with("concept:"){s.concept_reviews.push(ConceptReview{repository_id:a.repository_id.clone(),revision_id:a.revision_id.clone(),item_id:r.item_id.clone(),verdict:r.verdict.clone(),reason:r.reason.clone(),created_ns:now()});}s.reviews.push(Review{answer_id:r.answer_id.clone(),item_id:r.item_id,verdict:r.verdict,reason:r.reason,created_ns:now()});Ok(())})?;Ok(json!(answers::render(&self.storage.read()?,&r.answer_id)?))
  },
  ("POST",["api","workspaces"])=>{
  #[derive(Deserialize)]#[serde(rename_all="camelCase",deny_unknown_fields)]struct Save{name:String,answer_ids:Vec<String>,active_answer:Option<String>}

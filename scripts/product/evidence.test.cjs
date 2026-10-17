@@ -19,7 +19,7 @@ test('node:export-caveats: exact revision, unknowns and inference survive markdo
 test('node:story-register: all 147 IDs, no unsupported completion, named checks',()=>{
  const rows=JSON.parse(fs.readFileSync(path.join(__dirname,'../../cie-server/web/stories.json')));
  assert.equal(rows.length,147);assert.equal(new Set(rows.map(r=>r.id)).size,147);
- rows.forEach((r,i)=>{assert.equal(r.id,`US-${String(i+1).padStart(3,'0')}`);assert.ok(['complete','partial','pending'].includes(r.status));if(r.status!=='pending')assert.ok(r.evidence.length);if(r.status==='complete')assert.ok(['US-143'].includes(r.id));});
+ rows.forEach((r,i)=>{assert.equal(r.id,`US-${String(i+1).padStart(3,'0')}`);assert.ok(['complete','partial','pending'].includes(r.status));if(r.status!=='pending')assert.ok(r.evidence.length);if(r.status==='complete')assert.ok(['US-007','US-056','US-143'].includes(r.id));});
 });
 test('node:theme-contrast: text AA and essential controls meet contrast in all themes',()=>{
  const css=fs.readFileSync(path.join(__dirname,'../../cie-server/web/style.css'),'utf8');

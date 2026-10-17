@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+pub const FRESHNESS_SCOPE: &str = "Freshness compares indexed supported source files and Git HEAD; it does not establish freshness of skipped configuration, external systems or runtime observations.";
 pub const MAX_FILES: usize = 2000;
 pub const MAX_BYTES: usize = 16 * 1024 * 1024;
 #[derive(Debug)]

@@ -641,6 +641,10 @@ fn generated_sample_has_real_dated_synthetic_history_without_mutating_user_sourc
     let id = sample["repository"]["id"].as_str().unwrap();
     let root = PathBuf::from(sample["repository"]["path"].as_str().unwrap());
     assert!(root.join(".git").exists());
+    assert!(root.join("domain/cart.py").exists());
+    assert!(root.join("web/checkout.ts").exists());
+    assert!(root.join("web/format.js").exists());
+    assert!(root.join("gateway/PaymentGateway.java").exists());
     assert!(!f.root.join(".git").exists());
     assert_eq!(fs::read(f.root.join("auth.py")).unwrap(), before);
     let history = f.call("GET", &format!("/api/repositories/{id}/history"), json!({}));
@@ -893,4 +897,119 @@ fn question_request_ids_deduplicate_and_refuse_changed_input_or_revision() {
             .code,
         "REVISION_CHANGED"
     );
+}
+
+#[test]
+fn naming_anomaly_compares_promised_permission_check_with_observed_printing() {
+    let f = Fixture::new();
+    fs::write(f.root.join("auth.py"),"def authorize(amount):\n    print('hello world')\n\ndef checkout(amount):\n    return authorize(amount)\n").unwrap();
+    let repo = f.connect();
+    f.index(&repo);
+    let naming = f.ask(&repo, "naming mismatch");
+    let items = naming["answer"]["items"].as_array().unwrap();
+    assert!(!items.is_empty());
+    let issue = items
+        .iter()
+        .find(|i| i["label"].as_str().unwrap().contains("authorize"))
+        .unwrap();
+    assert_eq!(issue["claimClass"], "analyzerInference");
+    assert!(issue["detail"]["promisedByName"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a == "CheckPermission"));
+    assert!(issue["detail"]["observedEffects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a == "print"));
+    assert!(issue["detail"]["scope"]
+        .as_str()
+        .unwrap()
+        .contains("confirmed violation needs an established obligation"));
+    assert!(issue["citations"][0]["excerpt"]
+        .as_str()
+        .unwrap()
+        .contains("hello world"));
+    let behavior = f.ask(&repo, "what does authorize do");
+    assert!(behavior["answer"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|i| i["label"].as_str().unwrap().contains("print")));
+    let rules = f.ask(&repo, "rules");
+    for item in rules["answer"]["items"].as_array().unwrap() {
+        assert_eq!(item["claimClass"], "analyzerInference");
+        assert!(item["detail"]["scope"]
+            .as_str()
+            .unwrap()
+            .contains("business approval"));
+    }
+}
+#[test]
+fn refuted_concept_remains_withheld_across_answers_and_answer_deletion() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let first = f.ask(&repo, "concepts");
+    let second = f.ask(&repo, "concepts");
+    let item = first["answer"]["items"][0]["id"].as_str().unwrap();
+    let first_id = first["answer"]["id"].as_str().unwrap();
+    let second_id = second["answer"]["id"].as_str().unwrap();
+    f.call("POST","/api/reviews",json!({"answerId":first_id,"itemId":item,"verdict":"refute","reason":"This grouping does not match the approved domain"}));
+    let view = f.call("GET", &format!("/api/answers/{second_id}"), json!({}));
+    assert_eq!(view["hiddenClaims"], 1);
+    assert!(view["answer"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|i| i["id"] != item));
+    f.call("DELETE", &format!("/api/answers/{first_id}"), json!({}));
+    let fresh = f.ask(&repo, "concepts");
+    assert_eq!(fresh["hiddenClaims"], 1);
+    let unrelated = f.ask(&repo, "overview");
+    assert_eq!(unrelated["hiddenClaims"], 0);
+    assert_eq!(unrelated["challenged"], false);
+    let statistics = f.call(
+        "GET",
+        &format!("/api/concept-reviews/{repo}/{rev}"),
+        json!({}),
+    );
+    assert_eq!(statistics["reviewedUniqueCards"], 1);
+    assert_eq!(statistics["agreementSummaryAvailable"], false);
+    assert_eq!(statistics["calibratedProbabilityAvailable"], false);
+    let restored=f.call("POST","/api/reviews",json!({"answerId":second_id,"itemId":item,"verdict":"confirm","reason":"Restored after checking domain membership"}));
+    assert_eq!(restored["hiddenClaims"], 0);
+    for i in restored["answer"]["items"].as_array().unwrap() {
+        assert_eq!(i["claimClass"], "analyzerInference");
+    }
+}
+#[test]
+fn concept_answer_respects_display_cap() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    f.app
+        .storage
+        .transaction(|s| {
+            let nodes = &mut s.repositories[0].revisions[0].snapshot.concepts.nodes;
+            let node = nodes[0].clone();
+            *nodes = (0..501)
+                .map(|id| {
+                    let mut n = node.clone();
+                    n.id = id;
+                    n.parent = None;
+                    n
+                })
+                .collect();
+            Ok(())
+        })
+        .unwrap();
+    let answer = f.ask(&repo, "concepts");
+    assert_eq!(answer["answer"]["items"].as_array().unwrap().len(), 500);
+    assert!(answer["answer"]["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g.as_str().unwrap().contains("500")));
 }
