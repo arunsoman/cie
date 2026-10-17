@@ -205,3 +205,42 @@ record (verdict: **done** for all rows).
   conjunctive unary language); `smt-z3` links system libz3 via C FFI as specified.
 - Perf timings use batched per-op measurement to defeat vDSO clock-read noise on
   virtualized hosts; gated paths allocate nothing (§15.5).
+
+## 6. CIE-VIZ-MULTI visualization platform (post-1.0 feature)
+
+The multi-engine visualization PRD (CIE-VIZ-MULTI) ships as `cie-viz`
+(Rust producer) + `viz-adapter/` (TypeScript engines) + the `cie viz` CLI
+subcommand. Full record: `docs/VIZ-MULTI.md`.
+
+| PRD item | Named test |
+|---|---|
+| VIZ-01 gate before any engine | `viz-adapter/test/adapter.gate.spec.ts` + `cie-viz/src/gate.rs` |
+| VIZ-02 semanticHash stable across layout/engine swaps | `test/hash.split.spec.ts` + `cie-viz/src/hash.rs` |
+| VIZ-03 renderHash changes across layout/engine swaps | `test/hash.render.spec.ts` |
+| VIZ-04 negotiator pure | `test/negotiator.spec.ts` |
+| VIZ-05/06 preference honoured / disclosed-blocked | `test/negotiator.spec.ts` |
+| VIZ-07 size limits exclude engines | `test/negotiator.spec.ts` |
+| VIZ-08 fisheye restricts to G6 | `test/negotiator.spec.ts` |
+| VIZ-09 no adapter without negotiator | `test/negotiator.spec.ts` (spy + typed error) |
+| VIZ-10 CIE output has no engine id | `test/schema.no-engine.spec.ts` + `produce.rs::produced_spec_names_no_engine` |
+| VIZ-12 flame graph via custom layout+node | `test/tc02.flame.spec.ts` (pure geometry, PRD §16 assertions) + `demos/flame-graph.html` |
+| VIZ-13 mermaid sequence diagram | `test/tc03.sequence-mermaid.spec.ts` |
+| VIZ-16 same spec, two engines, identical ids | `test/tc06.parity.spec.ts` |
+| VIZ-17 layout substitution disclosed | `test/tc06.parity.spec.ts` + `layoutChip()` |
+| VIZ-18 mermaid fidelity Degraded + surfaced | `test/tc03.sequence-mermaid.spec.ts` |
+| VIZ-19 text outline authoritative when degraded | `test/outline.authoritative.spec.ts` |
+| VIZ-21 fisheye false outside G6 | `test/tc06.parity.spec.ts` |
+| VIZ-23/25 catalog renders + audit (structural) | `test/catalog.audit.spec.ts` (76 entries) |
+| VIZ-27 new chart = registration only | `test/extension.ui.spec.ts` |
+| VIZ-28/29/30 UI disclosures | `test/extension.ui.spec.ts` (`engineBanner`/`layoutChip`/`fidelityBanner`) |
+| Bridge seal (Rust sha2 ↔ Node crypto on REAL output) | `test/cross-language.hash.spec.ts` + `fixtures/specs/cie-sample.json` |
+| Browser-bound (Playwright host): VIZ-11/14/15/20/22/24/26 | `viz-adapter/demos/*.html` pages provided |
+
+**Totals: Rust workspace 222 tests green (incl. 24 cie-viz); TypeScript
+259 vitest + strict tsc green.**
+
+Documented deviations (see `docs/VIZ-MULTI.md` §9): renderHash sealed
+engine-neutral by CIE (VIZ-10); `hidden[]` outside the semantic hash
+(PRD §3 domain list); catalog counts resolved to the internally
+consistent 69/4/3 (PRD Part IX's explicit custom four); browser-bound
+ledger items ship as runnable demo pages.
