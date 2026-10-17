@@ -13,10 +13,12 @@ pub mod predicates;
 pub mod conformance;
 pub mod fca;
 pub use cie_contract::findings;
+pub use steps::{transaction_walk, StepKind, TransactionStep, TransactionWalk};
 pub use pathcond::{PathCond, PathCondition, PathCondExtraction, Pred, Cmp};
 pub mod hierarchy;
 pub mod ifds;
 pub mod risk;
+pub mod steps;
 pub mod security;
 pub mod testing;
 
