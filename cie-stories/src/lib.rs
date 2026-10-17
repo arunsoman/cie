@@ -15,6 +15,7 @@
 //! * partial coverage stays visible ("matched so far" semantics).
 
 pub mod catalog;
+pub mod checks;
 pub mod coverage;
 pub mod registry;
 pub mod verify;
@@ -27,6 +28,12 @@ pub use catalog::{
 pub use coverage::{CoverageReport, SectionRollup, StoryCoverage};
 pub use registry::{Disposition, Entry, REGISTRY};
 pub use verify::{Verdict, verify_story};
+
+/// Deep checks available so far (batches land section by section).
+pub const DEEP_CHECKS: &[&str] = &[
+    "US-001", "US-002", "US-003", "US-004", "US-006", "US-008", "US-011", "US-013", "US-014",
+    "US-015", "US-016", "US-017",
+];
 
 /// Total number of stories in the catalogue (147).
 pub const STORY_COUNT: usize = STORIES.len();
@@ -46,6 +53,35 @@ mod tests {
     #[test]
     fn story_count_matches_catalogue() {
         assert_eq!(STORY_COUNT, 147);
+    }
+
+    #[test]
+    fn deep_check_ids_all_have_checks() {
+        for id in DEEP_CHECKS {
+            assert!(
+                checks::deep_check(id).is_some(),
+                "DEEP_CHECKS lists {id} but dispatch returns None"
+            );
+        }
+    }
+
+    /// Every deep check must pass against the real engine. One failure names
+    /// the story and the honest error — no check is skipped silently.
+    #[test]
+    fn all_deep_checks_pass() {
+        let mut failures = vec![];
+        for id in DEEP_CHECKS {
+            match checks::deep_check(id) {
+                Some(Ok(())) => {}
+                Some(Err(e)) => failures.push(format!("{id}: {e}")),
+                None => failures.push(format!("{id}: dispatch returned None")),
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "deep check failures:\n{}",
+            failures.join("\n")
+        );
     }
 
     #[test]

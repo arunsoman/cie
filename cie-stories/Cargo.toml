@@ -9,3 +9,13 @@ description = "User-story capability layer: the product user-story catalogue as 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+cie-core = { path = "../cie-core" }
+cie-semantic = { path = "../cie-semantic" }
+cie-ingest = { path = "../cie-ingest" }
+cie-incremental = { path = "../cie-incremental" }
+cie-claims = { path = "../cie-claims" }
+cie-drift = { path = "../cie-drift" }
+cie-analysis = { path = "../cie-analysis" }
+cie-llm = { path = "../cie-llm" }
+cie-store = { path = "../cie-store" }
+cie-fault = { path = "../cie-fault" }

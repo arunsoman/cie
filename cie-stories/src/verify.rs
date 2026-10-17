@@ -17,14 +17,20 @@ pub enum Verdict {
     },
     /// Deep engine check ran and passed (carries the check's name).
     Pass { story: &'static str, check: &'static str },
+    /// Deep engine check ran and FAILED — the honest result.
+    Fail {
+        story: &'static str,
+        check: &'static str,
+        error: String,
+    },
     /// Story is planned — nothing to verify; the reason is the point.
     Planned { story: &'static str, reason: &'static str },
     /// Unknown story id.
     Unknown { id: String },
 }
 
-/// Verify one story by id ("US-042"). Deep checks are dispatched per story;
-/// until a section's suite lands, the registry audit is the verdict.
+/// Verify one story by id ("US-042"): Planned → Planned; deep-checked →
+/// run the engine check; otherwise → registry audit.
 pub fn verify_story(id: &str) -> Verdict {
     let Some(story) = crate::catalog::Story::by_id(id) else {
         return Verdict::Unknown { id: id.to_string() };
@@ -37,11 +43,24 @@ pub fn verify_story(id: &str) -> Verdict {
             story: story.id,
             reason: entry.note,
         },
-        Disposition::Delivered | Disposition::Partial => Verdict::AuditPass {
-            story: story.id,
-            disposition: entry.disposition.as_str(),
-            evidence_count: entry.capabilities.len(),
-        },
+        Disposition::Delivered | Disposition::Partial => {
+            match crate::checks::deep_check(id) {
+                Some(Ok(())) => Verdict::Pass {
+                    story: story.id,
+                    check: "deep/engine-v1",
+                },
+                Some(Err(e)) => Verdict::Fail {
+                    story: story.id,
+                    check: "deep/engine-v1",
+                    error: e,
+                },
+                None => Verdict::AuditPass {
+                    story: story.id,
+                    disposition: entry.disposition.as_str(),
+                    evidence_count: entry.capabilities.len(),
+                },
+            }
+        }
     }
 }
 
@@ -66,8 +85,22 @@ mod tests {
 
     #[test]
     fn verify_known_and_unknown_ids() {
-        assert!(matches!(verify_story("US-001"), Verdict::AuditPass { .. }));
+        assert!(matches!(verify_story("US-001"), Verdict::Pass { .. }));
         assert!(matches!(verify_story("US-005"), Verdict::Planned { .. }));
         assert!(matches!(verify_story("US-999"), Verdict::Unknown { .. }));
+    }
+
+    #[test]
+    fn verify_failures_are_honest() {
+        // DeepFail carries the error text; AuditPass remains for audit-only
+        // stories; no story ever silently passes.
+        for v in verify_all() {
+            match v {
+                Verdict::Fail { story, error, .. } => {
+                    panic!("deep check failed for {story}: {error}");
+                }
+                _ => {}
+            }
+        }
     }
 }

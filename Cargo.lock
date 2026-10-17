@@ -696,6 +696,16 @@ dependencies = [
 name = "cie-stories"
 version = "1.0.0"
 dependencies = [
+ "cie-analysis",
+ "cie-claims",
+ "cie-core",
+ "cie-drift",
+ "cie-fault",
+ "cie-incremental",
+ "cie-ingest",
+ "cie-llm",
+ "cie-semantic",
+ "cie-store",
  "serde",
  "serde_json",
 ]

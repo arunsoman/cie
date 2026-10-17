@@ -885,6 +885,9 @@ fn run_stories(cmd: StoriesCmd) -> i32 {
                         Verdict::Pass { story, check } => {
                             println!("{story}: pass ({check})");
                         }
+                        Verdict::Fail { story, check, error } => {
+                            println!("{story}: FAIL ({check}) — {error}");
+                        }
                         Verdict::Planned { story, reason } => {
                             println!("{story}: planned — {reason}");
                         }
