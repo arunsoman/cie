@@ -2,10 +2,14 @@
 //! verification to reports, reverse drift, reconciliation, deltas, SARIF
 //! serialization and the human/mermaid renderers.
 
+pub mod causal;
 pub mod outputs;
 pub mod persist;
 pub mod pipeline;
 
+pub use causal::{
+    assemble_causal_explanation, AlternativeCause, CausalExplanation, CausalLink, ChronoEvent,
+};
 pub use persist::DriftStoreExt;
 
 pub mod sarif;
