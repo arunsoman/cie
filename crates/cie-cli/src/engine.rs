@@ -474,7 +474,26 @@ pub fn run_drift(
     verify_deadline_ns: Option<Ns>,
     inject_timeout: bool,
 ) -> std::io::Result<(cie_core::drift::DriftReport, IngestOutcome)> {
-    let outcome = materialize(run_ingest(project, opts)?)?;
+    let raw = run_ingest(project, opts)?;
+
+    // TASK-076 / acc #24: identical code + identical docs ⇒ reuse the
+    // persisted drift report (re-run ≤ 5% of first-run wall time). Code
+    // identity is the sorted (path, content hash) file index — cheap to
+    // read, no snapshot reload. Timeout injection bypasses the cache (it
+    // exists to test the live path).
+    let drift_store = Store::open(project)?;
+    let cache_key_str = drift_cache_key(&drift_store, docs)?;
+    if !inject_timeout {
+        if let Some(cached) = drift_store.load_drift_cache_entry(&cache_key_str)? {
+            if cached.rev == raw.rev {
+                // Cache hit: skip materialize — the caller gets the report;
+                // the un-materialized outcome carries rev/project only.
+                return Ok((cached, raw));
+            }
+        }
+    }
+
+    let outcome = materialize(raw)?;
     let now = now_ns();
 
     let mut claims = vec![];
@@ -518,7 +537,33 @@ pub fn run_drift(
     );
     let store = Store::open(project)?;
     store.save_drift(&report)?;
+
+    // Persist the cache entry for the next identical re-run (acc #24).
+    if !inject_timeout {
+        store.save_drift_cache_entry(&cache_key_str, &report)?;
+    }
     Ok((report, outcome))
+}
+
+/// acc #24 cache key: blake3 over the sorted (path, content hash) file index
+/// (code identity) plus every doc's name+content (docs identity).
+fn drift_cache_key(store: &Store, docs: &[(String, String)]) -> std::io::Result<String> {
+    let index = store.load_index()?.unwrap_or_default();
+    let mut code_bytes: Vec<u8> = vec![];
+    for rec in index.files.values() {
+        code_bytes.extend_from_slice(rec.path.as_bytes());
+        code_bytes.extend_from_slice(&rec.hash);
+    }
+    let code_hash = content_hash(&code_bytes);
+    let mut docs_bytes: Vec<u8> = vec![];
+    for (name, content) in docs {
+        docs_bytes.extend_from_slice(name.as_bytes());
+        docs_bytes.extend_from_slice(content.as_bytes());
+    }
+    let docs_hash = content_hash(&docs_bytes);
+    let mut key_bytes = code_hash.to_vec();
+    key_bytes.extend_from_slice(&docs_hash);
+    Ok(cie_core::types::hash_hex(&content_hash(&key_bytes)))
 }
 
 /// Merge concept DAGs across repositories (FR-46 / CAP-16, acceptance #37).

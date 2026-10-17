@@ -311,6 +311,25 @@ impl Store {
         Ok(revs)
     }
 
+    // ---- TASK-076 acc #24: drift re-run cache keyed (code hash, docs hash).
+    // One file per key (`drift_cache/{key}.json`) so a cache hit parses a
+    // single report, not the whole cache.
+
+    /// Cached full drift report: identical code + identical docs ⇒ the
+    /// re-run reuses the persisted report (≤ 5% of first-run wall time).
+    pub fn load_drift_cache_entry(
+        &self,
+        key: &str,
+    ) -> std::io::Result<Option<DriftReport>> {
+        // Keys are lowercase hex — safe as file names.
+        self.read_json(&self.root.join("drift_cache").join(format!("{key}.json")))
+    }
+
+    pub fn save_drift_cache_entry(&self, key: &str, report: &DriftReport) -> std::io::Result<()> {
+        let path = self.root.join("drift_cache").join(format!("{key}.json"));
+        self.write_json(&path, report)
+    }
+
     pub fn save_drift(&self, report: &DriftReport) -> std::io::Result<()> {
         self.write_json(
             &self
