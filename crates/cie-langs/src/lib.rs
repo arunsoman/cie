@@ -10,7 +10,7 @@ pub mod python;
 pub mod resolution;
 
 use cie_core::facts::{Callee, ImportFact, LangFacts, SymbolFact, SymbolStore};
-use cie_core::types::{LangId, SymbolId};
+use cie_core::types::{FileId, LangId, SymbolId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -91,7 +91,7 @@ pub fn extract_project(
 ) -> ExtractedProject {
     let mut all_facts: Vec<LangFacts> = vec![];
     let mut symbols: Vec<SymbolFact> = vec![];
-    let mut next_id: SymbolId = 0;
+    let mut next_id = SymbolId(0);
 
     for (path, _lang, src) in files {
         let Some(adapter) = registry.adapter_for(path) else {
@@ -100,13 +100,13 @@ pub fn extract_project(
         let mut facts = adapter.extract(path, src);
 
         // Assign global ids in file order and rewrite references.
-        let mut map: BTreeMap<u32, SymbolId> = BTreeMap::new();
+        let mut map: BTreeMap<SymbolId, SymbolId> = BTreeMap::new();
         for sym in &mut facts.symbols {
             let local = sym.id;
             sym.id = next_id;
-            sym.loc.file = all_facts.len() as u32;
+            sym.loc.file = FileId(all_facts.len() as u32);
             map.insert(local, next_id);
-            next_id += 1;
+            next_id = SymbolId(next_id.0 + 1);
         }
         rewrite(&mut facts, &map);
         symbols.append(&mut facts.symbols);
@@ -128,8 +128,8 @@ pub struct ExtractedProject {
 }
 
 /// Rewrite local symbol references to global ids.
-fn rewrite(facts: &mut LangFacts, map: &BTreeMap<u32, SymbolId>) {
-    let m = |local: u32| -> SymbolId { map.get(&local).copied().unwrap_or(local) };
+fn rewrite(facts: &mut LangFacts, map: &BTreeMap<SymbolId, SymbolId>) {
+    let m = |local: SymbolId| -> SymbolId { map.get(&local).copied().unwrap_or(local) };
 
     for c in &mut facts.calls {
         c.caller = m(c.caller);

@@ -5,7 +5,7 @@ use cie_analysis::{self, AnalysisConfig};
 use cie_core::facts::SymbolStore;
 use cie_core::types::lang_for_path;
 use cie_core::incremental::{plan_ingest, FileIndex, FileRecord, IngestPlan};
-use cie_core::types::{content_hash, now_ns, Hash, LangId, Ns, RevId};
+use cie_core::types::{content_hash, now_ns, Hash, LangId, Ns, RevId, SymbolId};
 use cie_llm::{Budget, Labeler, OfflineProvider, ProviderKind};
 use cie_storage::{RevSnapshot, Store};
 use std::collections::BTreeMap;
@@ -40,7 +40,7 @@ pub struct IngestOutcome {
     pub snapshot: RevSnapshot,
     pub store: SymbolStore,
     pub project_dir: PathBuf,
-    pub reverse_deps: std::collections::BTreeMap<u32, std::collections::BTreeSet<u32>>,
+    pub reverse_deps: std::collections::BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>>,
     pub test_map: cie_analysis::testing::TestMap,
 }
 
@@ -49,12 +49,12 @@ fn rebuild_graphs(
     store: &SymbolStore,
     summaries: &[cie_core::summary::FunctionSummary],
 ) -> (
-    std::collections::BTreeMap<u32, std::collections::BTreeSet<u32>>,
+    std::collections::BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>>,
     cie_analysis::testing::TestMap,
-    std::collections::BTreeMap<u32, Vec<u32>>,
+    std::collections::BTreeMap<SymbolId, Vec<SymbolId>>,
 ) {
-    let mut callees_of: std::collections::BTreeMap<u32, Vec<u32>> = std::collections::BTreeMap::new();
-    let mut reverse_deps: std::collections::BTreeMap<u32, std::collections::BTreeSet<u32>> =
+    let mut callees_of: std::collections::BTreeMap<SymbolId, Vec<SymbolId>> = std::collections::BTreeMap::new();
+    let mut reverse_deps: std::collections::BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>> =
         std::collections::BTreeMap::new();
     for s in summaries {
         callees_of.insert(s.sym, s.callees.clone());
@@ -205,7 +205,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     let wall = now_ns() - t0;
     let files_list: Vec<String> = current.keys().cloned().collect();
-    let mut file_symbols: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+    let mut file_symbols: BTreeMap<String, Vec<SymbolId>> = BTreeMap::new();
     for sym in &extracted.store.symbols {
         file_symbols
             .entry(sym.loc.path.clone())

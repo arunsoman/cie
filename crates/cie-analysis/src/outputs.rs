@@ -3,6 +3,7 @@
 use cie_core::concept::ConceptDag;
 use cie_core::drift::DriftReport;
 use cie_core::facts::SymbolStore;
+use cie_core::types::SymbolId;
 use cie_core::findings::Finding;
 use std::collections::BTreeMap;
 
@@ -32,7 +33,7 @@ pub fn concepts_markbook(
     dag: &ConceptDag,
     with_behaviors: bool,
     with_rules: bool,
-    symbol_names: &std::collections::BTreeMap<u32, String>,
+    symbol_names: &std::collections::BTreeMap<SymbolId, String>,
 ) -> String {
     let mut out = String::from("# Hierarchical Concept Behavior\n\n");
     if dag.nodes.is_empty() {
@@ -49,7 +50,7 @@ pub fn concepts_markbook(
         out: &mut String,
         with_behaviors: bool,
         with_rules: bool,
-        symbol_names: &std::collections::BTreeMap<u32, String>,
+        symbol_names: &std::collections::BTreeMap<SymbolId, String>,
     ) {
         let Some(node) = dag.nodes.get(id) else { return };
         let indent = "  ".repeat(depth);

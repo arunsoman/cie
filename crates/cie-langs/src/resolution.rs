@@ -69,7 +69,7 @@ fn resolve_one(
     store: &SymbolStore,
     imports: &[ImportFact],
     path: &str,
-    caller: u32,
+    caller: SymbolId,
     callee_text: &str,
     facts: &LangFacts,
 ) -> Callee {

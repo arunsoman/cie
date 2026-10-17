@@ -125,7 +125,7 @@ pub fn build_hierarchy(
     }
 
     // ---- FCA concepts -> UseCase/Subdomain nodes (FcaSubsumption edges) ----
-    let objects: Vec<(u32, BTreeSet<String>)> = behavior
+    let objects: Vec<(SymbolId, BTreeSet<String>)> = behavior
         .summaries
         .iter()
         .filter(|(id, _)| {
@@ -158,7 +158,7 @@ pub fn build_hierarchy(
         n.intent = concept.intent.iter().cloned().collect();
         n.primary_edge = EdgeReason::FcaSubsumption;
         n.provenance = "fca:godin-v1".into();
-        n.symbols = concept.extent.iter().map(|x| *x as SymbolId).collect();
+        n.symbols = concept.extent.iter().map(|x| *x).collect();
         n.confidence = 0.8; // derived concept, mechanical but heuristic scope
         let id = dag.push(n);
         dag.link_child(root, id);
@@ -167,7 +167,7 @@ pub fn build_hierarchy(
         // extent lives in one file (acceptance #30 — multi-parent, traceable).
         let mut per_module: BTreeMap<String, usize> = BTreeMap::new();
         for s in &concept.extent {
-            if let Some(sym) = store.get(*s as SymbolId) {
+            if let Some(sym) = store.get(*s) {
                 *per_module.entry(sym.loc.path.clone()).or_default() += 1;
             }
         }

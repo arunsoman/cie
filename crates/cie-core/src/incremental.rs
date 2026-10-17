@@ -148,7 +148,7 @@ mod tests {
                 hash: h(1),
                 lang: LangId::Python,
                 last_rev: 1,
-                symbols: vec![0],
+                symbols: vec![SymbolId(0)],
             },
         );
         prev.files.insert(
@@ -158,7 +158,7 @@ mod tests {
                 hash: h(2),
                 lang: LangId::Rust,
                 last_rev: 1,
-                symbols: vec![1],
+                symbols: vec![SymbolId(1)],
             },
         );
 
@@ -180,10 +180,13 @@ mod tests {
     fn transitive_callers_bounded() {
         let mut rd = ReverseDeps::default();
         // f3 -> f2 -> f1 ; g -> f1
-        rd.record(1, 2);
-        rd.record(2, 3);
-        rd.record(1, 4);
-        let affected = rd.transitive_callers(&[1]);
-        assert_eq!(affected, BTreeSet::from([2, 3, 4]));
+        rd.record(SymbolId(1), SymbolId(2));
+        rd.record(SymbolId(2), SymbolId(3));
+        rd.record(SymbolId(1), SymbolId(4));
+        let affected = rd.transitive_callers(&[SymbolId(1)]);
+        assert_eq!(
+            affected,
+            BTreeSet::from([SymbolId(2), SymbolId(3), SymbolId(4)])
+        );
     }
 }

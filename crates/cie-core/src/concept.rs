@@ -252,20 +252,20 @@ mod tests {
         dag.link_child(root, c1);
         dag.link_child(root, c2);
         dag.get_mut(c1).unwrap().behaviors = vec![BehaviorRef {
-            summary: 1,
+            summary: SymbolId(1),
             kind: "Add item to cart".into(),
             confidence: 0.9,
         }];
         dag.get_mut(c1).unwrap().coverage_ratio = 0.8;
         dag.get_mut(c2).unwrap().confidence = 0.5;
-        dag.get_mut(c2).unwrap().symbols = vec![7];
+        dag.get_mut(c2).unwrap().symbols = vec![SymbolId(7)];
 
         dag.rollup();
 
         let r = dag.get(root).unwrap();
         assert_eq!(r.behaviors.len(), 1);
-        assert_eq!(r.behaviors[0].summary, 1);
-        assert!(r.symbols.contains(&7));
+        assert_eq!(r.behaviors[0].summary, SymbolId(1));
+        assert!(r.symbols.contains(&SymbolId(7)));
         assert_eq!(r.confidence, 0.5); // weakest link
         assert_eq!(r.coverage_ratio, 0.8); // min coverage
     }

@@ -2,6 +2,7 @@
 
 use cie_cli::engine::{self, IngestOptions};
 use cie_core::drift::DriftStatus;
+use cie_core::types::SymbolId;
 use cie_core::findings::FindingKind;
 use cie_storage::Store;
 use std::fs;
@@ -355,7 +356,7 @@ fn acc27_to_31_concept_behavior() {
     assert!(dag.nodes.iter().all(|n| n.parent.is_some()
         || n.kind == cie_core::concept::ConceptKind::Domain));
 
-    let attached: std::collections::BTreeSet<u32> = dag
+    let attached: std::collections::BTreeSet<SymbolId> = dag
         .nodes
         .iter()
         .flat_map(|n| n.behaviors.iter().map(|b| b.summary))
@@ -368,13 +369,13 @@ fn acc27_to_31_concept_behavior() {
     );
 
     let root = &dag.nodes[0];
-    let module_behaviors: std::collections::BTreeSet<u32> = dag
+    let module_behaviors: std::collections::BTreeSet<SymbolId> = dag
         .nodes
         .iter()
         .filter(|n| n.kind == cie_core::concept::ConceptKind::Module)
         .flat_map(|n| n.behaviors.iter().map(|b| b.summary))
         .collect();
-    let root_behaviors: std::collections::BTreeSet<u32> =
+    let root_behaviors: std::collections::BTreeSet<SymbolId> =
         root.behaviors.iter().map(|b| b.summary).collect();
     assert!(module_behaviors.is_subset(&root_behaviors));
 
@@ -416,7 +417,7 @@ fn acc46_minimum_test_set_computed() {
         .find(|s| s.qual_name == "auth.good_auth")
         .expect("good_auth symbol");
     let affected = cie_analysis::testing::affected_by_change(&outcome.reverse_deps, &[target.id]);
-    let mut changed: Vec<u32> = affected.into_iter().collect();
+    let mut changed: Vec<SymbolId> = affected.into_iter().collect();
     changed.push(target.id);
     let min_tests = cie_analysis::testing::minimum_test_set(&outcome.test_map, &changed);
     assert!(!min_tests.is_empty());

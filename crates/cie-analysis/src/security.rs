@@ -9,7 +9,7 @@
 
 use cie_core::facts::{Callee, BuiltinKind, LangFacts, RhsKind, SinkKind, SymbolStore};
 use cie_core::findings::{Finding, FindingKind};
-use cie_core::types::RevId;
+use cie_core::types::{RevId, SymbolId};
 use regex::Regex;
 use std::collections::BTreeMap;
 
@@ -68,7 +68,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
     // ---- SEC-2 taint-lite (CAP-2.1/2.2) ----
     for facts in per_file {
         // Group per enclosing function.
-        let mut tainted: BTreeMap<u32, std::collections::BTreeSet<String>> = BTreeMap::new();
+        let mut tainted: BTreeMap<SymbolId, std::collections::BTreeSet<String>> = BTreeMap::new();
         for src in &facts.sources {
             tainted.entry(src.symbol).or_default().insert(src.var.clone());
         }

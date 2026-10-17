@@ -9,7 +9,7 @@
 
 use crate::effects;
 use cie_core::facts::*;
-use cie_core::types::{LangId, SourceLocation};
+use cie_core::types::{FileId, LangId, SourceLocation, SymbolId};
 use tree_sitter::{Node, Parser};
 
 pub struct JavaScriptAdapter;
@@ -270,11 +270,11 @@ fn callee_text_of_call(node: Node, lang: LightLang, bytes: &[u8]) -> String {
 struct LightCtx<'a> {
     path: &'a str,
     bytes: &'a [u8],
-    module: u32,
-    class: Option<u32>,
-    func: u32,
+    module: SymbolId,
+    class: Option<SymbolId>,
+    func: SymbolId,
     loop_stack: Vec<(u32, u32)>,
-    next_id: u32,
+    next_id: SymbolId,
     lang: LightLang,
     in_test_file: bool,
 }
@@ -297,11 +297,11 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
     let mut facts = LangFacts::new(path, lang.lang_id(), lang.analyzer());
     facts.unsupported = lang.unsupported();
     facts.symbols.push(SymbolFact {
-        id: 0,
+        id: SymbolId(0),
         kind: SymbolKind::Module,
         name: module_name.clone(),
         qual_name: module_name,
-        loc: SourceLocation::span(0, path, 1, tree.root_node().end_position().row as u32 + 1),
+        loc: SourceLocation::span(FileId(0), path, 1, tree.root_node().end_position().row as u32 + 1),
         lang: lang.lang_id(),
         parent: None,
         rev: 0,
@@ -311,11 +311,11 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
     let mut ctx = LightCtx {
         path,
         bytes,
-        module: 0,
+        module: SymbolId(0),
         class: None,
-        func: 0,
+        func: SymbolId(0),
         loop_stack: vec![],
-        next_id: 1,
+        next_id: SymbolId(1),
         lang,
         in_test_file: path.contains(".test.")
             || path.contains("_test.go")
@@ -328,13 +328,13 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
     facts
 }
 
-fn push_light_symbol(facts: &mut LangFacts, ctx: &mut LightCtx, kind: SymbolKind, name: &str, node: Node) -> u32 {
+fn push_light_symbol(facts: &mut LangFacts, ctx: &mut LightCtx, kind: SymbolKind, name: &str, node: Node) -> SymbolId {
     let id = ctx.next_id;
-    ctx.next_id += 1;
+    ctx.next_id = SymbolId(id.0 + 1);
     let module_name = facts.symbols[0].name.clone();
     let qual = if kind == SymbolKind::Method {
         match ctx.class {
-            Some(c) => format!("{}.{}", facts.symbols[c as usize].qual_name, name),
+            Some(c) => format!("{}.{}", facts.symbols[c.0 as usize].qual_name, name),
             None => format!("{}.{}", module_name, name),
         }
     } else {
@@ -346,7 +346,7 @@ fn push_light_symbol(facts: &mut LangFacts, ctx: &mut LightCtx, kind: SymbolKind
         kind,
         name: name.to_string(),
         qual_name: qual,
-        loc: SourceLocation::span(0, ctx.path, sl, el),
+        loc: SourceLocation::span(FileId(0), ctx.path, sl, el),
         lang: ctx.lang.lang_id(),
         parent: if kind == SymbolKind::Method { ctx.class } else { Some(ctx.module) },
         rev: 0,

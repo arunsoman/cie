@@ -3,10 +3,11 @@
 //! never forced into a single tree (non-goal §4).
 
 use std::collections::BTreeSet;
+use cie_core::types::SymbolId;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Concept {
-    pub extent: BTreeSet<u32>,
+    pub extent: BTreeSet<SymbolId>,
     pub intent: BTreeSet<String>,
     /// Minimal strict super-concepts (parents in lattice order).
     pub parents: Vec<usize>,
@@ -14,7 +15,7 @@ pub struct Concept {
 
 /// Build the concept lattice incrementally (Godin 1995 style).
 /// `objects`: (object id, attribute set). Deterministic for equal input.
-pub fn build_lattice(objects: &[(u32, BTreeSet<String>)]) -> Vec<Concept> {
+pub fn build_lattice(objects: &[(SymbolId, BTreeSet<String>)]) -> Vec<Concept> {
     // Start with the top concept: empty intent (all objects eventually).
     let mut concepts: Vec<Concept> = vec![Concept {
         extent: BTreeSet::new(),
@@ -23,7 +24,7 @@ pub fn build_lattice(objects: &[(u32, BTreeSet<String>)]) -> Vec<Concept> {
     }];
 
     for (oid, attrs) in objects {
-        let mut to_add: Vec<(BTreeSet<u32>, BTreeSet<String>)> = vec![];
+        let mut to_add: Vec<(BTreeSet<SymbolId>, BTreeSet<String>)> = vec![];
         for c in concepts.iter_mut() {
             if attrs.is_superset(&c.intent) {
                 c.extent.insert(*oid);
@@ -136,9 +137,9 @@ mod tests {
     #[test]
     fn lattice_finds_overlapping_concepts() {
         let objects = vec![
-            (1u32, set(&["db_write", "money"])),
-            (2, set(&["db_write", "money", "network"])),
-            (3, set(&["print"])),
+            (SymbolId(1), set(&["db_write", "money"])),
+            (SymbolId(2), set(&["db_write", "money", "network"])),
+            (SymbolId(3), set(&["print"])),
         ];
         let lattice = build_lattice(&objects);
         // Top concept: empty intent, extent {1,2,3}
@@ -149,8 +150,8 @@ mod tests {
             .iter()
             .find(|c| c.intent == set(&["db_write", "money"]))
             .expect("money concept");
-        assert!(m.extent.contains(&1) && m.extent.contains(&2));
+        assert!(m.extent.contains(&SymbolId(1)) && m.extent.contains(&SymbolId(2)));
         // network concept {2}
-        assert!(lattice.iter().any(|c| c.intent.contains("network") && c.extent.contains(&2)));
+        assert!(lattice.iter().any(|c| c.intent.contains("network") && c.extent.contains(&SymbolId(2))));
     }
 }

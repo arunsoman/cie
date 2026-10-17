@@ -302,7 +302,7 @@ pub struct SymbolStore {
     index_qual: BTreeMap<String, SymbolId>,
     index_name: BTreeMap<String, Vec<SymbolId>>,
     index_path: BTreeMap<String, Vec<SymbolId>>,
-    index_parent: BTreeMap<u32, Vec<SymbolId>>,
+    index_parent: BTreeMap<SymbolId, Vec<SymbolId>>,
     /// Symbols whose call resolution is still pending (cross-file).
     pub unresolved: BTreeMap<SymbolId, Vec<String>>,
 }
@@ -336,7 +336,7 @@ impl SymbolStore {
     }
 
     pub fn get(&self, id: SymbolId) -> Option<&SymbolFact> {
-        self.symbols.get(id as usize)
+        self.symbols.get(id.0 as usize)
     }
 
     pub fn resolve_qual(&self, q: &str) -> Option<SymbolId> {
@@ -400,9 +400,9 @@ impl SymbolStore {
     /// Allocate a placeholder id — adapters use `u32::MAX` and the engine
     /// rewrites; this helper exists for tests building stores directly.
     pub fn push(&mut self, mut fact: SymbolFact) -> SymbolId {
-        fact.id = self.symbols.len() as SymbolId;
+        fact.id = SymbolId(self.symbols.len() as u32);
         self.symbols.push(fact);
-        (self.symbols.len() - 1) as SymbolId
+        SymbolId((self.symbols.len() - 1) as u32)
     }
 
     pub fn file_id_of(&self, path: &str) -> FileId {
@@ -412,6 +412,6 @@ impl SymbolStore {
             .iter()
             .find(|s| s.loc.path == path)
             .map(|s| s.loc.file)
-            .unwrap_or(0)
+            .unwrap_or(FileId(0))
     }
 }

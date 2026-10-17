@@ -8,7 +8,7 @@
 
 use crate::effects;
 use cie_core::facts::*;
-use cie_core::types::{LangId, SourceLocation};
+use cie_core::types::{FileId, LangId, SourceLocation, SymbolId};
 use tree_sitter::{Node, Parser};
 
 pub struct PythonAdapter;
@@ -54,11 +54,11 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
 
     // Local symbol 0 = the module.
     facts.symbols.push(SymbolFact {
-        id: 0,
+        id: SymbolId(0),
         kind: SymbolKind::Module,
         name: module_name.clone(),
         qual_name: module_name.clone(),
-        loc: SourceLocation::span(0, path, 1, tree.root_node().end_position().row as u32 + 1),
+        loc: SourceLocation::span(FileId(0), path, 1, tree.root_node().end_position().row as u32 + 1),
         lang: LangId::Python,
         parent: None,
         rev: 0,
@@ -68,12 +68,12 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
     let mut ctx = Ctx {
         path,
         bytes,
-        module: 0,
+        module: SymbolId(0),
         class: None,
-        func: 0,
+        func: SymbolId(0),
         loop_stack: vec![],
         handler_depth: 0,
-        next_id: 1,
+        next_id: SymbolId(1),
     };
 
     let root = tree.root_node();
@@ -84,12 +84,12 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
 struct Ctx<'a> {
     path: &'a str,
     bytes: &'a [u8],
-    module: u32,
-    class: Option<u32>,
-    func: u32,
+    module: SymbolId,
+    class: Option<SymbolId>,
+    func: SymbolId,
     loop_stack: Vec<(u32, u32)>,
     handler_depth: u32,
-    next_id: u32,
+    next_id: SymbolId,
 }
 
 fn text<'a>(node: Node, bytes: &'a [u8]) -> &'a str {
@@ -150,12 +150,12 @@ fn push_symbol(
     name: &str,
     node: Node,
     doc: Option<String>,
-) -> u32 {
+) -> SymbolId {
     let id = ctx.next_id;
-    ctx.next_id += 1;
+    ctx.next_id = SymbolId(id.0 + 1);
     let qual = match (kind, ctx.class) {
         (SymbolKind::Method, Some(cls)) => {
-            format!("{}.{}.{}", facts.symbols[0].name, facts.symbols[cls as usize].name, name)
+            format!("{}.{}.{}", facts.symbols[0].name, facts.symbols[cls.0 as usize].name, name)
         }
         (SymbolKind::Method, None) => {
             format!("{}.{}", facts.symbols[0].name, name)
@@ -165,7 +165,7 @@ fn push_symbol(
                 format!(
                     "{}.{}.{}",
                     facts.symbols[0].name,
-                    facts.symbols[ctx.class.unwrap() as usize].name,
+                    facts.symbols[ctx.class.unwrap().0 as usize].name,
                     name
                 )
             } else {
@@ -179,7 +179,7 @@ fn push_symbol(
         kind,
         name: name.to_string(),
         qual_name: qual,
-        loc: SourceLocation::span(0, ctx.path, sl, el),
+        loc: SourceLocation::span(FileId(0), ctx.path, sl, el),
         lang: LangId::Python,
         parent: match kind {
             SymbolKind::Method => ctx.class,
@@ -241,7 +241,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
             if let Some(body) = node.child_by_field_name("body") {
                 let doc = docstring_of(body, ctx.bytes);
                 if doc.is_some() {
-                    facts.symbols[id as usize].doc = doc;
+                    facts.symbols[id.0 as usize].doc = doc;
                 }
                 let prev_fn = ctx.func;
                 ctx.func = id;

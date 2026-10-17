@@ -11,13 +11,64 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub type Ns = u64; // ns since epoch
 pub type NsDelta = i64; // signed ns
 pub type RevId = u64; // monotonic revision
-pub type FileId = u32;
-pub type SymbolId = u32;
 pub type ConceptNodeId = u32;
 pub type ClaimId = u32;
 pub type ContractId = u32;
 pub type RepoId = u16;
 pub type Hash = [u8; 32]; // blake3
+
+/// §14.1 identity newtypes — `Copy + Hash + Eq + Ord`, no String fields
+/// (§15.5). Serde derives render these transparently (plain `u32`/`u64` on
+/// the wire), so persisted snapshots keep their v0.1 layout.
+macro_rules! identity_newtype {
+    ($(#[$doc:meta])* $name:ident($inner:ty)) => {
+        $(#[$doc])*
+        #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        pub struct $name(pub $inner);
+
+        impl $name {
+            /// Sentinel id used by adapters for not-yet-assigned identities.
+            pub const PLACEHOLDER: $name = $name(<$inner>::MAX);
+            /// Raw inner value (hot-path escape hatch; keep uses rare).
+            pub const fn raw(self) -> $inner {
+                self.0
+            }
+        }
+
+        impl From<$inner> for $name {
+            fn from(v: $inner) -> Self {
+                $name(v)
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}({})", stringify!($name), self.0)
+            }
+        }
+    };
+}
+
+identity_newtype!(
+    /// Stable identity of one code symbol (§14.1, FR-1).
+    SymbolId(u32)
+);
+identity_newtype!(
+    /// Stable identity of one operation/effect (§14.1).
+    OperationId(u32)
+);
+identity_newtype!(
+    /// Stable identity of one SSA value (§14.1).
+    ValueId(u32)
+);
+identity_newtype!(
+    /// Stable identity of one external resource (§14.1).
+    ResourceId(u32)
+);
+identity_newtype!(
+    /// Stable identity of one source file (§14.1).
+    FileId(u32)
+);
 
 /// blake3 digest of the empty input — the TASK-002 known vector. Every
 /// content-addressed table (§15.1 `sym_by_hash:{hash}`, LLM cache FR-25)

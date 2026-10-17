@@ -5,6 +5,7 @@
 pub mod engine;
 
 use clap::{Parser as ClapParser, ValueEnum};
+use cie_core::types::SymbolId;
 use cie_core::types::LangId;
 use cie_llm::ProviderKind;
 use engine::{IngestOptions, IngestOutcome};
@@ -287,7 +288,7 @@ fn run(cli: Cli) -> i32 {
                     OutFormat::Dot => println!("{}", cie_analysis::outputs::concepts_dot(&outcome.snapshot.concepts)),
                     OutFormat::Mermaid => println!("{}", cie_analysis::outputs::concepts_mermaid(&outcome.snapshot.concepts)),
                     _ => {
-                        let names: std::collections::BTreeMap<u32, String> = outcome
+                        let names: std::collections::BTreeMap<SymbolId, String> = outcome
                             .store
                             .symbols
                             .iter()
@@ -385,7 +386,7 @@ fn run(cli: Cli) -> i32 {
                     let affected = cie_analysis::testing::affected_by_change(&outcome.reverse_deps, &[sym.id]);
                     let mut affected = affected;
                     affected.insert(sym.id);
-                    let changed: Vec<u32> = affected.iter().copied().collect();
+                    let changed: Vec<SymbolId> = affected.iter().copied().collect();
                     let min_tests = cie_analysis::testing::minimum_test_set(&outcome.test_map, &changed);
                     let affected_concepts: Vec<String> = outcome
                         .snapshot
