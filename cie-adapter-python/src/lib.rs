@@ -482,11 +482,13 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                 let cond_text = text(cond, ctx.bytes).to_string();
                 let mut vars = vec![];
                 collect_identifiers(cond, ctx.bytes, &mut vars);
+                let (isl, ibe) = span_of(node);
                 facts.ifs.push(IfSite {
                     symbol: ctx.func,
                     line: line_of(node),
                     cond: cond_text,
                     cond_vars: dedup(vars),
+                    loc: SourceLocation::span_bytes(FileId(0), isl, ibe),
                 });
             }
             let mut c = node.walk();
@@ -499,6 +501,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                 .child_by_field_name("body")
                 .map(span_of)
                 .unwrap_or((line_of(node), line_of(node)));
+            let (lsl, lbe) = span_of(node);
             facts.loops.push(LoopSite {
                 symbol: ctx.func,
                 kind: if kind == "for_statement" {
@@ -509,6 +512,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                 line: line_of(node),
                 body_start: bs,
                 body_end: be,
+                loc: SourceLocation::span_bytes(FileId(0), lsl, lbe),
             });
             ctx.loop_stack.push((bs, be));
             walk_children(facts, ctx, node);
