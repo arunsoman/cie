@@ -153,11 +153,11 @@ fn line_of(node: Node) -> u32 {
     node.start_position().row as u32 + 1
 }
 
+/// §14.1 byte span of a node: `(start_byte, end_byte)` straight from
+/// tree-sitter — no position arithmetic needed (TASK-006).
 fn span_of(node: Node) -> (u32, u32) {
-    (
-        node.start_position().row as u32 + 1,
-        node.end_position().row as u32 + 1,
-    )
+    let r = node.byte_range();
+    (r.start as u32, r.end as u32)
 }
 
 /// Name of a function-like node across the four grammars.
@@ -241,11 +241,10 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
         kind: SymbolKind::Module,
         name: module_name.clone(),
         qual_name: module_name,
-        loc: SourceLocation::span(
+        loc: SourceLocation::span_bytes(
             FileId(0),
-            path,
-            1,
-            tree.root_node().end_position().row as u32 + 1,
+            0,
+            tree.root_node().end_byte() as u32,
         ),
         lang: lang.lang_id(),
         parent: None,
@@ -291,13 +290,13 @@ fn push_light_symbol(
     } else {
         format!("{}.{}", module_name, name)
     };
-    let (sl, el) = span_of(node);
+    let (sl, be) = span_of(node);
     facts.symbols.push(SymbolFact {
         id,
         kind,
         name: name.to_string(),
         qual_name: qual,
-        loc: SourceLocation::span(FileId(0), ctx.path, sl, el),
+        loc: SourceLocation::span_bytes(FileId(0), sl, be),
         lang: ctx.lang.lang_id(),
         parent: if kind == SymbolKind::Method {
             ctx.class
@@ -369,7 +368,7 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
                 LightLang::JavaScript | LightLang::TypeScript | LightLang::Tsx
             ) && node.children(&mut node.walk()).any(|c| c.kind() == "async")
         {
-            facts.async_facts.push(AsyncFact {
+            facts.async_facts.push(AsyncSite {
                 symbol: id,
                 kind: AsyncKind::AsyncFn,
                 line: line_of(node),
@@ -428,7 +427,12 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
             return;
         }
         let line = line_of(node);
-        let in_loop = ctx.loop_stack.iter().any(|(s, e)| line >= *s && line <= *e);
+        let (cb, ce) = span_of(node);
+            let in_loop = ctx
+                .loop_stack
+                .iter()
+                // loop_stack entries are §14.1 byte spans (TASK-006)
+                .any(|(s, e)| cb >= *s && ce <= *e);
         let mut arg_vars = vec![];
         if let Some(args) = node.child_by_field_name("arguments") {
             collect_arg_vars(args, ctx.bytes, &mut arg_vars);
@@ -614,14 +618,14 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
     // async / exceptions / throw light facts
     match kind {
         "await_expression" => {
-            facts.async_facts.push(AsyncFact {
+            facts.async_facts.push(AsyncSite {
                 symbol: ctx.func,
                 kind: AsyncKind::Await,
                 line: line_of(node),
             });
         }
         "throw_statement" => {
-            facts.exceptions.push(ExceptionFact {
+            facts.exceptions.push(ExceptionSite {
                 symbol: ctx.func,
                 kind_text: "throw".into(),
                 is_bare: false,
@@ -631,7 +635,7 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
             });
         }
         "panic_expression" | "panic_statement" => {
-            facts.exceptions.push(ExceptionFact {
+            facts.exceptions.push(ExceptionSite {
                 symbol: ctx.func,
                 kind_text: "panic".into(),
                 is_bare: false,
@@ -641,7 +645,7 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
             });
         }
         "go_statement" => {
-            facts.async_facts.push(AsyncFact {
+            facts.async_facts.push(AsyncSite {
                 symbol: ctx.func,
                 kind: AsyncKind::Await,
                 line: line_of(node),

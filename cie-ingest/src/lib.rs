@@ -217,7 +217,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         for c in &facts.calls {
             if let cie_semantic::facts::Callee::Resolved(id) = c.callee {
                 if let Some(sym) = extracted.store.get(id) {
-                    entry.insert(sym.loc.path.clone());
+                    entry.insert(extracted.files.path(sym.loc.file).to_string());
                 }
             }
         }
@@ -233,7 +233,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         let qual_of: BTreeMap<u32, (String, String)> = prev
             .symbols
             .iter()
-            .map(|s| (s.id.0, (s.loc.path.clone(), s.qual_name.clone())))
+            .map(|s| (s.id.0, (extracted.files.path(s.loc.file).to_string(), s.qual_name.clone())))
             .collect();
         for sum in &prev.summaries {
             if let Some((path, qual)) = qual_of.get(&sum.sym.0) {
@@ -320,7 +320,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         if !sym.is_function_like() {
             continue;
         }
-        let key = format!("{}::{}", sym.loc.path, sym.qual_name);
+        let key = format!("{}::{}", extracted.files.path(sym.loc.file), sym.qual_name);
         id_of.insert(key.clone(), sym.id);
         let empty = String::new();
         let buf = fact_bufs.get(&sym.id).unwrap_or(&empty);
@@ -404,7 +404,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let mut file_symbols: BTreeMap<String, Vec<SymbolId>> = BTreeMap::new();
     for sym in &extracted.store.symbols {
         file_symbols
-            .entry(sym.loc.path.clone())
+            .entry(extracted.files.path(sym.loc.file).to_string())
             .or_default()
             .push(sym.id);
     }

@@ -56,13 +56,18 @@ impl SnapshotStoreExt for Store {
             return Ok(0);
         }
         let before = snap.symbols.len();
+        // snap.files is the file table: FileId -> path (TASK-006 spans
+        // carry no path; resolve through the snapshot's own list).
+        let path_of = |f: cie_core::types::FileId| -> &str {
+            snap.files.get(f.0 as usize).map(|s| s.as_str()).unwrap_or("")
+        };
         let dead: std::collections::BTreeSet<cie_core::types::SymbolId> = snap
             .symbols
             .iter()
-            .filter(|s| tomb.contains(&s.loc.path))
+            .filter(|s| tomb.contains(path_of(s.loc.file)))
             .map(|s| s.id)
             .collect();
-        snap.symbols.retain(|s| !tomb.contains(&s.loc.path));
+        snap.symbols.retain(|s| !tomb.contains(path_of(s.loc.file)));
         let mut purged = before - snap.symbols.len();
 
         // Summaries: drop dead summaries, prune orphaned call edges.

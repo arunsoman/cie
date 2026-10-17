@@ -3,7 +3,7 @@
 //! merges them into a `SymbolStore` and resolves cross-file calls.
 
 use crate::lang::LangId;
-use cie_core::types::{FileId, RevId, SourceLocation, SymbolId};
+use cie_core::types::{FileId, FileTable, RevId, SourceLocation, SymbolId};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -143,7 +143,7 @@ pub struct ReturnSite {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExceptionFact {
+pub struct ExceptionSite {
     pub symbol: SymbolId,
     pub kind_text: String,
     pub is_bare: bool,
@@ -258,7 +258,7 @@ pub enum AsyncKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AsyncFact {
+pub struct AsyncSite {
     pub symbol: SymbolId,
     pub kind: AsyncKind,
     pub line: u32,
@@ -274,7 +274,7 @@ pub struct LangFacts {
     pub symbols: Vec<SymbolFact>,
     pub calls: Vec<CallSite>,
     pub returns: Vec<ReturnSite>,
-    pub exceptions: Vec<ExceptionFact>,
+    pub exceptions: Vec<ExceptionSite>,
     pub assignments: Vec<AssignmentFact>,
     pub ifs: Vec<IfSite>,
     pub loops: Vec<LoopSite>,
@@ -282,7 +282,7 @@ pub struct LangFacts {
     pub sources: Vec<SourceSite>,
     pub sinks: Vec<SinkSite>,
     pub imports: Vec<ImportFact>,
-    pub async_facts: Vec<AsyncFact>,
+    pub async_facts: Vec<AsyncSite>,
     /// Constructs this adapter could not model — surfaced in evidence.
     pub unsupported: Vec<String>,
 }
@@ -310,14 +310,14 @@ pub struct TypedFacts {
     pub symbols: Vec<SymbolFact>,
     pub calls: Vec<CallSite>,
     pub returns: Vec<ReturnSite>,
-    pub exceptions: Vec<ExceptionFact>,
+    pub exceptions: Vec<ExceptionSite>,
     pub assignments: Vec<AssignmentFact>,
     pub ifs: Vec<IfSite>,
     pub loops: Vec<LoopSite>,
     pub sources: Vec<SourceSite>,
     pub sinks: Vec<SinkSite>,
     pub imports: Vec<ImportFact>,
-    pub async_facts: Vec<AsyncFact>,
+    pub async_facts: Vec<AsyncSite>,
     pub relations: cie_relations::RelationGraph,
 }
 
@@ -330,22 +330,14 @@ impl TypedFacts {
         self.calls.push(site);
     }
 
-    pub fn push_exception(&mut self, fact: ExceptionFact) {
+    pub fn push_exception(&mut self, fact: ExceptionSite) {
         self.exceptions.push(fact);
     }
 
     /// Deterministic, idempotent dedup: per family, sort by the stable
     /// `(loc, id)` key, then collapse adjacent structural duplicates.
     pub fn dedup(&mut self) {
-        self.symbols.sort_by_key(|s| {
-            (
-                s.loc.path.clone(),
-                s.loc.start_line,
-                s.loc.end_line,
-                s.id,
-                s.kind,
-            )
-        });
+        self.symbols.sort_by_key(|s| (s.loc.file, s.loc.start, s.loc.end, s.id, s.kind));
         self.symbols.dedup();
 
         self.calls
@@ -446,9 +438,13 @@ impl TypedFacts {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SymbolStore {
     pub symbols: Vec<SymbolFact>,
+    /// File-id → path table for the extraction pass that produced the
+    /// symbols (TASK-006: byte spans carry no path; rendering resolves
+    /// through this table).
+    pub files: FileTable,
     index_qual: BTreeMap<String, SymbolId>,
     index_name: BTreeMap<String, Vec<SymbolId>>,
-    index_path: BTreeMap<String, Vec<SymbolId>>,
+    index_path_by_file: BTreeMap<FileId, Vec<SymbolId>>,
     index_parent: BTreeMap<SymbolId, Vec<SymbolId>>,
     /// Symbols whose call resolution is still pending (cross-file).
     pub unresolved: BTreeMap<SymbolId, Vec<String>>,
@@ -456,8 +452,14 @@ pub struct SymbolStore {
 
 impl SymbolStore {
     pub fn build(mut symbols: Vec<SymbolFact>) -> SymbolStore {
+        Self::build_with_files(symbols, FileTable::new())
+    }
+
+    /// Build with the extraction pass's file table (TASK-006).
+    pub fn build_with_files(mut symbols: Vec<SymbolFact>, files: FileTable) -> SymbolStore {
         symbols.sort_by_key(|s| s.id);
         let mut store = SymbolStore {
+            files,
             index_parent: BTreeMap::new(),
             ..Default::default()
         };
@@ -465,11 +467,7 @@ impl SymbolStore {
             let id = s.id;
             store.index_qual.insert(s.qual_name.clone(), id);
             store.index_name.entry(s.name.clone()).or_default().push(id);
-            store
-                .index_path
-                .entry(s.loc.path.clone())
-                .or_default()
-                .push(id);
+            store.index_path_by_file.entry(s.loc.file).or_default().push(id);
             if let Some(p) = s.parent {
                 store.index_parent.entry(p).or_default().push(id);
             }
@@ -490,11 +488,17 @@ impl SymbolStore {
         self.index_name.get(n).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
-    pub fn in_path(&self, path: &str) -> &[SymbolId] {
-        self.index_path
-            .get(path)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+    pub fn in_path(&self, path: &str) -> Vec<SymbolId> {
+        let fid = self
+            .files
+            .paths
+            .iter()
+            .position(|p| p == path)
+            .map(|i| FileId(i as u32));
+        match fid {
+            Some(f) => self.index_path_by_file.get(&f).cloned().unwrap_or_default(),
+            None => Vec::new(),
+        }
     }
 
     pub fn children_of(&self, id: SymbolId) -> &[SymbolId] {
@@ -534,13 +538,18 @@ impl SymbolStore {
             .collect()
     }
 
-    /// Files that declare at least one symbol.
+    /// Files that declare at least one symbol (path via the file table).
     pub fn files(&self) -> BTreeSet<String> {
-        self.symbols.iter().map(|s| s.loc.path.clone()).collect()
+        let mut used: BTreeSet<FileId> = BTreeSet::new();
+        for s in &self.symbols {
+            used.insert(s.loc.file);
+        }
+        used.into_iter().map(|f| self.files.path(f).to_string()).collect()
     }
 
     pub fn file_of(&self, id: SymbolId) -> Option<&str> {
-        self.get(id).map(|s| s.loc.path.as_str())
+        let f = self.get(id).map(|s| s.loc.file)?;
+        Some(self.files.path(f))
     }
 
     /// Allocate a placeholder id — adapters use `u32::MAX` and the engine
@@ -552,12 +561,13 @@ impl SymbolStore {
     }
 
     pub fn file_id_of(&self, path: &str) -> FileId {
-        // Stable small file ids: hash of the path modulo 2^31 is overkill;
-        // derive from module symbol location.
-        self.symbols
-            .iter()
-            .find(|s| s.loc.path == path)
-            .map(|s| s.loc.file)
-            .unwrap_or(FileId(0))
+        // Resolve through the file table (TASK-006: spans carry no path).
+        FileId(
+            self.files
+                .paths
+                .iter()
+                .position(|p| p == path)
+                .unwrap_or(0) as u32,
+        )
     }
 }

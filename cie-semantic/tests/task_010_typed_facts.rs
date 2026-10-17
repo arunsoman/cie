@@ -14,7 +14,7 @@ fn sym_fact(id: u32, kind: SymbolKind) -> SymbolFact {
         kind,
         name: format!("sym{id}"),
         qual_name: format!("mod.sym{id}"),
-        loc: SourceLocation::span(FileId(0), "auth.py", id, id + 10),
+        loc: SourceLocation::span_bytes(FileId(0), id * 8, (id + 1) * 8),
         lang: cie_semantic::LangId::Python,
         parent: None,
         rev: 1,

@@ -8,7 +8,7 @@ pub mod effects;
 pub mod light_engine;
 pub mod resolution;
 
-use cie_core::types::{FileId, SymbolId};
+use cie_core::types::{FileId, FileTable, SymbolId};
 use cie_semantic::facts::{Callee, ImportFact, LangFacts, SymbolFact, SymbolStore};
 use cie_semantic::LangId;
 use std::collections::BTreeMap;
@@ -201,12 +201,17 @@ pub fn extract_project(
     let mut all_facts: Vec<LangFacts> = vec![];
     let mut symbols: Vec<SymbolFact> = vec![];
     let mut next_id = SymbolId(0);
+    let mut table = FileTable::new();
 
     for (path, _lang, src) in files {
         let Some(adapter) = registry.adapter_for(path) else {
             continue;
         };
         let mut facts = adapter.extract(path, src);
+
+        // Intern path + source (line index) in file order so FileId(i)
+        // indexes table entry i (TASK-006: spans carry no path).
+        table.intern_with_source(path, src.as_bytes());
 
         // Assign global ids in file order and rewrite references.
         let mut map: BTreeMap<SymbolId, SymbolId> = BTreeMap::new();
@@ -222,18 +227,21 @@ pub fn extract_project(
         all_facts.push(facts);
     }
 
-    let store = SymbolStore::build(symbols);
+    let store = SymbolStore::build_with_files(symbols, table.clone());
     resolution::resolve_project(&store, &mut all_facts);
 
     ExtractedProject {
         store,
         per_file: all_facts,
+        files: table,
     }
 }
 
 pub struct ExtractedProject {
     pub store: SymbolStore,
     pub per_file: Vec<LangFacts>,
+    /// File table for the pass (path + line index per FileId).
+    pub files: FileTable,
 }
 
 /// Rewrite local symbol references to global ids.

@@ -187,40 +187,126 @@ pub fn hash_from_hex(s: &str) -> Option<Hash> {
     Some(out)
 }
 
-/// Source location. Lines are 1-based, columns 0-based. `path` is the
-/// repo-relative path (kept alongside `file` id for ergonomic rendering).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// §14.1 location: byte offsets into the file identified by `FileId` —
+/// shape EXACTLY `{ file, start, end }` (TASK-006 alignment; the v0.1
+/// path/line/col rendering moved to [`FileTable`], see TRACEABILITY §2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct SourceLocation {
     pub file: FileId,
-    pub path: String,
-    pub start_line: u32,
-    pub end_line: u32,
-    pub start_col: u32,
-    pub end_col: u32,
+    /// Byte offset of the first byte of the span.
+    pub start: u32,
+    /// Byte offset one past the last byte of the span.
+    pub end: u32,
 }
 
 impl SourceLocation {
-    pub fn point(file: FileId, path: impl Into<String>, line: u32) -> Self {
-        SourceLocation {
-            file,
-            path: path.into(),
-            start_line: line,
-            end_line: line,
-            start_col: 0,
-            end_col: 0,
+    /// The §14.1 byte-span constructor.
+    pub fn span_bytes(file: FileId, start: u32, end: u32) -> Self {
+        SourceLocation { file, start, end }
+    }
+
+    /// A zero-width byte span (degenerate facts and tests).
+    pub fn point(file: FileId, at: u32) -> Self {
+        SourceLocation { file, start: at, end: at }
+    }
+
+    /// Length in bytes.
+    pub fn len(&self) -> u32 {
+        self.end.saturating_sub(self.start)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.end <= self.start
+    }
+}
+
+/// File-id -> path table (§15.1 `files` list). One per extraction pass /
+/// snapshot; `FileId(0)` indexes `paths[0]`. Rendering layers resolve
+/// locations through this table instead of carrying paths inside spans.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct FileTable {
+    pub paths: Vec<String>,
+    /// Byte offset of each line start per file (1-based line =
+    /// position + 1). Built by [`FileTable::intern_with_source`]; a plain
+    /// [`FileTable::intern`] entry has an empty index (line_of -> 0).
+    #[serde(default)]
+    pub line_starts: Vec<Vec<u32>>,
+}
+
+impl FileTable {
+    pub fn new() -> Self {
+        FileTable { paths: Vec::new(), line_starts: Vec::new() }
+    }
+
+    /// Intern a path, returning its stable `FileId`.
+    pub fn intern(&mut self, path: impl Into<String>) -> FileId {
+        let path = path.into();
+        if let Some(i) = self.paths.iter().position(|p| p == &path) {
+            FileId(i as u32)
+        } else {
+            self.paths.push(path);
+            self.line_starts.push(Vec::new());
+            FileId((self.paths.len() - 1) as u32)
         }
     }
 
-    pub fn span(file: FileId, path: impl Into<String>, start_line: u32, end_line: u32) -> Self {
-        SourceLocation {
-            file,
-            path: path.into(),
-            start_line,
-            end_line,
-            start_col: 0,
-            end_col: 0,
+    /// Intern a path together with its source bytes, building the line
+    /// index so reports can render byte spans as 1-based lines later.
+    pub fn intern_with_source(&mut self, path: impl Into<String>, src: &[u8]) -> FileId {
+        let fid = self.intern(path);
+        let idx = fid.0 as usize;
+        if self.line_starts[idx].is_empty() {
+            let mut starts = vec![0u32];
+            for (i, &b) in src.iter().enumerate() {
+                if b == b'\n' {
+                    starts.push((i + 1) as u32);
+                }
+            }
+            self.line_starts[idx] = starts;
+        }
+        fid
+    }
+
+    /// 1-based line of a byte offset (0 when no line index exists).
+    pub fn line_of(&self, file: FileId, offset: u32) -> u32 {
+        let idx = match self.line_starts.get(file.0 as usize) {
+            Some(v) if !v.is_empty() => v,
+            _ => return 0,
+        };
+        match idx.binary_search(&offset) {
+            Ok(i) => i as u32 + 1,
+            Err(0) => 1,
+            Err(i) => i as u32,
         }
     }
+
+    /// 1-based line of a location's start (convenience).
+    pub fn line(&self, loc: SourceLocation) -> u32 {
+        self.line_of(loc.file, loc.start)
+    }
+
+    /// Path for a file id (empty string when out of range — never panics).
+    pub fn path(&self, file: FileId) -> &str {
+        self.paths.get(file.0 as usize).map(|s| s.as_str()).unwrap_or("")
+    }
+
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+}
+
+/// 1-based line number of a byte offset within `src` (extraction-time
+/// helper: adapters hold the source bytes, reports do not).
+pub fn line_of(src: &[u8], offset: u32) -> u32 {
+    let off = offset as usize;
+    1 + src[..off.min(src.len())]
+        .iter()
+        .filter(|&&b| b == b'\n')
+        .count() as u32
 }
 
 #[cfg(test)]

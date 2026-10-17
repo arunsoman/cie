@@ -99,7 +99,7 @@ pub fn run(
                     "'{}' is named like an authorization check, has no verification call, prints/logs only, and returns success on every path",
                     sym.name
                 ),
-                evidence_lines: vec![sym.loc.start_line],
+                evidence_lines: vec![store.files.line(sym.loc)],
                 remediation: "Call a real verification primitive (credential lookup, permission check) and propagate its result".into(),
                 authority: Authority::InferredCandidate,
                 rule: "conf/PR-001".into(),
@@ -147,7 +147,7 @@ pub fn run(
                     sym.name,
                     s.returns_constants.iter().collect::<Vec<_>>()
                 ),
-                evidence_lines: vec![sym.loc.start_line],
+                evidence_lines: vec![store.files.line(sym.loc)],
                 remediation: "Return distinct outcomes for failure branches; let callers observe rejection".into(),
                 authority: Authority::InferredCandidate,
                 rule: "conf/PR-002".into(),
@@ -362,7 +362,7 @@ pub fn run(
             "handler",
         ]
         .iter()
-        .any(|p| sym.loc.path.to_ascii_lowercase().contains(p));
+        .any(|p| store.files.path(sym.loc.file).to_ascii_lowercase().contains(p));
         if !ui_layer {
             continue;
         }
@@ -379,8 +379,8 @@ pub fn run(
             store
                 .get(*c)
                 .map(|cs| {
-                    cs.loc.path.to_ascii_lowercase().contains("db")
-                        || cs.loc.path.to_ascii_lowercase().contains("repo")
+                    store.files.path(cs.loc.file).to_ascii_lowercase().contains("db")
+                        || store.files.path(cs.loc.file).to_ascii_lowercase().contains("repo")
                 })
                 .unwrap_or(false)
         });
@@ -400,7 +400,7 @@ pub fn run(
                     sym.qual_name,
                     s.effects.iter().map(|e| e.as_str()).collect::<Vec<_>>()
                 ),
-                evidence_lines: vec![sym.loc.start_line],
+                evidence_lines: vec![store.files.line(sym.loc)],
                 remediation: "Move the query into a data/repository module and call that from the UI layer".into(),
                 authority: Authority::Explicit,
                 rule: "arch/AR-001".into(),

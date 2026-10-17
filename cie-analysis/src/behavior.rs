@@ -161,7 +161,7 @@ pub fn compute_summaries_with_reuse(
         let sid = sym.id;
         let prior = reuse.and_then(|p| {
             // TASK-056: seeding is per-symbol via the dirty worklist.
-            let key = (sym.loc.path.clone(), sym.qual_name.clone());
+            let key = (store.files.path(sym.loc.file).to_string(), sym.qual_name.clone());
             if p.reusable_symbols.contains(&key) {
                 p.prior_summaries.get(&key)
             } else {
@@ -312,9 +312,9 @@ pub fn compute_summaries_with_reuse(
             if !sym.is_function_like() {
                 continue;
             }
-            *path_total.entry(sym.loc.path.as_str()).or_default() += 1;
+            *path_total.entry(store.files.path(sym.loc.file)).or_default() += 1;
             if seeded.contains(&sym.id) {
-                *path_seeded.entry(sym.loc.path.as_str()).or_default() += 1;
+                *path_seeded.entry(store.files.path(sym.loc.file)).or_default() += 1;
             }
         }
         for path in reuse.map(|p| p.current_hashes.keys()).unwrap_or_default() {

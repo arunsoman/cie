@@ -16,7 +16,7 @@ fn task_005_symbol_facts_and_v1_languages() {
         kind: SymbolKind::Function,
         name: "authorize".to_string(),
         qual_name: "auth.authorize".to_string(),
-        loc: SourceLocation::span(FileId(0), "auth.py", 0, 128),
+        loc: SourceLocation::span_bytes(FileId(0), 0, 128),
         lang: LangId::Python,
         parent: None,
         rev: 1,

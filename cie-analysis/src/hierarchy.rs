@@ -79,7 +79,7 @@ pub fn build_hierarchy(
                 n.provenance = "rule:structure".into();
                 n.symbols = vec![sym.id];
                 let id = dag.push(n);
-                if let Some(pn) = module_nodes.get(&sym.loc.path) {
+                if let Some(pn) = module_nodes.get(store.files.path(sym.loc.file)) {
                     dag.link_child(*pn, id);
                 } else {
                     dag.link_child(root, id);
@@ -122,7 +122,7 @@ pub fn build_hierarchy(
         };
         let target: ConceptNodeId = match sym.parent {
             Some(p) if node_of_symbol.contains_key(&p) => node_of_symbol[&p],
-            _ => module_nodes.get(&sym.loc.path).copied().unwrap_or(root),
+            _ => module_nodes.get(store.files.path(sym.loc.file)).copied().unwrap_or(root),
         };
         if let Some(n) = dag.get_mut(target) {
             n.behaviors.push(bref);
@@ -193,7 +193,7 @@ pub fn build_hierarchy(
         let mut per_module: BTreeMap<String, usize> = BTreeMap::new();
         for s in &concept.extent {
             if let Some(sym) = store.get(*s) {
-                *per_module.entry(sym.loc.path.clone()).or_default() += 1;
+                *per_module.entry(store.files.path(sym.loc.file).to_string()).or_default() += 1;
             }
         }
         if let Some((best_path, _)) = per_module.iter().max_by_key(|(_, c)| **c) {
@@ -244,7 +244,7 @@ pub fn build_hierarchy(
                 c.symbols
                     .first()
                     .and_then(|s| store.get(*s))
-                    .and_then(|sym| module_nodes.get(&sym.loc.path).copied())
+                    .and_then(|sym| module_nodes.get(store.files.path(sym.loc.file)).copied())
             })
             .unwrap_or(root);
         dag.link_child(parent, id);

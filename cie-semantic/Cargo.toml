@@ -13,6 +13,6 @@ cie-relations = { workspace = true }
 petgraph = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-rkyv = { workspace = true }
-smallvec = { workspace = true }
+rkyv = { workspace = true, features = ["smallvec-1"] }
+smallvec = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }

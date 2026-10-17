@@ -91,12 +91,7 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
         kind: SymbolKind::Module,
         name: module_name.clone(),
         qual_name: module_name.clone(),
-        loc: SourceLocation::span(
-            FileId(0),
-            path,
-            1,
-            tree.root_node().end_position().row as u32 + 1,
-        ),
+        loc: SourceLocation::span_bytes(FileId(0), 0, tree.root_node().end_byte() as u32),
         lang: LangId::Python,
         parent: None,
         rev: 0,
@@ -138,11 +133,11 @@ fn line_of(node: Node) -> u32 {
     node.start_position().row as u32 + 1
 }
 
+/// §14.1 byte span of a node: `(start_byte, end_byte)` straight from
+/// tree-sitter (TASK-006).
 fn span_of(node: Node) -> (u32, u32) {
-    (
-        node.start_position().row as u32 + 1,
-        node.end_position().row as u32 + 1,
-    )
+    let r = node.byte_range();
+    (r.start as u32, r.end as u32)
 }
 
 /// Normalize a return expression into a constant class.
@@ -214,13 +209,13 @@ fn push_symbol(
             }
         }
     };
-    let (sl, el) = span_of(node);
+    let (sl, be) = span_of(node);
     facts.symbols.push(SymbolFact {
         id,
         kind,
         name: name.to_string(),
         qual_name: qual,
-        loc: SourceLocation::span(FileId(0), ctx.path, sl, el),
+        loc: SourceLocation::span_bytes(FileId(0), sl, be),
         lang: LangId::Python,
         parent: match kind {
             SymbolKind::Method => ctx.class,
@@ -271,7 +266,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
             };
             let id = push_symbol(facts, ctx, s_kind, &name, node, None);
             if is_async {
-                facts.async_facts.push(AsyncFact {
+                facts.async_facts.push(AsyncSite {
                     symbol: id,
                     kind: AsyncKind::AsyncFn,
                     line: line_of(node),
@@ -325,7 +320,12 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
             let fn_node = node.child_by_field_name("function").unwrap_or(node);
             let callee_text = text(fn_node, ctx.bytes).to_string();
             let line = line_of(node);
-            let in_loop = ctx.loop_stack.iter().any(|(s, e)| line >= *s && line <= *e);
+            let (cb, ce) = span_of(node);
+            let in_loop = ctx
+                .loop_stack
+                .iter()
+                // loop_stack entries are §14.1 byte spans (TASK-006)
+                .any(|(s, e)| cb >= *s && ce <= *e);
 
             // Argument variables + whole-args text (for sink/source checks).
             let mut arg_vars = vec![];
@@ -402,7 +402,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                 .next()
                 .unwrap_or("")
                 .to_string();
-            facts.exceptions.push(ExceptionFact {
+            facts.exceptions.push(ExceptionSite {
                 symbol: ctx.func,
                 kind_text,
                 is_bare: false,
@@ -448,7 +448,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                             .last()
                             .map(|b| b.end_position().row as u32 + 1)
                             .unwrap_or(line_of(child));
-                        facts.exceptions.push(ExceptionFact {
+                        facts.exceptions.push(ExceptionSite {
                             symbol: ctx.func,
                             is_bare: type_text.is_empty(),
                             kind_text: type_text,
@@ -628,7 +628,7 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
             });
         }
         "await" => {
-            facts.async_facts.push(AsyncFact {
+            facts.async_facts.push(AsyncSite {
                 symbol: ctx.func,
                 kind: AsyncKind::Await,
                 line: line_of(node),

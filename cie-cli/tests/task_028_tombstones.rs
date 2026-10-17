@@ -9,6 +9,10 @@ use cie_store::Store;
 use std::fs;
 use std::path::PathBuf;
 
+fn files_of(snap: &cie_incremental::RevSnapshot) -> &Vec<String> {
+    &snap.files
+}
+
 fn tmp_dir(name: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("cie-t028-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&d);
@@ -39,12 +43,12 @@ fn task_028_delete_tombstones_and_purges_all_stale_facts() {
         .snapshot
         .symbols
         .iter()
-        .any(|s| s.loc.path == "auth.py"));
+        .any(|s| files_of(&first.snapshot).get(s.loc.file.0 as usize).map(|p| p.as_str()) == Some("auth.py")));
     assert!(first
         .snapshot
         .symbols
         .iter()
-        .any(|s| s.loc.path == "main.py"));
+        .any(|s| files_of(&first.snapshot).get(s.loc.file.0 as usize).map(|p| p.as_str()) == Some("main.py")));
     // main.run resolves auth.authorize → a call edge exists pre-deletion.
     assert!(first
         .snapshot
@@ -68,7 +72,7 @@ fn task_028_delete_tombstones_and_purges_all_stale_facts() {
             .snapshot
             .symbols
             .iter()
-            .any(|s| s.loc.path == "auth.py"),
+            .any(|s| files_of(&second.snapshot).get(s.loc.file.0 as usize).map(|p| p.as_str()) == Some("auth.py")),
         "stale symbols must be purged"
     );
     // No dangling references anywhere: every summary/finding/call edge
@@ -108,7 +112,7 @@ fn task_028_delete_tombstones_and_purges_all_stale_facts() {
         .snapshot
         .symbols
         .iter()
-        .any(|s| s.loc.path == "auth.py"));
+        .any(|s| files_of(&third.snapshot).get(s.loc.file.0 as usize).map(|p| p.as_str()) == Some("auth.py")));
 }
 
 /// TASK-028: purge is idempotent — running the builder again purges nothing.

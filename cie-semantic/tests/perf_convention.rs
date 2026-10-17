@@ -20,7 +20,7 @@ fn measure_lookup_ns_50k_samples() -> f64 {
             kind: cie_semantic::facts::SymbolKind::Function,
             name: format!("fn_{i}"),
             qual_name: format!("mod.fn_{i}"),
-            loc: SourceLocation::point(0.into(), format!("f{i}.py"), i % 400),
+            loc: SourceLocation::point((i % 400).into(), 0),
             lang: LangId::Python,
             parent: None,
             rev: 1,

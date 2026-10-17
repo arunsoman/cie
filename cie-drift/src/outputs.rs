@@ -327,7 +327,7 @@ pub fn drift_markdown(report: &DriftReport, store: &SymbolStore) -> String {
         for r in &report.reverse_drift {
             let path = store
                 .get(r.symbol)
-                .map(|s| s.loc.path.clone())
+                .map(|s| store.files.path(s.loc.file).to_string())
                 .unwrap_or_default();
             out.push_str(&format!("- `{}` ({}) — {}\n", r.qual_name, path, r.reason));
         }

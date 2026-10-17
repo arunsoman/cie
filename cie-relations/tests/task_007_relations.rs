@@ -48,7 +48,7 @@ fn task_007_builder_from_facts() {
         },
         name: qual.rsplit('.').next().unwrap_or(qual).to_string(),
         qual_name: qual.to_string(),
-        loc: SourceLocation::span(FileId(0), "cart.py", 1, 10),
+        loc: SourceLocation::span_bytes(FileId(0), 0, 128),
         lang: cie_semantic::LangId::Python,
         parent: parent.map(SymbolId),
         rev: 1,

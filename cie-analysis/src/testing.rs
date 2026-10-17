@@ -76,7 +76,7 @@ pub fn coverage_gaps(store: &SymbolStore, map: &TestMap, rev: u64) -> Vec<Findin
                 "'{}' is not reached by any test in the analyzed set",
                 sym.qual_name
             ),
-            evidence_lines: vec![sym.loc.start_line],
+            evidence_lines: vec![store.files.line(sym.loc)],
             remediation: "Add a test that exercises this function".into(),
             authority: cie_contract::Authority::Verified,
             rule: "test/TQ-001".into(),

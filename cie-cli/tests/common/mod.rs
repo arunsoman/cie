@@ -220,7 +220,10 @@ pub mod scenarios {
                 .snapshot
                 .symbols
                 .iter()
-                .any(|s| s.loc.path == "auth.py"),
+                .any(|s| {
+                    second.snapshot.files.get(s.loc.file.0 as usize).map(|p| p.as_str())
+                        == Some("auth.py")
+                }),
             "zero symbols may reference a tombstoned file"
         );
     }

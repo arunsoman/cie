@@ -23,8 +23,8 @@ fn task_003_identity_types_and_interners() {
 
     // Sketch: SourceLocation { file: FileId(7), start: 12, end: 34 } —
     // adapted to the rendered-location shape (see header note).
-    let loc = SourceLocation::span(FileId(7), "auth.py", 12, 34);
-    assert!(loc.start_line < loc.end_line);
+    let loc = SourceLocation::span_bytes(FileId(7), 12, 34);
+    assert!(loc.start < loc.end && loc.len() == 22);
     assert_eq!(loc.file, FileId(7));
     // Sketch note: the instructor array mixes four distinct types in one
     // array literal, which Rust cannot compile — the intent (every identity

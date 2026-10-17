@@ -13,7 +13,7 @@ fn build_store(n: u32) -> SymbolStore {
             kind: cie_semantic::facts::SymbolKind::Function,
             name: format!("fn_{i}"),
             qual_name: format!("mod_{i}.fn_{i}"),
-            loc: cie_core::types::SourceLocation::point(0.into(), format!("f{i}.py"), i % 400),
+            loc: cie_core::types::SourceLocation::point((i % 400).into(), 0),
             lang: cie_semantic::LangId::Python,
             parent: None,
             rev: 1,

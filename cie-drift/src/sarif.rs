@@ -27,7 +27,7 @@ pub fn findings_to_sarif(store: &SymbolStore, findings: &[Finding]) -> Value {
         }
         let path = store
             .get(f.symbol)
-            .map(|s| s.loc.path.clone())
+            .map(|s| store.files.path(s.loc.file).to_string())
             .unwrap_or_default();
         let start = f.evidence_lines.first().copied().unwrap_or(1);
         results.push(json!({

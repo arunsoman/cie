@@ -104,7 +104,7 @@ pub fn analyze(
                 "'{}' has no callers in the analyzed graph and is not an entry point",
                 sym.qual_name
             ),
-            evidence_lines: vec![sym.loc.start_line],
+            evidence_lines: vec![store.files.line(sym.loc)],
             remediation: "Remove it or expose it through an entry point/test".into(),
             authority: cie_contract::Authority::Verified,
             rule: "arch/AR-002".into(),
