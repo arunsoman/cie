@@ -5,10 +5,12 @@
 use cie_core::types::{Hash, RevId, SymbolId};
 use cie_semantic::LangId;
 use serde::{Deserialize, Serialize};
+pub mod differential;
 pub mod engine;
 pub mod proptests;
 pub mod snapshot;
 
+pub use differential::{RelationState, RelationTrace};
 pub use engine::{AnalysisStatus, CancellationToken, Checkpoint, Engine, EngineBudget, RunOutcome, WorkItem};
 pub use proptests::{clean_recompute, extract_segments, Edit, IncrWorld, RepoSnapshot, SymInfo};
 pub use snapshot::{RevSnapshot, SnapshotStoreExt};
