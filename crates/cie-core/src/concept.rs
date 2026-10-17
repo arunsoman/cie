@@ -148,7 +148,41 @@ impl ConceptDag {
         self.nodes.get_mut(id as usize)
     }
 
-    pub fn link_child(&mut self, parent: ConceptNodeId, child: ConceptNodeId) {
+    /// TASK-080: cycle-checking edge insertion. Links `child` under
+    /// `parent` with `reason`; rejects with `CieError::Cycle` when the edge
+    /// would close a cycle through the primary-parent ancestor chain
+    /// (merge must yield a DAG, never a graph with cycles — acceptance #29).
+    pub fn try_link_child(
+        &mut self,
+        parent: ConceptNodeId,
+        child: ConceptNodeId,
+        reason: EdgeReason,
+    ) -> Result<(), crate::protocol::CieError> {
+        if parent == child {
+            return Err(crate::protocol::CieError::Cycle(format!(
+                "self-edge on node {parent}"
+            )));
+        }
+        // Walk the ancestor chain of `parent` (primary parents); if `child`
+        // appears, parent→child would close a cycle.
+        let mut cursor = Some(parent);
+        let mut hops = 0usize;
+        while let Some(p) = cursor {
+            if p == child {
+                return Err(crate::protocol::CieError::Cycle(format!(
+                    "edge {parent}->{child} closes a cycle: {child} is an ancestor of {parent}"
+                )));
+            }
+            hops += 1;
+            if hops > self.nodes.len() {
+                // Defensive: corrupted parent chain cannot loop forever (FR-7).
+                return Err(crate::protocol::CieError::Cycle(format!(
+                    "parent chain of {parent} is longer than the node count"
+                )));
+            }
+            cursor = self.get(p).and_then(|n| n.parent);
+        }
+
         if let Some(p) = self.get_mut(parent) {
             if !p.children.contains(&child) {
                 p.children.push(child);
@@ -156,12 +190,25 @@ impl ConceptDag {
         }
         if let Some(c) = self.get_mut(child) {
             if c.parent.is_none() {
+                // primary_edge is set by the caller before push (it carries
+                // the semantically richer reason: FcaSubsumption,
+                // PackageContainment, ...); `reason` here annotates extra
+                // edges only.
                 c.parent = Some(parent);
-            } else if c.parent != Some(parent) && !c.extra_edges.iter().any(|(p, _)| *p == parent)
+            } else if c.parent != Some(parent)
+                && !c.extra_edges.iter().any(|(p, _)| *p == parent)
             {
-                c.extra_edges.push((parent, EdgeReason::ClusterCohesion));
+                c.extra_edges.push((parent, reason));
             }
         }
+        Ok(())
+    }
+
+    /// Legacy void form: links, silently ignoring cycles (pre-TASK-080
+    /// behavior preserved for existing callers). New code should use
+    /// [`ConceptDag::try_link_child`].
+    pub fn link_child(&mut self, parent: ConceptNodeId, child: ConceptNodeId) {
+        let _ = self.try_link_child(parent, child, EdgeReason::ClusterCohesion);
     }
 
     /// FR-43 behavior rollup over the primary-parent spanning tree:

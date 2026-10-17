@@ -43,6 +43,10 @@ pub enum CieError {
     Storage(String),
     #[error("dangling reference: {what}")]
     DanglingReference { what: String },
+    /// TASK-080: a concept-DAG merge would close a cycle (acceptance #29:
+    /// merge yields a DAG, never a cyclic graph).
+    #[error("concept DAG cycle: {0}")]
+    Cycle(String),
 }
 
 impl CieError {
