@@ -3,9 +3,21 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Monotonic nonce so fixture dirs never collide across processes or runs:
+/// container pids recycle between back-to-back `cargo test` invocations, and
+/// a recycled pid reviving a half-deleted `.cie` store turns a fresh ingest
+/// into a ghost no-op (index without snapshot). Time-nonce kills that class.
+static NONCE: AtomicU64 = AtomicU64::new(0);
 
 pub fn tmp_dir(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("cie-us-{name}-{}", std::process::id()));
+    let uniq = NONCE.fetch_add(1, Ordering::SeqCst);
+    let d = std::env::temp_dir().join(format!(
+        "cie-us-{name}-{}-{}",
+        std::process::id(),
+        cie_core::types::now_ns() + uniq,
+    ));
     let _ = fs::remove_dir_all(&d);
     fs::create_dir_all(&d).expect("tmp dir created");
     d

@@ -14,6 +14,7 @@ pub mod s4_catalog;
 pub mod s5_concepts;
 pub mod s6_arch;
 pub mod s7_investigations;
+pub mod s8_runtime;
 
 /// Deep check registry — story id → check.
 pub fn deep_check(id: &str) -> Option<Result<(), String>> {
@@ -79,6 +80,18 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-072" => s7_investigations::us_072,
         "US-074" => s7_investigations::us_074,
         // US-064/066/069/070/071/073: audit-only (covered patterns).
+        // ---- Runtime, history, security, twin (engine subset) ----
+        "US-089" => s8_runtime::us_089,
+        "US-090" => s8_runtime::us_090,
+        "US-091" => s8_runtime::us_091,
+        "US-093" => s8_runtime::us_093,
+        "US-094" => s8_runtime::us_094,
+        "US-095" => s8_runtime::us_095,
+        "US-097" => s8_runtime::us_097,
+        "US-099" => s8_runtime::us_099,
+        "US-103" => s8_runtime::us_103,
+        // US-075..078, 081..088, 092, 096, 098, 100..102: planned or
+        // audit-only (patterns covered by earlier checks).
         _ => return None,
     };
     Some(std::panic::catch_unwind(f).unwrap_or_else(|p| {
@@ -102,7 +115,9 @@ mod tests {
             "US-005", "US-007", "US-009", "US-010", "US-012", "US-020", "US-022", "US-023",
             "US-024", "US-028", "US-037", "US-039", "US-041", "US-043", "US-046", "US-047",
             "US-048", "US-052", "US-059", "US-061", "US-062", "US-063", "US-064", "US-066",
-            "US-069", "US-070", "US-071", "US-073",
+            "US-069", "US-070", "US-071", "US-073", "US-075", "US-076", "US-077", "US-078",
+            "US-080", "US-081", "US-082", "US-083", "US-084", "US-085", "US-086", "US-087",
+            "US-088", "US-092", "US-096", "US-098", "US-100", "US-101", "US-102",
         ] {
             assert!(deep_check(id).is_none(), "{id} has no deep check by design");
         }

@@ -85,22 +85,11 @@ mod tests {
 
     #[test]
     fn verify_known_and_unknown_ids() {
-        assert!(matches!(verify_story("US-001"), Verdict::Pass { .. }));
+        // Deliberately NO deep-checked ids here: all_deep_checks_pass runs
+        // those sequentially; running the same fixture check concurrently
+        // would have two threads building the same tmp dir.
         assert!(matches!(verify_story("US-005"), Verdict::Planned { .. }));
         assert!(matches!(verify_story("US-999"), Verdict::Unknown { .. }));
     }
 
-    #[test]
-    fn verify_failures_are_honest() {
-        // DeepFail carries the error text; AuditPass remains for audit-only
-        // stories; no story ever silently passes.
-        for v in verify_all() {
-            match v {
-                Verdict::Fail { story, error, .. } => {
-                    panic!("deep check failed for {story}: {error}");
-                }
-                _ => {}
-            }
-        }
-    }
 }

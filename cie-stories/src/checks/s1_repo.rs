@@ -84,7 +84,7 @@ pub fn us_004() -> Result<(), String> {
     let a = fixture::python_repo("us004a");
     let b = fixture::python_repo("us004b");
     let opts = cie_ingest::IngestOptions::default();
-    let org = cie_ingest::run_org_ingest(&[a, b], &opts).map_err(|e| e.to_string())?;
+    let org = cie_ingest::run_org_ingest(&[a.clone(), b.clone()], &opts).map_err(|e| e.to_string())?;
     if org.repos.len() != 2 {
         return Err(format!("expected 2 repos, got {}", org.repos.len()));
     }
@@ -92,7 +92,43 @@ pub fn us_004() -> Result<(), String> {
         .merged_concepts
         .iter()
         .find(|m| m.sources.len() == 2)
-        .ok_or("expected at least one concept merged across both repos")?;
+        .ok_or_else(|| {
+            use cie_incremental::SnapshotStoreExt;
+            let dbg = |d: &std::path::Path| {
+                cie_store::Store::open(d)
+                    .ok()
+                    .and_then(|st| {
+                        let rev = st.last_rev();
+                        st.load_snapshot(rev).ok().flatten().map(|s| {
+                            format!(
+                                "rev={} files={} sums={} nodes={}",
+                                s.rev,
+                                s.files.len(),
+                                s.summaries.len(),
+                                s.concepts.nodes.len()
+                            )
+                        })
+                    })
+                    .unwrap_or_else(|| "no-snapshot".into())
+            };
+            let merged_dbg: Vec<(String, usize)> = org
+                .merged_concepts
+                .iter()
+                .map(|m| (m.label.clone(), m.sources.len()))
+                .collect();
+            let disk_a: Vec<String> = std::fs::read_dir(&a)
+                .map(|rd| {
+                    rd.filter_map(|e| e.ok())
+                        .map(|e| e.file_name().to_string_lossy().to_string())
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!(
+                "expected at least one concept merged across both repos; merged={merged_dbg:?}; repo-a[{}]; repo-b[{}]; disk-a={disk_a:?}",
+                dbg(&a),
+                dbg(&b),
+            )
+        })?;
     if merged.label.is_empty() {
         return Err("merged concept must carry its label".into());
     }
