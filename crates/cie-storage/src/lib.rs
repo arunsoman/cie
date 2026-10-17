@@ -146,12 +146,29 @@ impl Store {
     /// Allocate the next revision id and persist it as current.
     pub fn bump_rev(&self) -> std::io::Result<RevId> {
         let next = self.last_rev() + 1;
+        self.commit_rev(next)?;
+        Ok(next)
+    }
+
+    /// RevisionAllocator seeded from the persisted meta head — the TASK-002
+    /// restart-recovery contract: after a process restart the revision chain
+    /// continues strictly monotonically from `rev:{rev_id}:meta` (§15.1).
+    pub fn allocator(&self) -> cie_core::types::RevisionAllocator {
+        cie_core::types::RevisionAllocator::starting_at(self.last_rev())
+    }
+
+    /// Persist `rev` as the new head (only ever moves forward).
+    pub fn commit_rev(&self, rev: RevId) -> std::io::Result<()> {
+        let current = self.last_rev();
+        if rev <= current {
+            return Ok(()); // restart replay: head already advanced
+        }
         let meta = Meta {
-            last_rev: next,
+            last_rev: rev,
             schema_version: 1,
         };
         self.write_json(&self.root.join("meta.json"), &meta)?;
-        Ok(next)
+        Ok(())
     }
 
     pub fn load_index(&self) -> std::io::Result<Option<FileIndex>> {
@@ -273,6 +290,25 @@ mod tests {
         store.save_labels(&labels).unwrap();
         let loaded = store.load_labels().unwrap();
         assert_eq!(loaded.entries["abc"].label, "Authorize user");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn task_002_revision_allocator_restart_recovery() {
+        // TASK-002: last RevId recoverable after restart via the meta head.
+        let root = tmpdir("revalloc");
+        let store = Store::open(&root).unwrap();
+        let a1 = store.allocator();
+        assert_eq!(a1.next(), 1);
+        assert_eq!(a1.next(), 2);
+        store.commit_rev(a1.peek()).unwrap();
+
+        // "Restart": new Store + new allocator seeded from meta.json.
+        let store2 = Store::open(&root).unwrap();
+        let a2 = store2.allocator();
+        assert_eq!(a2.next(), 3, "chain continues strictly monotonically");
+        store2.commit_rev(a2.peek()).unwrap();
+        assert_eq!(store2.last_rev(), 3);
         let _ = fs::remove_dir_all(&root);
     }
 }

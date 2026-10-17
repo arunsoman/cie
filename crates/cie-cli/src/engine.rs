@@ -189,7 +189,11 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
             .label
     };
 
-    let rev = store.bump_rev()?;
+    // TASK-002: revision chain continues from the persisted meta head, so a
+    // process restart never reuses a RevId (§15.1 global rule 7).
+    let rev_alloc = store.allocator();
+    let rev = rev_alloc.next();
+    store.commit_rev(rev)?;
     let cfg = AnalysisConfig {
         deadline_ns: deadline,
         include_coverage_gaps: opts.include_coverage_gaps,
