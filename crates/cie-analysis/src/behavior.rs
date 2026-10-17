@@ -25,6 +25,9 @@ pub struct BehaviorResult {
 pub struct SummaryReuseStats {
     pub reused_files: usize,
     pub recomputed_files: usize,
+    /// TASK-056: symbol-level counters (seeded vs invalidated worklist).
+    pub reused_symbols: usize,
+    pub recomputed_symbols: usize,
 }
 
 /// TASK-030 reuse decision inputs, assembled by the engine from the prior
@@ -42,6 +45,10 @@ pub struct ReusePlan {
     pub current_hashes: BTreeMap<String, [u8; 32]>,
     /// Current dep-set: file -> sorted paths of files its callees live in.
     pub current_deps: BTreeMap<String, BTreeSet<String>>,
+    /// TASK-056: symbols allowed to seed from prior summaries — the clean
+    /// set under the symbol-level dirty worklist (changed symbols and their
+    /// transitive callers are excluded).
+    pub reusable_symbols: BTreeSet<(String, String)>,
 }
 
 impl ReusePlan {
@@ -134,6 +141,7 @@ pub fn compute_summaries_with_reuse(
     let mut summaries: BTreeMap<SymbolId, FunctionSummary> = BTreeMap::new();
     let mut reverse_deps: BTreeMap<SymbolId, BTreeSet<SymbolId>> = BTreeMap::new();
     let mut stats = SummaryReuseStats::default();
+    let mut seeded: BTreeSet<SymbolId> = BTreeSet::new();
 
     // Decide reuse once per file.
     let reusable_paths: BTreeMap<String, bool> = match reuse {
@@ -144,16 +152,6 @@ pub fn compute_summaries_with_reuse(
             .collect(),
         None => BTreeMap::new(),
     };
-    if reuse.is_some() {
-        for reusable in reusable_paths.values() {
-            if *reusable {
-                stats.reused_files += 1;
-            } else {
-                stats.recomputed_files += 1;
-            }
-        }
-    }
-
     // Seed per-function facts. Symbol facts live in the global store;
     // per_file carries the behavior facts keyed by global symbol id.
     for sym in &store.symbols {
@@ -162,9 +160,10 @@ pub fn compute_summaries_with_reuse(
         }
         let sid = sym.id;
         let prior = reuse.and_then(|p| {
-            if reusable_paths.get(&sym.loc.path).copied().unwrap_or(false) {
-                p.prior_summaries
-                    .get(&(sym.loc.path.clone(), sym.qual_name.clone()))
+            // TASK-056: seeding is per-symbol via the dirty worklist.
+            let key = (sym.loc.path.clone(), sym.qual_name.clone());
+            if p.reusable_symbols.contains(&key) {
+                p.prior_summaries.get(&key)
             } else {
                 None
             }
@@ -178,7 +177,13 @@ pub fn compute_summaries_with_reuse(
             }
             None => FunctionSummary::empty(sid, rev, now),
         };
-        let fresh = prior.is_none();
+            let fresh = prior.is_none();
+        if fresh {
+            stats.recomputed_symbols += 1;
+        } else {
+            stats.reused_symbols += 1;
+            seeded.insert(sid);
+        }
         if fresh {
         for facts in per_file {
             for call in facts.calls.iter().filter(|c| c.caller == sid) {
@@ -296,6 +301,30 @@ pub fn compute_summaries_with_reuse(
         }
 
         summaries.insert(sid, s);
+    }
+
+    // File-level stats: a file is reused iff every function-like symbol in
+    // it was seeded; interface-only files follow the (file,deps) key check.
+    if reuse.is_some() {
+        let mut path_total: BTreeMap<&str, usize> = BTreeMap::new();
+        let mut path_seeded: BTreeMap<&str, usize> = BTreeMap::new();
+        for sym in &store.symbols {
+            if !sym.is_function_like() {
+                continue;
+            }
+            *path_total.entry(sym.loc.path.as_str()).or_default() += 1;
+            if seeded.contains(&sym.id) {
+                *path_seeded.entry(sym.loc.path.as_str()).or_default() += 1;
+            }
+        }
+        for path in reuse.map(|p| p.current_hashes.keys()).unwrap_or_default() {
+            let all_seeded = path_seeded.get(path.as_str()) == path_total.get(path.as_str());
+            if all_seeded {
+                stats.reused_files += 1;
+            } else {
+                stats.recomputed_files += 1;
+            }
+        }
     }
 
     // Reverse dependencies from the final callee lists (covers reused files).

@@ -708,10 +708,9 @@ fn collect_identifiers(node: Node, bytes: &[u8], out: &mut Vec<String>) {
             }
         }
         _ => {
+            // Document order (node.id() is not stable across parses — FR-4).
             let mut c = node.walk();
-            let mut children: Vec<Node> = node.children(&mut c).collect();
-            children.sort_by_key(|n| n.id());
-            for child in children {
+            for child in node.children(&mut c) {
                 collect_identifiers(child, bytes, out);
             }
         }
@@ -725,10 +724,11 @@ fn dedup(mut v: Vec<String>) -> Vec<String> {
 }
 
 fn walk_children(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
+    // children() yields document order; sorting by node.id() (the v0.1
+    // behavior) is NOT stable across parses and broke FR-4 byte-stable
+    // evidence — same source must always yield same facts.
     let mut c = node.walk();
-    let mut children: Vec<Node> = node.children(&mut c).collect();
-    children.sort_by_key(|n| n.id());
-    for child in children {
+    for child in node.children(&mut c) {
         walk(facts, ctx, child);
     }
 }

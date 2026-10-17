@@ -210,6 +210,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         prior_summaries: BTreeMap::new(),
         current_hashes: current_hashes.clone(),
         current_deps,
+        reusable_symbols: Default::default(),
     };
     if let Some(prev) = &prior_snapshot {
         let qual_of: BTreeMap<u32, (String, String)> = prev
@@ -228,6 +229,84 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
             plan30
                 .prior_keys
                 .insert(entry.path.clone(), (entry.file_hash, entry.deps_hash));
+        }
+    }
+    // TASK-056: per-symbol local-fact hashes + dirty worklist.
+    let mut current_local: BTreeMap<String, [u8; 32]> = BTreeMap::new();
+    let mut id_of: BTreeMap<String, SymbolId> = BTreeMap::new();
+    let mut fact_bufs: BTreeMap<SymbolId, String> = BTreeMap::new();
+    let mut callers_of: BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>> = BTreeMap::new();
+    for facts in &extracted.per_file {
+        for c in &facts.calls {
+            let callee = match &c.callee {
+                cie_core::facts::Callee::Resolved(id) => format!("r{}", id.0),
+                cie_core::facts::Callee::Builtin(b) => format!("b{:?}", b),
+                cie_core::facts::Callee::Unresolved(reason) => format!("u{}", reason),
+            };
+            fact_bufs
+                .entry(c.caller)
+                .or_default()
+                .push_str(&format!("call|{}|{}|{}\n", c.callee_text, callee, c.in_loop));
+            if let cie_core::facts::Callee::Resolved(id) = c.callee {
+                callers_of.entry(id).or_default().insert(c.caller);
+            }
+        }
+        for r in &facts.returns {
+            fact_bufs.entry(r.symbol).or_default().push_str(&format!("ret|{}|{}\n", r.expr, r.constant.clone().unwrap_or_default()));
+        }
+        for e in &facts.exceptions {
+            fact_bufs.entry(e.symbol).or_default().push_str(&format!("exc|{}|{}|{}\n", e.kind_text, e.is_bare, e.in_handler));
+        }
+        for a in &facts.assignments {
+            fact_bufs.entry(a.symbol).or_default().push_str(&format!("asg|{}|{:?}|{}\n", a.var, a.rhs_kind, a.rhs_data.join(",")));
+        }
+        for i in &facts.ifs {
+            fact_bufs.entry(i.symbol).or_default().push_str(&format!("if|{}\n", i.cond));
+        }
+        for l in &facts.loops {
+            fact_bufs.entry(l.symbol).or_default().push_str(&format!("loop|{:?}\n", l.kind));
+        }
+        for s in &facts.sources {
+            fact_bufs.entry(s.symbol).or_default().push_str(&format!("src|{}|{:?}\n", s.var, s.kind));
+        }
+        for s in &facts.sinks {
+            fact_bufs.entry(s.symbol).or_default().push_str(&format!("snk|{}|{}|{:?}\n", s.call_text, s.arg_vars.join(","), s.kind));
+        }
+    }
+    for sym in &extracted.store.symbols {
+        if !sym.is_function_like() {
+            continue;
+        }
+        let key = format!("{}::{}", sym.loc.path, sym.qual_name);
+        id_of.insert(key.clone(), sym.id);
+        let empty = String::new();
+        let buf = fact_bufs.get(&sym.id).unwrap_or(&empty);
+        current_local.insert(key, cie_core::types::content_hash(buf.as_bytes()));
+    }
+    let mut prior_local: BTreeMap<String, [u8; 32]> = BTreeMap::new();
+    if let Some(prev) = &prior_snapshot {
+        for entry in &prev.summary_cache {
+            for (qual, hash) in &entry.symbol_keys {
+                prior_local.insert(format!("{}::{}", entry.path, qual), *hash);
+            }
+        }
+    }
+    let worklist = cie_core::incremental::symbol_dirty_worklist(
+        &prior_local,
+        &current_local,
+        &id_of,
+        &callers_of,
+    );
+    for (key, cur_hash) in &current_local {
+        if prior_local.get(key) == Some(cur_hash)
+            && !worklist.dirty.contains(id_of.get(key).unwrap_or(&SymbolId::PLACEHOLDER))
+            && plan30
+                .prior_summaries
+                .contains_key(&key.split_once("::").map(|(p, q)| (p.to_string(), q.to_string())).unwrap_or_default())
+        {
+            if let Some((p, q)) = key.split_once("::") {
+                plan30.reusable_symbols.insert((p.to_string(), q.to_string()));
+            }
         }
     }
     let reuse_ref = if plan30.prior_keys.is_empty() {
@@ -321,11 +400,20 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
                 path: path.clone(),
                 file_hash: plan30.current_hashes[path],
                 deps_hash: plan30.dep_hash(path),
+                symbol_keys: current_local
+                    .iter()
+                    .filter_map(|(k, h)| {
+                        k.strip_prefix(&format!("{path}::"))
+                            .map(|qual| (qual.to_string(), *h))
+                    })
+                    .collect(),
             })
             .collect(),
         summary_reuse: Some(cie_storage::ReuseStats {
             reused_files: analysis.summary_reuse.reused_files,
             recomputed_files: analysis.summary_reuse.recomputed_files,
+            reused_symbols: analysis.summary_reuse.reused_symbols,
+            recomputed_symbols: analysis.summary_reuse.recomputed_symbols,
         }),
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or

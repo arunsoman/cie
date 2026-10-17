@@ -108,6 +108,64 @@ impl ReverseDeps {
     }
 }
 
+/// TASK-056: symbol-level dirty worklist. Instead of invalidating whole
+/// files, invalidate exactly the transitive reverse-dependency set of the
+/// changed symbols: a symbol is dirty if it is new, or its local-facts hash
+/// changed, or it (transitively) calls a dirty symbol. Everything else can
+/// reuse its stored summary. Deleted symbols are handled by the tombstone
+/// purge (TASK-028) — their former callers re-resolve and surface as
+/// changed/unresolved on the next pass.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SymbolWorklist {
+    pub dirty: BTreeSet<SymbolId>,
+    pub changed: BTreeSet<SymbolId>,
+}
+
+/// Compute the worklist. `prior_local` maps a stable key
+/// (`"path::qual_name"`) to the blake3 hash of that symbol's local facts at
+/// the prior analysis; `current_local` is the same map for the current pass;
+/// `id_of` resolves a stable key to its current symbol id; `callers_of` is
+/// the current reverse-dependency graph (callee -> direct callers).
+pub fn symbol_dirty_worklist(
+    prior_local: &BTreeMap<String, Hash>,
+    current_local: &BTreeMap<String, Hash>,
+    id_of: &BTreeMap<String, SymbolId>,
+    callers_of: &BTreeMap<SymbolId, BTreeSet<SymbolId>>,
+) -> SymbolWorklist {
+    let mut seeds: BTreeSet<SymbolId> = BTreeSet::new();
+    let mut changed: BTreeSet<SymbolId> = BTreeSet::new();
+    for (key, cur_hash) in current_local {
+        let id = match id_of.get(key) {
+            Some(id) => *id,
+            None => continue,
+        };
+        match prior_local.get(key) {
+            None => {
+                seeds.insert(id); // added symbol
+                changed.insert(id);
+            }
+            Some(prev) if prev != cur_hash => {
+                seeds.insert(id); // changed local facts
+                changed.insert(id);
+            }
+            _ => {}
+        }
+    }
+    // Expand by transitive reverse dependencies (bounded fixpoint).
+    let mut dirty = seeds.clone();
+    let mut queue: Vec<SymbolId> = seeds.iter().copied().collect();
+    while let Some(s) = queue.pop() {
+        if let Some(callers) = callers_of.get(&s) {
+            for c in callers {
+                if dirty.insert(*c) {
+                    queue.push(*c);
+                }
+            }
+        }
+    }
+    SymbolWorklist { dirty, changed }
+}
+
 /// Directories ignored during the folder walk (PRD §12).
 pub const IGNORED_DIRS: &[&str] = &[
     ".git",
@@ -188,5 +246,46 @@ mod tests {
             affected,
             BTreeSet::from([SymbolId(2), SymbolId(3), SymbolId(4)])
         );
+    }
+
+    #[test]
+    fn task_056_worklist_invalidates_transitive_callers_only() {
+        // prior: a::f, a::g, b::k, c::m all with hash h(1)
+        let mut prior = BTreeMap::new();
+        prior.insert("a.py::f".to_string(), h(1));
+        prior.insert("a.py::g".to_string(), h(1));
+        prior.insert("b.py::k".to_string(), h(1));
+        prior.insert("c.py::m".to_string(), h(1));
+
+        // current: a::f changed; a::g unchanged; b::k unchanged but calls f;
+        // c::m unchanged, calls nothing dirty.
+        let mut current = prior.clone();
+        current.insert("a.py::f".to_string(), h(9));
+
+        let mut id_of = BTreeMap::new();
+        id_of.insert("a.py::f".to_string(), SymbolId(0));
+        id_of.insert("a.py::g".to_string(), SymbolId(1));
+        id_of.insert("b.py::k".to_string(), SymbolId(2));
+        id_of.insert("c.py::m".to_string(), SymbolId(3));
+
+        let mut callers_of: BTreeMap<SymbolId, BTreeSet<SymbolId>> = BTreeMap::new();
+        callers_of
+            .entry(SymbolId(0))
+            .or_default()
+            .insert(SymbolId(2)); // k -> f
+
+        let wl = symbol_dirty_worklist(&prior, &current, &id_of, &callers_of);
+        assert_eq!(wl.changed, BTreeSet::from([SymbolId(0)]), "only f changed");
+        assert_eq!(
+            wl.dirty,
+            BTreeSet::from([SymbolId(0), SymbolId(2)]),
+            "f plus its transitive caller k — exactly, no more"
+        );
+
+        // New symbols are seeds too.
+        current.insert("d.py::n".to_string(), h(3));
+        id_of.insert("d.py::n".to_string(), SymbolId(4));
+        let wl2 = symbol_dirty_worklist(&prior, &current, &id_of, &callers_of);
+        assert!(wl2.changed.contains(&SymbolId(4)), "added symbol is a seed");
     }
 }
