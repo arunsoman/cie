@@ -37,10 +37,6 @@ fn text_of<'a>(node: tree_sitter::Node<'a>, bytes: &'a [u8]) -> &'a str {
     std::str::from_utf8(&bytes[node.byte_range()]).unwrap_or("")
 }
 
-fn children_of<'a>(node: tree_sitter::Node<'a>) -> Vec<tree_sitter::Node<'a>> {
-    let mut c = node.walk();
-    node.children(&mut c).collect()
-}
 
 impl RustAdapter {
     /// Deep extraction: light-engine base + Rust deep passes (§16.1).
