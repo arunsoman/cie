@@ -1,16 +1,27 @@
 [package]
 name = "cie-server"
-description = "Optional HTTP server (tokio-gated stub for v1.x observability endpoints)"
+description = "Local evidence-backed product workspace and HTTP API"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "cie-workspace"
+path = "src/main.rs"
+
 [dependencies]
 cie-core = { workspace = true }
+cie-ingest = { workspace = true }
+cie-incremental = { workspace = true }
+cie-semantic = { workspace = true }
+cie-summary = { workspace = true }
+cie-contract = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+regex = { workspace = true }
+fs2 = "0.4"
 tokio = { workspace = true, optional = true }
 
 [features]

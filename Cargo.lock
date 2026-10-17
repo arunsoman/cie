@@ -663,7 +663,14 @@ dependencies = [
 name = "cie-server"
 version = "1.0.0"
 dependencies = [
+ "cie-contract",
  "cie-core",
+ "cie-incremental",
+ "cie-ingest",
+ "cie-semantic",
+ "cie-summary",
+ "fs2",
+ "regex",
  "serde",
  "serde_json",
  "tokio",
