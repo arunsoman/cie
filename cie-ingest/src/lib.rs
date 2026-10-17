@@ -2,7 +2,19 @@
 //! analyze → persist snapshot → report. Incremental by construction.
 
 
+pub mod churn;
+pub mod history;
 pub mod pipeline;
+
+pub use history::{
+    archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
+    CommitMeta, FileTouch, GitHistoryProvider, HistoryFacts, HistoryOptions, HistoryUnavailable,
+    SystemGit,
+};
+pub use churn::{
+    churn_factors, co_change, ChurnExclusions, ChurnFactor, ChurnReport, CoChangeEdge,
+    ExclusionEffect,
+};
 use cie_analysis::{self, AnalysisConfig};
 use cie_claims::persist::ClaimStoreExt;
 use cie_core::types::{content_hash, now_ns, Hash, Ns, RevId, SymbolId};
