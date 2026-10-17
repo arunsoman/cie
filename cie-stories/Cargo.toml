@@ -20,6 +20,7 @@ cie-llm = { path = "../cie-llm" }
 cie-store = { path = "../cie-store" }
 cie-fault = { path = "../cie-fault" }
 cie-viz = { path = "../cie-viz" }
+cie-docs = { path = "../cie-docs" }
 cie-adapters = { path = "../cie-adapters" }
 cie-contract = { path = "../cie-contract" }
 cie-counterexample = { path = "../cie-counterexample" }

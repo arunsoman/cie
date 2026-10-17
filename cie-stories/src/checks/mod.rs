@@ -15,6 +15,8 @@ pub mod s5_concepts;
 pub mod s6_arch;
 pub mod s7_investigations;
 pub mod s8_runtime;
+pub mod s9_delivery;
+pub mod s10_honesty;
 
 /// Deep check registry — story id → check.
 pub fn deep_check(id: &str) -> Option<Result<(), String>> {
@@ -92,6 +94,21 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-103" => s8_runtime::us_103,
         // US-075..078, 081..088, 092, 096, 098, 100..102: planned or
         // audit-only (patterns covered by earlier checks).
+        // ---- P2F / validation / delivery / editor-agent ----
+        "US-107" => s9_delivery::us_107,
+        "US-133" => s9_delivery::us_133,
+        "US-134" => s9_delivery::us_134,
+        // ---- Privacy, models, honest operation ----
+        "US-135" => s10_honesty::us_135,
+        "US-136" => s10_honesty::us_136,
+        "US-137" => s10_honesty::us_137,
+        "US-138" => s10_honesty::us_138,
+        "US-139" => s10_honesty::us_139,
+        "US-144" => s10_honesty::us_144,
+        "US-145" => s10_honesty::us_145,
+        "US-147" => s10_honesty::us_147,
+        // US-104..106, 108..132, 140..143, 146: planned/product/host-layer
+        // or audit-only (patterns covered by earlier checks).
         _ => return None,
     };
     Some(std::panic::catch_unwind(f).unwrap_or_else(|p| {
@@ -118,6 +135,11 @@ mod tests {
             "US-069", "US-070", "US-071", "US-073", "US-075", "US-076", "US-077", "US-078",
             "US-080", "US-081", "US-082", "US-083", "US-084", "US-085", "US-086", "US-087",
             "US-088", "US-092", "US-096", "US-098", "US-100", "US-101", "US-102",
+            "US-104", "US-105", "US-106", "US-108", "US-109", "US-110", "US-111", "US-112",
+            "US-113", "US-114", "US-115", "US-116", "US-117", "US-118", "US-119", "US-120",
+            "US-121", "US-122", "US-123", "US-124", "US-125", "US-126", "US-127", "US-128",
+            "US-129", "US-130", "US-131", "US-132", "US-140", "US-141", "US-142", "US-143",
+            "US-146",
         ] {
             assert!(deep_check(id).is_none(), "{id} has no deep check by design");
         }

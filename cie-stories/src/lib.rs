@@ -43,6 +43,10 @@ pub const DEEP_CHECKS: &[&str] = &[
     "US-065", "US-067", "US-068", "US-072", "US-074",
     // batch F — runtime/history/security/twin engine subset
     "US-089", "US-090", "US-091", "US-093", "US-094", "US-095", "US-097", "US-099", "US-103",
+    // batch G — P2F/delivery/editor-agent subset
+    "US-107", "US-133", "US-134",
+    // batch H — privacy/models/honest operation
+    "US-135", "US-136", "US-137", "US-138", "US-139", "US-144", "US-145", "US-147",
 ];
 
 /// Total number of stories in the catalogue (147).

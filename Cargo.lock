@@ -703,6 +703,7 @@ dependencies = [
  "cie-contract",
  "cie-core",
  "cie-counterexample",
+ "cie-docs",
  "cie-drift",
  "cie-fault",
  "cie-incremental",
