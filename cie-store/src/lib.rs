@@ -20,6 +20,7 @@
 //! org.json                       -> merged_concept:{id}
 //! ```
 
+pub mod kv;
 use cie_core::types::RevId;
 use serde::{Deserialize, Serialize};
 use std::fs;

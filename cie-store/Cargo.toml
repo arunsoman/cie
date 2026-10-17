@@ -15,3 +15,13 @@ blake3 = { workspace = true }
 sha2 = "0.10"
 rkyv = { workspace = true }
 rustc-hash = { workspace = true }
+dashmap = { workspace = true }
+quick_cache = { workspace = true }
+sled = { workspace = true, optional = true }
+redb = { workspace = true, optional = true }
+
+[features]
+default = ["backend-sled"]
+backend-sled = ["dep:sled"]
+backend-redb = ["dep:redb"]
+
