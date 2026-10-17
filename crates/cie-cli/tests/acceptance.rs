@@ -144,6 +144,18 @@ fn acc7_deletion_invalidates_earlier_finding() {
     assert!(!kinds(&second).contains(&FindingKind::PrintOnlyAuthorization));
     assert!(second.rev > first.rev);
     assert!(!second.snapshot.files.iter().any(|f| f == "auth.py"));
+
+    // TASK-028 extension: the deletion is recorded explicitly and no stale
+    // symbol survives — purge is a guarantee, not an accident of rebuilds.
+    let store = Store::open(&dir).unwrap();
+    assert!(
+        store.tombstones().unwrap().contains("auth.py"),
+        "file:auth.py:tombstone must be recorded on deletion"
+    );
+    assert!(
+        !second.snapshot.symbols.iter().any(|s| s.loc.path == "auth.py"),
+        "zero symbols may reference a tombstoned file"
+    );
 }
 
 #[test]

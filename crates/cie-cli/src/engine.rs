@@ -122,6 +122,15 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let prev_index = store.load_index()?;
     let plan = plan_ingest(prev_index.as_ref(), &current);
 
+    // TASK-028: deletions leave tombstones (`file:{path}:tombstone`, §15.1)
+    // so stale facts are purged explicitly; re-appearing paths clear theirs.
+    for path in &plan.deleted {
+        store.mark_tombstone(path)?;
+    }
+    for path in plan.changed.iter().chain(plan.added.iter()) {
+        store.clear_tombstone(path)?;
+    }
+
     // Fast path: nothing changed (acceptance #10). Deliberately does NOT
     // load the analysis snapshot — re-ingest wall time is hashing + plan only.
     if !plan.has_work() {
@@ -233,7 +242,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     }
     store.save_index(&index)?;
 
-    let snapshot = RevSnapshot {
+    let mut snapshot = RevSnapshot {
         rev,
         files: files_list,
         symbols: extracted.store.symbols.clone(),
@@ -247,6 +256,9 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         ingest_wall_ns: wall,
         incremental: false,
     };
+    // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
+    // orphaned call edges survive a tombstoned deletion.
+    let _purged = store.purge_tombstoned(&mut snapshot)?;
     store.save_snapshot(&snapshot)?;
 
     let (reverse_deps, test_map, _) = rebuild_graphs(&extracted.store, &analysis.summaries.values().cloned().collect::<Vec<_>>());

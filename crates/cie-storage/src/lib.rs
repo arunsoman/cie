@@ -33,6 +33,15 @@ struct Meta {
     schema_version: u32,
 }
 
+/// TASK-028 deletion ledger: the §15.1 `file:{path}:tombstone` namespace.
+/// A tombstone records "this path was deleted at some revision" so the
+/// snapshot builder can purge stale facts explicitly instead of relying on
+/// incidental rebuilds (deletion correctness = acc #7).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct Tombstones {
+    paths: std::collections::BTreeSet<String>,
+}
+
 /// One revision's full analysis snapshot.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RevSnapshot {
@@ -177,6 +186,74 @@ impl Store {
 
     pub fn save_index(&self, index: &FileIndex) -> std::io::Result<()> {
         self.write_json(&self.root.join("files.json"), index)
+    }
+
+    // ---- TASK-028 tombstones (§15.1 `file:{path}:tombstone`) ----
+
+    fn load_tombstones(&self) -> std::io::Result<Tombstones> {
+        Ok(self
+            .read_json::<Tombstones>(&self.root.join("tombstones.json"))?
+            .unwrap_or_default())
+    }
+
+    /// Record a deletion so the next snapshot build purges stale facts.
+    pub fn mark_tombstone(&self, path: &str) -> std::io::Result<()> {
+        let mut t = self.load_tombstones()?;
+        t.paths.insert(path.to_string());
+        self.write_json(&self.root.join("tombstones.json"), &t)
+    }
+
+    /// Clear the tombstone when the path reappears (re-added/changed).
+    pub fn clear_tombstone(&self, path: &str) -> std::io::Result<()> {
+        let mut t = self.load_tombstones()?;
+        t.paths.remove(path);
+        self.write_json(&self.root.join("tombstones.json"), &t)
+    }
+
+    pub fn tombstones(&self) -> std::io::Result<std::collections::BTreeSet<String>> {
+        Ok(self.load_tombstones()?.paths)
+    }
+
+    /// Snapshot-builder step: drop symbols of tombstoned files, then every
+    /// summary/finding referencing them, then orphaned call edges. Returns
+    /// the number of purged symbols. Idempotent.
+    pub fn purge_tombstoned(&self, snap: &mut RevSnapshot) -> std::io::Result<usize> {
+        let tomb = self.load_tombstones()?.paths;
+        if tomb.is_empty() {
+            return Ok(0);
+        }
+        let before = snap.symbols.len();
+        let dead: std::collections::BTreeSet<cie_core::types::SymbolId> = snap
+            .symbols
+            .iter()
+            .filter(|s| tomb.contains(&s.loc.path))
+            .map(|s| s.id)
+            .collect();
+        snap.symbols.retain(|s| !tomb.contains(&s.loc.path));
+        let mut purged = before - snap.symbols.len();
+
+        // Summaries: drop dead summaries, prune orphaned call edges.
+        for sum in &mut snap.summaries {
+            let keep = !dead.contains(&sum.sym);
+            if !keep {
+                purged += 1;
+            }
+            sum.callees.retain(|c| !dead.contains(c));
+        }
+        snap.summaries.retain(|s| !dead.contains(&s.sym));
+
+        // Findings anchored on dead symbols are stale by construction.
+        snap.findings.retain(|f| !dead.contains(&f.symbol));
+
+        // Concept nodes must not reference purged symbols.
+        for node in &mut snap.concepts.nodes {
+            node.symbols.retain(|s| !dead.contains(s));
+            node.behaviors.retain(|b| !dead.contains(&b.summary));
+        }
+
+        // Files list drops tombstoned paths.
+        snap.files.retain(|f| !tomb.contains(f));
+        Ok(purged)
     }
 
     pub fn save_snapshot(&self, snap: &RevSnapshot) -> std::io::Result<()> {
