@@ -25,6 +25,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub mod records;
+pub use records::{Conclusion, DerivedRecord, RecordId, RecordKind, RecordStoreExt, TimeoutMarker, TimedRecord};
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 struct Meta {
     last_rev: RevId,
