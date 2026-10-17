@@ -186,6 +186,7 @@ name = "cie-langs"
 version = "0.2.0"
 dependencies = [
  "cie-core",
+ "serde",
  "serde_json",
  "tree-sitter",
  "tree-sitter-go",

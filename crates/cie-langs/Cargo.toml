@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 cie-core = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-language = { workspace = true }

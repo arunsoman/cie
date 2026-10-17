@@ -20,6 +20,28 @@ pub trait LanguageAdapter: Send + Sync {
     fn analyzer(&self) -> &'static str;
     fn extract(&self, path: &str, src: &str) -> LangFacts;
 
+    // ---- TASK-011 semantics tables (§16.1) — data on the adapter, so rules
+    // consult tables instead of hardcoding language knowledge (FR-3, global
+    // rule 6). Defaults describe an unspecified hybrid language; each
+    // adapter vouches for its own rows (Python overrides below).
+
+    /// Dynamic vs static dispatch (§16.1): rules that assume a resolved
+    /// callee must refuse to fire where `dispatch_kind()` vouches dynamic.
+    fn dispatch_kind(&self) -> DispatchKind {
+        DispatchKind::Hybrid
+    }
+
+    /// Numeric semantics row: overflow, coercion, precision.
+    fn numeric_semantics(&self) -> NumericSemantics {
+        NumericSemantics::default()
+    }
+
+    /// Framework conventions the adapter knows about (decorators, ORM
+    /// query sets, test frameworks, ...).
+    fn framework_conventions(&self) -> &'static [FrameworkRule] {
+        &[]
+    }
+
     fn matches_extension(&self, path: &str) -> bool {
         let ext = Path::new(path)
             .extension()
@@ -29,18 +51,99 @@ pub trait LanguageAdapter: Send + Sync {
     }
 }
 
+/// Dispatch model of a language (TASK-011, §16.1 comment).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum DispatchKind {
+    /// Calls resolve to one implementation at compile time.
+    Static,
+    /// Calls resolve at runtime (attribute lookup, monkey-patching).
+    Dynamic,
+    /// Mix (e.g. C#: static by default, `dynamic`/reflection where used).
+    #[default]
+    Hybrid,
+}
+
+/// What happens when an integer computation exceeds its range (§16.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum OverflowPolicy {
+    /// Arbitrary-precision integers — overflow cannot happen (Python).
+    ArbitraryPrecision,
+    /// Two's-complement wraparound (Go, C unsigned).
+    Wrapping,
+    /// Overflow is a runtime fault / must be checked (Rust debug, C# checked).
+    Checked,
+    #[default]
+    Unspecified,
+}
+
+/// How values of different numeric types mix (§16.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum CoercionPolicy {
+    /// Conversions must be written down (Rust, Go).
+    ExplicitOnly,
+    /// Numeric types mix implicitly (C promotions, JS `+`).
+    ImplicitNumeric,
+    /// Anything coerces to anything (dynamic languages).
+    #[default]
+    ImplicitAny,
+}
+
+/// Floating-point / integer precision guarantees (§16.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum Precision {
+    /// IEEE-754 binary64 only (JS numbers, Python floats).
+    #[default]
+    Binary64,
+    Binary32,
+    /// Multiple integer widths (C, Go, Java, C#).
+    MixedWidths,
+    /// Arbitrary-precision integers plus binary64 floats (Python).
+    Arbitrary,
+}
+
+/// Numeric semantics table row (TASK-011): one struct, three vouched cells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub struct NumericSemantics {
+    pub overflow: OverflowPolicy,
+    pub coercion: CoercionPolicy,
+    pub precision: Precision,
+}
+
+/// A framework convention an adapter vouches for (TASK-011): e.g.
+/// `FrameworkRule { name: "flask-route", convention: "decorated function is
+/// an HTTP entry point" }`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct FrameworkRule {
+    pub name: &'static str,
+    pub convention: &'static str,
+}
+
 /// One-line-per-language registration (acceptance #9).
 pub struct LanguageRegistry {
     adapters: Vec<Box<dyn LanguageAdapter>>,
 }
 
 impl LanguageRegistry {
+    /// An empty registry (TASK-011 sketch: `LanguageRegistry::new()`).
+    pub fn new() -> Self {
+        LanguageRegistry { adapters: vec![] }
+    }
+
     pub fn register(&mut self, adapter: Box<dyn LanguageAdapter>) {
         self.adapters.push(adapter);
     }
 
     pub fn adapter_for(&self, path: &str) -> Option<&dyn LanguageAdapter> {
         self.adapters.iter().find(|a| a.matches_extension(path)).map(|a| a.as_ref())
+    }
+
+    /// TASK-011 lookup helper: resolve by bare extension ("tl", not ".tl").
+    pub fn by_extension(&self, ext: &str) -> Option<&dyn LanguageAdapter> {
+        let ext = ext.trim_start_matches('.');
+        self.adapters
+            .iter()
+            .find(|a| a.extensions().contains(&ext))
+            .map(|a| a.as_ref())
     }
 
     pub fn adapters(&self) -> &[Box<dyn LanguageAdapter>] {
@@ -50,7 +153,7 @@ impl LanguageRegistry {
 
 /// The v1 registry: Python deep + JS/TS/Go/Rust light.
 pub fn default_registry() -> LanguageRegistry {
-    let mut reg = LanguageRegistry { adapters: vec![] };
+    let mut reg = LanguageRegistry::new();
     reg.register(Box::new(python::PythonAdapter));
     reg.register(Box::new(light::JavaScriptAdapter));
     reg.register(Box::new(light::TypeScriptAdapter));

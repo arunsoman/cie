@@ -26,6 +26,38 @@ impl super::LanguageAdapter for PythonAdapter {
         "tree-sitter-deep:python"
     }
 
+    // TASK-011 semantics tables (§16 #1): Python vouches for dynamic
+    // dispatch, arbitrary-precision ints + binary64 floats, and its
+    // swallow-friendly exception/async conventions.
+    fn dispatch_kind(&self) -> super::DispatchKind {
+        super::DispatchKind::Dynamic
+    }
+
+    fn numeric_semantics(&self) -> super::NumericSemantics {
+        super::NumericSemantics {
+            overflow: super::OverflowPolicy::ArbitraryPrecision,
+            coercion: super::CoercionPolicy::ImplicitAny,
+            precision: super::Precision::Arbitrary,
+        }
+    }
+
+    fn framework_conventions(&self) -> &'static [super::FrameworkRule] {
+        &[
+            super::FrameworkRule {
+                name: "flask-route",
+                convention: "decorated function is an HTTP entry point",
+            },
+            super::FrameworkRule {
+                name: "context-manager",
+                convention: "with-statement calls __enter__/__exit__",
+            },
+            super::FrameworkRule {
+                name: "bare-except",
+                convention: "bare except: swallows every exception",
+            },
+        ]
+    }
+
     fn extract(&self, path: &str, src: &str) -> LangFacts {
         extract_python(path, src)
     }
