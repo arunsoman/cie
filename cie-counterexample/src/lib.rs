@@ -8,9 +8,11 @@
 //! `bounded` (TASK-043 bounded predicate checking).
 
 pub mod bounded;
+pub mod cegar;
 pub mod intsmt;
 pub mod smt;
 
+pub use cegar::{AbstractDomain, AbstractPred, AbstractVal, CegarLoop, CegarMetrics, CegarOutcome, CfaProgram, PredAbstractDomain, RefineLimits, RefinementExhausted};
 pub use bounded::{
     BoundedChecker, Conclusion, Counterexample, ExtractedPredicate, PathAtomSet, Status,
     Verdict,
