@@ -8,6 +8,7 @@ pub mod fca;
 pub use cie_contract::findings;
 pub use pathcond::{PathCond, PathCondition, PathCondExtraction, Pred, Cmp};
 pub mod hierarchy;
+pub mod ifds;
 pub mod security;
 pub mod testing;
 
