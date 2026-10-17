@@ -26,3 +26,6 @@ cie-contract = { path = "../cie-contract" }
 cie-counterexample = { path = "../cie-counterexample" }
 cie-summary = { path = "../cie-summary" }
 cie-concepts = { path = "../cie-concepts" }
+cie-relations = { path = "../cie-relations" }
+cie-server = { path = "../cie-server" }
+cie-evidence = { path = "../cie-evidence" }
