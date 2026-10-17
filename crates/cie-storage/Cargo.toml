@@ -1,0 +1,13 @@
+[package]
+name = "cie-storage"
+description = "Revisioned file-backed store implementing the CIE key namespaces"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

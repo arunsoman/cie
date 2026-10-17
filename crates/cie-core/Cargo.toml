@@ -1,0 +1,13 @@
+[package]
+name = "cie-core"
+description = "Core types, facts, summaries, contracts, evidence, concepts and drift model for the Code Intelligence Engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
