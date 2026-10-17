@@ -253,8 +253,14 @@ pub struct ImportFact {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum AsyncKind {
+    /// async fn / async function definition (TASK-012/013).
     AsyncFn,
+    /// await expression.
     Await,
+    /// Thread/executor/goroutine/task spawn (TASK-015..020 §16 tables).
+    Spawn,
+    /// Channel send/receive or select (TASK-015..020 §16 tables).
+    Channel,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

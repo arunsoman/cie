@@ -12,3 +12,5 @@ cie-core = { workspace = true }
 cie-semantic = { workspace = true }
 cie-adapters = { workspace = true }
 serde = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-java = { workspace = true }

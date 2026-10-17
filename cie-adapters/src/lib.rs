@@ -72,9 +72,16 @@ pub enum DispatchKind {
 pub enum OverflowPolicy {
     /// Arbitrary-precision integers — overflow cannot happen (Python).
     ArbitraryPrecision,
-    /// Two's-complement wraparound (Go, C unsigned).
+    /// Two's-complement wraparound, DEFINED behavior (Java int/long, Go,
+    /// C unsigned; §16 calls this `WrapAround`).
     Wrapping,
-    /// Overflow is a runtime fault / must be checked (Rust debug, C# checked).
+    /// Signed overflow is undefined behavior (C/C++ signed, §16.5/16.6):
+    /// UB sites must be recorded as assumptions, never assumed away (FR-4).
+    UndefinedBehavior,
+    /// Panics on overflow in debug builds; release wrap is recorded as an
+    /// assumption (Rust, §16.9 `PanicInDebug`).
+    PanicInDebug,
+    /// Overflow is a runtime fault / must be checked (C# `checked{}`, §16.7).
     Checked,
     #[default]
     Unspecified,
@@ -89,6 +96,8 @@ pub enum CoercionPolicy {
     ExplicitOnly,
     /// Numeric types mix implicitly (C promotions, JS `+`).
     ImplicitNumeric,
+    /// Ints promote to f64 on overflow (PHP, §16.10).
+    IntToFloatOnOverflow,
     /// Anything coerces to anything (dynamic languages).
     #[default]
     ImplicitAny,
