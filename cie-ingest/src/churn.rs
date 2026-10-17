@@ -330,6 +330,176 @@ pub fn co_change(history: &HistoryFacts, min_shared: u64) -> Vec<CoChangeEdge> {
     edges
 }
 
+/// Directory-crossing co-change coupling (US-087): bulk edits and
+/// author/subject exclusions are applied (same ledger as [`churn_factors`]),
+/// pure same-commit rename pairs are dropped under a labelled heuristic
+/// (never presented as a calibrated detection), and every edge carries its
+/// supporting commit ids so the sample is inspectable. This is a distinct
+/// type from [`CoChangeEdge`]/[`cie_relations::RelKind`]: history coupling
+/// is never claimed as a static or runtime dependency.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CoChangeCoupling {
+    pub a: String,
+    pub b: String,
+    pub shared_commits: u64,
+    /// Up to 10 supporting commit ids, oldest-filtered-first by git log order.
+    pub supporting_commits: Vec<String>,
+    /// True when `a` and `b` sit under different top-level path segments.
+    pub crosses_directory_boundary: bool,
+}
+
+/// Full report for [`co_change_coupling`]: edges plus the exclusion ledger
+/// that produced them, so "accounted for" is inspectable, not asserted.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CoChangeCouplingReport {
+    /// Sorted by (shared desc, a, b) — deterministic.
+    pub edges: Vec<CoChangeCoupling>,
+    pub exclusions: Vec<ExclusionEffect>,
+    /// Same-commit (path removed, path added) pairs with equal line counts,
+    /// dropped as a likely rename — a heuristic, not a verified rename.
+    pub rename_heuristic_excluded: u64,
+    pub note: &'static str,
+}
+
+fn top_level_dir(path: &str) -> &str {
+    path.split('/').next().unwrap_or(path)
+}
+
+/// Co-change coupling with exclusions applied (US-087). `min_shared`
+/// filters on the post-exclusion support count.
+pub fn co_change_coupling(
+    history: &HistoryFacts,
+    min_shared: u64,
+    excl: &ChurnExclusions,
+) -> CoChangeCouplingReport {
+    let mut commit_meta: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
+    for c in &history.commits {
+        commit_meta
+            .entry(c.id.as_str())
+            .or_insert((c.author.as_str(), c.subject.as_str()));
+    }
+    let mut paths_per_commit: BTreeMap<&str, Vec<&FileTouch>> = BTreeMap::new();
+    for t in &history.touches {
+        paths_per_commit.entry(t.commit.as_str()).or_default().push(t);
+    }
+
+    let mut excluded: BTreeMap<&str, &'static str> = BTreeMap::new();
+    let mut n_bulk = 0u64;
+    for (id, touches) in &paths_per_commit {
+        let n_paths = touches.len();
+        if excl.bulk_edit_min_paths > 0 && n_paths > excl.bulk_edit_min_paths {
+            excluded.insert(id, "bulk_edit_min_paths");
+            n_bulk += 1;
+        }
+    }
+    let mut n_author = 0u64;
+    for (id, (author, _)) in &commit_meta {
+        if !excluded.contains_key(id) && excl.authors.iter().any(|a| a == author) {
+            excluded.insert(id, "author");
+            n_author += 1;
+        }
+    }
+    let mut n_subject = 0u64;
+    for (id, (_, subject)) in &commit_meta {
+        if !excluded.contains_key(id)
+            && excl
+                .subject_substrings
+                .iter()
+                .any(|s| subject.to_lowercase().contains(&s.to_lowercase()))
+        {
+            excluded.insert(id, "subject_substrings");
+            n_subject += 1;
+        }
+    }
+    let exclusions = vec![
+        ExclusionEffect {
+            rule: format!("bulk_edit_min_paths>{}", excl.bulk_edit_min_paths),
+            commits_excluded: n_bulk,
+            paths_reranked: 0,
+        },
+        ExclusionEffect {
+            rule: format!("authors={:?}", excl.authors),
+            commits_excluded: n_author,
+            paths_reranked: 0,
+        },
+        ExclusionEffect {
+            rule: format!("subject_substrings={:?}", excl.subject_substrings),
+            commits_excluded: n_subject,
+            paths_reranked: 0,
+        },
+    ];
+
+    let mut pairs: BTreeMap<(String, String), (u64, Vec<String>)> = BTreeMap::new();
+    let mut rename_heuristic_excluded = 0u64;
+    for (commit, touches) in &paths_per_commit {
+        if excluded.contains_key(commit) {
+            continue;
+        }
+        // Rename heuristic: a wholesale delete paired with a same-size add
+        // in the same commit is dropped from the pair set entirely —
+        // labelled, not claimed as a verified rename.
+        let mut paths: Vec<&str> = touches.iter().map(|t| t.path.as_str()).collect();
+        paths.sort_unstable();
+        paths.dedup();
+        let is_rename_pair = |a: &str, b: &str| -> bool {
+            let ta = touches.iter().find(|t| t.path == a);
+            let tb = touches.iter().find(|t| t.path == b);
+            matches!(
+                (ta, tb),
+                (Some(x), Some(y))
+                    if x.deleted.unwrap_or(0) > 0
+                        && x.added.unwrap_or(0) == 0
+                        && y.added.unwrap_or(0) > 0
+                        && y.deleted.unwrap_or(0) == 0
+                        && x.deleted == y.added
+            )
+        };
+        for i in 0..paths.len() {
+            for j in (i + 1)..paths.len() {
+                let (a, b) = (paths[i], paths[j]);
+                if is_rename_pair(a, b) || is_rename_pair(b, a) {
+                    rename_heuristic_excluded += 1;
+                    continue;
+                }
+                let entry = pairs
+                    .entry((a.to_string(), b.to_string()))
+                    .or_insert_with(|| (0, Vec::new()));
+                entry.0 += 1;
+                if entry.1.len() < 10 {
+                    entry.1.push(commit.to_string());
+                }
+            }
+        }
+    }
+
+    let mut edges: Vec<CoChangeCoupling> = pairs
+        .into_iter()
+        .filter(|(_, (n, _))| *n >= min_shared)
+        .map(|((a, b), (n, commits))| CoChangeCoupling {
+            crosses_directory_boundary: top_level_dir(&a) != top_level_dir(&b),
+            a,
+            b,
+            shared_commits: n,
+            supporting_commits: commits,
+        })
+        .collect();
+    edges.sort_by(|x, y| {
+        y.shared_commits
+            .cmp(&x.shared_commits)
+            .then(x.a.cmp(&y.a))
+            .then(x.b.cmp(&y.b))
+    });
+
+    CoChangeCouplingReport {
+        edges,
+        exclusions,
+        rename_heuristic_excluded,
+        note: "history coupling only: a shared-commit signal, never a static \
+               or runtime dependency claim; rename exclusion is a same-commit \
+               size-matched heuristic, not a verified rename",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -413,5 +583,48 @@ mod tests {
         for (path, s) in &rep.stability {
             assert!(*s >= 0.0 && *s <= 1.0, "stability out of range: {path}");
         }
+    }
+
+    #[test]
+    fn coupling_crosses_boundary_and_names_support() {
+        let rep = co_change_coupling(&history(), 1, &ChurnExclusions::default());
+        let edge = rep.edges.iter().find(|e| e.a == "src/a.py" && e.b == "src/b.py").unwrap();
+        assert_eq!(edge.shared_commits, 1);
+        assert_eq!(edge.supporting_commits.len(), 1);
+        assert!(!edge.crosses_directory_boundary, "both under src/");
+    }
+
+    #[test]
+    fn coupling_detects_directory_crossing() {
+        let mut h = history();
+        let cid4 = format!("{:040}", 4);
+        h.commits.push(CommitMeta { id: cid4.clone(), author: "Ada".into(), time: 400, subject: "move".into() });
+        h.touches.push(FileTouch { commit: cid4.clone(), path: "src/a.py".into(), added: Some(1), deleted: Some(0), is_binary: false });
+        h.touches.push(FileTouch { commit: cid4, path: "docs/a.md".into(), added: Some(1), deleted: Some(0), is_binary: false });
+        let rep = co_change_coupling(&h, 1, &ChurnExclusions::default());
+        let edge = rep.edges.iter().find(|e| e.b == "docs/a.md" || e.a == "docs/a.md").unwrap();
+        assert!(edge.crosses_directory_boundary);
+    }
+
+    #[test]
+    fn coupling_excludes_bulk_edit_commits_and_counts_them() {
+        let mut excl = ChurnExclusions::default();
+        excl.bulk_edit_min_paths = 1; // commit 1 touches 2 paths -> excluded
+        let rep = co_change_coupling(&history(), 1, &excl);
+        assert!(rep.edges.is_empty(), "the only pair came from the bulk-edit commit");
+        let bulk = rep.exclusions.iter().find(|e| e.rule.starts_with("bulk_edit")).unwrap();
+        assert_eq!(bulk.commits_excluded, 1);
+    }
+
+    #[test]
+    fn coupling_drops_same_commit_rename_pair_as_heuristic() {
+        let mut h = history();
+        let cid4 = format!("{:040}", 4);
+        h.commits.push(CommitMeta { id: cid4.clone(), author: "Ada".into(), time: 400, subject: "rename".into() });
+        h.touches.push(FileTouch { commit: cid4.clone(), path: "src/old.py".into(), added: Some(0), deleted: Some(40), is_binary: false });
+        h.touches.push(FileTouch { commit: cid4, path: "src/new.py".into(), added: Some(40), deleted: Some(0), is_binary: false });
+        let rep = co_change_coupling(&h, 1, &ChurnExclusions::default());
+        assert!(!rep.edges.iter().any(|e| (e.a == "src/old.py" && e.b == "src/new.py")));
+        assert_eq!(rep.rename_heuristic_excluded, 1);
     }
 }

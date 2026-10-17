@@ -12,8 +12,8 @@ pub use history::{
     SystemGit,
 };
 pub use churn::{
-    churn_factors, co_change, ChurnExclusions, ChurnFactor, ChurnReport, CoChangeEdge,
-    ExclusionEffect,
+    churn_factors, co_change, co_change_coupling, ChurnExclusions, ChurnFactor, ChurnReport,
+    CoChangeCoupling, CoChangeCouplingReport, CoChangeEdge, ExclusionEffect,
 };
 use cie_analysis::{self, AnalysisConfig};
 use cie_claims::persist::ClaimStoreExt;
