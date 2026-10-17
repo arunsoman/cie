@@ -31,6 +31,8 @@ tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-go = "0.23"
 tree-sitter-rust = "0.23"
+petgraph = "0.7"
+rkyv = "0.8"
 
 cie-core = { path = "crates/cie-core" }
 cie-storage = { path = "crates/cie-storage" }

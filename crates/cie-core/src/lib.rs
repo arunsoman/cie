@@ -13,6 +13,7 @@ pub mod findings;
 pub mod incremental;
 pub mod interner;
 pub mod protocol;
+pub mod relations;
 pub mod summary;
 pub mod types;
 
