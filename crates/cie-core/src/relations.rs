@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// §14.3: exactly ten relation kinds. Adapters express language nuance in
 /// fact types, not in new edge kinds — this enum is closed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub enum RelKind {
     Calls,
     Returns,
@@ -226,6 +226,81 @@ fn stem_of(path: &str) -> String {
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string()
+}
+
+/// §14.3 CSR freeze (TASK-008): the cache-friendly hot-read view of a
+/// `RelationGraph`. Per §15.3 the adjacency of one node is a contiguous
+/// slice, so p99 traversals get the ≤ 20 ns/edge scan §15.4 assumes.
+/// The snapshot is rkyv-serializable for zero-copy L2 graph snapshots
+/// (FR-30); freezing never mutates the source graph, and a new revision
+/// builds a new snapshot while old revisions stay queryable (FR-23).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct CsrGraph {
+    /// `offsets.len() == node_len + 1` — the §14.3 invariant, checked on build.
+    pub offsets: Vec<u32>,
+    /// `(dense_target, kind)`, sorted per node by target for deterministic
+    /// iteration (§15.1 global rule 7).
+    pub edges: Vec<(u32, RelKind)>,
+    /// Dense node weights: `nodes[i]` is the `SymbolId` of dense node `i`.
+    /// (§14.3-exact plus the dense weight table §15.1 storage needs.)
+    pub nodes: Vec<SymbolId>,
+}
+
+impl CsrGraph {
+    /// Freeze a snapshot of `g`. Surviving nodes map to dense slots in
+    /// `NodeIndex` order; per-node edge lists are sorted by target.
+    pub fn build_from(g: &RelationGraph) -> Self {
+        let mut dense_of: std::collections::BTreeMap<NodeIndex<u32>, u32> = Default::default();
+        let mut nodes: Vec<SymbolId> = Vec::with_capacity(g.node_count());
+        for (dense, idx) in g.node_indices().enumerate() {
+            dense_of.insert(idx, dense as u32);
+            nodes.push(g.node_weight(idx).unwrap_or(SymbolId::PLACEHOLDER));
+        }
+
+        let mut per_node: Vec<Vec<(u32, RelKind)>> = vec![Vec::new(); nodes.len()];
+        let mut n_edges = 0usize;
+        for (a, b, kind) in g.edge_triples() {
+            let (da, db) = (dense_of[&a], dense_of[&b]);
+            per_node[da as usize].push((db, kind));
+            n_edges += 1;
+        }
+        let mut offsets = Vec::with_capacity(nodes.len() + 1);
+        let mut edges = Vec::with_capacity(n_edges);
+        offsets.push(0u32);
+        for mut row in per_node {
+            row.sort_unstable_by_key(|(t, _)| *t);
+            edges.extend(row);
+            offsets.push(edges.len() as u32);
+        }
+        debug_assert_eq!(offsets.len(), nodes.len() + 1, "§14.3 offsets invariant");
+        CsrGraph { offsets, edges, nodes }
+    }
+
+    /// Contiguous adjacency of node `n` — cache-friendly, no per-edge
+    /// allocation (§15.3/§15.5).
+    pub fn neighbors(&self, n: u32) -> impl Iterator<Item = (u32, RelKind)> + '_ {
+        let start = self.offsets[n as usize] as usize;
+        let end = self.offsets[(n + 1) as usize] as usize;
+        self.edges[start..end].iter().map(|(t, k)| (*t, *k))
+    }
+
+    pub fn node_len(&self) -> usize {
+        self.offsets.len().saturating_sub(1)
+    }
+
+    pub fn edge_len(&self) -> usize {
+        self.edges.len()
+    }
+
+    /// rkyv bytes for the zero-copy snapshot path (FR-30).
+    pub fn to_rkyv(&self) -> Result<Vec<u8>, rkyv::rancor::Error> {
+        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.into_vec())
+    }
+
+    /// Deserialize an rkyv snapshot (FR-30).
+    pub fn from_rkyv(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
+        rkyv::from_bytes::<CsrGraph, rkyv::rancor::Error>(bytes)
+    }
 }
 
 #[cfg(test)]

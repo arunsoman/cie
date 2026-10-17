@@ -23,7 +23,7 @@ pub type Hash = [u8; 32]; // blake3
 macro_rules! identity_newtype {
     ($(#[$doc:meta])* $name:ident($inner:ty)) => {
         $(#[$doc])*
-        #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
         pub struct $name(pub $inner);
 
         impl $name {
