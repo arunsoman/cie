@@ -3,6 +3,7 @@
 
 pub mod beliefs;
 pub mod behavior;
+pub mod concurrency;
 pub mod pathcond;
 pub mod predicates;
 pub mod conformance;
@@ -11,6 +12,7 @@ pub use cie_contract::findings;
 pub use pathcond::{PathCond, PathCondition, PathCondExtraction, Pred, Cmp};
 pub mod hierarchy;
 pub mod ifds;
+pub mod risk;
 pub mod security;
 pub mod testing;
 

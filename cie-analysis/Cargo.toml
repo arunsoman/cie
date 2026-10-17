@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 cie-core = { workspace = true }
+cie-claims = { workspace = true }
 cie-semantic = { workspace = true }
 cie-relations = { workspace = true }
 cie-adapters = { workspace = true }
