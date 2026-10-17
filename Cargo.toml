@@ -37,7 +37,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.0"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["Arun Soman"]
@@ -61,6 +61,7 @@ sled = "0.34"
 redb = "2"
 quick_cache = "0.6"
 zstd = "0.13"
+flate2 = "1"
 rustc-hash = "2"
 smallvec = "1"
 bitvec = "1"

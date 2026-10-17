@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.0.0 — Full Task Matrix (2026-10-17)
+
+All 84 instructor tasks implemented to their validation contracts; the 21 tasks
+remaining after v0.3's first half (039/040/041/043, 052/053/054, 058, 067, 027, 071 and
+the v1.0 row 024/047–051/057/059/060/062) landed one commit each. The completion
+record lives in `docs/TRACEABILITY.md` §5; the completion record supersedes the §3
+disposition rows.
+
+### v0.3 closeout (behavior layer)
+- **039/040** naming adapter (lexicon verb analysis, FR-10 immutable labels, FR-28
+  LLM-off fallback) and Engler belief inference (inconsistent checks, cleanup
+  pairing, co-occurrence) combined in a Kremenek factor graph — every output an
+  `InferredCandidate` through the guarded registry (§8 rule 4).
+- **041/043** protocol mining (k-bounded automata, Houdini refutation with an
+  append-only content-addressed log) and bounded predicate checking (requires-DSL,
+  path-condition conjunction, Unknown/TimedOut never clean).
+- **052/053/054** FR-15 recovery modeler (RefundCalled ≠ Refunded), LDFI fault
+  injection (minimal-faults-first, NoLineage → Unknown), Yuan et al. error-handling
+  detectors (Safety/Liveness distinct).
+- **058/067** deletion-correctness proptests (clean-recompute oracle after every
+  step) and the §17.2 parallel folder walk (gitignore, shebang detection, rayon,
+  per-file error isolation).
+
+### v1.0 (hardening)
+- **047–051** budgeted SMT, CEGAR, SLAM product checking, bounded symbolic
+  execution with repro-test emission, and §14.9 counterexample packaging with a
+  reachability-validated shrinker.
+- **024/027** sled (default) + redb (feature) KV backends behind one `KvStore`
+  trait, BE key codec, L0 caches, and the §15.4 latency-gated typed tables
+  (50 ns / 30 ns / 5 µs, batched p99 timing).
+- **057/059/060/062** differential relation maintenance, HNSW k-NN store,
+  zero-copy rkyv+memmap2 snapshots, L3 columnar zstd archive with
+  byte-equivalent restore.
+- **071** PDF text-layer extraction and the honest OCR seam.
+
 ## 0.2.0 — Contract Fidelity (2026-10-17)
 
 Every instructor task marked *partial* by the 84-task cross-check is implemented to its

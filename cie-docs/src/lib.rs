@@ -1,7 +1,9 @@
-//! Document ingestion normalizers (TASK-071): cheap line-based extraction
-//! for `.rst` and `.adoc` plus tag-stripped text for `.html`. PDF/OCR stay
-//! v1.0. Output is plain prose so the rule-based claim extractor sees the
-//! same shape for every format.
+//! Document ingestion normalizers (TASK-071 full, FR-31): cheap
+//! line-based extraction for `.rst` and `.adoc`, tag-stripped text for
+//! `.html`, PDF TEXT-LAYER extraction (`pdf` — FlateDecode + Tj/TJ
+//! operators) and the OCR seam (`ocr` — SystemTesseract runtime probe
+//! with the honest NoOcr fallback). Output is plain prose so the
+//! rule-based claim extractor sees the same shape for every format.
 
 /// Normalize a document to plain prose lines based on its extension.
 /// Unknown extensions pass through unchanged (markdown/text already are).
@@ -24,6 +26,39 @@ pub fn read_doc(path: &Path) -> std::io::Result<String> {
     let raw = std::fs::read_to_string(path)?;
     Ok(normalize_doc(&path.to_string_lossy(), &raw))
 }
+
+/// FR-31 dispatch for BINARY documents (PDF): extract the text layer and
+/// fall back to OCR for image-only pages, recording honest markers. The
+/// returned provenance pairs with the claim extractor's Evidence.
+pub fn read_binary_doc(path: &Path) -> Result<(String, Vec<String>), String> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    match ext.as_str() {
+        "pdf" => {
+            let t = pdf::extract_text(&bytes).map_err(|e| e.to_string())?;
+            if t.text.trim().is_empty() || !t.unsupported.is_empty() {
+                // image-only or partially unsupported: OCR the raw bytes
+                let mut provenance = t.unsupported.clone();
+                let img = ocr::ingest_image_document(&bytes, "eng");
+                if !img.text.is_empty() {
+                    return Ok((img.text, provenance));
+                }
+                provenance.extend(img.unsupported);
+                Ok((t.text, provenance))
+            } else {
+                Ok((t.text, t.unsupported))
+            }
+        }
+        other => Err(format!("read_binary_doc: unsupported binary format `{other}`")),
+    }
+}
+
+pub mod ocr;
+pub mod pdf;
 
 use std::path::Path;
 
