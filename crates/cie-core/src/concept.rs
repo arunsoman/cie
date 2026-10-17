@@ -142,6 +142,11 @@ pub struct ConceptDag {
     pub nodes: Vec<ConceptNode>,
     pub unattached_behaviors: Vec<BehaviorRef>,
     pub unattached_rules: Vec<RuleRef>,
+    /// TASK-082: nodes invalidated but not yet re-rolled. Invalidation
+    /// propagates ONLY along primary-parent edges; deep children re-rollup
+    /// lazily (on their own invalidation or a full `rollup()`).
+    #[serde(default)]
+    pub dirty: std::collections::BTreeSet<ConceptNodeId>,
 }
 
 impl ConceptDag {
@@ -220,6 +225,106 @@ impl ConceptDag {
     /// [`ConceptDag::try_link_child`].
     pub fn link_child(&mut self, parent: ConceptNodeId, child: ConceptNodeId) {
         let _ = self.try_link_child(parent, child, EdgeReason::ClusterCohesion);
+    }
+
+    /// TASK-082 (acc #31): invalidate `id` and propagate ONLY along
+    /// primary-parent edges — the invalidation wave stops at the first
+    /// already-dirty ancestor. Deep children keep their stored aggregates
+    /// until they are themselves invalidated or a full `rollup()` runs
+    /// (lazy re-rollup, FR-7 lazy worklists).
+    pub fn invalidate(&mut self, id: ConceptNodeId) {
+        let mut cursor = Some(id);
+        let mut hops = 0usize;
+        while let Some(c) = cursor {
+            if !self.dirty.insert(c) {
+                break; // ancestor already dirty: wave stops here
+            }
+            hops += 1;
+            if hops > self.nodes.len() {
+                break; // defensive: corrupted chain cannot loop forever
+            }
+            cursor = self.get(c).and_then(|n| n.parent);
+        }
+    }
+
+    /// Recompute one node's aggregates from its OWN payload plus its
+    /// children's STORED (possibly lazy/stale) aggregates — no recursion.
+    fn rollup_node(&mut self, id: ConceptNodeId) {
+        let (own, child_ids) = {
+            let node = &self.nodes[id as usize];
+            (
+                (
+                    node.behaviors.clone(),
+                    node.rules.clone(),
+                    node.symbols.iter().copied().collect::<BTreeSet<SymbolId>>(),
+                    node.coverage_ratio,
+                    node.coverage_complete,
+                    node.confidence,
+                ),
+                node.children.clone(),
+            )
+        };
+        let mut behaviors = own.0;
+        let mut rules = own.1;
+        let mut symbols = own.2;
+        let mut ratio = own.3;
+        let mut complete = own.4;
+        let mut confidence = own.5;
+        for cid in child_ids {
+            let child = &self.nodes[cid as usize];
+            for b in &child.behaviors {
+                if !behaviors.iter().any(|x| x.summary == b.summary) {
+                    behaviors.push(b.clone());
+                }
+            }
+            for r in &child.rules {
+                if !rules.iter().any(|x| x.contract == r.contract) {
+                    rules.push(r.clone());
+                }
+            }
+            symbols.extend(child.symbols.iter().copied());
+            ratio = ratio.min(child.coverage_ratio);
+            complete &= child.coverage_complete;
+            confidence = confidence.min(child.confidence);
+        }
+        let node = &mut self.nodes[id as usize];
+        node.behaviors = behaviors;
+        node.rules = rules;
+        node.symbols = symbols.into_iter().collect();
+        node.coverage_ratio = ratio;
+        node.coverage_complete = complete;
+        node.confidence = confidence;
+    }
+
+    /// TASK-082: re-roll exactly the dirty set (deterministic id order) and
+    /// clear it. Equivalent to a clean full rollup when the dirty set covers
+    /// every changed subtree (asserted by the acc #31 test).
+    pub fn rollup_dirty(&mut self) {
+        let dirty: Vec<ConceptNodeId> = self.dirty.iter().copied().collect();
+        // Roll deepest-first so a dirty child's fresh aggregate feeds its
+        // dirty parent within the same pass when both are dirty.
+        let mut order = dirty.clone();
+        order.sort_by_key(|&id| std::cmp::Reverse(self.depth_of(id)));
+        for id in order {
+            self.rollup_node(id);
+        }
+        self.dirty.clear();
+    }
+
+    /// Depth of a node along primary-parent edges (root = 1).
+    pub fn depth_of(&self, id: ConceptNodeId) -> usize {
+        let mut depth = 1usize;
+        let mut cursor = self.get(id).and_then(|n| n.parent);
+        let mut hops = 0usize;
+        while let Some(p) = cursor {
+            depth += 1;
+            hops += 1;
+            if hops > self.nodes.len() {
+                break;
+            }
+            cursor = self.get(p).and_then(|n| n.parent);
+        }
+        depth
     }
 
     /// FR-43 behavior rollup over the primary-parent spanning tree:
