@@ -40,13 +40,13 @@ enum OutFormat {
 
 #[derive(ClapParser, Debug)]
 #[command(name = "cie", version, about = "Code Intelligence Engine — evidence-backed code analysis")]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(clap::Subcommand, Debug)]
-enum Command {
+pub enum Command {
     /// Ingest a folder path (full assimilation or incremental re-ingest)
     Ingest {
         path: PathBuf,
@@ -88,6 +88,9 @@ enum Command {
         with_behaviors: bool,
         #[arg(long, default_value_t = true, action = clap::ArgAction::SetTrue)]
         with_rules: bool,
+        /// Render only the first N levels (root = level 1) — TASK-083.
+        #[arg(long)]
+        max_depth: Option<u32>,
     },
     /// Document vs code drift analysis (FR-31–39)
     Drift {
@@ -276,11 +279,25 @@ fn run(cli: Cli) -> i32 {
             }
             exit_code_for_findings(&path)
         }
-        Command::Concepts { path, format, with_behaviors, with_rules } => {
+        Command::Concepts { path, format, with_behaviors, with_rules, max_depth } => {
             let opts = IngestOptions::default();
             let path = path.canonicalize().unwrap_or(path);
             match engine::run_ingest(&path, &opts).and_then(engine::materialize) {
-                Ok(outcome) => match format {
+                Ok(outcome) => {
+                    let dag_view = match max_depth {
+                        Some(d) => cie_analysis::outputs::depth_limited_view(
+                            &outcome.snapshot.concepts,
+                            d.max(1),
+                        ),
+                        None => outcome.snapshot.concepts.clone(),
+                    };
+                    match format {
+                    OutFormat::Json => println!(
+                        "{}",
+                        serde_json::to_string_pretty(&dag_view).unwrap_or_default()
+                    ),
+                    OutFormat::Dot => println!("{}", cie_analysis::outputs::concepts_dot(&dag_view)),
+                    OutFormat::Mermaid => println!("{}", cie_analysis::outputs::concepts_mermaid(&dag_view)),
                     OutFormat::Json => println!(
                         "{}",
                         serde_json::to_string_pretty(&outcome.snapshot.concepts).unwrap_or_default()
@@ -297,12 +314,13 @@ fn run(cli: Cli) -> i32 {
                         println!(
                             "{}",
                             cie_analysis::outputs::concepts_markbook(
-                                &outcome.snapshot.concepts,
+                                &dag_view,
                                 with_behaviors,
                                 with_rules,
                                 &names
                             )
                         );
+                    }
                     }
                 },
                 Err(e) => {

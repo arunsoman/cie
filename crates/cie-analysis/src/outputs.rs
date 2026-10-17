@@ -29,6 +29,65 @@ pub fn findings_markdown(findings: &[Finding]) -> String {
 }
 
 /// Nested concept tree in the PRD §27 shape (acceptance #27).
+/// TASK-083: depth-limited render view — keeps nodes within `max_depth`
+/// levels from the root (root = level 1), remapping ids into a dense DAG.
+/// Multi-parent edges pointing outside the view are elided with the node.
+pub fn depth_limited_view(dag: &ConceptDag, max_depth: u32) -> ConceptDag {
+    let mut view = ConceptDag::default();
+    if dag.nodes.is_empty() {
+        return view;
+    }
+    let root_id = dag.nodes[0].id;
+    // BFS collecting (old id, depth).
+    use std::collections::{BTreeMap, VecDeque};
+    let mut depth_of: BTreeMap<u32, u32> = BTreeMap::new();
+    let mut queue = VecDeque::new();
+    depth_of.insert(root_id, 1);
+    queue.push_back(root_id);
+    while let Some(id) = queue.pop_front() {
+        let d = depth_of[&id];
+        if d >= max_depth {
+            continue;
+        }
+        if let Some(node) = dag.get(id) {
+            for &c in &node.children {
+                if !depth_of.contains_key(&c) {
+                    depth_of.insert(c, d + 1);
+                    queue.push_back(c);
+                }
+            }
+        }
+    }
+    let mut new_id: BTreeMap<u32, u32> = BTreeMap::new();
+    for (old, _) in &depth_of {
+        let node = dag.get(*old).unwrap();
+        let mut copy = node.clone();
+        copy.id = 0;
+        let nid = view.push(copy);
+        new_id.insert(*old, nid);
+    }
+    for old in depth_of.keys() {
+        let node = dag.get(*old).unwrap();
+        let nid = new_id[old];
+        if let Some(v) = view.get_mut(nid) {
+            v.parent = node.parent.and_then(|p| new_id.get(&p).copied());
+            v.children = node
+                .children
+                .iter()
+                .filter_map(|c| new_id.get(c).copied())
+                .collect();
+            v.extra_edges = node
+                .extra_edges
+                .iter()
+                .filter_map(|(p, r)| new_id.get(p).map(|np| (*np, *r)))
+                .collect();
+        }
+    }
+    view.unattached_behaviors = dag.unattached_behaviors.clone();
+    view.unattached_rules = dag.unattached_rules.clone();
+    view
+}
+
 pub fn concepts_markbook(
     dag: &ConceptDag,
     with_behaviors: bool,
