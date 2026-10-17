@@ -228,7 +228,9 @@ impl SourceLocation {
     }
 }
 
-/// Languages supported by the v1 adapter set (PRD §65 — top-10, we ship 5).
+/// Languages supported by the adapter set (PRD §65, §16 v1 table).
+/// Shipping a `LangId` does NOT imply a shipped adapter (FR-17/FR-18):
+/// ids exist so facts can name their language before adapters land.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub enum LangId {
     #[default]
@@ -236,8 +238,13 @@ pub enum LangId {
     Python,
     JavaScript,
     TypeScript,
+    Java,
+    C,
+    Cpp,
+    CSharp,
     Go,
     Rust,
+    Php,
 }
 
 impl LangId {
@@ -247,8 +254,13 @@ impl LangId {
             LangId::Python => "python",
             LangId::JavaScript => "javascript",
             LangId::TypeScript => "typescript",
+            LangId::Java => "java",
+            LangId::C => "c",
+            LangId::Cpp => "cpp",
+            LangId::CSharp => "csharp",
             LangId::Go => "go",
             LangId::Rust => "rust",
+            LangId::Php => "php",
         }
     }
 
@@ -257,8 +269,13 @@ impl LangId {
             "py" | "python" => LangId::Python,
             "js" | "javascript" => LangId::JavaScript,
             "ts" | "typescript" => LangId::TypeScript,
+            "java" => LangId::Java,
+            "c" => LangId::C,
+            "cpp" | "c++" => LangId::Cpp,
+            "cs" | "csharp" | "c#" => LangId::CSharp,
             "go" | "golang" => LangId::Go,
             "rs" | "rust" => LangId::Rust,
+            "php" => LangId::Php,
             _ => LangId::Unknown,
         }
     }
@@ -268,10 +285,39 @@ impl LangId {
             "py" | "pyw" => LangId::Python,
             "js" | "jsx" | "mjs" | "cjs" => LangId::JavaScript,
             "ts" | "tsx" => LangId::TypeScript,
+            "java" => LangId::Java,
+            "c" | "h" => LangId::C,
+            "cpp" | "cc" | "cxx" | "hpp" | "hh" => LangId::Cpp,
+            "cs" => LangId::CSharp,
             "go" => LangId::Go,
             "rs" => LangId::Rust,
+            "php" | "php3" | "php4" | "php5" | "phtml" => LangId::Php,
             _ => LangId::Unknown,
         }
+    }
+}
+
+/// The §16 v1 language table (TASK-005): exactly the ten v1 languages plus
+/// `UNKNOWN`. No v1.1 languages (Ruby, Kotlin, Swift, Scala, SQL) receive
+/// ids yet (FR-17 — the table is closed).
+pub struct LanguageTable;
+
+impl LanguageTable {
+    /// The ten v1 language ids of §16, in table order. Ids only — no
+    /// adapter is implied; the registry (`cie-langs`) decides what extracts.
+    pub fn v1() -> &'static [LangId] {
+        &[
+            LangId::Python,
+            LangId::JavaScript,
+            LangId::TypeScript,
+            LangId::Java,
+            LangId::C,
+            LangId::Cpp,
+            LangId::CSharp,
+            LangId::Go,
+            LangId::Rust,
+            LangId::Php,
+        ]
     }
 }
 
