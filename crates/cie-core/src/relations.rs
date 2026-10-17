@@ -9,7 +9,7 @@
 
 use crate::facts::{AssignmentFact, Callee, LangFacts, RhsKind};
 use petgraph::visit::EdgeRef;
-use crate::types::{SymbolId};
+use crate::types::{RevId, SymbolId};
 use serde::{Deserialize, Serialize};
 
 /// §14.3: exactly ten relation kinds. Adapters express language nuance in
@@ -85,11 +85,22 @@ impl RelationGraph {
 
     /// Add a relation edge; a duplicate `(from, to, kind)` collapses into
     /// the existing edge (returns `None`). Distinct kinds coexist.
+    /// Convenience: endpoints that were never added via `add_node` are
+    /// auto-created carrying `SymbolId::PLACEHOLDER` (the TASK-009 sketch
+    /// fixture relies on this; on a fresh graph sequential indices line up).
     pub fn add_edge(&mut self, from: NodeIndex<u32>, to: NodeIndex<u32>, kind: RelKind) -> Option<petgraph::graph::EdgeIndex<u32>> {
+        self.ensure_node(from);
+        self.ensure_node(to);
         if self.has_edge(from, to, kind) {
             return None;
         }
         Some(self.inner.add_edge(from, to, kind))
+    }
+
+    fn ensure_node(&mut self, idx: NodeIndex<u32>) {
+        while !self.inner.contains_node(idx) {
+            self.inner.add_node(SymbolId::PLACEHOLDER);
+        }
     }
 
     /// True when the exact `(from, to, kind)` relation already exists.
@@ -300,6 +311,186 @@ impl CsrGraph {
     /// Deserialize an rkyv snapshot (FR-30).
     pub fn from_rkyv(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
         rkyv::from_bytes::<CsrGraph, rkyv::rancor::Error>(bytes)
+    }
+}
+
+/// Ferrante–Ottenstein–Warren program dependence graph (TASK-009, §7 FOW
+/// row). Strictly derived: `Pdg::build` never mutates its input and stamps
+/// provenance with the input revision (FR-4, global rule 2). Control
+/// dependence is computed from the `ControlFlow` subgraph via post-dominator
+/// sets (FOW 1987); data dependence comes from `DataFlow`/`Reads`/`Writes`
+/// def-use relations. Node identity is `SymbolId` end to end (FR-1).
+///
+/// Statements with no incoming `ControlFlow` edge carry their (trivial)
+/// control dependence to the virtual entry node; the entry is virtual, so
+/// it never appears inside slices — it is tracked in `entry_trivial`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Pdg {
+    /// Input revision this graph was derived from (provenance, FR-4).
+    pub rev: RevId,
+    /// data dependence u -> v: v consumes a value produced by u.
+    pub data_edges: std::collections::BTreeSet<(SymbolId, SymbolId)>,
+    /// control dependence guard -> guarded (FOW post-dominator derivation).
+    pub control_edges: std::collections::BTreeSet<(SymbolId, SymbolId)>,
+    /// Nodes trivially controlled by the virtual entry (no CF predecessors).
+    pub entry_trivial: std::collections::BTreeSet<SymbolId>,
+}
+
+impl Pdg {
+    /// Derive the PDG from a relation graph (pure function of its input).
+    pub fn build(g: &RelationGraph) -> Pdg {
+        Pdg::build_with_rev(g, 0)
+    }
+
+    /// `build` with an input revision for provenance stamping.
+    pub fn build_with_rev(g: &RelationGraph, rev: RevId) -> Pdg {
+        // Split edges by family, keyed through NodeIndex -> SymbolId.
+        let mut sym_of: std::collections::BTreeMap<NodeIndex<u32>, SymbolId> = Default::default();
+        for idx in g.node_indices() {
+            if let Some(s) = g.node_weight(idx) {
+                sym_of.insert(idx, s);
+            }
+        }
+
+        let mut cf_succ: std::collections::BTreeMap<SymbolId, Vec<SymbolId>> = Default::default();
+        let mut data: std::collections::BTreeSet<(SymbolId, SymbolId)> = Default::default();
+        let mut has_cf_pred: std::collections::BTreeSet<SymbolId> = Default::default();
+
+        for (a, b, kind) in g.edge_triples() {
+            let (sa, sb) = (sym_of.get(&a).copied(), sym_of.get(&b).copied());
+            let (Some(sa), Some(sb)) = (sa, sb) else { continue };
+            match kind {
+                RelKind::ControlFlow => {
+                    cf_succ.entry(sa).or_default().push(sb);
+                    has_cf_pred.insert(sb);
+                }
+                RelKind::DataFlow | RelKind::Reads | RelKind::Writes => {
+                    data.insert((sa, sb));
+                }
+                _ => {}
+            }
+        }
+
+        // Trivial control dependence on the virtual entry (FOW): every node
+        // with no ControlFlow predecessor. The entry is virtual, so it is
+        // recorded but never appears inside slices.
+        let entry_trivial: std::collections::BTreeSet<SymbolId> = sym_of
+            .values()
+            .filter(|n| !has_cf_pred.contains(n))
+            .copied()
+            .collect();
+
+        // ---- Post-dominator sets (iterative fixpoint, FOW step 1) ----
+        // Nodes with no CF successors are exits. postdom(v) = {v} ∪ ∩ postdom(s)
+        // over successors s; exits postdominate only themselves.
+        let nodes: Vec<SymbolId> = sym_of.values().copied().collect();
+        let universe: std::collections::BTreeSet<SymbolId> = nodes.iter().copied().collect();
+        let mut postdom: std::collections::BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>> =
+            nodes.iter().map(|n| (*n, universe.clone())).collect();
+        for n in &nodes {
+            if !cf_succ.contains_key(n) {
+                let mut only = std::collections::BTreeSet::new();
+                only.insert(*n);
+                postdom.insert(*n, only);
+            }
+        }
+        let mut changed = true;
+        let mut rounds = 0usize;
+        let max_rounds = nodes.len() + 2; // FR-7 bound: cannot loop forever
+        while changed && rounds < max_rounds {
+            changed = false;
+            rounds += 1;
+            for n in &nodes {
+                if !cf_succ.contains_key(n) {
+                    continue; // exit: fixed
+                }
+                let succs = &cf_succ[n];
+                // Intersection of successors' postdom sets.
+                let mut inter: Option<std::collections::BTreeSet<SymbolId>> = None;
+                for s in succs {
+                    match &inter {
+                        None => inter = Some(postdom[s].clone()),
+                        Some(cur) => {
+                            let next: std::collections::BTreeSet<SymbolId> =
+                                cur.intersection(&postdom[s]).copied().collect();
+                            inter = Some(next);
+                        }
+                    }
+                }
+                let mut set = inter.unwrap_or_default();
+                set.insert(*n);
+                if set != postdom[n] {
+                    postdom.insert(*n, set);
+                    changed = true;
+                }
+            }
+        }
+
+        // ---- Control dependence (FOW Lemma) ----
+        // B is control-dependent on A iff some CF edge A -> C exists where
+        // B postdominates C (B ∈ postdom(C)) and B does not strictly
+        // postdominate A (B ∉ postdom(A) \ {A}).
+        let mut control: std::collections::BTreeSet<(SymbolId, SymbolId)> = Default::default();
+        for (a, succs) in &cf_succ {
+            for c in succs {
+                for b in &nodes {
+                    let b_postdom_c = postdom[c].contains(b);
+                    let b_strict_postdom_a = *b != *a && postdom[a].contains(b);
+                    if b_postdom_c && !b_strict_postdom_a {
+                        control.insert((*a, *b));
+                    }
+                }
+            }
+        }
+
+        Pdg {
+            rev,
+            data_edges: data,
+            control_edges: control,
+            entry_trivial,
+        }
+    }
+
+    /// Deterministic backward slice (sorted set): the seed plus every
+    /// transitive data/control ancestor.
+    pub fn backward_slice(&self, seed: SymbolId) -> std::collections::BTreeSet<SymbolId> {
+        self.backward_slice_bounded(seed, usize::MAX)
+    }
+
+    /// Bounded backward slice (FR-7): stops after `budget` nodes including
+    /// the seed, so slicing can never run away.
+    pub fn backward_slice_bounded(
+        &self,
+        seed: SymbolId,
+        budget: usize,
+    ) -> std::collections::BTreeSet<SymbolId> {
+        let mut slice = std::collections::BTreeSet::new();
+        if budget == 0 {
+            return slice;
+        }
+        let mut queue = std::collections::VecDeque::new();
+        slice.insert(seed);
+        queue.push_back(seed);
+        while let Some(n) = queue.pop_front() {
+            if slice.len() >= budget {
+                break;
+            }
+            let preds = self
+                .data_edges
+                .iter()
+                .filter(|(_, v)| *v == n)
+                .map(|(u, _)| *u)
+                .chain(self.control_edges.iter().filter(|(_, v)| *v == n).map(|(u, _)| *u));
+            for p in preds {
+                if slice.insert(p) {
+                    queue.push_back(p);
+                    if slice.len() >= budget {
+                        break;
+                    }
+                }
+            }
+        }
+        slice
     }
 }
 
