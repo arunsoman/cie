@@ -10,4 +10,8 @@ repository.workspace = true
 [dependencies]
 cie-core = { workspace = true }
 cie-semantic = { workspace = true }
+cie-contract = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
