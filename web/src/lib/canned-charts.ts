@@ -7,6 +7,7 @@
 
 import type { CieReport, CieViewSpec, ConceptTree, Finding } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartKind, type ChatChartSpec } from "./chat-chart";
+import { buildUmlSpec, buildFlowSpec } from "./draw-anything";
 import {
   findingTitle,
   obligationTitle,
@@ -276,6 +277,32 @@ export function buildCannedCharts(
       spec: total
         ? { ...spec("donut", "What the map is made of", "Each slice is a kind of bubble on the Map page."), data, center: "bubbles" }
         : null,
+    });
+  }
+
+  // 9b. UML-style structure diagram — same builder the chat uses, so the
+  // one-tap menu and the chat can never disagree about what the store holds.
+  if (viewspec) {
+    charts.push({
+      id: "uml-diagram",
+      group: "The map",
+      question: "Show me a UML-style diagram",
+      hint: "Boxes and arrows built from the map — instantly.",
+      icon: "shapes",
+      spec: buildUmlSpec(report, viewspec, concepts),
+    });
+  }
+
+  // 9c. Call flow — who calls whom.
+  {
+    const flow = buildFlowSpec(report);
+    charts.push({
+      id: "call-flow",
+      group: "The map",
+      question: "Who calls whom?",
+      hint: flow ? "The call flow from the report." : "No call records in this report — honest empty.",
+      icon: "activity",
+      spec: flow,
     });
   }
 

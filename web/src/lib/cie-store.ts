@@ -35,7 +35,9 @@ export type StageView =
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
 // chart the AI attached to its answer (US-020 catalog pick), if any. Failed
 // sends carry `technical` (collapsible) and `providerIssue` (offer to open
-// the connection settings).
+// the connection settings). `instant` marks answers drawn locally from the
+// loaded store (draw-anything.ts) — no AI was involved, and the footer says
+// so instead of naming a provider.
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -43,6 +45,7 @@ export interface ChatMessage {
   chart?: ChatChartSpec;
   technical?: string;
   providerIssue?: boolean;
+  instant?: boolean;
 }
 
 interface CieState {
