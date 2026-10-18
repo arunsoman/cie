@@ -882,3 +882,101 @@ pub fn us_143() -> Result<(), String> {
     let _ = std::mem::size_of::<EpistemicFooter>();
     Ok(())
 }
+
+/// US-087: co-change coupling from real git history — rename resolution,
+/// bulk-edit exclusion, support counts and cross-directory flags all
+/// inspectable. Runs the generator (US-007) then a hand-built repo with a
+/// rename so both paths of the obligation are exercised.
+pub fn us_087() -> Result<(), String> {
+    use cie_ingest::cochange::{co_change_report, CoChangeOptions};
+    // 1. generated sample: inventory.py <-> orders.py co-change; the tests/
+    //    pair crosses the directory boundary.
+    let root = std::env::temp_dir().join(format!("cie-check-us087-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    cie_ingest::sample::generate(&root, &cie_ingest::sample::SampleOptions::default())
+        .map_err(|e| format!("sample generation failed: {e}"))?;
+    let rep = co_change_report(&root, &CoChangeOptions::default())
+        .map_err(|e| format!("co-change report failed: {}", e.reason))?;
+    if rep.sample_commits != 5 || rep.excluded_bulk != 0 {
+        return Err(format!(
+            "sample report: sample {} excluded_bulk {}",
+            rep.sample_commits, rep.excluded_bulk
+        ));
+    }
+    let inv_ord = rep.edges.iter().find(|e| {
+        (e.a.ends_with("inventory.py") && e.b.ends_with("orders.py"))
+            || (e.a.ends_with("orders.py") && e.b.ends_with("inventory.py"))
+    });
+    let inv_ord = inv_ord.ok_or("inventory/orders co-change edge missing")?;
+    if inv_ord.support < 2 || inv_ord.supporting_commits.len() as u64 != inv_ord.support {
+        return Err(format!("inventory/orders support wrong: {:?}", inv_ord));
+    }
+    let tests_edge = rep
+        .edges
+        .iter()
+        .find(|e| e.cross_directory && (e.a.contains("tests/") || e.b.contains("tests/")))
+        .ok_or("cross-directory edge with tests/ missing")?;
+    if tests_edge.support < 1 {
+        return Err("cross-directory edge must carry its support count".into());
+    }
+    let _ = std::fs::remove_dir_all(&root);
+
+    // 2. hand-built repo: a.py+b.py pair, RENAME a.py→c.py, c.py+b.py again.
+    //    The (b.py,c.py) edge must count BOTH commits (rename resolved).
+    let dir = std::env::temp_dir().join(format!("cie-check-us087b-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| {
+        assert!(std::process::Command::new("git")
+            .args(args)
+            .current_dir(&dir)
+            .status()
+            .unwrap()
+            .success());
+    };
+    run(&["init", "-q", "-b", "main"]);
+    run(&["config", "user.email", "t@t"]);
+    run(&["config", "user.name", "t"]);
+    std::fs::write(dir.join("a.py"), "x = 1\n").unwrap();
+    std::fs::write(dir.join("b.py"), "y = 1\n").unwrap();
+    run(&["add", "-A"]);
+    run(&["commit", "-q", "-m", "pair"]);
+    run(&["mv", "a.py", "c.py"]);
+    run(&["commit", "-q", "-m", "rename"]);
+    std::fs::write(dir.join("c.py"), "x = 2\n").unwrap();
+    std::fs::write(dir.join("b.py"), "y = 2\n").unwrap();
+    run(&["add", "-A"]);
+    run(&["commit", "-q", "-m", "pair again"]);
+    let rep = co_change_report(&dir, &CoChangeOptions::default())
+        .map_err(|e| format!("rename repo report failed: {}", e.reason))?;
+    if rep.rename_events != 1 {
+        return Err(format!("rename_events = {}, expected 1", rep.rename_events));
+    }
+    let e = rep
+        .edges
+        .iter()
+        .find(|e| (e.a == "b.py" && e.b == "c.py") || (e.a == "c.py" && e.b == "b.py"))
+        .ok_or("renamed-file edge missing (rename not resolved to canonical name)")?;
+    if e.support != 2 {
+        return Err(format!("rename must pair both eras: support {} != 2", e.support));
+    }
+    // a bulk commit must be excludable: 25 files in one commit vanish from edges
+    for i in 0..25 {
+        std::fs::write(dir.join(format!("gen{i:02}.txt")), "x").unwrap();
+    }
+    run(&["add", "-A"]);
+    run(&["commit", "-q", "-m", "bulk"]);
+    let rep = co_change_report(&dir, &CoChangeOptions::default())
+        .map_err(|e| format!("bulk report failed: {}", e.reason))?;
+    if rep.excluded_bulk != 1 || rep.counted_commits != 3 {
+        return Err(format!(
+            "bulk exclusion wrong: excluded {} counted {}",
+            rep.excluded_bulk, rep.counted_commits
+        ));
+    }
+    if rep.edges.iter().any(|e| e.a.starts_with("gen") || e.b.starts_with("gen")) {
+        return Err("bulk-commit paths must not appear as edges".into());
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    Ok(())
+}

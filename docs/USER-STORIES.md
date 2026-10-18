@@ -34,7 +34,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Architecture, dependencies and impact | 5 | 0 | 2 | 7 |
 | Debugging and investigations | 11 | 0 | 0 | 11 |
 | Runtime, concurrency and data consistency | 3 | 0 | 4 | 7 |
-| Performance and technical health | 2 | 0 | 4 | 6 |
+| Performance and technical health | 3 | 0 | 3 | 6 |
 | History, collaboration and knowledge | 5 | 0 | 1 | 6 |
 | Security, permissions and supply chain | 4 | 0 | 1 | 5 |
 | Counterfactuals and digital twin | 4 | 0 | 1 | 5 |
@@ -47,7 +47,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Accessibility and interaction parity | 4 | 0 | 0 | 4 |
 | Honest operation | 4 | 0 | 0 | 4 |
 
-**Totals** — delivered: 111, partial: 0, planned: 36, total: 147
+**Totals** — delivered: 112, partial: 0, planned: 35, total: 147
 
 ## The partials close (2026-10 batch)
 
@@ -82,8 +82,9 @@ time with a dedicated deep check each:
 | Story | Gap closed | Where |
 |---|---|---|
 | US-007 | on-demand sample repository (real dated git history, deterministic, marker-guarded regeneration) | `cie-ingest::sample` + `cli:sample` |
+| US-087 | co-change coupling from real git history (canonical rename resolution, bulk-edit exclusion ledger, support counts + supporting commits + cross-directory flags) | `cie-ingest::cochange` + `cli:cochange` |
 
-## Deep verification — 97 stories engine-checked
+## Deep verification — 98 stories engine-checked
 
 Every check is a `fn() -> Result<(), String>` in `cie-stories/src/checks/`,
 dispatched by `cie stories verify --id US-xxx` and executed in bulk by the

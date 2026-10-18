@@ -235,8 +235,8 @@ pub const REGISTRY: &[Entry] = &[
         "Pattern candidates with evidence and correctness constraints; claim classes split measured/potential by construction — no measured-speedup claim without an imported workload run."),
     entry!("US-086", Delivered, ["cie-ingest::churn"],
         "Churn factors with exclusion ledger (bulk edits, authors, subjects) reporting each rule's re-ranking effect, rank-stability under weight sweeps, and the lower-bound note (sampled history, no calibrated probabilities)."),
-    entry!("US-087", Planned, [],
-        "Co-change analysis needs git history ingest; not shipped."),
+    entry!("US-087", Delivered, ["cie-ingest::cochange::co_change_report", "cie-ingest::history::SystemGit", "cli:cochange"],
+        "Co-change coupling from REAL git history (SystemGit seam): rename rows resolved to final canonical names (chains closed transitively), bulk-edit commits excluded with the effect counted, per-edge support counts + supporting commit ids + cross-directory flags exposed; labelled historical coupling — never presented as a static or runtime dependency."),
     // ---- History, collaboration and knowledge ------------------------------
     entry!("US-088", Planned, [],
         "History analysis not shipped; no contributor-identity fields exist anywhere in the stores (nothing to protect yet), and privacy-at-source stays a design constraint for when history lands."),

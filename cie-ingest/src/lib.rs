@@ -3,6 +3,7 @@
 
 
 pub mod churn;
+pub mod cochange;
 pub mod sample;
 pub mod history;
 pub mod pipeline;

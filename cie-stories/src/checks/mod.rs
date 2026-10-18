@@ -88,7 +88,7 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-058" => s6_arch::us_058,
         "US-060" => s6_arch::us_060,
         "US-059" => s11_closes::us_059,
-        // US-060: s6_arch::us_060 (FCA separations); co-change covered by
+        // US-060: s6_arch::us_060 (FCA separations); co-change report is
         // the cie-ingest::churn suite — audit-only here.
         // US-061: audit; US-062/063: planned.
         // ---- Debugging and investigations ----
@@ -116,6 +116,7 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-080" => s11_closes::us_080,
         "US-085" => s11_closes::us_085,
         "US-086" => s11_closes::us_086,
+        "US-087" => s11_closes::us_087,
         "US-100" => s11_closes::us_100,
         "US-102" => s11_closes::us_102,
         "US-106" => s11_closes::us_106,
@@ -168,7 +169,7 @@ mod tests {
             // CIE-US closes batch: newly engine-checked stories
             "US-009", "US-010", "US-022", "US-023", "US-024", "US-028", "US-030",
             "US-037", "US-039", "US-046", "US-052", "US-059", "US-064", "US-066",
-            "US-069", "US-071", "US-079", "US-080", "US-085", "US-086", "US-100",
+            "US-069", "US-071", "US-079", "US-080", "US-085", "US-086", "US-087", "US-100",
             "US-102", "US-106", "US-113", "US-114", "US-119", "US-120", "US-127",
             "US-128", "US-140", "US-141", "US-142", "US-143",
         ] {
@@ -177,7 +178,7 @@ mod tests {
         for id in [
             "US-005", "US-012", "US-020", "US-041", "US-043", "US-047",
             "US-048", "US-061", "US-062", "US-063", "US-070", "US-073", "US-075", "US-076",
-            "US-077", "US-078", "US-081", "US-082", "US-083", "US-084", "US-087",
+            "US-077", "US-078", "US-081", "US-082", "US-083", "US-084",
             "US-088", "US-092", "US-096", "US-098", "US-101",
             "US-104", "US-105", "US-108", "US-109", "US-110", "US-111", "US-112",
             "US-115", "US-116", "US-117", "US-118",

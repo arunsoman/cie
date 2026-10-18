@@ -73,7 +73,7 @@ const SAMPLE_APP: &[SampleCommit] = &[
         files: &[
             SampleFile {
                 rel: ".gitignore",
-                body: "__pycache__/\n*.pyc\n.cie/\n",
+                body: "__pycache__/\n*.pyc\n.cie/\n.cie-sample\n",
             },
             SampleFile {
                 rel: "README.md",
@@ -111,6 +111,10 @@ const SAMPLE_APP: &[SampleCommit] = &[
         subject: "test: order flow against inventory",
         date: "2026-01-13T08:45:00 +0000",
         files: &[
+            SampleFile {
+                rel: "inventory.py",
+                body: "\"\"\"Inventory stock model.\n\nmust_keep_docstring: stock levels are the source of truth for orders.\n\"\"\"\n\nSTOCK = {}\n\n\ndef add_item(sku: str, count: int) -> int:\n    \"\"\"Add count units of sku to stock and return the new level.\"\"\"\n    STOCK[sku] = STOCK.get(sku, 0) + count\n    return STOCK[sku]\n\n\ndef remove_item(sku: str, count: int) -> bool:\n    \"\"\"Remove count units of sku; must return False when stock is short.\"\"\"\n    level = STOCK.get(sku, 0)\n    if level < count:\n        return False\n    STOCK[sku] = level - count\n    return True\n\n\ndef record_sale(sku: str, count: int) -> str:\n    \"\"\"Record a sale line for auditing; must not mutate stock.\"\"\"\n    return f\"sale {sku} x{count}\"\n\n\ndef stock_level(sku: str) -> int:\n    \"\"\"Current level of a sku; must return 0 for unknown skus.\"\"\"\n    return STOCK.get(sku, 0)\n\n\ndef low_stock(threshold: int) -> list:\n    \"\"\"Return skus whose level is at or below the threshold.\"\"\"\n    return sorted(sku for sku, level in STOCK.items() if level <= threshold)\n",
+            },
             SampleFile {
                 rel: "tests/test_orders.py",
                 body: "\"\"\"Order-flow tests.\n\nmust_keep_docstring: tests must reset shared stock before running.\n\"\"\"\n\nimport inventory\nfrom orders import place_order\n\n\ndef test_rejected_when_short():\n    \"\"\"must verify stock before confirming.\"\"\"\n    inventory.STOCK.clear()\n    assert place_order(\"nope\", 1) == \"rejected nope x1\"\n",

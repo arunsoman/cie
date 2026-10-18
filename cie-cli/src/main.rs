@@ -54,6 +54,18 @@ pub struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
+    /// Co-change coupling report from git history (US-087)
+    Cochange {
+        path: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        min_shared: u64,
+        #[arg(long, default_value_t = 20)]
+        bulk: usize,
+        #[arg(long)]
+        max_commits: Option<u32>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Generate the built-in sample repository with real dated history (US-007)
     Sample {
         path: PathBuf,
@@ -262,6 +274,47 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::Cochange { path, min_shared, bulk, max_commits, json } => {
+            let opts = cie_ingest::cochange::CoChangeOptions {
+                min_shared,
+                bulk_edit_min_paths: bulk,
+                max_commits,
+            };
+            match cie_ingest::cochange::co_change_report(&path, &opts) {
+                Ok(rep) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&rep).unwrap_or_default());
+                    } else {
+                        println!(
+                            "co-change for {} — sample {} commits ({} counted, {} bulk-excluded), {} renames resolved",
+                            path.display(),
+                            rep.sample_commits,
+                            rep.counted_commits,
+                            rep.excluded_bulk,
+                            rep.rename_events
+                        );
+                        if rep.edges.is_empty() {
+                            println!("  no co-change pairs at the given threshold");
+                        }
+                        for e in &rep.edges {
+                            println!(
+                                "  {:>4}x  {} <-> {}{}",
+                                e.support,
+                                e.a,
+                                e.b,
+                                if e.cross_directory { "  [cross-directory]" } else { "" }
+                            );
+                        }
+                        println!("  note: {}", rep.note);
+                    }
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {}", e.reason);
+                    1
+                }
+            }
+        }
         Command::Sample { path, force } => {
             match cie_ingest::sample::generate(&path, &cie_ingest::sample::SampleOptions { force }) {
                 Ok(rep) => {
@@ -273,7 +326,8 @@ fn run(cli: Cli) -> i32 {
                         rep.root.display()
                     );
                     println!(
-                        "try: cie report {} | cie viz {} --out viewspec.json",
+                        "try: cie report {} | cie viz {} --out viewspec.json | cie cochange {}",
+                        path.display(),
                         path.display(),
                         path.display()
                     );
