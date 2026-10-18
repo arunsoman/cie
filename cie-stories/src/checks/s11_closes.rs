@@ -844,14 +844,6 @@ pub fn us_028() -> Result<(), String> {
     Ok(())
 }
 
-/// US-030: the spec carries the verbatim layout strategy (VIZ-D-01)
-/// the quality report discloses.
-pub fn us_030() -> Result<(), String> {
-    use cie_viz::model::LayoutHint;
-    let _ = std::mem::size_of::<LayoutHint>();
-    Ok(())
-}
-
 /// US-140: CLI flows are keyboard-first by construction (commands exist).
 pub fn us_140() -> Result<(), String> {
     let dir = fixture::python_repo("us140");

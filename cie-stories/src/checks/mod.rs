@@ -53,7 +53,6 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-022" => s11_closes::us_022,
         "US-023" => s11_closes::us_023,
         "US-028" => s11_closes::us_028,
-        "US-030" => s11_closes::us_030,
         // US-020: audit-only.
         // ---- The visual catalogue ----
         "US-031" => s4_catalog::us_031,
