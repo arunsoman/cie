@@ -4,6 +4,7 @@
 pub mod beliefs;
 pub mod behavior;
 pub mod concurrency;
+pub mod focus;
 pub mod pathcond;
 pub mod predicates;
 pub mod conformance;
