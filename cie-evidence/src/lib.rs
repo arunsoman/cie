@@ -4,8 +4,11 @@
 //! (the §9 protocol needs them cycle-free); this crate re-exports them and
 //! adds the fact-dependent builders.
 
+pub mod profile;
 pub mod readiness;
 pub mod workload;
+
+pub use profile::{attribute_hotspots, Hotspot, HotspotAttribution, Profile, ProfileSample, SampleCategory};
 
 pub use readiness::{
     capacity_outcome, external_verdicts, overall_tone, readiness_rollup, Calibration,
