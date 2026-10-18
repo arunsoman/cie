@@ -1,6 +1,7 @@
 //! cie-analysis — the L4 analysis layer: behavior, conformance, security,
 //! testing, concepts/hierarchy and drift, plus the orchestration engine.
 
+pub mod deps;
 pub mod beliefs;
 pub mod behavior;
 pub mod alternatives;

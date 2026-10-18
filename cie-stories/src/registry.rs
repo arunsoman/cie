@@ -182,8 +182,8 @@ pub const REGISTRY: &[Entry] = &[
         "Candidate separations from concept lattices + co-change coupling from history ingest (shared-commit pairs, deterministic ordering)."),
     entry!("US-061", Delivered, ["cli:ingest-org", "cie-ingest::run_org_ingest"],
         "Cross-repo ingest with concept merge; consumers outside bounds appear as coverage gaps, not silence."),
-    entry!("US-062", Planned, [],
-        "Package/manifest dependency graph and upgrade modelling not shipped."),
+    entry!("US-062", Delivered, ["cie-analysis::deps", "cli:deps"],
+        "Manifest dependency graph (package.json/pyproject.toml/requirements.txt/Cargo.toml/go.mod; unparseable manifests named, never guessed), adapter-facts usage evidence (Python ImportFacts today — other ecosystems carry a named-gap note, never a fabricated zero), and upgrade what-if whose compatibility is ALWAYS Unknown (an available version is never presented as automatically compatible)."),
     entry!("US-063", Planned, [],
         "Binary artifact probing out of static-source scope; not shipped."),
     // ---- Debugging and investigations -------------------------------------

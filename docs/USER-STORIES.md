@@ -31,7 +31,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Interactive visual exploration | 13 | 0 | 0 | 13 |
 | The visual catalogue | 17 | 0 | 2 | 19 |
 | Behaviour, concepts and business rules | 7 | 0 | 0 | 7 |
-| Architecture, dependencies and impact | 5 | 0 | 2 | 7 |
+| Architecture, dependencies and impact | 6 | 0 | 1 | 7 |
 | Debugging and investigations | 11 | 0 | 0 | 11 |
 | Runtime, concurrency and data consistency | 3 | 0 | 4 | 7 |
 | Performance and technical health | 3 | 0 | 3 | 6 |
@@ -47,7 +47,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Accessibility and interaction parity | 4 | 0 | 0 | 4 |
 | Honest operation | 4 | 0 | 0 | 4 |
 
-**Totals** — delivered: 112, partial: 0, planned: 35, total: 147
+**Totals** — delivered: 113, partial: 0, planned: 34, total: 147
 
 ## The partials close (2026-10 batch)
 
@@ -83,8 +83,9 @@ time with a dedicated deep check each:
 |---|---|---|
 | US-007 | on-demand sample repository (real dated git history, deterministic, marker-guarded regeneration) | `cie-ingest::sample` + `cli:sample` |
 | US-087 | co-change coupling from real git history (canonical rename resolution, bulk-edit exclusion ledger, support counts + supporting commits + cross-directory flags) | `cie-ingest::cochange` + `cli:cochange` |
+| US-062 | dependency manifests + usage evidence + upgrade what-if (5 manifest formats; unparseable named; unresolved ≠ unused; compatibility always Unknown) | `cie-analysis::deps` + `cli:deps --what-if` |
 
-## Deep verification — 98 stories engine-checked
+## Deep verification — 99 stories engine-checked
 
 Every check is a `fn() -> Result<(), String>` in `cie-stories/src/checks/`,
 dispatched by `cie stories verify --id US-xxx` and executed in bulk by the
