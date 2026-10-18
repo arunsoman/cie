@@ -1,7 +1,9 @@
 //! TASK-022 validation sketch — cross-language FR-3 semantics guard over
-//! all ten adapters (adapted to the composition root per TRACEABILITY §2:
-//! the registry + all ten adapter crates assemble here because Rust
-//! forbids trait-crate → adapter-crate cycles).
+//! all twelve adapters (adapted to the composition root per TRACEABILITY §2:
+//! the registry + all adapter crates assemble here because Rust
+//! forbids trait-crate → adapter-crate cycles). SQL and Shell have no
+//! authorize-shaped fixture yet, so they fall back to the guard's
+//! no-fixture admission path (FR-4: recorded, not skipped).
 
 use cie_adapters::{CandidateRule, LanguageRegistry, SemanticsGuard};
 use cie_semantic::LangId;
@@ -31,11 +33,17 @@ fn task_022_cross_language_semantics_guard() {
     let registry = v1_registry();
     assert_eq!(
         registry.adapters().len(),
-        10,
-        "FR-17: the guard runs over all ten adapters"
+        12,
+        "FR-17: the guard runs over all twelve adapters"
     );
     let repo = fixture_repo_10_files();
-    assert_eq!(repo.len(), 10, "one authorize-shaped fixture per language");
+    assert_eq!(
+        repo.len(),
+        10,
+        "fixture dir still only carries one authorize-shaped file per language for the \
+         original ten; SQL and Shell have no fixture yet and fall back to the no-fixture \
+         admission path below"
+    );
 
     // Candidate rule (Houdini-style, cf. §7): "a call to authorize
     // establishes authorization".
@@ -46,7 +54,7 @@ fn task_022_cross_language_semantics_guard() {
     let admissions = SemanticsGuard::evaluate(&rule, &registry, &repo);
     assert_eq!(
         admissions.len(),
-        10,
+        12,
         "matrix-driven: one admission per registered adapter"
     );
 
