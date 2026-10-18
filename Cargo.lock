@@ -423,6 +423,7 @@ name = "cie-analysis"
 version = "1.0.0"
 dependencies = [
  "cie-adapters",
+ "cie-claims",
  "cie-concepts",
  "cie-contract",
  "cie-core",
@@ -469,6 +470,7 @@ dependencies = [
  "cie-llm",
  "cie-relations",
  "cie-semantic",
+ "cie-server",
  "cie-store",
  "cie-stories",
  "cie-viz",
@@ -561,6 +563,7 @@ dependencies = [
  "cie-core",
  "cie-semantic",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -665,7 +668,11 @@ dependencies = [
 name = "cie-server"
 version = "1.0.0"
 dependencies = [
+ "cie-analysis",
+ "cie-contract",
  "cie-core",
+ "cie-evidence",
+ "cie-ingest",
  "serde",
  "serde_json",
  "tokio",
