@@ -6,7 +6,7 @@
 // modelled on US-023: magnify locally, never mutate the base chart, state
 // the source.
 
-export type ChatChartKind = "hbar" | "donut" | "stat" | "table";
+export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow";
 
 export interface ChatChartDataPoint {
   name: string;
@@ -14,11 +14,32 @@ export interface ChatChartDataPoint {
   color?: string; // rose | amber | emerald | stone (never colour alone: labels always present)
 }
 
+// One box in a diagram (UML-style or call flow). Diagram geometry is NEVER
+// taken from the model: boxes and arrows are built locally from the loaded
+// store (src/lib/draw-anything.ts), so every label traces back to indexed
+// data. The model may only pick the KIND and write the title/tell.
+export interface UmlNode {
+  id: string;
+  title: string;
+  kind: string; // domain | module | usecase | rule | invariant | function | step
+  lines?: string[]; // compartment lines (what it does / its members)
+  more?: number; // "…and n more" when lines were capped
+  certainty?: "Fact" | "Inference" | "Hypothesis";
+}
+
+export interface UmlLink {
+  from: string;
+  to: string;
+  label?: string; // plain-words relationship, e.g. "talks to"
+  certainty?: "Fact" | "Inference" | "Hypothesis";
+  dashed?: boolean; // soft relations (guesses, loose coupling)
+}
+
 export interface ChatChartSpec {
   kind: ChatChartKind;
   catalog?: string; // e.g. "G5" — the catalog family the choice is based on
   engine?: string; // custom-svg | recharts | card | grid
-  layout?: string; // fisheye-rows | donut+legend | hero-number | scroll-rows
+  layout?: string; // fisheye-rows | donut+legend | hero-number | scroll-rows | uml-boxes | call-flow
   title?: string;
   tell?: string; // one-line "what this chart tells you"
   lens?: boolean; // fisheye lens (hbar only)
@@ -27,6 +48,9 @@ export interface ChatChartSpec {
   rows?: (string | number)[][];
   center?: string; // donut centre caption
   unit?: string;
+  nodes?: UmlNode[]; // diagrams only — filled from the store, never from the model
+  links?: UmlLink[];
+  source?: string; // honesty note: which export the diagram was built from
 }
 
 export interface ParsedReply {
@@ -34,7 +58,7 @@ export interface ParsedReply {
   chart?: ChatChartSpec;
 }
 
-const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table"];
+const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow"];
 const COLORS = new Set(["rose", "amber", "emerald", "stone"]);
 
 /** Engine + layout per kind — deterministic, so a hallucinated pair gets corrected. */
@@ -44,6 +68,8 @@ export function engineFor(kind: ChatChartKind): string {
     case "donut": return "recharts";
     case "stat": return "card";
     case "table": return "grid";
+    case "uml": return "custom-svg";
+    case "flow": return "custom-svg";
   }
 }
 export function layoutFor(kind: ChatChartKind): string {
@@ -52,6 +78,8 @@ export function layoutFor(kind: ChatChartKind): string {
     case "donut": return "donut+legend";
     case "stat": return "hero-number";
     case "table": return "scroll-rows";
+    case "uml": return "uml-boxes";
+    case "flow": return "call-flow";
   }
 }
 
@@ -85,6 +113,13 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
     return spec;
   }
 
+  // Diagrams: the model gets NO say over boxes or arrows. Whatever it sends
+  // is dropped here; the caller refills nodes/links from the loaded store
+  // (src/lib/draw-anything.ts). Only title + tell survive.
+  if (kind === "uml" || kind === "flow") {
+    return spec;
+  }
+
   const data = Array.isArray(c.data)
     ? (c.data as Record<string, unknown>[])
         .filter((d) => d && typeof d.name === "string" && Number.isFinite(Number(d.value)))
@@ -104,6 +139,11 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
     spec.center = typeof c.center === "string" ? c.center.slice(0, 40) : "in total";
   }
   return spec;
+}
+
+/** True for the kinds whose boxes/arrows are built from the store. */
+export function isDiagramKind(kind: ChatChartKind): boolean {
+  return kind === "uml" || kind === "flow";
 }
 
 /**

@@ -13,10 +13,10 @@
 //            lens centre, Escape releases it).
 //   US-142 — never colour alone: every bar/row keeps its text label + value.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { BarChart3, MoveVertical } from "lucide-react";
-import type { ChatChartSpec } from "@/lib/chat-chart";
+import type { ChatChartSpec, UmlNode } from "@/lib/chat-chart";
 
 const HEX: Record<string, string> = {
   rose: "#e11d48",
@@ -45,7 +45,8 @@ function ChartFootnote({ spec }: { spec: ChatChartSpec }) {
         {spec.catalog ? `catalog ${spec.catalog} · ` : ""}
         {spec.engine} · {spec.layout}
         {spec.kind === "hbar" && spec.lens !== false ? " · fisheye lens: hover or use ↑↓" : ""}
-        {" "}· drawn from your loaded report
+        {(spec.kind === "uml" || spec.kind === "flow") ? " · hover a box to light up its connections" : ""}
+        {spec.source ? ` · built from ${spec.source}` : " · drawn from your loaded report"}
       </span>
     </p>
   );
@@ -291,11 +292,347 @@ function ChatTable({ spec }: { spec: ChatChartSpec }) {
   );
 }
 
+// ---------- UML-style diagrams (uml = structure, flow = who calls whom) ----------
+//
+// Boxes + arrows built with plain SVG, same visual language as the map:
+// emerald = proven, amber = good guess (dashed), grey = not sure yet.
+// The boxes never come from the model — draw-anything.ts fills them from the
+// loaded store, so every label is traceable.
+// Layout mirrors the engine's own band hint (domain → modules → use-cases →
+// rules); flows layer callers above callees (longest call path).
+
+type Cert = "Fact" | "Inference" | "Hypothesis";
+
+const CERT_STYLE: Record<Cert, { fill: string; stroke: string; text: string; dash?: string }> = {
+  Fact: { fill: "#ecfdf5", stroke: "#059669", text: "#065f46" },
+  Inference: { fill: "#fffbeb", stroke: "#d97706", text: "#78350f", dash: "5 3" },
+  Hypothesis: { fill: "#f5f5f4", stroke: "#78716c", text: "#44403c", dash: "2 3" },
+};
+
+const KIND_PLAIN: Record<string, string> = {
+  domain: "The big picture",
+  module: "A code file",
+  usecase: "Something it does",
+  rule: "A rule it follows",
+  invariant: "Must always be true",
+  function: "A named thing",
+  step: "A step",
+};
+
+/** Greedy word wrap — returns at most maxLines lines, last one ellipsised. */
+function wrap(s: string, maxChars: number, maxLines: number): string[] {
+  const words = s.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    if (cur && (cur + " " + w).length > maxChars) {
+      out.push(cur);
+      cur = w;
+      if (out.length === maxLines) break;
+    } else {
+      cur = cur ? cur + " " + w : w;
+    }
+  }
+  if (out.length < maxLines && cur) out.push(cur);
+  if (out.length === maxLines) {
+    // did we drop anything?
+    const consumed = out.join(" ").length;
+    if (consumed < s.length - 1) out[maxLines - 1] = out[maxLines - 1].slice(0, Math.max(0, maxChars - 1)) + "…";
+  }
+  return out.length ? out : [s.slice(0, maxChars - 1) + "…"];
+}
+
+interface Box {
+  node: UmlNode;
+  row: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  titleLines: string[];
+}
+
+const DG_W = 960;
+const DG_MARGIN = 26;
+const DG_GAP = 16;
+const ROW_GAP = 34;
+
+function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
+  const uid = useId().replace(/[:]/g, "");
+  const [hover, setHover] = useState<string | null>(null);
+  const nodes = spec.nodes ?? [];
+  const links = spec.links ?? [];
+
+  // ---- rows ----
+  const rows: UmlNode[][] = [];
+  if (spec.kind === "flow") {
+    // depth = longest call chain from a root; callers sit above callees
+    const depth = new Map<string, number>();
+    const calc = (id: string, seen: Set<string>): number => {
+      if (depth.has(id)) return depth.get(id)!;
+      if (seen.has(id)) return 0; // cycle guard
+      seen.add(id);
+      const callers = links.filter((l) => l.to === id).map((l) => l.from);
+      const d = callers.length ? Math.max(...callers.map((c) => calc(c, seen) + 1)) : 0;
+      depth.set(id, d);
+      return d;
+    };
+    for (const n of nodes) calc(n.id, new Set());
+    const byDepth = new Map<number, UmlNode[]>();
+    for (const n of nodes) {
+      const d = depth.get(n.id) ?? 0;
+      byDepth.set(d, [...(byDepth.get(d) ?? []), n]);
+    }
+    [...byDepth.keys()].sort((a, b) => a - b).forEach((d) => rows.push(byDepth.get(d)!));
+  } else {
+    const bands: { kinds: string[] }[] = [
+      { kinds: ["domain"] },
+      { kinds: ["module"] },
+      { kinds: ["usecase"] },
+      { kinds: ["rule", "invariant"] },
+    ];
+    const known = new Set(bands.flatMap((b) => b.kinds));
+    for (const b of bands) {
+      const group = nodes.filter((n) => b.kinds.includes(n.kind));
+      if (group.length) rows.push(group);
+    }
+    const rest = nodes.filter((n) => !known.has(n.kind));
+    if (rest.length) rows.push(rest);
+  }
+
+  // ---- geometry ----
+  const boxes: Box[] = [];
+  let y = DG_MARGIN + 6;
+  rows.forEach((row, ri) => {
+    const metas = row.map((n) => {
+      const isLong = n.kind === "rule" || n.kind === "invariant";
+      const titleLines = isLong ? wrap(n.title, 30, 2) : n.title.length > 30 ? wrap(n.title, 28, 2) : [n.title];
+      const body = n.lines ?? [];
+      const bodyLines = body.map((l) => (l.length > 26 ? l.slice(0, 25) + "…" : l));
+      const textW = Math.max(...titleLines.map((t) => t.length), ...bodyLines.map((t) => t.length), 8);
+      const w = Math.min(240, Math.max(112, textW * 6.3 + 26));
+      const h = 8 + titleLines.length * 13.5 + (bodyLines.length ? 6 + bodyLines.length * 12.5 + (n.more ? 11 : 0) : 0) + 8;
+      return { node: n, titleLines, bodyLines, w, h };
+    });
+    // wrap wide rows
+    const line: Box[] = [];
+    let rowW = 0;
+    const pushRow = () => {
+      const total = line.reduce((s, b) => s + b.w + DG_GAP, -DG_GAP);
+      let x = Math.max(DG_MARGIN, (DG_W - total) / 2);
+      const baseY = y;
+      let maxH = 0;
+      for (const b of line) {
+        b.x = x;
+        b.y = baseY;
+        x += b.w + DG_GAP;
+        maxH = Math.max(maxH, b.h);
+        boxes.push(b);
+      }
+      y = baseY + maxH + ROW_GAP;
+    };
+    for (const m of metas) {
+      const b: Box = { node: m.node, row: ri, x: 0, y: 0, w: m.w, h: m.h, titleLines: m.titleLines };
+      if (rowW + m.w > DG_W - 2 * DG_MARGIN && line.length) {
+        pushRow();
+        line.length = 0;
+        rowW = 0;
+      }
+      line.push(b);
+      rowW += m.w + DG_GAP;
+    }
+    if (line.length) pushRow();
+  });
+  const vbH = Math.max(y - ROW_GAP + DG_MARGIN, 320);
+  const boxById = new Map(boxes.map((b) => [b.node.id, b]));
+
+  // ---- arrow routing ----
+  const edgePath = (a: Box, b: Box) => {
+    const xc1 = a.x + a.w / 2;
+    const xc2 = b.x + b.w / 2;
+    if (b.row > a.row) {
+      const y1 = a.y + a.h;
+      const y2 = b.y;
+      const dy = Math.max(24, Math.abs(y2 - y1) / 2);
+      return `M ${xc1} ${y1} C ${xc1} ${y1 + dy}, ${xc2} ${y2 - dy}, ${xc2} ${y2}`;
+    }
+    if (b.row === a.row) {
+      const leftToRight = a.x + a.w <= b.x;
+      const rightToLeft = b.x + b.w <= a.x;
+      if (leftToRight || rightToLeft) {
+        const [s, t] = leftToRight ? [a, b] : [b, a];
+        const mx = (s.x + s.w + t.x) / 2;
+        return `M ${s.x + s.w} ${s.y + s.h / 2} C ${mx} ${s.y + s.h / 2}, ${mx} ${t.y + t.h / 2}, ${t.x} ${t.y + t.h / 2}`;
+      }
+      const y = Math.max(a.y + a.h, b.y + b.h);
+      return `M ${xc1} ${a.y + a.h} C ${xc1} ${y + 22}, ${xc2} ${y + 22}, ${xc2} ${b.y + b.h}`;
+    }
+    // backward: loop around the side
+    if (a.x >= b.x + b.w) {
+      const bx = Math.min(a.x, b.x + b.w) - 44;
+      return `M ${a.x} ${a.y + a.h / 2} C ${bx} ${a.y + a.h / 2}, ${bx} ${b.y + b.h / 2}, ${b.x + b.w} ${b.y + b.h / 2}`;
+    }
+    const bx = Math.max(a.x + a.w, b.x + b.w) + 44;
+    return `M ${a.x + a.w} ${a.y + a.h / 2} C ${bx} ${a.y + a.h / 2}, ${bx} ${b.y + b.h / 2}, ${b.x + b.w} ${b.y + b.h / 2}`;
+  };
+
+  // bezier midpoint for the edge label
+  const mid = (a: Box, b: Box) => {
+    const d = edgePath(a, b);
+    const n = d.match(/-?[\d.]+/g)?.map(Number) ?? [];
+    if (n.length < 8) return null;
+    const [x0, y0, x1, y1, x2, y2, x3, y3] = n;
+    return {
+      x: (x0 + 3 * x1 + 3 * x2 + x3) / 8,
+      y: (y0 + 3 * y1 + 3 * y2 + y3) / 8,
+    };
+  };
+
+  const lit = (linkFrom: string, linkTo: string) => !hover || hover === linkFrom || hover === linkTo;
+
+  return (
+    <div className="mt-2">
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-1.5 text-[10.5px] text-stone-500">
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border" style={{ background: CERT_STYLE.Fact.fill, borderColor: CERT_STYLE.Fact.stroke }} /> proven</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border border-dashed" style={{ background: CERT_STYLE.Inference.fill, borderColor: CERT_STYLE.Inference.stroke }} /> good guess</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border border-dotted" style={{ background: CERT_STYLE.Hypothesis.fill, borderColor: CERT_STYLE.Hypothesis.stroke }} /> not sure yet</span>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+        <svg
+          viewBox={`0 0 ${DG_W} ${vbH}`}
+          className="block min-w-[620px]"
+          width="100%"
+          role="img"
+          aria-label={`${spec.title ?? "Diagram"}: ${nodes.length} boxes, ${links.length} connections`}
+        >
+          <defs>
+            <marker id={`${uid}-af`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={CERT_STYLE.Fact.stroke} />
+            </marker>
+            <marker id={`${uid}-ai`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={CERT_STYLE.Inference.stroke} />
+            </marker>
+          </defs>
+
+          {/* arrows first (under boxes) */}
+          {links.map((l, i) => {
+            const a = boxById.get(l.from);
+            const b = boxById.get(l.to);
+            if (!a || !b) return null;
+            const fact = (l.certainty ?? "Fact") === "Fact";
+            const color = fact ? CERT_STYLE.Fact.stroke : CERT_STYLE.Inference.stroke;
+            const on = lit(l.from, l.to);
+            const m = mid(a, b);
+            return (
+              <g key={i} opacity={on ? 0.85 : 0.12} style={{ transition: "opacity 120ms" }}>
+                <path
+                  d={edgePath(a, b)}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={on && hover ? 2 : 1.2}
+                  strokeDasharray={l.dashed ? "5 4" : undefined}
+                  markerEnd={fact ? `url(#${uid}-af)` : `url(#${uid}-ai)`}
+                />
+                {l.label && m && (!hover || on) && (
+                  <text
+                    x={m.x}
+                    y={m.y - 3}
+                    textAnchor="middle"
+                    fontSize="8.5"
+                    fill="#78716c"
+                    stroke="#ffffff"
+                    strokeWidth="3"
+                    paintOrder="stroke"
+                  >
+                    {l.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* boxes — UML look: title compartment + body compartment */}
+          {boxes.map((b) => {
+            const cert = (b.node.certainty ?? "Inference") as Cert;
+            const st = CERT_STYLE[cert];
+            const isHover = hover === b.node.id;
+            const body = b.node.lines ?? [];
+            const bodyLines = body.map((l) => (l.length > 26 ? l.slice(0, 25) + "…" : l));
+            const headH = 8 + b.titleLines.length * 13.5;
+            const label = `${KIND_PLAIN[b.node.kind] ?? b.node.kind}: ${b.node.title} — ${cert === "Fact" ? "proven" : cert === "Inference" ? "good guess" : "not sure yet"}`;
+            return (
+              <g
+                key={b.node.id}
+                tabIndex={0}
+                role="button"
+                aria-label={label}
+                onPointerEnter={() => setHover(b.node.id)}
+                onPointerLeave={() => setHover(null)}
+                onFocus={() => setHover(b.node.id)}
+                onBlur={() => setHover(null)}
+                className="outline-none cursor-default"
+              >
+                <title>{label}</title>
+                <rect
+                  x={b.x}
+                  y={b.y}
+                  width={b.w}
+                  height={b.h}
+                  rx={8}
+                  fill={st.fill}
+                  stroke={isHover ? "#1c1917" : st.stroke}
+                  strokeWidth={isHover ? 2.4 : 1.4}
+                  strokeDasharray={st.dash}
+                  style={{ transition: "stroke-width 100ms" }}
+                />
+                {/* title compartment */}
+                <line x1={b.x} y1={b.y + headH} x2={b.x + b.w} y2={b.y + headH} stroke={st.stroke} strokeWidth={0.8} opacity={0.55} />
+                {b.titleLines.map((t, ti) => (
+                  <text
+                    key={ti}
+                    x={b.x + b.w / 2}
+                    y={b.y + 17 + ti * 13.5}
+                    textAnchor="middle"
+                    fontSize={b.titleLines.length > 1 ? 10.5 : 11.5}
+                    fontWeight={700}
+                    fill={st.text}
+                  >
+                    {t}
+                  </text>
+                ))}
+                {/* body compartment */}
+                {bodyLines.map((t, li) => (
+                  <text key={li} x={b.x + 10} y={b.y + headH + 14 + li * 12.5} fontSize={10} fill="#57534e">
+                    {t}
+                  </text>
+                ))}
+                {b.node.more ? (
+                  <text x={b.x + 10} y={b.y + headH + 14 + bodyLines.length * 12.5} fontSize={9} fontStyle="italic" fill="#a8a29e">
+                    …and {b.node.more} more
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      {nodes.length >= 12 && (
+        <p className="text-[10px] text-stone-400 mt-1 flex items-center gap-1">
+          <MoveVertical className="h-3 w-3" /> scroll sideways if the picture is wider than this box — or press “Show this chart big on the canvas”
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ---------- dispatcher ----------
 
 export function ChatChart({ spec }: { spec: ChatChartSpec }) {
   if (spec.kind === "table") return <div className="mt-1"><ChatTable spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "donut") return <div className="mt-1"><ChatDonut spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "stat") return <div className="mt-1"><ChatStat spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   return <div className="mt-1"><FisheyeHBar spec={spec} /><ChartFootnote spec={spec} /></div>;
 }

@@ -15,16 +15,17 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, Maximize2, X } from "lucide-react";
+import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, Maximize2, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
-import { parseChartReply } from "@/lib/chat-chart";
+import { parseChartReply, isDiagramKind } from "@/lib/chat-chart";
+import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { ChatChart } from "@/components/cie/chat-chart";
 import { providerLabel } from "@/lib/llm-config";
 
 const STARTERS = [
   "What should I fix first?",
-  "Which files have the most problems?",
+  "Show me a UML diagram of this project",
   "Are there any problems with secrets or passwords?",
   "Can I trust this report? What did CIE not check?",
 ];
@@ -99,6 +100,20 @@ export function ChatPanel() {
 
     pushChat({ role: "user", content: question });
     if (inputRef.current) inputRef.current.value = "";
+
+    // ---- fast path: drawing requests are built locally from the loaded
+    // store (draw-anything.ts) — instant, and nothing can be invented. ----
+    const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected);
+    if (local) {
+      pushChat({
+        role: "assistant",
+        content: local.answer,
+        chart: local.chart ?? undefined,
+        instant: true,
+      });
+      return;
+    }
+
     setChatBusy(true);
 
     // History for the model: everything so far, minus old error bubbles.
@@ -138,7 +153,13 @@ export function ChatPanel() {
         // The model answers with JSON { answer, chart? }; the tolerant parser
         // falls back to plain text if it doesn't cooperate.
         const parsed = parseChartReply(data.reply);
-        pushChat({ role: "assistant", content: parsed.answer, chart: parsed.chart });
+        // Diagrams: the model only picks the KIND. Boxes and arrows are
+        // filled from the loaded store, so nothing can be invented.
+        let chart = parsed.chart;
+        if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length) {
+          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell) ?? chart;
+        }
+        pushChat({ role: "assistant", content: parsed.answer, chart });
       }
     } catch {
       pushChat({
@@ -218,6 +239,11 @@ export function ChatPanel() {
                 </span>
               )}
               {m.role === "user" ? m.content : <Formatted text={m.content} />}
+              {m.instant && (
+                <p className="mt-2 pt-1.5 border-t border-stone-100 text-[10px] text-stone-400 flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-amber-500" /> Drawn instantly from your loaded report — no AI involved, nothing invented.
+                </p>
+              )}
               {m.technical && (
                 <details className="mt-1.5 text-[11px] text-stone-400">
                   <summary className="cursor-pointer select-none hover:text-stone-500">Technical details</summary>

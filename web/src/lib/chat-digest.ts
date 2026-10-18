@@ -125,6 +125,18 @@ export function buildDigest(
   return {
     about: `Plain-words health report for: ${label}. Produced by the CIE engine from a direct read of the project (revision ${report.rev}).`,
     certainty_words: words,
+    // The app can draw these locally from the loaded store, instantly and
+    // without the model — so "I can't draw that" is never the right answer
+    // for a picture. For uml/flow the model only picks the kind; the app
+    // fills the boxes and arrows from the map itself.
+    drawings_cie_can_make: [
+      "uml — UML-style structure diagram of the code (boxes = files and parts, arrows = connections)",
+      "flow — who-calls-whom flow from the call records",
+      "hbar — bars comparing counts",
+      "donut — one whole split into parts",
+      "stat — one big number",
+      "table — a few rows x columns",
+    ],
     project: {
       files: report.files?.map((f) => f.split("/").pop() ?? f) ?? [],
       named_things_total: report.symbols.length,
