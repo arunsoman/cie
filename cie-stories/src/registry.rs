@@ -259,11 +259,13 @@ pub const REGISTRY: &[Entry] = &[
          or a missing measured duration rejects the comparison with named reasons \
          instead of comparing anyway, and the verdict/reasons/rejected fields are \
          all shown, not just computed."),
-    entry!("US-084", Partial, ["cie-evidence::profile::regression_report"],
-        "Wraps compare_profiles with an improvement_confirmed guard: a candidate \
-         that is faster only by raising error_count or dropped_samples is never \
-         marked confirmed. Workload/environment-difference narration and the \
-         baseline/candidate chart view are host layer."),
+    entry!("US-084", Partial, ["cie-evidence::profile::regression_report", "cie-server::http (GET /view/regression)"],
+        "regression_report's improvement_confirmed guard (never marks an \
+         error/dropped-sample-trading candidate as improved) now has a real view \
+         showing two contrasting scenarios side by side, not just computed. Not \
+         promoted: the story also names throughput and workload/environment \
+         differences as visible dimensions, and this still only tracks \
+         duration + errors — throughput has no field in Profile at all yet."),
     entry!("US-085", Partial, ["cie-adapters::effects", "cie-analysis::findings"],
         "Pattern-based opportunity candidates only; no measured-speedup claims without experiments, by construction."),
     entry!("US-086", Partial, ["cie-analysis::findings", "cli:report"],

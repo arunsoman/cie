@@ -74,6 +74,7 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/hotspots", "US-047: profile-attributed hotspots"),
     ("/view/slow-op", "US-082: explain a slow operation"),
     ("/view/profile-compare", "US-083: compare two profiles"),
+    ("/view/regression", "US-084: investigate a performance regression"),
 ];
 
 fn demo_profile_pair() -> (cie_evidence::Profile, cie_evidence::Profile, cie_evidence::EquivalenceDeclaration) {
@@ -294,6 +295,41 @@ fn render_profile_compare_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&cmp).unwrap_or_default())
 }
 
+fn demo_regressions() -> (cie_evidence::RegressionReport, cie_evidence::RegressionReport) {
+    use cie_evidence::{EquivalenceDeclaration, Profile};
+    let eq = EquivalenceDeclaration { same_workload: true, same_build: true, notes: "same nightly load-test workload".into() };
+    let baseline = Profile { duration_ns: Some(1_000_000_000), error_count: 2, ..demo_profile() };
+    let genuine = cie_evidence::regression_report(&baseline, &Profile { duration_ns: Some(800_000_000), error_count: 2, ..demo_profile() }, &eq);
+    let false_improvement = cie_evidence::regression_report(&baseline, &Profile { duration_ns: Some(800_000_000), error_count: 9, ..demo_profile() }, &eq);
+    (genuine, false_improvement)
+}
+
+fn render_regression_html() -> HttpResponse {
+    let (genuine, false_improvement) = demo_regressions();
+    let row = |label: &str, r: &cie_evidence::RegressionReport| {
+        vec![
+            label.to_string(),
+            format!("{:?}", r.comparison.verdict),
+            r.improvement_confirmed.to_string(),
+            format!("{} -> {}", r.baseline_errors, r.candidate_errors),
+        ]
+    };
+    let body = table(
+        &["scenario", "verdict", "improvement_confirmed", "errors (baseline -> candidate)"],
+        &[row("faster, same error count", &genuine), row("faster, but more errors", &false_improvement)],
+    );
+    HttpResponse::html(page(
+        "US-084: investigate a performance regression",
+        "Two fixed demo scenarios — a faster run can look identical in duration terms, but only the one that didn't trade away correctness is confirmed as an improvement.",
+        &body,
+    ))
+}
+
+fn render_regression_json() -> HttpResponse {
+    let (genuine, false_improvement) = demo_regressions();
+    HttpResponse::json(serde_json::to_string_pretty(&serde_json::json!({"genuine": genuine, "false_improvement": false_improvement})).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -308,6 +344,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/slow-op" => render_slow_op_json(),
         "/view/profile-compare" => render_profile_compare_html(),
         "/api/profile-compare" => render_profile_compare_json(),
+        "/view/regression" => render_regression_html(),
+        "/api/regression" => render_regression_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -442,5 +480,21 @@ mod tests {
         let resp = route("/api/profile-compare");
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         assert!(parsed["verdict"]["Faster"].is_object());
+    }
+
+    #[test]
+    fn regression_view_shows_both_scenarios_distinctly() {
+        let resp = route("/view/regression");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("faster, same error count"));
+        assert!(resp.body.contains("faster, but more errors"));
+    }
+
+    #[test]
+    fn regression_api_confirms_only_the_genuine_improvement() {
+        let resp = route("/api/regression");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert_eq!(parsed["genuine"]["improvement_confirmed"], true);
+        assert_eq!(parsed["false_improvement"]["improvement_confirmed"], false);
     }
 }
