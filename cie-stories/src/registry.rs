@@ -306,8 +306,11 @@ pub const REGISTRY: &[Entry] = &[
         "FeatureRequest carries repository + deliverable (plan/preview/draft-PR) + \
          detail level (prompt/brief/specification/examples) with no field requiring \
          an internal framework/component name. The intake UI is product layer."),
-    entry!("US-105", Planned, [],
-        "Clarification flow is product layer."),
+    entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet"],
+        "ClarificationQuestion::new refuses a question with no stated reason; \
+         fully_answered only becomes true once every question has an explicit \
+         answer — silence never authorizes one. Deciding which questions are \
+         material (vs noise) is product/model layer."),
     entry!("US-106", Partial, ["cie-concepts"],
         "Concept-level overlap detection shipped; capability-level equivalence is product reasoning."),
     entry!("US-107", Partial, ["cie-drift::pipeline"],

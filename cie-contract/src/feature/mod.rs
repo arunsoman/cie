@@ -5,6 +5,8 @@
 //! code, mutate a real working tree, or apply anything outside its own
 //! record.
 
+pub mod clarify;
 pub mod request;
 
+pub use clarify::{ClarificationQuestion, ClarificationSet};
 pub use request::{Deliverable, DetailLevel, FeatureRequest};

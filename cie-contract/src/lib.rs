@@ -18,7 +18,7 @@ pub mod registry;
 pub use dependency::{
     Advisory, CompatibilityVerdict, Dependency, DependencyRiskMap, UpgradeCandidate, UsageEvidence,
 };
-pub use feature::{Deliverable, DetailLevel, FeatureRequest};
+pub use feature::{ClarificationQuestion, ClarificationSet, Deliverable, DetailLevel, FeatureRequest};
 pub use findings::{Finding, FindingKind};
 pub use beliefs::{Belief, BeliefFactor, FactorGraph, Family, Predicate, SiteRef};
 pub use houdini::{Houdini, RefutedEntry};
