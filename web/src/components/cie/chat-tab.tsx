@@ -11,10 +11,12 @@ import { TabsContent } from "@/components/ui/tabs";
 import { MessageCircle, Send, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
+import { parseChartReply } from "@/lib/chat-chart";
+import { ChatChart } from "@/components/cie/chat-chart";
 
 const STARTERS = [
   "What should I fix first?",
-  "What does my app actually do?",
+  "Which files have the most problems?",
   "Are there any problems with secrets or passwords?",
   "Can I trust this report? What did CIE not check?",
 ];
@@ -108,7 +110,10 @@ export function AskTab() {
           error: true,
         });
       } else {
-        pushChat({ role: "assistant", content: data.reply });
+        // The model answers with JSON { answer, chart? }; the tolerant parser
+        // falls back to plain text if it doesn't cooperate.
+        const parsed = parseChartReply(data.reply);
+        pushChat({ role: "assistant", content: parsed.answer, chart: parsed.chart });
       }
     } catch {
       pushChat({
@@ -165,12 +170,14 @@ export function AskTab() {
             {chat.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     m.role === "user"
-                      ? "bg-emerald-700 text-white rounded-br-md"
+                      ? "max-w-[85%] sm:max-w-[75%] bg-emerald-700 text-white rounded-br-md"
                       : m.error
-                        ? "bg-rose-50 text-rose-900 border border-rose-200 rounded-bl-md"
-                        : "bg-stone-100 text-stone-800 border border-stone-200 rounded-bl-md"
+                        ? "max-w-[85%] sm:max-w-[75%] bg-rose-50 text-rose-900 border border-rose-200 rounded-bl-md"
+                        : m.chart
+                          ? "w-full sm:max-w-[92%] bg-stone-100 text-stone-800 border border-stone-200 rounded-bl-md"
+                          : "max-w-[85%] sm:max-w-[75%] bg-stone-100 text-stone-800 border border-stone-200 rounded-bl-md"
                   }`}
                 >
                   {m.error && (
@@ -179,6 +186,7 @@ export function AskTab() {
                     </span>
                   )}
                   {m.role === "user" ? m.content : <Formatted text={m.content} />}
+                  {m.chart && <ChatChart spec={m.chart} />}
                 </div>
               </div>
             ))}
