@@ -1,7 +1,7 @@
 //! cie — Code Intelligence Engine CLI.
 //!
-//! Commands: ingest, analyze, concepts, drift, impact, report, ingest-org,
-//! viz, stories.
+//! Commands: ingest, analyze, concepts, drift, impact, report, sample,
+//! ingest-org, viz, stories.
 
 use cie_drift::persist::DriftStoreExt;
 use cie_incremental::SnapshotStoreExt;
@@ -132,6 +132,12 @@ pub enum Command {
         path: PathBuf,
         #[arg(long)]
         as_of_rev: Option<u64>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Generate a small sample app with dated git history on demand (US-007)
+    Sample {
+        path: PathBuf,
         #[arg(long)]
         json: bool,
     },
@@ -737,6 +743,23 @@ fn run(cli: Cli) -> i32 {
                 }
             }
         }
+        Command::Sample { path, json } => match cie_ingest::generate_sample_repo(&path) {
+            Ok(report) => {
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                } else {
+                    println!("sample repository created at {}", report.root);
+                    for c in &report.commits {
+                        println!("  - {} ({} file(s))", c.subject, c.files.len());
+                    }
+                }
+                0
+            }
+            Err(e) => {
+                eprintln!("error: {}", e.reason);
+                1
+            }
+        },
         Command::IngestOrg { paths, json } => {
             let opts = IngestOptions::default();
             let canonical: Vec<PathBuf> = paths

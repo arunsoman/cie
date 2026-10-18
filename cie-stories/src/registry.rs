@@ -67,8 +67,10 @@ pub const REGISTRY: &[Entry] = &[
         "Offline-first engine: hosted-source pull (PRs, credential freshness, held-aside records) is scheduled, not shipped."),
     entry!("US-006", Delivered, ["cie-ingest::IngestOptions.budget_ms", "cie-llm::Budget", "cli:ingest --budget-ms"],
         "TASK-029 budgets + cancellation checkpoints; a budget-cut run reports incomplete (Coverage.complete=false), never pretends saved."),
-    entry!("US-007", Planned, [],
-        "No on-demand sample-repository generator shipped; tests use generated fixtures, but nothing user-invokable yet."),
+    entry!("US-007", Partial, ["cie-ingest::sample::generate_sample_repo", "cli:sample"],
+        "A dated 4-commit demo app (git history, no network) is generated on demand \
+         via `cie sample`; refuses to overwrite a non-empty directory. Wiring the \
+         result into a one-click evaluator workspace is host/product layer."),
     // ---- Asking questions and working with answers ------------------------
     entry!("US-008", Delivered, ["cie-summary", "cie-evidence::assemble", "cli:report"],
         "Answers are evidence-assembled summaries over the revision; conversational NLU is the model layer (cie-llm providers)."),
