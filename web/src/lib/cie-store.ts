@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
 import type { ChatChartSpec } from "./chat-chart";
+import type { RepoScan } from "./language-profiles";
 
 export type DataSource = "demo" | "custom" | null;
 
@@ -33,12 +34,14 @@ interface CieState {
   chat: ChatMessage[];
   chatBusy: boolean;
   jobId: string | null; // active "Connect a repo" job, survives dialog close
+  repoScan: RepoScan | null; // language inventory from connect-a-repo flows
   loadDemo: () => Promise<void>;
   setCustom: (
     report: CieReport | null,
     viewspec: CieViewSpec | null,
     concepts: ConceptTree | null,
-    label: string
+    label: string,
+    repoScan?: RepoScan | null
   ) => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
@@ -75,13 +78,27 @@ export const useCie = create<CieState>((set) => ({
         loading: false,
         chat: [],
         chatBusy: false,
+        repoScan: null,
       });
     } catch {
       set({ loading: false, loadError: "Could not load the sample data. Please refresh the page." });
     }
   },
-  setCustom: (report, viewspec, concepts, label) =>
-    set({ report, viewspec, concepts, source: "custom", label, loading: false, loadError: "", chat: [], chatBusy: false }),
+  setCustom: (report, viewspec, concepts, label, repoScan) =>
+    set({
+      report,
+      viewspec,
+      concepts,
+      source: "custom",
+      label,
+      loading: false,
+      loadError: "",
+      chat: [],
+      chatBusy: false,
+      // The scan only exists for connect-a-repo flows; switching to the
+      // sample or to uploaded files honestly drops it.
+      repoScan: repoScan ?? null,
+    }),
   reset: () => {
     void useCie.getState().loadDemo();
   },

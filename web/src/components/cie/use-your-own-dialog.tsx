@@ -11,11 +11,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, CieViewSpec, ConceptTree } from "@/lib/cie-types";
+import type { RepoScan } from "@/lib/language-profiles";
+import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
   CheckCircle2,
   Circle,
   CircleAlert,
   FileUp,
+  FolderOpen,
   GitBranch,
   Globe,
   HardDrive,
@@ -57,6 +60,7 @@ interface JobStatusView {
   id: string;
   state: "queued" | "running" | "done" | "failed";
   repoName: string;
+  scan?: RepoScan | null;
   steps: StepView[];
   error?: { plain: string; technical: string };
 }
@@ -81,6 +85,12 @@ function ConnectRepo() {
   const [status, setStatus] = useState<JobStatusView | null>(null);
   const [technicalOpen, setTechnicalOpen] = useState(false);
   const [loadingResult, setLoadingResult] = useState(false);
+  // folder browsing + the pre-flight language peek
+  const [browsing, setBrowsing] = useState(false);
+  const [scan, setScan] = useState<RepoScan | null>(null);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const scanReq = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
@@ -100,6 +110,7 @@ function ConnectRepo() {
         viewspec?: CieViewSpec | null;
         concepts?: ConceptTree | null;
         label?: string;
+        scan?: RepoScan | null;
         error?: string;
       };
       if (!res.ok || !isValidReport(data.report ?? null)) {
@@ -108,7 +119,7 @@ function ConnectRepo() {
       }
       const viewspec = data.viewspec && isValidViewspec(data.viewspec) ? data.viewspec : null;
       const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
-      setCustom(data.report, viewspec, concepts, data.label ?? "Your project");
+      setCustom(data.report, viewspec, concepts, data.label ?? "Your project", data.scan ?? null);
       setJobId(null);
       setStatus(null);
       setUrl("");
@@ -188,6 +199,53 @@ function ConnectRepo() {
     setTechnicalOpen(false);
   };
 
+  // Peek inside a local folder: languages used, which CIE can read, which it
+  // can't yet. Runs whenever the typed path settles, and after a Browse pick.
+  const peekInside = useCallback(async (path: string) => {
+    const mine = ++scanReq.current;
+    setScanBusy(true);
+    setScanError("");
+    try {
+      const res = await fetch("/api/repo/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ localPath: path }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { scan?: RepoScan; error?: string };
+      if (mine !== scanReq.current) return;
+      if (res.ok && data.scan) {
+        setScan(data.scan);
+        setScanError("");
+      } else {
+        setScan(null);
+        setScanError(data.error ?? "we couldn't look inside that folder.");
+      }
+    } catch {
+      if (mine === scanReq.current) {
+        setScan(null);
+        setScanError("we couldn't reach the server.");
+      }
+    } finally {
+      if (mine === scanReq.current) setScanBusy(false);
+    }
+  }, []);
+
+  // Debounced auto-peek for hand-typed paths (Browse picks call peekInside
+  // directly so the card appears instantly).
+  useEffect(() => {
+    if (kind !== "local") return;
+    const p = localPath.trim();
+    if (!p.startsWith("/")) {
+      scanReq.current += 1; // invalidate any in-flight peek
+      setScan(null);
+      setScanError("");
+      setScanBusy(false);
+      return;
+    }
+    const t = setTimeout(() => void peekInside(p), 500);
+    return () => clearTimeout(t);
+  }, [localPath, kind, peekInside]);
+
   const active = status && (status.state === "queued" || status.state === "running");
   const finished = status?.state === "done";
   const failed = status?.state === "failed";
@@ -232,7 +290,7 @@ function ConnectRepo() {
               {kind === "web" ? (
                 <><Link2 className="h-4 w-4 text-emerald-700" /> Paste a link to your repo</>
               ) : (
-                <><HardDrive className="h-4 w-4 text-emerald-700" /> Type your project&apos;s folder path</>
+                <><HardDrive className="h-4 w-4 text-emerald-700" /> Pick your project&apos;s folder</>
               )}
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -245,6 +303,18 @@ function ConnectRepo() {
                 disabled={starting}
                 className="flex-1 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-300 disabled:opacity-60"
               />
+              {kind === "local" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={starting}
+                  onClick={() => setBrowsing((o) => !o)}
+                  className="h-11 rounded-xl px-4 border-stone-300 text-stone-700 hover:bg-stone-50"
+                  aria-expanded={browsing}
+                >
+                  <FolderOpen className="h-4 w-4 mr-1.5 text-emerald-700" /> Browse folders…
+                </Button>
+              )}
               <Button
                 type="submit"
                 disabled={starting || (kind === "web" ? !url.trim() : !localPath.trim())}
@@ -256,6 +326,23 @@ function ConnectRepo() {
             </div>
             {startError && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{startError}</p>}
           </form>
+
+          {/* folder browser (local mode only) */}
+          {kind === "local" && browsing && (
+            <FolderBrowser
+              onPick={(p) => {
+                setLocalPath(p);
+                setBrowsing(false);
+                void peekInside(p);
+              }}
+              onClose={() => setBrowsing(false)}
+            />
+          )}
+
+          {/* the honest "what's in this folder" peek (local mode only) */}
+          {kind === "local" && (scan || scanBusy || scanError) && (
+            <ScanCard scan={scan} busy={scanBusy} error={scanError} />
+          )}
           <ul className="text-xs text-stone-500 space-y-1.5">
             {kind === "web" ? (
               <>
@@ -265,9 +352,9 @@ function ConnectRepo() {
               </>
             ) : (
               <>
-                <li className="flex items-start gap-2"><HardDrive className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Give the full path, e.g. <span className="font-mono">/home/you/my-project</span> — git repos work best.</span></li>
+                <li className="flex items-start gap-2"><FolderOpen className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Tap <span className="font-medium">Browse folders…</span> to find your project — or type the full path, e.g. <span className="font-mono">/home/you/my-project</span>. Git repos work best.</span></li>
                 <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Nothing is copied or uploaded — CIE reads the folder <span className="font-medium">right where it lives</span>, read-only.</span></li>
-                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Not on this computer? Switch to <span className="font-medium">On the web</span> and paste a link instead.</span></li>
+                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Before checking, CIE peeks inside and tells you which languages it can read here — and which it can&apos;t yet.</span></li>
               </>
             )}
           </ul>
@@ -324,6 +411,9 @@ function ConnectRepo() {
                 <CircleAlert className="h-4 w-4" /> That didn&apos;t work
               </p>
               <p className="text-sm text-rose-800 leading-relaxed">{status.error.plain}</p>
+              {status.scan && (
+                <ScanCard scan={status.scan} compact />
+              )}
               <button
                 type="button"
                 onClick={() => setTechnicalOpen((o) => !o)}

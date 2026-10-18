@@ -16,6 +16,7 @@ import {
 import MapView from "@/components/cie/map-view";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, VizElement, Finding } from "@/lib/cie-types";
+import { KNOWN_UNSUPPORTED } from "@/lib/language-profiles";
 import {
   severityPlain,
   findingTitle,
@@ -37,6 +38,7 @@ import {
   BookOpen,
   FileCode2,
   ListChecks,
+  Languages,
 } from "lucide-react";
 
 // ---------- small shared pieces ----------
@@ -458,7 +460,7 @@ export function PromisesTab() {
 // ---------- Tab: Can I trust this? (evidence) ----------
 
 export function TrustTab() {
-  const { report, viewspec } = useCie();
+  const { report, viewspec, repoScan } = useCie();
   if (!report) return null;
   const ev = report.evidence;
   return (
@@ -471,6 +473,56 @@ export function TrustTab() {
           decide how much to trust it.
         </CardContent>
       </Card>
+
+      {/* language honesty — only exists for connect-a-repo flows */}
+      {repoScan && (
+        <Card className={repoScan.unsupported.length ? "border-amber-200" : "border-emerald-200"}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Languages className={`h-4 w-4 ${repoScan.unsupported.length ? "text-amber-700" : "text-emerald-700"}`} />
+              Languages in your repo — what CIE read, and what it couldn't
+            </CardTitle>
+            <CardDescription>Taken from a quick look inside {repoScan.name} before the check started.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {repoScan.languages.map((l) => (
+                <span key={l.id} className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-xs font-medium">
+                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} read
+                </span>
+              ))}
+              {repoScan.unsupported.map((l) => (
+                <span key={l.id} className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-xs font-medium">
+                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} skipped
+                </span>
+              ))}
+            </div>
+            {repoScan.unsupported.length > 0 ? (
+              <ul className="space-y-1.5 text-sm text-stone-600">
+                {repoScan.unsupported.map((l) => {
+                  const meta = KNOWN_UNSUPPORTED.find((k) => k.id === l.id);
+                  return (
+                    <li key={l.id} className="flex gap-2 leading-relaxed">
+                      <span className="text-amber-600 mt-0.5">•</span>
+                      <span>
+                        <span className="font-medium text-stone-800">{l.name}</span> — {meta?.why ?? "CIE skips these files for now."}
+                      </span>
+                    </li>
+                  );
+                })}
+                <li className="flex gap-2 leading-relaxed text-stone-600">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>Anything in those files is missing from every page here. CIE would rather leave an honest gap than guess about code it can&apos;t read.</span>
+                </li>
+              </ul>
+            ) : (
+              <p className="text-sm text-emerald-800 flex items-center gap-1.5">
+                <BadgeCheck className="h-4 w-4 shrink-0" /> Every code file in this repo uses a language CIE can read.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-amber-200">

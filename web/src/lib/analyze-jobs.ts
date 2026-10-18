@@ -9,10 +9,13 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
+import { scanRepoLanguages } from "./repo-scan";
+import { SUPPORTED_SUMMARY } from "./language-profiles";
+import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "read" | "map" | "concepts";
+export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts";
 export type StepState = "pending" | "running" | "done" | "failed";
 export type JobState = "queued" | "running" | "done" | "failed";
 
@@ -32,8 +35,9 @@ export interface AnalyzeJob {
   state: JobState;
   createdAt: number;
   steps: JobStep[];
+  scan?: RepoScan; // language inventory taken during the run (may be absent)
   error?: { plain: string; technical: string };
-  result?: { report: CieReport; viewspec: CieViewSpec | null; concepts: ConceptTree | null; label: string };
+  result?: { report: CieReport; viewspec: CieViewSpec | null; concepts: ConceptTree | null; label: string; scan?: RepoScan | null };
 }
 
 // ---------- constants ----------
@@ -46,6 +50,7 @@ const MAX_JOBS = 12;
 
 export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "clone", label: "Getting your code", hint: "Copying the newest version of your repo — nothing in it is changed." },
+  { key: "inventory", label: "Taking inventory", hint: "Listing the languages and tools in your repo — and flagging anything CIE can't read yet." },
   { key: "read", label: "Reading every file", hint: "CIE reads each file and takes notes on what it does. The busiest step." },
   { key: "map", label: "Drawing the map", hint: "Sketching how all the parts of your code connect." },
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
@@ -80,6 +85,11 @@ const BLOCKED_HOSTS = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|\
 // Local-folder validation — the server and the browser share this machine,
 // so a path is as private as the machine itself. Nothing is copied.
 const BLOCKED_LOCAL_ROOTS = ["/proc", "/sys", "/dev", "/run", "/boot", "/etc", "/root", "/bin", "/sbin", "/usr/lib", "/var"];
+
+/** True when a resolved absolute path points into a protected system area. */
+export function isBlockedLocalPath(p: string): boolean {
+  return p === "/" || BLOCKED_LOCAL_ROOTS.some((r) => p === r || p.startsWith(r + "/"));
+}
 
 export function validateLocalPath(
   raw: string
@@ -216,7 +226,7 @@ function engineErrorPlain(step: StepKey, timedOut: boolean, binMissing: boolean)
 
 const UNSUPPORTED_PLAIN =
   "We read your repo, but couldn't find any code files CIE understands yet. " +
-  "Right now CIE reads Python, Rust, JavaScript/TypeScript and Go — everything else (notes, configs, docs) is skipped.";
+  `${SUPPORTED_SUMMARY} Everything else (notes, configs, docs, other languages) is skipped — and named honestly, never guessed.`;
 
 // ---------- the pipeline ----------
 
@@ -304,6 +314,26 @@ async function runPipeline(job: AnalyzeJob) {
       setStep(job, "clone", "done", "Got it.", Date.now() - t0);
     }
 
+    // 1.5. inventory — which languages does this repo use, which can CIE
+    //      read, which can't it yet. Never fatal: a failed inventory just
+    //      means no language card, the engine still runs.
+    setStep(job, "inventory", "running", "Listing languages and tools…");
+    const tInv = Date.now();
+    try {
+      const scan = await scanRepoLanguages(repoDir, job.repoName);
+      job.scan = scan;
+      const reads = scan.languages.map((l) => `${l.name} ${l.files}`).join(", ");
+      const cant = scan.unsupported.map((l) => `${l.name} ${l.files}`).join(", ");
+      const fw = scan.frameworks.map((f) => f.name.split(" (")[0]);
+      const bits: string[] = [];
+      if (fw.length) bits.push(fw.join(" · "));
+      if (reads) bits.push(`CIE reads: ${reads}`);
+      if (cant) bits.push(`Can't read yet: ${cant}`);
+      setStep(job, "inventory", "done", bits.join(" — ") || "Nothing recognisable found.", Date.now() - tInv);
+    } catch {
+      setStep(job, "inventory", "done", "Couldn't take inventory — continuing anyway.", Date.now() - tInv);
+    }
+
     // 2. read = ingest (two-pass contract: repo-before-recompute) + report
     setStep(job, "read", "running", "CIE is reading each file and taking notes…");
     const t1 = Date.now();
@@ -371,6 +401,7 @@ async function runPipeline(job: AnalyzeJob) {
       label: isLocal
         ? `Your project: ${job.repoName} (from this computer)`
         : `Your project: ${job.repoName} (from ${hostOf(job.url)})`,
+      scan: job.scan ?? null,
     };
     job.state = "done";
   } finally {
@@ -394,6 +425,7 @@ export interface JobStatus {
   id: string;
   state: JobState;
   repoName: string;
+  scan?: RepoScan;
   steps: { key: StepKey; label: string; hint: string; state: StepState; detail?: string; ms?: number }[];
   error?: { plain: string; technical: string };
 }
@@ -403,6 +435,7 @@ export function jobStatus(job: AnalyzeJob): JobStatus {
     id: job.id,
     state: job.state,
     repoName: job.repoName,
+    scan: job.scan,
     error: job.error,
     steps: STEP_ORDER.map((meta0) => {
       const meta = job.source === "local" && meta0.key === "clone" ? { ...meta0, ...LOCAL_FIRST_STEP } : meta0;
