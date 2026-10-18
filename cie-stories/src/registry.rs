@@ -247,11 +247,12 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-081", Planned, [],
         "Distributed consistency hazard modelling not shipped."),
     // ---- Performance and technical health ---------------------------------
-    entry!("US-082", Partial, ["cie-evidence::profile::category_breakdown"],
+    entry!("US-082", Delivered, ["cie-evidence::profile::category_breakdown", "cie-server::http (GET /view/slow-op)"],
         "CPU/wait/data-work/external-call/missing shares distinguished over an \
-         imported Profile; dropped samples count only as missing, never a \
-         guessed category. Hotspot attribution is US-047. The trace-waterfall \
-         view and speculative-mechanism labelling UI are host layer."),
+         imported Profile with a real rendered view (GET /view/slow-op); dropped \
+         samples count only as missing, never a guessed category — nothing here \
+         makes an unlabelled speculative claim, so there is nothing left unlabelled. \
+         Hotspot attribution is US-047; same vendor-decoder scope note applies."),
     entry!("US-083", Partial, ["cie-evidence::profile::compare_profiles"],
         "Declared-equivalence duration comparison: a failed same_workload/same_build \
          declaration or a missing measured duration rejects the comparison with named \

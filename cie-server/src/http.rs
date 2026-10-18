@@ -72,6 +72,7 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/sample", "US-007: on-demand sample repository"),
     ("/view/focus", "US-012: follow-up chips and referent resolution"),
     ("/view/hotspots", "US-047: profile-attributed hotspots"),
+    ("/view/slow-op", "US-082: explain a slow operation"),
 ];
 
 fn demo_profile() -> cie_evidence::Profile {
@@ -232,6 +233,28 @@ fn render_hotspots_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&rep).unwrap_or_default())
 }
 
+fn render_slow_op_html() -> HttpResponse {
+    let p = demo_profile();
+    let b = cie_evidence::category_breakdown(&p);
+    let mut rows: Vec<Vec<String>> = b.shares.iter().map(|(cat, share)| vec![format!("{cat:?}"), format!("{:.1}%", share * 100.0)]).collect();
+    rows.push(vec!["Missing (never collected)".into(), format!("{:.1}%", b.missing_share * 100.0)]);
+    let body = format!(
+        "<p>duration observed: {} ms</p>{}",
+        p.duration_ns.unwrap_or(0) / 1_000_000,
+        table(&["category", "share of window"], &rows),
+    );
+    HttpResponse::html(page(
+        "US-082: explain a slow operation",
+        "Fixed demo profile — CPU/wait/data/external/missing distinguished over the whole collection window, including what the importer never collected.",
+        &body,
+    ))
+}
+
+fn render_slow_op_json() -> HttpResponse {
+    let rep = cie_evidence::category_breakdown(&demo_profile());
+    HttpResponse::json(serde_json::to_string_pretty(&rep).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -242,6 +265,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/focus" => render_focus_json(),
         "/view/hotspots" => render_hotspots_html(),
         "/api/hotspots" => render_hotspots_json(),
+        "/view/slow-op" => render_slow_op_html(),
+        "/api/slow-op" => render_slow_op_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -344,5 +369,22 @@ mod tests {
         let resp = route("/api/hotspots");
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         assert!(parsed["hotspots"].as_array().unwrap().len() == 2);
+    }
+
+    #[test]
+    fn slow_op_view_distinguishes_categories_and_missing() {
+        let resp = route("/view/slow-op");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("Missing (never collected)"));
+        assert!(resp.body.contains("ExternalCall"));
+    }
+
+    #[test]
+    fn slow_op_api_shares_sum_to_one() {
+        let resp = route("/api/slow-op");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let sum: f64 = parsed["shares"].as_object().unwrap().values().map(|v| v.as_f64().unwrap()).sum::<f64>()
+            + parsed["missing_share"].as_f64().unwrap();
+        assert!((sum - 1.0).abs() < 1e-9);
     }
 }
