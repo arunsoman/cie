@@ -164,6 +164,10 @@ export function AskTab() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-4 text-xs text-stone-400">
+                  Don&apos;t feel like typing? The <span className="font-medium text-stone-500">Menu</span> page has
+                  one-tap charts — questions you just click.
+                </p>
               </div>
             )}
 
