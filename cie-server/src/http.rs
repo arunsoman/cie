@@ -71,7 +71,23 @@ fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
 const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/sample", "US-007: on-demand sample repository"),
     ("/view/focus", "US-012: follow-up chips and referent resolution"),
+    ("/view/hotspots", "US-047: profile-attributed hotspots"),
 ];
+
+fn demo_profile() -> cie_evidence::Profile {
+    use cie_evidence::{Profile, ProfileSample, SampleCategory};
+    Profile {
+        source: "demo-pprof-export.pb".into(),
+        samples: vec![
+            ProfileSample { symbol: Some("checkout::charge_card".into()), category: SampleCategory::ExternalCall, weight: 60 },
+            ProfileSample { symbol: Some("checkout::validate_cart".into()), category: SampleCategory::Cpu, weight: 25 },
+            ProfileSample { symbol: None, category: SampleCategory::Cpu, weight: 15 },
+        ],
+        dropped_samples: 10,
+        duration_ns: Some(1_200_000_000),
+        error_count: 0,
+    }
+}
 
 fn render_index() -> HttpResponse {
     let items: String = INDEX_LINKS
@@ -189,6 +205,33 @@ fn render_focus_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&focus_demo()).unwrap_or_default())
 }
 
+fn render_hotspots_html() -> HttpResponse {
+    let p = demo_profile();
+    let rep = cie_evidence::attribute_hotspots(&p);
+    let rows: Vec<Vec<String>> = rep
+        .hotspots
+        .iter()
+        .map(|h| vec![h.symbol.clone(), format!("{:?}", h.category), format!("{:.1}%", h.share * 100.0), format!("±{:.1}pp", h.share_uncertainty * 100.0)])
+        .collect();
+    let body = format!(
+        "<p>source artifact: <code>{}</code></p>{}<p>unattributed share (resolved samples with no symbol): {:.1}% &middot; withheld share (dropped by the importer): {:.1}%</p>",
+        escape_html(&p.source),
+        table(&["symbol", "category", "share", "uncertainty"], &rows),
+        rep.unattributed_share * 100.0,
+        rep.withheld_share * 100.0,
+    );
+    HttpResponse::html(page(
+        "US-047: profile-attributed hotspots",
+        "Fixed demo profile — illustrates attribution semantics, not a real measurement.",
+        &body,
+    ))
+}
+
+fn render_hotspots_json() -> HttpResponse {
+    let rep = cie_evidence::attribute_hotspots(&demo_profile());
+    HttpResponse::json(serde_json::to_string_pretty(&rep).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -197,6 +240,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/sample" => render_sample_json(),
         "/view/focus" => render_focus_html(),
         "/api/focus" => render_focus_json(),
+        "/view/hotspots" => render_hotspots_html(),
+        "/api/hotspots" => render_hotspots_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -284,5 +329,20 @@ mod tests {
         let resp = route("/api/focus");
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         assert!(parsed["resolved_referent"].is_null());
+    }
+
+    #[test]
+    fn hotspots_view_cites_source_and_shows_unattributed_share() {
+        let resp = route("/view/hotspots");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("demo-pprof-export.pb"));
+        assert!(resp.body.contains("unattributed share"));
+    }
+
+    #[test]
+    fn hotspots_api_matches_the_engine_computation() {
+        let resp = route("/api/hotspots");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert!(parsed["hotspots"].as_array().unwrap().len() == 2);
     }
 }

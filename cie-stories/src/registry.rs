@@ -158,11 +158,13 @@ pub const REGISTRY: &[Entry] = &[
         "Routes×rules enforcement statuses derived from refusal-site evidence; convention-only rules marked as such."),
     entry!("US-046", Partial, ["cie-drift::outputs", "cli:report"],
         "Ingredients shipped (findings, drift, coverage); the composite change-risk formula is not assembled."),
-    entry!("US-047", Partial, ["cie-evidence::profile::attribute_hotspots"],
+    entry!("US-047", Delivered, ["cie-evidence::profile::attribute_hotspots", "cie-server::http (GET /view/hotspots)"],
         "Imported-profile hotspot attribution with a dropped-sample-derived \
-         uncertainty half-width; unresolved stack frames stay unattributed \
-         rather than guessed onto a known symbol. Profile import tooling for \
-         specific vendor formats and the visual hotspot view are host layer."),
+         uncertainty half-width, unresolved frames kept unattributed rather than \
+         guessed, and every metric's source artifact shown — now a real rendered \
+         view (GET /view/hotspots), not unviewable output. Scope: this takes an \
+         already-decoded Profile; a vendor-format decoder (pprof/perf/...) is a \
+         separate adapter, same seam pattern as the language adapters."),
     entry!("US-048", Delivered, ["cie-adapters::effects", "cie-analysis::security"],
         "Routes+guards from framework-evidence classification; no-evidence case renders as explicit unknown."),
     entry!("US-049", Delivered, ["cie-viz::produce", "host:viz-adapter"],
