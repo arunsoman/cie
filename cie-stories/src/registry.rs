@@ -253,10 +253,12 @@ pub const REGISTRY: &[Entry] = &[
          samples count only as missing, never a guessed category — nothing here \
          makes an unlabelled speculative claim, so there is nothing left unlabelled. \
          Hotspot attribution is US-047; same vendor-decoder scope note applies."),
-    entry!("US-083", Partial, ["cie-evidence::profile::compare_profiles"],
-        "Declared-equivalence duration comparison: a failed same_workload/same_build \
-         declaration or a missing measured duration rejects the comparison with named \
-         reasons instead of comparing anyway. The metric-table view is host layer."),
+    entry!("US-083", Delivered, ["cie-evidence::profile::compare_profiles", "cie-server::http (GET /view/profile-compare)"],
+        "Declared-equivalence duration comparison with a real rendered view \
+         (GET /view/profile-compare): a failed same_workload/same_build declaration \
+         or a missing measured duration rejects the comparison with named reasons \
+         instead of comparing anyway, and the verdict/reasons/rejected fields are \
+         all shown, not just computed."),
     entry!("US-084", Partial, ["cie-evidence::profile::regression_report"],
         "Wraps compare_profiles with an improvement_confirmed guard: a candidate \
          that is faster only by raising error_count or dropped_samples is never \

@@ -73,7 +73,16 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/focus", "US-012: follow-up chips and referent resolution"),
     ("/view/hotspots", "US-047: profile-attributed hotspots"),
     ("/view/slow-op", "US-082: explain a slow operation"),
+    ("/view/profile-compare", "US-083: compare two profiles"),
 ];
+
+fn demo_profile_pair() -> (cie_evidence::Profile, cie_evidence::Profile, cie_evidence::EquivalenceDeclaration) {
+    use cie_evidence::{EquivalenceDeclaration, Profile};
+    let baseline = Profile { duration_ns: Some(1_000_000_000), ..demo_profile() };
+    let candidate = Profile { duration_ns: Some(800_000_000), source: "demo-pprof-export-v2.pb".into(), ..demo_profile() };
+    let equivalence = EquivalenceDeclaration { same_workload: true, same_build: true, notes: "same nightly load-test workload, same release build".into() };
+    (baseline, candidate, equivalence)
+}
 
 fn demo_profile() -> cie_evidence::Profile {
     use cie_evidence::{Profile, ProfileSample, SampleCategory};
@@ -255,6 +264,36 @@ fn render_slow_op_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&rep).unwrap_or_default())
 }
 
+fn render_profile_compare_html() -> HttpResponse {
+    let (baseline, candidate, equivalence) = demo_profile_pair();
+    let cmp = cie_evidence::compare_profiles(&baseline, &candidate, &equivalence);
+    let verdict = match &cmp.verdict {
+        cie_evidence::ComparisonVerdict::Faster { improvement } => format!("Faster by {:.1}%", improvement * 100.0),
+        cie_evidence::ComparisonVerdict::Slower { regression } => format!("Slower by {:.1}%", regression * 100.0),
+        cie_evidence::ComparisonVerdict::Inconclusive => "Inconclusive".to_string(),
+    };
+    let reasons: String = cmp.reasons.iter().map(|r| format!("<li>{}</li>", escape_html(r))).collect();
+    let body = format!(
+        "<p>baseline: {} ms &middot; candidate: {} ms</p><p><strong>verdict: {}</strong> (rejected: {})</p><ul>{}</ul>",
+        baseline.duration_ns.unwrap_or(0) / 1_000_000,
+        candidate.duration_ns.unwrap_or(0) / 1_000_000,
+        escape_html(&verdict),
+        cmp.rejected,
+        reasons,
+    );
+    HttpResponse::html(page(
+        "US-083: compare two profiles",
+        "Fixed demo baseline/candidate under a declared equivalence.",
+        &body,
+    ))
+}
+
+fn render_profile_compare_json() -> HttpResponse {
+    let (baseline, candidate, equivalence) = demo_profile_pair();
+    let cmp = cie_evidence::compare_profiles(&baseline, &candidate, &equivalence);
+    HttpResponse::json(serde_json::to_string_pretty(&cmp).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -267,6 +306,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/hotspots" => render_hotspots_json(),
         "/view/slow-op" => render_slow_op_html(),
         "/api/slow-op" => render_slow_op_json(),
+        "/view/profile-compare" => render_profile_compare_html(),
+        "/api/profile-compare" => render_profile_compare_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -386,5 +427,20 @@ mod tests {
         let sum: f64 = parsed["shares"].as_object().unwrap().values().map(|v| v.as_f64().unwrap()).sum::<f64>()
             + parsed["missing_share"].as_f64().unwrap();
         assert!((sum - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn profile_compare_view_states_a_faster_verdict_with_reasons() {
+        let resp = route("/view/profile-compare");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("Faster by"));
+        assert!(resp.body.contains("rejected: false"));
+    }
+
+    #[test]
+    fn profile_compare_api_matches_engine_verdict() {
+        let resp = route("/api/profile-compare");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert!(parsed["verdict"]["Faster"].is_object());
     }
 }
