@@ -5,14 +5,17 @@
 
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
+import type { ChatChartSpec } from "./chat-chart";
 
 export type DataSource = "demo" | "custom" | null;
 
-// One bubble in the "Ask CIE" conversation.
+// One bubble in the "Ask CIE" conversation. `chart` is the complementary
+// chart the AI attached to its answer (US-020 catalog pick), if any.
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   error?: boolean;
+  chart?: ChatChartSpec;
 }
 
 interface CieState {

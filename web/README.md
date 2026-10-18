@@ -9,7 +9,9 @@ Every technical term from the engine is translated to plain English in
 
 ## Two ways to see YOUR project
 
-1. **Connect a repo** — paste a public git link (GitHub / GitLab / Bitbucket).
+1. **Connect a repo** — paste a public git link (GitHub / GitLab / Bitbucket),
+   **or point at a folder on this computer** ("On this computer" — read-only,
+   analysed in place, nothing copied; system roots are refused).
    The server clones it (`--depth 1`), runs `cie ingest → report → viz →
    concepts` in a background job, and deletes the clone the moment it's done.
    The dialog shows every state in plain words: *Getting your code → Reading
@@ -38,7 +40,7 @@ Every technical term from the engine is translated to plain English in
 | **Things to look at** | Findings grouped by urgency: Fix soon / Please look / Worth checking / Good to know, each with "How to fix" |
 | **Promises** | Contracts with plain titles ("Check permission first") and who must keep them |
 | **Numbers** | The charting engine: six plain-English charts — urgency bars, problem kinds, findings per file, what the code touches, promises donut (written by you vs CIE's guess), map-certainty donut (proven / good guess). Built with Recharts in `src/components/cie/charts.tsx` |
-| **Ask CIE** | A chat about *your* project. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via `z-ai-web-dev-sdk` (backend only). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have" |
+| **Ask CIE** | A chat about *your* project. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via `z-ai-web-dev-sdk` (backend only). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`). Bars get a hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
 | **Can I trust this?** | Assumptions, unmatched names, coverage notes, provenance — honesty first |
 
 ## Run it

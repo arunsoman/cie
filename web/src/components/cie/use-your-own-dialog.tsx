@@ -18,6 +18,7 @@ import {
   FileUp,
   GitBranch,
   Globe,
+  HardDrive,
   Link2,
   Loader2,
   PartyPopper,
@@ -72,7 +73,9 @@ function StepIcon({ state }: { state: StepState }) {
 function ConnectRepo() {
   const { setCustom, jobId, setJobId } = useCie();
   const { toast } = useToast();
+  const [kind, setKind] = useState<"web" | "local">("web");
   const [url, setUrl] = useState("");
+  const [localPath, setLocalPath] = useState("");
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [status, setStatus] = useState<JobStatusView | null>(null);
@@ -157,10 +160,11 @@ function ConnectRepo() {
     setStartError("");
     setStarting(true);
     try {
+      const payload = kind === "web" ? { repoUrl: url } : { localPath };
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: url }),
+        body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as { jobId?: string; status?: JobStatusView; error?: string };
       if (!res.ok || !data.jobId) {
@@ -192,9 +196,31 @@ function ConnectRepo() {
 
   return (
     <div className="space-y-4">
-      {/* URL form — hidden once a job is in flight */}
+      {/* input form — hidden once a job is in flight */}
       {!status && (
         <>
+          {/* where does the code live? */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="tablist" aria-label="Where is your code?">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={kind === "web"}
+              onClick={() => setKind("web")}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${kind === "web" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+            >
+              <Globe className="h-3.5 w-3.5" /> On the web
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={kind === "local"}
+              onClick={() => setKind("local")}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${kind === "local" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+            >
+              <HardDrive className="h-3.5 w-3.5" /> On this computer
+            </button>
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -203,21 +229,25 @@ function ConnectRepo() {
             className="space-y-2"
           >
             <label htmlFor="repo-url" className="text-sm font-medium text-stone-800 flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-emerald-700" /> Paste a link to your repo
+              {kind === "web" ? (
+                <><Link2 className="h-4 w-4 text-emerald-700" /> Paste a link to your repo</>
+              ) : (
+                <><HardDrive className="h-4 w-4 text-emerald-700" /> Type your project&apos;s folder path</>
+              )}
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 id="repo-url"
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://github.com/you/your-repo"
+                type={kind === "web" ? "url" : "text"}
+                value={kind === "web" ? url : localPath}
+                onChange={(e) => (kind === "web" ? setUrl(e.target.value) : setLocalPath(e.target.value))}
+                placeholder={kind === "web" ? "https://github.com/you/your-repo" : "/home/you/my-project"}
                 disabled={starting}
                 className="flex-1 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-300 disabled:opacity-60"
               />
               <Button
                 type="submit"
-                disabled={starting || !url.trim()}
+                disabled={starting || (kind === "web" ? !url.trim() : !localPath.trim())}
                 className="h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-5"
               >
                 {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <GitBranch className="h-4 w-4 mr-1.5" />}
@@ -227,9 +257,19 @@ function ConnectRepo() {
             {startError && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{startError}</p>}
           </form>
           <ul className="text-xs text-stone-500 space-y-1.5">
-            <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Works with public GitHub, GitLab and Bitbucket links.</span></li>
-            <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">We only ever <span className="font-medium">read</span> your code — nothing is changed, and your repo is deleted from our disk right after.</span></li>
-            <li className="flex items-start gap-2"><FileUp className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Private repo? Use the <span className="font-medium">Upload files</span> option instead — it never leaves your machine.</span></li>
+            {kind === "web" ? (
+              <>
+                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Works with public GitHub, GitLab and Bitbucket links.</span></li>
+                <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">We only ever <span className="font-medium">read</span> your code — nothing is changed, and your repo is deleted from our disk right after.</span></li>
+                <li className="flex items-start gap-2"><FileUp className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Private repo? Use the <span className="font-medium">Upload files</span> option instead — it never leaves your machine.</span></li>
+              </>
+            ) : (
+              <>
+                <li className="flex items-start gap-2"><HardDrive className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Give the full path, e.g. <span className="font-mono">/home/you/my-project</span> — git repos work best.</span></li>
+                <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Nothing is copied or uploaded — CIE reads the folder <span className="font-medium">right where it lives</span>, read-only.</span></li>
+                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Not on this computer? Switch to <span className="font-medium">On the web</span> and paste a link instead.</span></li>
+              </>
+            )}
           </ul>
         </>
       )}

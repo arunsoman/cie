@@ -25,7 +25,9 @@ export interface JobStep {
 
 export interface AnalyzeJob {
   id: string;
-  url: string;
+  url: string; // web URL or "local://<abs path>"
+  localPath?: string; // set when source is a folder on this machine
+  source: "url" | "local";
   repoName: string;
   state: JobState;
   createdAt: number;
@@ -49,6 +51,11 @@ export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
 ];
 
+const LOCAL_FIRST_STEP: { label: string; hint: string } = {
+  label: "Finding your code",
+  hint: "Checking the folder you pointed at — nothing is copied or uploaded.",
+};
+
 // ---------- global store (survives dev-server HMR) ----------
 
 const g = globalThis as unknown as { __cieAnalyzeJobs?: Map<string, AnalyzeJob> };
@@ -69,6 +76,28 @@ function gc() {
 // ---------- URL validation (plain-words reasons) ----------
 
 const BLOCKED_HOSTS = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|\[::1\]$|.*\.local$|.*\.internal$)/i;
+
+// Local-folder validation — the server and the browser share this machine,
+// so a path is as private as the machine itself. Nothing is copied.
+const BLOCKED_LOCAL_ROOTS = ["/proc", "/sys", "/dev", "/run", "/boot", "/etc", "/root", "/bin", "/sbin", "/usr/lib", "/var"];
+
+export function validateLocalPath(
+  raw: string
+): { ok: true; path: string; repoName: string } | { ok: false; plain: string } {
+  const value = String(raw ?? "").trim();
+  if (!value) return { ok: false, plain: "Please type the folder path first — for example /home/you/my-project" };
+  if (value.length > 4096) return { ok: false, plain: "That path is strangely long — please double-check it." };
+  if (!value.startsWith("/")) return { ok: false, plain: "Please use a full path starting with / — for example /home/you/my-project" };
+  const p = path.resolve(value);
+  if (p === "/" || BLOCKED_LOCAL_ROOTS.some((r) => p === r || p.startsWith(r + "/"))) {
+    return { ok: false, plain: "That folder is off-limits (system files). Pick your project folder instead." };
+  }
+  const repoName = p.split("/").filter(Boolean).pop() ?? "project";
+  if (!repoName || repoName.length > 100 || !/^[\w.-]+$/.test(repoName)) {
+    return { ok: false, plain: "That path doesn't end in a folder name we recognise." };
+  }
+  return { ok: true, path: p, repoName };
+}
 
 export function validateRepoUrl(raw: string): { ok: true; url: string; repoName: string } | { ok: false; plain: string } {
   const value = String(raw ?? "").trim();
@@ -206,12 +235,19 @@ function markRunningStepFailed(job: AnalyzeJob, plain: string, technical: string
   job.error = { plain, technical };
 }
 
-export async function startJob(url: string, repoName: string): Promise<AnalyzeJob> {
+export async function startJob(opts: {
+  source: "url" | "local";
+  url?: string;
+  localPath?: string;
+  repoName: string;
+}): Promise<AnalyzeJob> {
   gc();
   const job: AnalyzeJob = {
     id: randomUUID(),
-    url,
-    repoName,
+    url: opts.source === "local" ? `local://${opts.localPath}` : (opts.url ?? ""),
+    localPath: opts.source === "local" ? opts.localPath : undefined,
+    source: opts.source,
+    repoName: opts.repoName,
     state: "queued",
     createdAt: Date.now(),
     steps: STEP_ORDER.map((s) => ({ key: s.key, state: "pending" as StepState })),
@@ -227,9 +263,10 @@ export async function startJob(url: string, repoName: string): Promise<AnalyzeJo
 }
 
 async function runPipeline(job: AnalyzeJob) {
-  const workDir = path.join(JOBS_ROOT, job.id);
-  const repoDir = path.join(workDir, "repo");
-  const vizOut = path.join(workDir, "viewspec.json");
+  const isLocal = job.source === "local";
+  const workDir = isLocal ? null : path.join(JOBS_ROOT, job.id);
+  const repoDir = isLocal ? (job.localPath as string) : path.join(workDir as string, "repo");
+  const vizOut = path.join(workDir ?? JOBS_ROOT, "viewspec.json");
   job.state = "running";
 
   try {
@@ -239,17 +276,33 @@ async function runPipeline(job: AnalyzeJob) {
       markRunningStepFailed(job, engineErrorPlain("read", false, true), "cie binary not found (looked at CIE_BIN, target/debug, target/release)");
       return;
     }
-    await fs.mkdir(workDir, { recursive: true });
 
-    // 1. clone
-    setStep(job, "clone", "running", "Copying the newest version…");
-    const t0 = Date.now();
-    const clone = await run("git", ["clone", "--depth", "1", "--single-branch", job.url, repoDir], { timeoutMs: CLONE_TIMEOUT_MS });
-    if (clone.code !== 0) {
-      markRunningStepFailed(job, cloneErrorPlain(clone.stderr, clone.timedOut), `git clone exit ${clone.code}: ${clone.stderr.slice(0, 400)}`);
-      return;
+    // 1. clone (web) or verify (local)
+    if (isLocal) {
+      setStep(job, "clone", "running", "Checking the folder…");
+      const t0 = Date.now();
+      try {
+        const st = await fs.stat(repoDir);
+        if (!st.isDirectory()) {
+          markRunningStepFailed(job, "That path points at a file, not a folder. Please give me the project folder.", `not a directory: ${repoDir}`);
+          return;
+        }
+      } catch {
+        markRunningStepFailed(job, "We couldn't find that folder on this computer. Double-check the path (and spelling).", `stat failed: ${repoDir}`);
+        return;
+      }
+      setStep(job, "clone", "done", "Found it — reading right where it lives.", Date.now() - t0);
+    } else {
+      await fs.mkdir(workDir as string, { recursive: true });
+      setStep(job, "clone", "running", "Copying the newest version…");
+      const t0 = Date.now();
+      const clone = await run("git", ["clone", "--depth", "1", "--single-branch", job.url, repoDir], { timeoutMs: CLONE_TIMEOUT_MS });
+      if (clone.code !== 0) {
+        markRunningStepFailed(job, cloneErrorPlain(clone.stderr, clone.timedOut), `git clone exit ${clone.code}: ${clone.stderr.slice(0, 400)}`);
+        return;
+      }
+      setStep(job, "clone", "done", "Got it.", Date.now() - t0);
     }
-    setStep(job, "clone", "done", "Got it.", Date.now() - t0);
 
     // 2. read = ingest (two-pass contract: repo-before-recompute) + report
     setStep(job, "read", "running", "CIE is reading each file and taking notes…");
@@ -311,11 +364,19 @@ async function runPipeline(job: AnalyzeJob) {
     }
     setStep(job, "concepts", "done", concepts ? "List ready." : "Skipped — not every project has one.", Date.now() - t3);
 
-    job.result = { report, viewspec, concepts, label: `Your project: ${job.repoName} (from ${hostOf(job.url)})` };
+    job.result = {
+      report,
+      viewspec,
+      concepts,
+      label: isLocal
+        ? `Your project: ${job.repoName} (from this computer)`
+        : `Your project: ${job.repoName} (from ${hostOf(job.url)})`,
+    };
     job.state = "done";
   } finally {
-    // Don't keep the clone on disk — results live in memory.
-    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    // Don't keep clones on disk — results live in memory. Local folders are
+    // never touched (read-only analysis in place).
+    if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -343,7 +404,8 @@ export function jobStatus(job: AnalyzeJob): JobStatus {
     state: job.state,
     repoName: job.repoName,
     error: job.error,
-    steps: STEP_ORDER.map((meta) => {
+    steps: STEP_ORDER.map((meta0) => {
+      const meta = job.source === "local" && meta0.key === "clone" ? { ...meta0, ...LOCAL_FIRST_STEP } : meta0;
       const s = job.steps.find((x) => x.key === meta.key);
       return {
         key: meta.key,
