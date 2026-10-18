@@ -158,9 +158,11 @@ pub fn citation(
 ) -> Option<Citation> {
     let file = revision.snapshot.files.get(symbol.loc.file.0 as usize)?;
     let source = revision.sources.get(file)?;
-    let first = line
-        .unwrap_or_else(|| cie_core::types::line_of(source.as_bytes(), symbol.loc.start))
-        .max(1);
+    let first =
+        line.unwrap_or_else(|| cie_core::types::line_of(source.as_bytes(), symbol.loc.start));
+    if first == 0 || first as usize > source.split('\n').count() {
+        return None;
+    }
     let lines: Vec<_> = source.lines().collect();
     let start = (first as usize - 1).min(lines.len());
     let end = (start + 6).min(lines.len());
@@ -366,6 +368,24 @@ pub fn generate(repo: &Repository, rev: &Revision, request: &Question) -> Result
                         break;
                     }
                 }
+                for (file_index, facts) in rev.snapshot.facts.iter().enumerate() {
+                    for (index, guard) in facts.ifs.iter().enumerate() {
+                        if answer.items.len() >= 500 {
+                            break;
+                        }
+                        if (!query.is_empty() || request.symbol_id.is_some())
+                            && !selected.contains(&guard.symbol)
+                        {
+                            continue;
+                        }
+                        let symbol = rev.snapshot.symbols.iter().find(|s| s.id == guard.symbol);
+                        let citations = symbol
+                            .and_then(|s| citation(repo, rev, s, Some(guard.line)))
+                            .into_iter()
+                            .collect();
+                        answer.items.push(Item{id:format!("guard-rule:{file_index}:{index}"),label:format!("Guard candidate: {}",secret_safe(&guard.cond)),kind:"guardCandidate".into(),claim_class:"analyzerInference".into(),citations,detail:json!({"symbolId":guard.symbol.0.to_string(),"condition":secret_safe(&guard.cond),"scope":"Observed guard candidate; business approval and control-flow enforcement are not established. A guard condition is not automatically an invariant."})});
+                    }
+                }
                 gaps.push("This is an extracted obligation catalogue, not an approved policy register. Missing or inconsistent paths require examination before claiming a confirmed defect.".into());
             }
             Intent::Behaviors => {
@@ -564,7 +584,16 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
     answer
         .edges
         .retain(|e| !hidden.contains(&e.from) && !hidden.contains(&e.to));
-    let challenged = decisions.values().any(|v| v.as_str() != "confirm")
+    let incompatible_context = answer.parent_answer.as_ref().is_some_and(|id| {
+        state.answers.iter().find(|a| a.id == *id).is_none_or(|a| {
+            a.repository_id != answer.repository_id || a.revision_id != answer.revision_id
+        })
+    });
+    if incompatible_context {
+        answer.gaps.push("Parent context is missing or belongs to another source snapshot. Re-run with cleared context; old symbol identities must not be treated as current.".into());
+    }
+    let challenged = incompatible_context
+        || decisions.values().any(|v| v.as_str() != "confirm")
         || answer.parent_answer.as_ref().is_some_and(|parent| {
             let global_challenge =
                 state
@@ -587,7 +616,7 @@ pub fn render(state: &State, id: &str) -> Result<RenderedAnswer> {
     if challenged {
         answer.status = "challenged".into();
         answer.gaps.push(
-            "A user challenged an interpretation. Confirmation never upgrades it to a proven fact."
+            "This answer has challenged or incompatible context. Confirmation never upgrades an interpretation to a proven fact."
                 .into(),
         );
     }

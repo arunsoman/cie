@@ -42,6 +42,9 @@ impl App {
         if body.len() > 1024 * 1024 {
             return Err(Error::new(413, "REQUEST_LIMIT", "Request exceeds 1 MiB"));
         }
+        if let Some(result) = crate::source_facts::dispatch(self, method, path, body) {
+            return result;
+        }
         if let Some(result) = crate::profiles::dispatch(self, method, path, body) {
             return result;
         }
@@ -82,7 +85,7 @@ if !s.repositories.iter().any(|r|r.id==*id){return Err(not_found())}let removed:
  ("POST",["api","questions"])=>{let req:Question=parse(body)?;if let Some(key)=&req.request_id{validate_text(key,120)?;}let fingerprint=answers::request_fingerprint(&req)?;let s=self.storage.read()?;
  if let Some(key)=&req.request_id{if let Some(existing)=s.answers.iter().find(|a|a.repository_id==req.repository_id&&a.request_id.as_ref()==Some(key)){if existing.request_fingerprint.as_ref()!=Some(&fingerprint){return Err(Error::new(409,"REQUEST_ID_CONFLICT","Request ID was used with different analysis input"));}return Ok(json!(answers::render(&s,&existing.id)?));}}
 let repo=s.repositories.iter().find(|r|r.id==req.repository_id).ok_or_else(not_found)?;let rev=repo.revisions.last().ok_or_else(||Error::new(409,"NOT_INDEXED","Index this repository before asking a question"))?;if req.expected_revision.as_ref().is_some_and(|expected|*expected!=rev.id){return Err(Error::new(409,"REVISION_CHANGED","Question expected another source snapshot; it was not answered against a substitute"));}
-if let Some(parent)=&req.parent_answer{if !s.answers.iter().any(|a|a.id==*parent&&a.repository_id==repo.id){return Err(Error::new(400,"INVALID_CONTEXT","Follow-up context is not an answer from this repository"))}}
+if let Some(parent)=&req.parent_answer{let context=s.answers.iter().find(|a|a.id==*parent&&a.repository_id==repo.id).ok_or_else(||Error::new(400,"INVALID_CONTEXT","Follow-up context is not an answer from this repository"))?;if context.revision_id!=rev.id{return Err(Error::new(409,"HISTORICAL_CONTEXT","Follow-up context describes another snapshot. Clear it or open a current answer; symbol IDs were not rebound to different code."));}}
  let mut answer=answers::generate(repo,rev,&req)?;let revision_id=rev.id.clone();self.storage.transaction(|s|{if let Some(key)=&req.request_id{if let Some(existing)=s.answers.iter().find(|a|a.repository_id==req.repository_id&&a.request_id.as_ref()==Some(key)){if existing.request_fingerprint.as_ref()!=Some(&fingerprint){return Err(Error::new(409,"REQUEST_ID_CONFLICT","Request ID was used with different analysis input"));}answer.id=existing.id.clone();return Ok(());}}
 if s.answers.len()>=1000{return Err(Error::new(409,"ANSWER_QUOTA","Remove old answers before creating more"))}
 if s.repositories.iter().find(|r|r.id==req.repository_id).and_then(|r|r.revisions.last()).is_none_or(|r|r.id!=revision_id){return Err(Error::new(409,"REVISION_CHANGED","Evidence changed while answering; retry on the current snapshot"))}answer.id=s.id("answer");s.answers.push(answer.clone());let w=&mut s.workspaces[0];w.answer_ids.push(answer.id.clone());w.active_answer=Some(answer.id.clone());Ok(())})?;Ok(json!(answers::render(&self.storage.read()?,&answer.id)?))},
@@ -210,6 +213,59 @@ if results.len()>=200{break}}
             }
             if self.cancelled(id) {
                 return Err(Error::new(409, "CANCELLED", "Cancelled before analysis"));
+            }
+            if let Some(previous) = repo.revisions.last().filter(|v| {
+                v.fingerprint == captured.fingerprint
+                    && v.snapshot.extraction_schema_version
+                        == cie_incremental::snapshot::EXTRACTION_SCHEMA_VERSION
+                    && v.snapshot.coverage.complete
+                    && !v.snapshot.facts.is_empty()
+                    && v.snapshot.file_table.paths == v.snapshot.files
+            }) {
+                if repository::capture(&root)?.fingerprint != captured.fingerprint {
+                    return Err(Error::new(
+                        409,
+                        "SOURCE_CHANGED",
+                        "Sources changed while checking cached evidence; retry explicitly",
+                    ));
+                }
+                self.storage.transaction(|s| {
+                    if s.jobs
+                        .iter()
+                        .find(|j| j.id == id)
+                        .is_none_or(|j| j.state == "cancelling")
+                    {
+                        return Err(Error::new(
+                            409,
+                            "CANCELLED",
+                            "Cancellation blocked cached-result publication",
+                        ));
+                    }
+                    if s.repositories
+                        .iter()
+                        .find(|r| r.id == repo.id)
+                        .and_then(|r| r.revisions.last())
+                        .is_none_or(|v| v.id != previous.id)
+                    {
+                        return Err(Error::new(
+                            409,
+                            "REVISION_CHANGED",
+                            "Cached evidence was superseded",
+                        ));
+                    }
+                    let job = s
+                        .jobs
+                        .iter_mut()
+                        .find(|j| j.id == id)
+                        .ok_or_else(not_found)?;
+                    job.state = "ready".into();
+                    job.stage = "unchanged snapshot reused; no analysis executed".into();
+                    job.total_units = 1;
+                    job.completed_units = 1;
+                    job.revision_id = Some(previous.id.clone());
+                    Ok(())
+                })?;
+                return Ok(());
             }
             let stage = self.storage.directory.join("work").join(id);
             repository::stage(&captured, &stage)?;

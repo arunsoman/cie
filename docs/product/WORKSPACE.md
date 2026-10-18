@@ -241,3 +241,53 @@ another tab deletes the repository, then checks that cached source and inputs ar
 cleared in both tabs and the original source file remains intact.
 Acceptance register: **4 complete, 80 partial, 63 pending**. Complete stories:
 US-007, US-056, US-083, US-143. Remaining obligations are explicit in STATUS.md.
+
+## Retained parser evidence and revision identity increment
+
+Analysis snapshots retain detailed parser facts and their extraction-time file
+and line indexes. No-op cache loading preserves those facts and indexes without
+reading changed live source. An evidence-schema marker forces reanalysis across
+semantic upgrades and prevents stale summary reuse. Legacy snapshots stay readable
+but abstain when detailed facts are missing; the UI requests explicit reindexing.
+
+`POST /api/source-facts {repositoryId,revisionId,kind,symbolId?}` opens guards,
+loops, calls, returns, assignments, exceptions, candidate sources/sinks, imports,
+async sites and resource effects in the existing evidence workspace. The same
+population reaches the table, outline, inspector and exports. Guard expressions
+also appear as rule candidates, without inventing policy meaning or invariants.
+Displayed IR strings remove secret-shaped values; unmapped locations stay unknown.
+
+Cross-file symbol parents, branch/loop file IDs and resource-effect subjects are
+normalized. Tombstones remap surviving file indexes and remove obsolete bound
+contracts, unattached rules/behaviors and reuse keys. Invalid citation lines are
+withheld instead of being clamped to invented positions.
+
+Historical follow-ups cannot bind old symbol IDs to a newer snapshot. Older saved
+cross-revision/missing-parent contexts render as challenged. Context chips identify
+their snapshot and can be cleared together. Unchanged complete indexing reuses the
+existing revision and its concept judgments; incomplete/legacy evidence is not
+silently treated as a complete reusable result.
+
+Clean sequential validation: **265 workspace tests passed, 11 ignored;
+28 real-browser journeys and 4 Node tests passed; strict server Clippy passed**.
+Tests used debug information disabled and incremental compilation disabled to keep
+artifacts small and avoid overlapping-check metadata conflicts. Browser acceptance
+used pinned Playwright 1.62.1 with Chrome headless shell 155.0.8059.84, in explicit
+single-process mode because this environment restricts browser IPC. These checks
+are not a browser sandbox or penetration-test certification.
+
+Reproduce the complete sequence:
+
+```sh
+npm ci --prefix scripts/product --ignore-scripts
+npx --prefix scripts/product playwright install chromium
+bash scripts/product/verify.sh
+```
+
+`CIE_CARGO` can select a Cargo executable, and `CIE_CHROMIUM` can select a compatible
+browser binary. Standard browser mode is the default. Restricted test environments
+may explicitly set `CIE_BROWSER_SINGLE_PROCESS=1` for this trusted-UI harness.
+Missing tools and failed browser launch fail verification; they are never counted
+as passing acceptance evidence. Verification commands run sequentially.
+
+Acceptance register: **4 complete, 82 partial, 61 pending**.

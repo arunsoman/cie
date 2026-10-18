@@ -5,8 +5,8 @@
 | Story | Status | Delivered scope and remaining obligations | Named checks |
 |---|---|---|---|
 | US-001: Connect a repository | partial | Local connection, exact captured revision; hosted and branch selection pending. | index_publishes_immutable_sources_without_modifying_repository |
-| US-002: Know what the product understands | partial | Engine coverage and unresolved/unsupported records shown; full mixed-language boundary view pending. | static_test_map_never_claims_executed_coverage |
-| US-003: Keep understanding current | partial | Freshness rechecked against current sources; granular invalidation and incremental view refresh pending. | changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats |
+| US-002: Know what the product understands | partial | Parser facts and extraction-time file/line indexes are retained for supported languages; complete mixed-language boundary semantics remain pending. | raw_ir_is_retained_reused_and_uses_the_correct_cross_file_locations, resource_effects_in_second_file_reference_its_own_global_function |
+| US-003: Keep understanding current | partial | Unchanged complete snapshots reuse their revision and judgments; schema upgrades reanalyze instead of reusing older evidence. Changed-source fine-grained server reuse remains pending. | unchanged_complete_index_reuses_snapshot_without_erasing_concept_judgments, evidence_schema_upgrade_reanalyzes_unchanged_sources_without_stale_summary_reuse |
 | US-004: Work across several repositories | partial | Search across indexed snapshots preserves repository identity; cross-service contract resolution pending. | cross_repository_search_keeps_identical_names_separate |
 | US-005: Connect a hosted source | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-006: Watch and control background work | partial | Persistent jobs and cancellation before publication; browser reload acceptance included. | cancel_queued_job_blocks_publication, restart_marks_interrupted_jobs_failed_without_automatic_resume, browser:repository-index-reload |
@@ -15,7 +15,7 @@
 | US-009: See how my question was read | partial | Interpretation and explicit intent controls; ranked alternatives/confidence calibration pending. | explicit_route_and_symbol_selection_are_honored |
 | US-010: Ask several conditions at once | partial | Explicit bounded intersection/union/complement queries preserve true/false/unknown membership; unrestricted natural-language compound routing pending. | compound_queries_preserve_unknown_under_negative_missing_effect, compound_query_union_and_complement_use_one_exact_population, browser:compound-query |
 | US-011: Combine several questions into one analysis | partial | Up to six explicit read-only steps with dependency selection and durable independent results; autonomous natural-language planning pending. | composed_analysis_retains_completed_steps_when_dependency_is_ambiguous, browser:composed-analysis |
-| US-012: Continue with follow-ups and steering | partial | Visible removable parent/selection context; general steering and editor context pending. | browser:selection-follow-up |
+| US-012: Continue with follow-ups and steering | partial | Context chips show their snapshot; historical symbol selections cannot silently bind to newer IDs. General steering/editor context remains pending. | historical_followup_context_cannot_rebind_old_symbol_ids_to_new_code |
 | US-013: Choose the audience and level of detail | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-014: Inspect and challenge a claim | partial | Citations and required explanation for review/refutation; complete dependency invalidation/counterarguments pending. | refutation_hides_claim_and_edges_without_upgrading_confirmation, browser:review-refutation |
 | US-015: Distinguish proven, inferred, hypothesised and unknown | partial | Static observations and analyzer inference labelled consistently; runtime/hypothesis evidence classes pending. | browser:representation-parity |
@@ -24,7 +24,7 @@
 | US-018: Receive a view that fits the question | partial | Static relationships use graph/table; unsupported timeline/measurement views explain missing data. | browser:gallery-unavailable |
 | US-019: Switch representation without changing meaning | partial | Graph/table/outline preserve identical items and edges; other evidence-specific representations pending. | node:projection-layout, browser:representation-parity |
 | US-020: Browse everything the product can draw | partial | Small truthful available/unavailable gallery; full catalogue pending. | browser:gallery-unavailable |
-| US-021: Drill from system to code | partial | Concept/symbol items open exact source citations; full multi-level navigation pending. | browser:source-inspection |
+| US-021: Drill from system to code | partial | Exact retained parser records drill to source in shared inspectors; full multi-level capability navigation remains pending. | browser:retained-source-facts |
 | US-022: Zoom without losing readability | partial | Readable fixed rows and scroll; semantic zoom and viewport indicators pending. | node:projection-layout |
 | US-023: Magnify locally without disturbing the map | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-024: Point at things and ask about them | partial | Individual symbol selection used in follow-up; lasso/matrix selection pending. | browser:selection-follow-up |
@@ -38,7 +38,7 @@
 | US-032: Investigate a failure from a stack trace | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-033: See every way a failure can arise | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-034: Walk through a transaction step by step | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-035: Trace who reads and writes data | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-035: Trace who reads and writes data | partial | Retained assignments, call sites, candidate inputs/sinks and resource effects have source anchors; complete interprocedural data lineage remains pending. | retained_guard_facts_cite_the_right_file_and_do_not_become_approved_policy |
 | US-036: Compare code before and after a change | partial | Retained source snapshots can be compared with exact source inspection; candidate semantic/behavioral comparison pending. | snapshot_comparison_reports_text_changes_without_claiming_semantic_compatibility |
 | US-037: Ask why unusual code exists | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-038: See trust boundaries and privilege walls | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
@@ -56,7 +56,7 @@
 | US-050: Extract and curate concept cards | partial | Concept extraction runs with cancellable indexing; exact-snapshot refutations persist across answers, with minimum-sample judgment summaries. Card-set version comparison remains pending. | refuted_concept_remains_withheld_across_answers_and_answer_deletion, browser:concept-curation |
 | US-051: Browse the business-concept hierarchy | partial | Concept hierarchy relationships exposed; level-aware navigation pending. | answers_have_real_citations_and_shared_graph_population |
 | US-052: Locate an existing feature | partial | Lexical symbol search with citations; behavior-equivalent feature discovery pending. | cross_repository_search_keeps_identical_names_separate |
-| US-053: Discover distributed business rules | partial | Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending. | naming_anomaly_compares_promised_permission_check_with_observed_printing |
+| US-053: Discover distributed business rules | partial | Guard expressions and extracted obligations appear as candidates with source; approved policy meaning and complete distributed enforcement are not inferred automatically. | retained_guard_facts_cite_the_right_file_and_do_not_become_approved_policy |
 | US-054: Compare intended and actual behaviour | partial | Naming expectations, related declarations and modeled effects are inspectable; approved-requirement binding and complete mismatch classification pending. | naming_anomaly_compares_promised_permission_check_with_observed_printing |
 | US-055: Understand workflow states and failures | partial | User-declared states, events and guard assumptions can be inspected and explored; automatic implementation-derived workflow/recovery extraction pending. | declared_scenarios_expose_unknown_guards_and_never_execute_source_or_refunds |
 | US-056: Detect misleading names | complete | Naming expectations and modeled effects appear side by side with source. The authorize/print example is detected; naming alone is never presented as a confirmed business violation. | naming_anomaly_compares_promised_permission_check_with_observed_printing, browser:naming-anomaly |
@@ -98,7 +98,7 @@
 | US-092: Export and bookmark understanding | partial | JSON/Markdown exports preserve full answer caveats; visual artifact export and bookmarks pending. | node:export-caveats, browser:export |
 | US-093: Save and resume a workspace | partial | Persistent workspaces and saved answers reopen; collaboration and wider view-state persistence pending. | saved_workspace_validates_answer_references, browser:workspace-reload |
 | US-094: Understand authorization | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
-| US-095: Trace sensitive information | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
+| US-095: Trace sensitive information | partial | Candidate input/sink records can be inspected without inventing connecting paths; sensitive-field classification and complete end-to-end information flow remain pending. | legacy_fact_queries_abstain_and_displayed_ir_redacts_secret_shaped_values |
 | US-096: Find policy enforcement gaps | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
 | US-097: Review code-security and secret findings | partial | Engine static findings and secret-shaped excerpt removal; full security assessment pending. | answers_have_real_citations_and_shared_graph_population |
 | US-098: Assess packages and licences | pending | Not implemented in the product workspace. No acceptance completion is claimed. | None |
@@ -149,5 +149,5 @@
 | US-143: Read comfortably in any theme | complete | Persistent light/dark/high-contrast themes recolor all current renderers. Text/control contrast checks, visible focus and reduced-motion browser checks pass. | node:theme-contrast, browser:theme-persistence |
 | US-144: Never see stale answers as current | partial | Freshness, unknown, no-index and failed states separate; full denial-aware scope accounting pending. | missing_index_and_outside_roots_are_distinct_errors, changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats |
 | US-145: Get graceful degradation instead of guesses | partial | Unknowns and missing evidence disclosed; future adapters need degradation tests. | unknown_question_does_not_return_unrelated_finding_as_answer |
-| US-146: Trust that interruptions never corrupt state | partial | Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending. | ownership_release_is_not_delayed_by_an_inherited_descriptor, question_request_ids_deduplicate_and_refuse_changed_input_or_revision |
+| US-146: Trust that interruptions never corrupt state | partial | Evidence schema epochs invalidate stale caches, legacy snapshots abstain from missing IR, and tombstones clean dependent references. Backup/restore and full rollback remain pending. | tombstones_remove_bound_contracts_unattached_rules_and_reuse_keys, old_saved_cross_revision_or_deleted_parent_context_is_not_rendered_as_unchallenged |
 | US-147: See the product verify itself | partial | Full 147-story acceptance register with named checks; independent evaluation harness pending. | node:story-register |

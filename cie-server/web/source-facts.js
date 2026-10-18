@@ -1,0 +1,9 @@
+"use strict";
+(()=>{
+ const $=id=>document.getElementById(id),token=document.querySelector('meta[name="cie-token"]').content;
+ async function run(fn){$('error').hidden=true;try{await fn();}catch(e){$('error').hidden=false;$('error').textContent=e.message;}}
+ async function api(path,method='GET',data){const response=await fetch(path,{method,headers:{'X-Cie-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:AbortSignal.timeout(30000)});const result=await response.json();if(!response.ok)throw new Error(`${result.error.code}: ${result.error.message}`);return result;}
+ async function refresh(){const state=await api('/api/state'),select=$('facts-repository'),prior=select.value;select.replaceChildren();for(const r of state.repositories)for(const v of r.revisions){const option=document.createElement('option');option.textContent=`${r.name} · ${v.id}`;option.value=JSON.stringify([r.id,v.id]);select.append(option);}if([...select.options].some(o=>o.value===prior))select.value=prior;}
+ document.querySelector('[data-page="facts"]').addEventListener('click',()=>run(refresh));$('facts-refresh').addEventListener('click',()=>run(refresh));
+ $('source-facts-form').addEventListener('submit',event=>{event.preventDefault();run(async()=>{if(!$('facts-repository').value)throw new Error('Index a source snapshot first.');const [repositoryId,revisionId]=JSON.parse($('facts-repository').value);const request={repositoryId,revisionId,kind:$('facts-kind').value};if($('facts-symbol').value!=='')request.symbolId=$('facts-symbol').value;const result=await api('/api/source-facts','POST',request);document.dispatchEvent(new CustomEvent('cie-open-answer',{detail:result}));$('notice').textContent='Retained parser records opened. These are not runtime paths or automatically approved business rules.';});});
+})();

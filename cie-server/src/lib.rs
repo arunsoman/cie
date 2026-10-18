@@ -25,3 +25,5 @@ pub mod concept_reviews;
 pub mod scenarios;
 
 pub mod profiles;
+
+pub mod source_facts;

@@ -146,7 +146,10 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let store = Store::open(project)?;
     let current = walk_and_hash(project, opts.langs.as_ref())?;
     let prev_index = store.load_index()?;
-    let plan = plan_ingest(prev_index.as_ref(), &current);
+    let mut plan = plan_ingest(prev_index.as_ref(), &current);
+    let schema_path=store.root().join("extraction-schema.json");
+    let schema_current=store.read_json::<u32>(&schema_path)?==Some(cie_incremental::snapshot::EXTRACTION_SCHEMA_VERSION);
+    if !schema_current { plan.changed.append(&mut plan.unchanged); plan.changed.sort(); plan.changed.dedup(); }
 
     // TASK-028: deletions leave tombstones (`file:{path}:tombstone`, §15.1)
     // so stale facts are purged explicitly; re-appearing paths clear theirs.
@@ -189,7 +192,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let deadline: Option<Ns> = opts.budget_ms.map(|ms| now_ns() + ms * 1_000_000);
 
     // TASK-030: load the prior snapshot to seed summary reuse.
-    let prior_snapshot: Option<RevSnapshot> = match prev_index.as_ref() {
+    let prior_snapshot: Option<RevSnapshot> = match prev_index.as_ref().filter(|_|schema_current) {
         Some(idx) if idx.last_rev > 0 => store.load_snapshot(idx.last_rev)?,
         _ => None,
     };
@@ -440,15 +443,18 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     let mut snapshot = RevSnapshot {
         rev,
+        extraction_schema_version: cie_incremental::snapshot::EXTRACTION_SCHEMA_VERSION,
         files: files_list,
         symbols: extracted.store.symbols.clone(),
+        facts: extracted.per_file,
+        file_table: extracted.files,
         summaries: analysis.summaries.values().cloned().collect(),
         findings: analysis.findings.clone(),
         contracts: analysis.contracts.clone(),
         concepts: analysis.concepts.clone(),
         coverage: analysis.coverage.clone(),
         evidence: analysis.evidence.clone(),
-        warnings: vec![],
+        warnings: if !schema_current && prev_index.is_some() { vec!["Evidence schema changed; unchanged source files were reanalyzed without editing them".into()] } else { vec![] },
         ingest_wall_ns: wall,
         incremental: false,
         summary_cache: plan30
@@ -478,6 +484,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // orphaned call edges survive a tombstoned deletion.
     let _purged = store.purge_tombstoned(&mut snapshot)?;
     store.save_snapshot(&snapshot)?;
+    store.write_json(&schema_path,&cie_incremental::snapshot::EXTRACTION_SCHEMA_VERSION)?;
 
     let (reverse_deps, test_map, _) = rebuild_graphs(
         &extracted.store,
@@ -513,7 +520,12 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
     let snapshot = store
         .load_snapshot(rev)?
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "snapshot missing"))?;
-    let sym_store = SymbolStore::build(snapshot.symbols.clone());
+    let files=if snapshot.file_table.paths==snapshot.files { snapshot.file_table.clone() } else {
+        let mut files=cie_core::types::FileTable::new();
+        for path in &snapshot.files { files.intern(path.clone()); }
+        files
+    };
+    let sym_store = SymbolStore::build_with_files(snapshot.symbols.clone(),files);
     let (reverse_deps, test_map, _) = rebuild_graphs(&sym_store, &snapshot.summaries);
     Ok(IngestOutcome {
         rev: snapshot.rev,

@@ -383,6 +383,16 @@ pub fn extract_project(
             next_id = SymbolId(next_id.0 + 1);
         }
         rewrite(&mut facts, &map);
+        // Adapters use file-local locations. Normalize branch/loop spans along
+        // with symbol locations before publishing cross-file evidence.
+        let file_id = FileId(all_facts.len() as u32);
+        for branch in &mut facts.ifs {
+            branch.loc.file = file_id;
+        }
+        for node in &mut facts.loops {
+            node.loc.file = file_id;
+        }
+
         symbols.append(&mut facts.symbols);
         all_facts.push(facts);
     }
@@ -408,6 +418,8 @@ pub struct ExtractedProject {
 fn rewrite(facts: &mut LangFacts, map: &BTreeMap<SymbolId, SymbolId>) {
     let m = |local: SymbolId| -> SymbolId { map.get(&local).copied().unwrap_or(local) };
 
+    for symbol in &mut facts.symbols { symbol.parent=symbol.parent.and_then(|parent|map.get(&parent).copied()); }
+    for resource in &mut facts.resource_effects { resource.symbol=m(resource.symbol); }
     for c in &mut facts.calls {
         c.caller = m(c.caller);
         if let Callee::Resolved(id) = c.callee {

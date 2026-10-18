@@ -1198,3 +1198,180 @@ fn deleted_sample_connection_can_be_recreated_without_overwriting_edited_source(
         .unwrap()
         .contains("manually_edited"));
 }
+
+#[test]
+fn retained_guard_facts_cite_the_right_file_and_do_not_become_approved_policy() {
+    let f = Fixture::new();
+    fs::write(f.root.join("b.py"),"def guarded(n):\n    if n <= 0:\n        raise ValueError('DENY_B_CASE')\n    return True\n").unwrap();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let q = f.call(
+        "POST",
+        "/api/source-facts",
+        json!({"repositoryId":repo,"revisionId":rev,"kind":"guards"}),
+    );
+    let items = q["answer"]["items"].as_array().unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["detail"]["file"], "b.py");
+    assert_eq!(items[0]["citations"][0]["file"], "b.py");
+    assert_eq!(items[0]["citations"][0]["startLine"], 2);
+    assert!(items[0]["citations"][0]["excerpt"]
+        .as_str()
+        .unwrap()
+        .contains("DENY_B_CASE"));
+    let rules = f.ask(&repo, "rules");
+    let candidate = rules["answer"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["kind"] == "guardCandidate")
+        .unwrap();
+    assert_eq!(candidate["claimClass"], "analyzerInference");
+    assert!(candidate["detail"]["scope"]
+        .as_str()
+        .unwrap()
+        .contains("not automatically an invariant"));
+}
+#[test]
+fn legacy_fact_queries_abstain_and_displayed_ir_redacts_secret_shaped_values() {
+    let f = Fixture::new();
+    fs::write(
+        f.root.join("secret.py"),
+        "def source():\n    return 'password=\"democredentialvalue\"'\n",
+    )
+    .unwrap();
+    let repo = f.connect();
+    let rev = f.index(&repo);
+    let records = f.call(
+        "POST",
+        "/api/source-facts",
+        json!({"repositoryId":repo,"revisionId":rev,"kind":"returns"}),
+    );
+    assert!(!serde_json::to_string(&records)
+        .unwrap()
+        .contains("democredentialvalue"));
+    assert!(!records["answer"]["items"].as_array().unwrap().is_empty());
+    f.app
+        .storage
+        .transaction(|s| {
+            s.repositories[0].revisions[0].snapshot.facts.clear();
+            Ok(())
+        })
+        .unwrap();
+    let legacy = f.call(
+        "POST",
+        "/api/source-facts",
+        json!({"repositoryId":repo,"revisionId":rev,"kind":"returns"}),
+    );
+    assert_eq!(legacy["answer"]["status"], "unknown");
+    assert!(legacy["answer"]["items"].as_array().unwrap().is_empty());
+    assert!(legacy["answer"]["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g.as_str().unwrap().contains("Reindex explicitly")));
+}
+
+#[test]
+fn invalid_citation_lines_are_withheld_instead_of_clamped_to_invented_locations() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    let s = f.app.storage.read().unwrap();
+    let repo = &s.repositories[0];
+    let rev = &repo.revisions[0];
+    let symbol = &rev.snapshot.symbols[0];
+    assert!(cie_server::answers::citation(repo, rev, symbol, Some(0)).is_none());
+    assert!(cie_server::answers::citation(repo, rev, symbol, Some(100000)).is_none());
+    assert!(cie_server::answers::citation(repo, rev, symbol, None).is_some());
+}
+
+#[test]
+fn historical_followup_context_cannot_rebind_old_symbol_ids_to_new_code() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    let old = f.ask(&repo, "overview");
+    let parent = old["answer"]["id"].as_str().unwrap();
+    let selected = old["answer"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["label"].as_str().unwrap().ends_with("allowed"))
+        .unwrap()["detail"]["symbolId"]
+        .clone();
+    fs::write(f.root.join("a.py"), "def decoy():\n    return False\n").unwrap();
+    f.index(&repo);
+    let count = f.app.storage.read().unwrap().answers.len();
+    let request = json!({"repositoryId":repo,"question":"show callers","intent":"callers","symbolId":selected,"parentAnswer":parent});
+    assert_eq!(
+        f.app
+            .dispatch(
+                "POST",
+                "/api/questions",
+                &serde_json::to_vec(&request).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "HISTORICAL_CONTEXT"
+    );
+    assert_eq!(f.app.storage.read().unwrap().answers.len(), count);
+}
+
+#[test]
+fn unchanged_complete_index_reuses_snapshot_without_erasing_concept_judgments() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    let first = f.index(&repo);
+    let concepts = f.ask(&repo, "concepts");
+    let answer = concepts["answer"]["id"].as_str().unwrap();
+    let item = concepts["answer"]["items"][0]["id"].as_str().unwrap();
+    f.call("POST","/api/reviews",json!({"answerId":answer,"itemId":item,"verdict":"refute","reason":"Preserve this exact-snapshot judgment"}));
+    let second = f.index(&repo);
+    assert_eq!(first, second);
+    let state = f.app.storage.read().unwrap();
+    assert_eq!(state.repositories[0].revisions.len(), 1);
+    assert!(state
+        .jobs
+        .last()
+        .unwrap()
+        .stage
+        .contains("no analysis executed"));
+    assert_eq!(f.ask(&repo, "concepts")["hiddenClaims"], 1);
+}
+
+#[test]
+fn old_saved_cross_revision_or_deleted_parent_context_is_not_rendered_as_unchallenged() {
+    let f = Fixture::new();
+    let repo = f.connect();
+    f.index(&repo);
+    let old = f.ask(&repo, "overview");
+    let parent = old["answer"]["id"].as_str().unwrap().to_string();
+    fs::write(f.root.join("new.py"), "def other():\n    return True\n").unwrap();
+    f.index(&repo);
+    let current = f.ask(&repo, "overview");
+    let child = current["answer"]["id"].as_str().unwrap().to_string();
+    f.app
+        .storage
+        .transaction(|s| {
+            s.answers
+                .iter_mut()
+                .find(|a| a.id == child)
+                .unwrap()
+                .parent_answer = Some(parent.clone());
+            Ok(())
+        })
+        .unwrap();
+    let view = f.call("GET", &format!("/api/answers/{child}"), json!({}));
+    assert_eq!(view["challenged"], true);
+    assert!(view["answer"]["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g.as_str().unwrap().contains("another source snapshot")));
+    f.call("DELETE", &format!("/api/answers/{parent}"), json!({}));
+    assert_eq!(
+        f.call("GET", &format!("/api/answers/{child}"), json!({}))["challenged"],
+        true
+    );
+}

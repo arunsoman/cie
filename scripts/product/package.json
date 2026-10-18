@@ -1,0 +1,13 @@
+{
+  "name": "cie-product-acceptance",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "unit": "node --test evidence.test.cjs",
+    "browser": "node browser.cjs",
+    "verify": "bash verify.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

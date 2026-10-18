@@ -12,18 +12,20 @@
     "id": "US-002",
     "title": "Know what the product understands",
     "status": "partial",
-    "note": "Engine coverage and unresolved/unsupported records shown; full mixed-language boundary view pending.",
+    "note": "Parser facts and extraction-time file/line indexes are retained for supported languages; complete mixed-language boundary semantics remain pending.",
     "evidence": [
-      "static_test_map_never_claims_executed_coverage"
+      "raw_ir_is_retained_reused_and_uses_the_correct_cross_file_locations",
+      "resource_effects_in_second_file_reference_its_own_global_function"
     ]
   },
   {
     "id": "US-003",
     "title": "Keep understanding current",
     "status": "partial",
-    "note": "Freshness rechecked against current sources; granular invalidation and incremental view refresh pending.",
+    "note": "Unchanged complete snapshots reuse their revision and judgments; schema upgrades reanalyze instead of reusing older evidence. Changed-source fine-grained server reuse remains pending.",
     "evidence": [
-      "changed_sources_are_visibly_stale_and_export_keeps_the_same_caveats"
+      "unchanged_complete_index_reuses_snapshot_without_erasing_concept_judgments",
+      "evidence_schema_upgrade_reanalyzes_unchanged_sources_without_stale_summary_reuse"
     ]
   },
   {
@@ -107,9 +109,9 @@
     "id": "US-012",
     "title": "Continue with follow-ups and steering",
     "status": "partial",
-    "note": "Visible removable parent/selection context; general steering and editor context pending.",
+    "note": "Context chips show their snapshot; historical symbol selections cannot silently bind to newer IDs. General steering/editor context remains pending.",
     "evidence": [
-      "browser:selection-follow-up"
+      "historical_followup_context_cannot_rebind_old_symbol_ids_to_new_code"
     ]
   },
   {
@@ -189,9 +191,9 @@
     "id": "US-021",
     "title": "Drill from system to code",
     "status": "partial",
-    "note": "Concept/symbol items open exact source citations; full multi-level navigation pending.",
+    "note": "Exact retained parser records drill to source in shared inspectors; full multi-level capability navigation remains pending.",
     "evidence": [
-      "browser:source-inspection"
+      "browser:retained-source-facts"
     ]
   },
   {
@@ -303,9 +305,11 @@
   {
     "id": "US-035",
     "title": "Trace who reads and writes data",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Retained assignments, call sites, candidate inputs/sinks and resource effects have source anchors; complete interprocedural data lineage remains pending.",
+    "evidence": [
+      "retained_guard_facts_cite_the_right_file_and_do_not_become_approved_policy"
+    ]
   },
   {
     "id": "US-036",
@@ -447,9 +451,9 @@
     "id": "US-053",
     "title": "Discover distributed business rules",
     "status": "partial",
-    "note": "Extracted obligation catalogue separates naming/declaration authority from approval, with exact source locations; complete cross-layer enforcement and conflict analysis pending.",
+    "note": "Guard expressions and extracted obligations appear as candidates with source; approved policy meaning and complete distributed enforcement are not inferred automatically.",
     "evidence": [
-      "naming_anomaly_compares_promised_permission_check_with_observed_printing"
+      "retained_guard_facts_cite_the_right_file_and_do_not_become_approved_policy"
     ]
   },
   {
@@ -800,9 +804,11 @@
   {
     "id": "US-095",
     "title": "Trace sensitive information",
-    "status": "pending",
-    "note": "Not implemented in the product workspace. No acceptance completion is claimed.",
-    "evidence": []
+    "status": "partial",
+    "note": "Candidate input/sink records can be inspected without inventing connecting paths; sensitive-field classification and complete end-to-end information flow remain pending.",
+    "evidence": [
+      "legacy_fact_queries_abstain_and_displayed_ir_redacts_secret_shaped_values"
+    ]
   },
   {
     "id": "US-096",
@@ -1205,10 +1211,10 @@
     "id": "US-146",
     "title": "Trust that interruptions never corrupt state",
     "status": "partial",
-    "note": "Atomic storage, explicit lock release and request deduplication; verified backup/restore and broader rollback pending.",
+    "note": "Evidence schema epochs invalidate stale caches, legacy snapshots abstain from missing IR, and tombstones clean dependent references. Backup/restore and full rollback remain pending.",
     "evidence": [
-      "ownership_release_is_not_delayed_by_an_inherited_descriptor",
-      "question_request_ids_deduplicate_and_refuse_changed_input_or_revision"
+      "tombstones_remove_bound_contracts_unattached_rules_and_reuse_keys",
+      "old_saved_cross_revision_or_deleted_parent_context_is_not_rendered_as_unchallenged"
     ]
   },
   {

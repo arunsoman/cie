@@ -7,17 +7,30 @@ use cie_contract::findings::Finding;
 use cie_contract::Contract;
 use cie_core::evidence::{Coverage, Evidence};
 use cie_core::types::RevId;
-use cie_semantic::facts::SymbolFact;
+use cie_semantic::facts::{LangFacts, SymbolFact};
 use cie_store::Store;
 use cie_summary::{FunctionSummary, ReuseStats, SummaryCacheEntry};
 use serde::{Deserialize, Serialize};
+
+/// Bump when extraction/analysis semantics change so unchanged files cannot
+/// silently reuse an older evidence model.
+pub const EXTRACTION_SCHEMA_VERSION: u32 = 1;
 
 /// One revision's full analysis snapshot.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RevSnapshot {
     pub rev: RevId,
+    #[serde(default)]
+    pub extraction_schema_version: u32,
     pub files: Vec<String>,
+    /// Extraction-time line indexes; never rebuilt from a changed live file.
+    #[serde(default)]
+    pub file_table: cie_core::types::FileTable,
     pub symbols: Vec<SymbolFact>,
+    /// Parser observations from the same extraction pass. Missing on legacy
+    /// snapshots; never manufacture them from names or summaries.
+    #[serde(default)]
+    pub facts: Vec<LangFacts>,
     pub summaries: Vec<FunctionSummary>,
     pub findings: Vec<Finding>,
     pub contracts: Vec<Contract>,
@@ -59,7 +72,10 @@ impl SnapshotStoreExt for Store {
         // snap.files is the file table: FileId -> path (TASK-006 spans
         // carry no path; resolve through the snapshot's own list).
         let path_of = |f: cie_core::types::FileId| -> &str {
-            snap.files.get(f.0 as usize).map(|s| s.as_str()).unwrap_or("")
+            snap.files
+                .get(f.0 as usize)
+                .map(|s| s.as_str())
+                .unwrap_or("")
         };
         let dead: std::collections::BTreeSet<cie_core::types::SymbolId> = snap
             .symbols
@@ -80,6 +96,24 @@ impl SnapshotStoreExt for Store {
         }
         snap.summaries.retain(|s| !dead.contains(&s.sym));
 
+        let before_contracts = snap.contracts.len();
+        snap.contracts.retain_mut(|contract| {
+            let had_symbols = !contract.symbols.is_empty();
+            contract.symbols.retain(|id| !dead.contains(id));
+            !had_symbols || !contract.symbols.is_empty()
+        });
+        purged += before_contracts - snap.contracts.len();
+        let live_contracts: std::collections::BTreeSet<_> =
+            snap.contracts.iter().map(|c| c.id).collect();
+        snap.concepts
+            .unattached_behaviors
+            .retain(|b| !dead.contains(&b.summary));
+        snap.concepts
+            .unattached_rules
+            .retain(|r| live_contracts.contains(&r.contract));
+        snap.summary_cache
+            .retain(|entry| !tomb.contains(&entry.path));
+
         // Findings anchored on dead symbols are stale by construction.
         snap.findings.retain(|f| !dead.contains(&f.symbol));
 
@@ -87,10 +121,67 @@ impl SnapshotStoreExt for Store {
         for node in &mut snap.concepts.nodes {
             node.symbols.retain(|s| !dead.contains(s));
             node.behaviors.retain(|b| !dead.contains(&b.summary));
+            node.rules.retain(|r| live_contracts.contains(&r.contract));
+            node.finding_ids
+                .retain(|id| snap.findings.iter().any(|f| &f.id == id));
         }
 
         // Files list drops tombstoned paths.
+        let mut next_file = 0u32;
+        let file_map: std::collections::BTreeMap<_, _> = snap
+            .files
+            .iter()
+            .enumerate()
+            .filter_map(|(old, path)| {
+                if tomb.contains(path) {
+                    None
+                } else {
+                    let entry = (old as u32, next_file);
+                    next_file += 1;
+                    Some(entry)
+                }
+            })
+            .collect();
         snap.files.retain(|f| !tomb.contains(f));
+        let old_table = std::mem::take(&mut snap.file_table);
+        for path in &snap.files {
+            snap.file_table.paths.push(path.clone());
+            let lines = old_table
+                .paths
+                .iter()
+                .position(|p| p == path)
+                .and_then(|id| old_table.line_starts.get(id))
+                .cloned()
+                .unwrap_or_default();
+            snap.file_table.line_starts.push(lines);
+        }
+        for symbol in &mut snap.symbols {
+            if let Some(file) = file_map.get(&symbol.loc.file.0) {
+                symbol.loc.file = cie_core::types::FileId(*file);
+            }
+        }
+        snap.facts.retain(|facts| !tomb.contains(&facts.path));
+        for facts in &mut snap.facts {
+            for call in &mut facts.calls {
+                if let cie_semantic::facts::Callee::Resolved(id) = call.callee {
+                    if dead.contains(&id) {
+                        call.callee = cie_semantic::facts::Callee::Unresolved(
+                            "Referenced symbol was removed by tombstone".into(),
+                        );
+                    }
+                }
+            }
+            for branch in &mut facts.ifs {
+                if let Some(file) = file_map.get(&branch.loc.file.0) {
+                    branch.loc.file = cie_core::types::FileId(*file);
+                }
+            }
+            for node in &mut facts.loops {
+                if let Some(file) = file_map.get(&node.loc.file.0) {
+                    node.loc.file = cie_core::types::FileId(*file);
+                }
+            }
+        }
         Ok(purged)
     }
 
