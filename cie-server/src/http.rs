@@ -76,7 +76,21 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/profile-compare", "US-083: compare two profiles"),
     ("/view/regression", "US-084: investigate a performance regression"),
     ("/view/dependency-risk", "US-062: dependency usage/risk map"),
+    ("/view/runtime-overlay", "US-075: runtime activity overlay"),
 ];
+
+fn demo_runtime_joins() -> Vec<cie_evidence::StructureRuntimeJoin> {
+    use cie_evidence::{join_structure_with_runtime, RuntimeObservation};
+    let obs = vec![
+        RuntimeObservation { symbol: "checkout::charge_card".into(), environment: "prod-us-east".into(), deployment_revision: "rev-42".into(), window_start_ns: 1_700_000_000_000_000_000, window_end_ns: 1_700_000_600_000_000_000, activity_count: 134 },
+        RuntimeObservation { symbol: "checkout::legacy_refund".into(), environment: "prod-us-east".into(), deployment_revision: "rev-41".into(), window_start_ns: 1_700_000_000_000_000_000, window_end_ns: 1_700_000_600_000_000_000, activity_count: 2 },
+    ];
+    vec![
+        join_structure_with_runtime("checkout::charge_card", "rev-42", &obs),
+        join_structure_with_runtime("checkout::legacy_refund", "rev-42", &obs),
+        join_structure_with_runtime("checkout::dead_code_path", "rev-42", &obs),
+    ]
+}
 
 fn demo_dependency_risk() -> cie_contract::DependencyRiskMap {
     use cie_contract::{Advisory, CompatibilityVerdict, Dependency, DependencyRiskMap, UpgradeCandidate, UsageEvidence};
@@ -374,6 +388,34 @@ fn render_dependency_risk_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&demo_dependency_risk()).unwrap_or_default())
 }
 
+fn render_runtime_overlay_html() -> HttpResponse {
+    let joins = demo_runtime_joins();
+    let rows: Vec<Vec<String>> = joins
+        .iter()
+        .map(|j| {
+            vec![
+                j.symbol.clone(),
+                format!("{:?}", j.exactness),
+                j.observed_activity.map(|n| n.to_string()).unwrap_or_else(|| "-".to_string()),
+                j.reason.clone(),
+            ]
+        })
+        .collect();
+    let body = format!(
+        "<p>environment: prod-us-east &middot; observation window: 1700000000s&ndash;1700000600s</p>{}",
+        table(&["symbol", "join exactness", "observed activity", "reason"], &rows),
+    );
+    HttpResponse::html(page(
+        "US-075: runtime activity overlay",
+        "Fixed demo observations. checkout::dead_code_path has no joined observation — shown as Unknown, never as 'unused'.",
+        &body,
+    ))
+}
+
+fn render_runtime_overlay_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_runtime_joins()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -392,6 +434,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/regression" => render_regression_json(),
         "/view/dependency-risk" => render_dependency_risk_html(),
         "/api/dependency-risk" => render_dependency_risk_json(),
+        "/view/runtime-overlay" => render_runtime_overlay_html(),
+        "/api/runtime-overlay" => render_runtime_overlay_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -559,5 +603,22 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         let candidates = parsed["candidates"].as_array().unwrap();
         assert!(candidates.iter().any(|c| c["compatibility"] == "Unknown"));
+    }
+
+    #[test]
+    fn runtime_overlay_view_names_environment_and_window() {
+        let resp = route("/view/runtime-overlay");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("prod-us-east"));
+        assert!(resp.body.contains("observation window"));
+    }
+
+    #[test]
+    fn runtime_overlay_never_declares_the_unobserved_symbol_unused() {
+        let resp = route("/api/runtime-overlay");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let dead = parsed.as_array().unwrap().iter().find(|j| j["symbol"] == "checkout::dead_code_path").unwrap();
+        assert_eq!(dead["exactness"], "Unknown");
+        assert!(dead["reason"].as_str().unwrap().contains("not evidence"));
     }
 }

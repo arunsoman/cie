@@ -227,11 +227,12 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-074", Partial, ["cie-adapters::effects"],
         "I/O-under-lock class patterns classified; measured claims require named workloads (none imported yet)."),
     // ---- Runtime, concurrency and data consistency ------------------------
-    entry!("US-075", Partial, ["cie-evidence::runtime::join_structure_with_runtime"],
+    entry!("US-075", Delivered, ["cie-evidence::runtime::join_structure_with_runtime", "cie-server::http (GET /view/runtime-overlay)"],
         "Static symbol joined against imported runtime observations with Exact/ \
-         Partial/Unknown exactness (revision+deployment agreement); no 'unused' \
-         verdict exists in the type, so a quiet window can never produce one. \
-         The runtime overlay view and a live ingest feed are host layer."),
+         Partial/Unknown exactness, now in a real view (GET /view/runtime-overlay) \
+         that names the environment and observation window and shows an unobserved \
+         symbol as Unknown, never 'unused'. A live ingest feed (as opposed to \
+         imported observations) is a separate, future adapter."),
     entry!("US-076", Planned, [],
         "Recorded-request replay not shipped."),
     entry!("US-077", Partial, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change"],
