@@ -1,0 +1,37 @@
+{
+ "id": "US-129",
+ "title": "Approvals that can't be self-served",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Release board event",
+   "Result"
+  ],
+  "rows": [
+   [
+    "walkthrough author tried to approve own change",
+    "DENIED by rule: approving requires someone other than the author"
+   ],
+   [
+    "second reviewer (sandbox) tried to approve",
+    "recorded; release build may start from the release's context"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the self-approval was really denied by the rule in the recorded flow; the second approval is recorded against the sandbox context"
+ },
+ "etl": {
+  "extract": "the release board's events",
+  "transform": "enforce approver \u2260 author",
+  "load": "an approval record that starts release builds from the release's context"
+ },
+ "gap": "The approval UI is product work; the rule and its real enforcement in the walkthrough are recorded.",
+ "honesty": "nobody marks their own work done \u2014 the denied attempt stays in the record.",
+ "real_world_equivalents": [
+  "branch protection rules",
+  "CODEOWNERS"
+ ]
+}

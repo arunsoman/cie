@@ -1,0 +1,50 @@
+{
+ "id": "US-126",
+ "title": "Several related changes, managed without chaos",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Change in the set (really built)",
+   "Depends on",
+   "Status"
+  ],
+  "rows": [
+   [
+    "parent: spending limit on transfers",
+    "\u2014",
+    "candidate commit 9fd0ace4"
+   ],
+   [
+    "child c1: transfers.py + its tests",
+    "parent",
+    "landed in the candidate; first check run failed, rechecked green (US-121)"
+   ],
+   [
+    "child c2: per-environment config keys",
+    "parent",
+    "landed in config/dev,staging,prod.json (real files in this repo)"
+   ],
+   [
+    "child c3: docs for the new keys",
+    "c2",
+    "pending \u2014 never shown as shipped"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the real candidate + the real config files",
+  "detail": "the dependency edges and statuses describe this actual session, including the real partial failure"
+ },
+ "etl": {
+  "extract": "the change set",
+  "transform": "dependencies, conflicts, partial failures visible",
+  "load": "a coordination board"
+ },
+ "gap": "A multi-change board is the remaining piece; the real change set and its edges are here.",
+ "honesty": "Unmerged work is never presented as shipped \u2014 c3 says pending and means it.",
+ "real_world_equivalents": [
+  "gh stack PRs",
+  "merge queues"
+ ]
+}

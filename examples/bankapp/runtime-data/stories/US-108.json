@@ -1,0 +1,49 @@
+{
+ "id": "US-108",
+ "title": "An approval-worthy brief before any code",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Brief section",
+   "Recorded content"
+  ],
+  "rows": [
+   [
+    "scope",
+    "transfers only; payments and refunds untouched"
+   ],
+   [
+    "actors",
+    "customer, transfer API"
+   ],
+   [
+    "rules",
+    "amount must be a positive number; amount must not exceed the limit"
+   ],
+   [
+    "failure paths",
+    "bad input \u2192 clear error, nothing charged; over limit \u2192 refused with the reason"
+   ],
+   [
+    "acceptance",
+    "200 under the limit; 402 over the limit; ValueError on non-numeric or negative"
+   ],
+   [
+    "origins",
+    "your prompt + clarification answers \u2014 derived from the rules, shown before any code"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "this brief is the one the sandbox commits, tests and patch below actually implement"
+ },
+ "etl": {
+  "extract": "prompt + answers + store context",
+  "transform": "requirements separated from guesses, each with origin",
+  "load": "the plan checkpoint"
+ },
+ "gap": "The brief-assembly UI is product work; this brief is real and was really built against.",
+ "honesty": "Requirements vs guesses stays visible; you can correct any line at any time in the recorded flow."
+}

@@ -1,0 +1,71 @@
+{
+ "id": "US-076",
+ "title": "Replay a past request, step by step",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Step",
+   "Where",
+   "What it produced"
+  ],
+  "rows": [
+   [
+    "1",
+    "good_auth  line 13",
+    ""
+   ],
+   [
+    "2",
+    "verify_password  line 19",
+    ""
+   ],
+   [
+    "3",
+    "hash_matches  line 22",
+    ""
+   ],
+   [
+    "4",
+    "hash_matches  line 23",
+    ""
+   ],
+   [
+    "5",
+    "hash_matches  line 23",
+    "true"
+   ],
+   [
+    "6",
+    "verify_password  line 19",
+    "true"
+   ],
+   [
+    "7",
+    "good_auth  line 14",
+    ""
+   ],
+   [
+    "8",
+    "good_auth  line 14",
+    "true"
+   ]
+  ]
+ },
+ "source": {
+  "label": "sys.settrace over bankapp's own good_auth('alice')",
+  "detail": "8 real trace events captured from the real project code, result = True"
+ },
+ "etl": {
+  "extract": "an execution recording (settrace, rr, JFR flight recording, OTel spans)",
+  "transform": "events \u2192 ordered steps with locals; unrecorded values stay unrecorded",
+  "load": "a step-by-step replay beside the source"
+ },
+ "gap": "A rewind/scrub UI is the remaining piece; the real recording and its steps are here now.",
+ "honesty": "Marked as a recording throughout. Values the trace did not capture are never made up.",
+ "real_world_equivalents": [
+  "rr (record & replay)",
+  "JFR flight recordings",
+  "time-travel debuggers"
+ ]
+}

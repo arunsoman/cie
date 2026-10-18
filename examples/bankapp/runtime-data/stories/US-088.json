@@ -1,0 +1,46 @@
+{
+ "id": "US-088",
+ "title": "History insights without exposing anyone",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Privacy-at-source check",
+   "Measured result"
+  ],
+  "rows": [
+   [
+    "identities in the store",
+    "hashed at source \u2014 salt cie-privacy-at-s\u2026, names never stored"
+   ],
+   [
+    "per-person leaderboard",
+    "none built \u2014 areas are ranked, people never are"
+   ],
+   [
+    "paths denied by policy",
+    "8 file-touches excluded (counted, never named)"
+   ],
+   [
+    "what IS shown",
+    "commits + distinct authors per part, last-touch age \u2014 see US-043"
+   ]
+  ]
+ },
+ "source": {
+  "label": "git log over the CIE repo, hashed before storage",
+  "detail": "the hash step ran inside the collector before any data was written \u2014 privacy by construction, not by policy PDF"
+ },
+ "etl": {
+  "extract": "git history (any repo)",
+  "transform": "hash contributor identity at source; apply the denied-path policy; aggregate what remains",
+  "load": "history insights where no field can de-anonymise anyone"
+ },
+ "gap": "The full history-insights surface is product work; the privacy-at-source pipeline is real and running.",
+ "honesty": "The denied paths were really excluded during collection; the count is honest and the names are nowhere.",
+ "real_world_equivalents": [
+  "gitmailmap",
+  "de-identified DORA metrics",
+  "CodeScene privacy mode"
+ ]
+}

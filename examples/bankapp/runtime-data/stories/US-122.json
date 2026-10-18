@@ -1,0 +1,53 @@
+{
+ "id": "US-122",
+ "title": "Take the change as a patch file",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "The exported patch",
+   "Value"
+  ],
+  "rows": [
+   [
+    "file",
+    "0001-candidate-spending-limit-on-transfers.patch"
+   ],
+   [
+    "base",
+    "f81ecd91"
+   ],
+   [
+    "sha256",
+    "59b3d81249971cfbc6755f8e\u2026"
+   ],
+   [
+    "size",
+    "3,001 bytes"
+   ],
+   [
+    "files",
+    "requirements.txt, test_transfers.py, transfers.py"
+   ],
+   [
+    "changes",
+    "+41 \u22120"
+   ]
+  ]
+ },
+ "source": {
+  "label": "git format-patch from the real candidate commit",
+  "detail": "the complete patch text is stored at runtime-data/stories/US-122-full-patch.txt \u2014 a real file you can apply"
+ },
+ "etl": {
+  "extract": "the candidate commit",
+  "transform": "format-patch with base context + change inventory",
+  "load": "a downloadable, checksummed patch"
+ },
+ "gap": "A download button in the app is the remaining piece; the real patch and its checksum are here.",
+ "honesty": "Labelled review-only until accepted \u2014 the patch carries the base it expects.",
+ "real_world_equivalents": [
+  "git format-patch",
+  "git bundle"
+ ]
+}

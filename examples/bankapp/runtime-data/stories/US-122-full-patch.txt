@@ -1,0 +1,98 @@
+From 9fd0ace426054ff011e2c530d96fe4b78f50b0e4 Mon Sep 17 00:00:00 2001
+From: Walkthrough Sandbox <sandbox@bankapp.invalid>
+Date: Sun, 18 Oct 2026 23:23:45 +0000
+Subject: [PATCH] candidate: spending limit on transfers (limit 1000)
+
+---
+ requirements.txt  |  1 +
+ test_transfers.py | 37 +++++++++++++++++++++++++++++++++++++
+ transfers.py      | 24 ++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+)
+ create mode 100644 test_transfers.py
+ create mode 100644 transfers.py
+
+diff --git a/requirements.txt b/requirements.txt
+index bb2963a..0f74e5f 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,3 +4,4 @@
+ # coverage is import-backed while pytest is runner-invoked (not imported).
+ coverage>=7.4
+ pytest>=8.0
++pyyaml>=6.0
+diff --git a/test_transfers.py b/test_transfers.py
+new file mode 100644
+index 0000000..56dd38c
+--- /dev/null
++++ b/test_transfers.py
+@@ -0,0 +1,37 @@
++"""Tests for the candidate spending-limit feature.
++
++Written BEFORE the implementation existed (the fix-and-recheck story:
++US-121's first run fails for real), then passes once transfers.py lands.
++"""
++
++import pytest
++
++from transfers import can_transfer, transfer
++
++
++def test_under_limit_is_allowed():
++    assert can_transfer(200, 1000) is True
++
++
++def test_over_limit_is_refused():
++    assert can_transfer(1200, 1000) is False
++
++
++def test_transfer_returns_402_over_limit():
++    out = transfer(1200, "bob", 1000)
++    assert out["status"] == 402
++
++
++def test_transfer_returns_200_under_limit():
++    out = transfer(200, "alice", 1000)
++    assert out["status"] == 200
++
++
++def test_transfer_rejects_non_number():
++    with pytest.raises(ValueError):
++        transfer("abc", "carol", 1000)
++
++
++def test_transfer_rejects_negative():
++    with pytest.raises(ValueError):
++        transfer(-5, "dave", 1000)
+diff --git a/transfers.py b/transfers.py
+new file mode 100644
+index 0000000..45d21ab
+--- /dev/null
++++ b/transfers.py
+@@ -0,0 +1,24 @@
++"""Transfers module — the walkthrough's candidate feature.
++
++The spending limit starts at 500 (the first plan); the scope revision
++raises it to 1000 and moves the reset flag into config. This file is the
++REVISED candidate — exactly what the sandbox commit contains.
++"""
++
++LIMIT_DEFAULT = 1000  # revised from 500 when the scope changed (US-110)
++
++
++def can_transfer(amount, limit: float = LIMIT_DEFAULT) -> bool:
++    """must refuse transfers above the spending limit"""
++    return amount <= limit
++
++
++def transfer(amount, user: str, limit: float = LIMIT_DEFAULT) -> dict:
++    """must refuse transfers above the spending limit; must reject bad input"""
++    if not isinstance(amount, (int, float)) or isinstance(amount, bool):
++        raise ValueError("amount must be a number")
++    if amount <= 0:
++        raise ValueError("amount must be positive")
++    if not can_transfer(amount, limit):
++        return {"status": 402, "reason": f"over limit: {amount} > {limit}"}
++    return {"status": 200, "charged": amount, "user": user}
+-- 
+2.47.3
+

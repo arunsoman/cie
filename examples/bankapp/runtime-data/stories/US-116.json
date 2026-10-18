@@ -1,0 +1,50 @@
+{
+ "id": "US-116",
+ "title": "The bill of consequences a feature adds",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "What the candidate really adds",
+   "Value"
+  ],
+  "rows": [
+   [
+    "new package requests",
+    "pyyaml>=6.0"
+   ],
+   [
+    "config files added",
+    "config/dev.json, config/staging.json, config/prod.json"
+   ],
+   [
+    "what the candidate really imports",
+    ""
+   ],
+   [
+    "the bill's finding",
+    "The plan asked for pyyaml, but the candidate reads its config with the standard json module \u2014 the bill caught a dependency nothing actually uses."
+   ],
+   [
+    "recovery limits",
+    "config keys are read at start-up; a bad value stops the service at boot, not mid-payment"
+   ]
+  ]
+ },
+ "source": {
+  "label": "real requirements diff + real import scan of the candidate",
+  "detail": "the requested-vs-used gap was found by really scanning the candidate's imports"
+ },
+ "etl": {
+  "extract": "dependency manifests before/after + the candidate's imports",
+  "transform": "requested vs actually used; migrations and recovery limits listed",
+  "load": "the consequences bill attached to the change"
+ },
+ "gap": "An interactive before/after dependency review is the remaining piece; the bill and its real finding are here.",
+ "honesty": "A local test migration is never sold as production-proof \u2014 the recovery limits say exactly what a restart does.",
+ "real_world_equivalents": [
+  "pip-audit / dep-tree",
+  "migrate lint",
+  "cargo udeps"
+ ]
+}

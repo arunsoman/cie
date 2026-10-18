@@ -12,7 +12,7 @@
 // offers as a referent).
 
 import { create } from "zustand";
-import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories } from "./cie-types";
 import type { ChatChartSpec } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
@@ -56,6 +56,7 @@ interface CieState {
   concepts: ConceptTree | null;
   deps: CieDeps | null; // dependency manifests (cie deps export) — null when none
   runtime: CieRuntime | null; // collected runtime evidence — null when the project has none
+  stories: CieStories | null; // the 33 story demos with real data — null when the project has none
   source: DataSource;
   label: string;
   loading: boolean;
@@ -71,6 +72,7 @@ interface CieState {
   mapSelected: VizElement | null; // map bubble picked; the chat offers it as a referent
   llm: LlmConfig; // who answers — hydrated from localStorage after mount
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
+  pendingAsk: string | null; // click-to-chat: a question any chart/card handed to the chat
 
   loadDemo: () => Promise<void>;
   setCustom: (
@@ -80,7 +82,8 @@ interface CieState {
     label: string,
     repoScan?: RepoScan | null,
     deps?: CieDeps | null,
-    runtime?: CieRuntime | null
+    runtime?: CieRuntime | null,
+    stories?: CieStories | null
   ) => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
@@ -91,6 +94,7 @@ interface CieState {
   openChartOnCanvas: (spec: ChatChartSpec) => void;
   closeCanvasChart: () => void;
   setMapSelected: (el: VizElement | null) => void;
+  setPendingAsk: (q: string | null) => void;
   setLlm: (cfg: LlmConfig) => void;
   hydrateLlm: () => void;
   setLlmSettingsOpen: (open: boolean) => void;
@@ -102,6 +106,7 @@ export const useCie = create<CieState>((set, get) => ({
   concepts: null,
   deps: null,
   runtime: null,
+  stories: null,
   source: null,
   label: "",
   loading: true,
@@ -115,18 +120,20 @@ export const useCie = create<CieState>((set, get) => ({
   mapSelected: null,
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
+  pendingAsk: null,
 
   loadDemo: async () => {
     set({ loading: true, loadError: "" });
     try {
-      // deps.json + runtime.json are optional extras: a project without them
-      // still loads, and those views show honest empty states.
-      const [report, viewspec, concepts, deps, runtime] = await Promise.all([
+      // deps.json + runtime.json + stories.json are optional extras: a project
+      // without them still loads, and those views show honest empty states.
+      const [report, viewspec, concepts, deps, runtime, stories] = await Promise.all([
         fetch("/data/report.json").then((r) => r.json()),
         fetch("/data/viewspec.json").then((r) => r.json()),
         fetch("/data/concepts.json").then((r) => r.json()),
         fetch("/data/deps.json").then((r) => r.json()).catch(() => null),
         fetch("/data/runtime.json").then((r) => r.json()).catch(() => null),
+        fetch("/data/stories.json").then((r) => r.json()).catch(() => null),
       ]);
       set({
         report,
@@ -134,6 +141,7 @@ export const useCie = create<CieState>((set, get) => ({
         concepts,
         deps,
         runtime,
+        stories,
         source: "demo",
         label: "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
@@ -149,13 +157,14 @@ export const useCie = create<CieState>((set, get) => ({
     }
   },
 
-  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime) =>
+  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories) =>
     set({
       report,
       viewspec,
       concepts,
       deps: deps ?? null,
       runtime: runtime ?? null,
+      stories: stories ?? null,
       source: "custom",
       label,
       loading: false,
@@ -186,6 +195,8 @@ export const useCie = create<CieState>((set, get) => ({
   closeCanvasChart: () => set({ canvasChart: null, view: "start" }),
 
   setMapSelected: (el) => set({ mapSelected: el }),
+
+  setPendingAsk: (q) => set({ pendingAsk: q }),
 
   setLlm: (cfg) => {
     saveLlmConfig(cfg);

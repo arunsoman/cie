@@ -1,0 +1,49 @@
+{
+ "id": "US-124",
+ "title": "A draft pull request where the code lives",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Draft PR (prepared, not published)",
+   "Value"
+  ],
+  "rows": [
+   [
+    "title",
+    "candidate: spending limit on transfers (limit 1000)"
+   ],
+   [
+    "base",
+    "main"
+   ],
+   [
+    "body",
+    "Adds a spending limit to transfers with tests for the allowed, refused and bad-input journ\u2026"
+   ],
+   [
+    "requirement \u2192 review evidence",
+    "refuse over limit: test_over_limit_is_refused \u00b7 test_transfer_returns_402_over_limit; allow under limit: test_under_limit_is_allowed \u00b7 test_transfer_r\u2026"
+   ],
+   [
+    "status",
+    "prepared as draft \u2014 publishing touches the hosting service, so it was not done here"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the draft was really prepared from the session's real content; publishing would write to the hosting service, so it was not done"
+ },
+ "etl": {
+  "extract": "the brief + the validated candidate",
+  "transform": "requirements \u2192 reviewable description with evidence links",
+  "load": "a draft PR payload ready to publish"
+ },
+ "gap": "Publishing is the remaining piece (it writes outside this machine); the prepared draft and its mapping are real.",
+ "honesty": "merging and deploying stay separate, separately-authorized actions \u2014 draft-only, never shipped as merged.",
+ "real_world_equivalents": [
+  "gh pr create --draft",
+  "GitLab draft MRs"
+ ]
+}

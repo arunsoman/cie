@@ -1,0 +1,37 @@
+{
+ "id": "US-123",
+ "title": "Apply a patch with eyes open",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Apply attempt (really run)",
+   "Result"
+  ],
+  "rows": [
+   [
+    "clean copy of the base \u2014 git apply --check",
+    "clean \u2014 patch fits the base exactly"
+   ],
+   [
+    "diverged copy (requirements.txt changed elsewhere) \u2014 git apply --3way",
+    "conflict \u2014 the copy had moved on since the patch was made"
+   ]
+  ]
+ },
+ "source": {
+  "label": "git apply, twice, for real",
+  "detail": "a clean textual apply was never mistaken for a behaviour match \u2014 the diverged case really conflicts, and that is shown, not hidden."
+ },
+ "etl": {
+  "extract": "the patch + the destination's current state",
+  "transform": "conflicts, divergence and local edits explained before anything changes",
+  "load": "an eyes-open apply record"
+ },
+ "gap": "An apply-with-preview UI is the remaining piece; both real outcomes are here.",
+ "honesty": "A clean textual apply was never mistaken for a behaviour match \u2014 the diverged copy really conflicted.",
+ "real_world_equivalents": [
+  "git apply --3way",
+  "patch -p1 --merge"
+ ]
+}

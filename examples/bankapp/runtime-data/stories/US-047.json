@@ -1,0 +1,38 @@
+{
+ "id": "US-047",
+ "title": "Point performance measurements at the exact code",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Measured hotspot",
+   "Self time"
+  ],
+  "rows": [
+   [
+    "cpu_burn_mixed  (runtime_probes.py:32)",
+    "0.25 ms"
+   ],
+   [
+    "cpu_work  (runtime_probes.py:24)",
+    "308.61 ms"
+   ]
+  ]
+ },
+ "source": {
+  "label": "cProfile over the sample's own probe",
+  "detail": "the same run that feeds the Watching-it-run page \u2014 hot functions with file:line, ready to sit on map bubbles"
+ },
+ "etl": {
+  "extract": "a profiler export (py-spy, JFR, perf, pprof\u2026)",
+  "transform": "map function/file to the store's symbols; keep unmeasured parts out",
+  "load": "the code map overlay: hotspots lit, uncertainty shown"
+ },
+ "gap": "Painting these onto the interactive map bubbles is the remaining piece; the measured hotspots and their file:line exist now.",
+ "honesty": "Every hotspot names the tool and run that measured it. Unmeasured code stays unknown \u2014 no invented hotspots.",
+ "real_world_equivalents": [
+  "py-spy record",
+  "Java Flight Recorder",
+  "perf + flamegraph"
+ ]
+}

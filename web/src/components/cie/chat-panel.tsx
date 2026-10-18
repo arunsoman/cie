@@ -20,6 +20,7 @@ import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
+import { tryAnswerStory } from "@/lib/stories";
 import { ChatChart } from "@/components/cie/chat-chart";
 import { providerLabel } from "@/lib/llm-config";
 
@@ -78,6 +79,7 @@ export function ChatPanel() {
   const {
     report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
+    stories, pendingAsk, setPendingAsk,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -94,6 +96,16 @@ export function ChatPanel() {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [chat, chatBusy]);
 
+  // Click-to-chat: any chart/card can hand a question here. The chat asks
+  // it exactly as if the user had typed it, then clears the hand-off.
+  useEffect(() => {
+    if (pendingAsk && !chatBusy) {
+      const q = pendingAsk;
+      setPendingAsk(null);
+      void send(q);
+    }
+  }, [pendingAsk]);
+
   const send = async (text: string) => {
     const question = text.trim();
     if (!question || chatBusy) return;
@@ -101,7 +113,22 @@ export function ChatPanel() {
     pushChat({ role: "user", content: question });
     if (inputRef.current) inputRef.current.value = "";
 
-    // ---- fast path: drawing requests are built locally from the loaded
+    // ---- fast path 1: story questions are answered locally from the
+    // collected stories.json — instant, honest, nothing invented. Runs
+    // before the general drawer so "map of who knows which part" reaches
+    // its own story instead of the project map. ----
+    const storyAns = tryAnswerStory(question, stories);
+    if (storyAns) {
+      pushChat({
+        role: "assistant",
+        content: storyAns.answer,
+        chart: storyAns.chart ?? undefined,
+        instant: true,
+      });
+      return;
+    }
+
+    // ---- fast path 2: drawing requests are built locally from the loaded
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
     const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {

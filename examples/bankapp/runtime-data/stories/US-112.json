@@ -1,0 +1,49 @@
+{
+ "id": "US-112",
+ "title": "A six-step wizard that survives interruptions",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Stage",
+   "Checkpoint saved at"
+  ],
+  "rows": [
+   [
+    "Describe",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/describe"
+   ],
+   [
+    "Clarify",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/clarify"
+   ],
+   [
+    "Plan",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/plan"
+   ],
+   [
+    "Changes",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/changes"
+   ],
+   [
+    "Validate",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/validate"
+   ],
+   [
+    "Deliver",
+    "2026-10-18T23:23:45+00:00 \u00b7 walk-1/deliver"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the six checkpoints were really written in this order while the collector ran \u2014 the timestamps are real"
+ },
+ "etl": {
+  "extract": "the session's stage transitions",
+  "transform": "each stage saved on exit",
+  "load": "resumable checkpoints"
+ },
+ "gap": "The wizard UI is product work; the checkpoint discipline it would follow is recorded here for real.",
+ "honesty": "looking at a stage never counts as approving its action. each stage saved when you left it; reopening returns to the saved stage."
+}

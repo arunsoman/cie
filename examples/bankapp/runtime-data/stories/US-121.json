@@ -1,0 +1,45 @@
+{
+ "id": "US-121",
+ "title": "A disciplined fix-and-recheck loop",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Loop step (really run)",
+   "Result",
+   "Evidence"
+  ],
+  "rows": [
+   [
+    "run the checks \u2014 /home/z/.venv/bin/python3 -m pytest test_transfers.py -q --no-header",
+    "FAILED",
+    ""
+   ],
+   [
+    "investigate and fix \u2014 cp candidate_transfers.py \u2192 transfers.py",
+    "candidate transfers.py added",
+    "the implementation the tests were written against"
+   ],
+   [
+    "recheck \u2014 /home/z/.venv/bin/python3 -m pytest test_transfers.py -q --no-header",
+    "PASSED",
+    "6 passed in 0.05s"
+   ]
+  ]
+ },
+ "source": {
+  "label": "pytest really failed first, then really passed",
+  "detail": "the tests were written first and really failed against the missing implementation; the fix landed and the rerun really passed"
+ },
+ "etl": {
+  "extract": "the check runner's output",
+  "transform": "failures \u2192 investigations \u2192 rerun; stale results invalidated",
+  "load": "the loop's record with every run kept"
+ },
+ "gap": "An automated fix-request loop is product work; the loop itself really happened here.",
+ "honesty": "the first red run stays in the record; the green rerun never erases it \u2014 a passing rerun cannot hide the first red run.",
+ "real_world_equivalents": [
+  "CI rerun policies",
+  "pytest-rerunfailures (used honestly)"
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "id": "US-063",
+ "title": "Question a compiled binary, not just source code",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Question about this machine's own python binary",
+   "Answer from the bytes"
+  ],
+  "rows": [
+   [
+    "format / class",
+    "ELF 64-bit, little-endian"
+   ],
+   [
+    "machine",
+    "x86-64"
+   ],
+   [
+    "type",
+    "executable"
+   ],
+   [
+    "size",
+    "30,990,408 bytes"
+   ],
+   [
+    "entry point",
+    "0x19bdc40"
+   ],
+   [
+    "linked libraries",
+    "libpthread.so.0, libdl.so.2, libutil.so.1, libm.so.6, librt.so.1, libc.so.6"
+   ],
+   [
+    "dynamic symbols",
+    "2398"
+   ],
+   [
+    "\u201cwhat does this code intend?\u201d",
+    "unanswerable from bytes \u2014 listed as unresolved, never guessed"
+   ]
+  ]
+ },
+ "source": {
+  "label": "stdlib ELF parser over sys.executable",
+  "detail": "header, program/section tables, .dynamic DT_NEEDED, .dynsym count \u2014 a real binary parsed for real"
+ },
+ "etl": {
+  "extract": "the binary file itself (ELF/PE/Mach-O headers)",
+  "transform": "magic \u2192 format; tables \u2192 sections/libs/symbols; strip nothing",
+  "load": "a binary evidence card beside the source report"
+ },
+ "gap": "A dedicated binary panel is the remaining piece; the parser and its evidence card work now.",
+ "honesty": "Only what the bytes say. Behaviour questions are listed as unanswerable \u2014 the honesty rule holds even for binaries.",
+ "real_world_equivalents": [
+  "file / readelf / objdump",
+  "PE-bear (Windows)",
+  "otool (macOS)"
+ ]
+}

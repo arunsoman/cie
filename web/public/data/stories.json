@@ -1,0 +1,1799 @@
+{
+ "project": "bankapp \u2014 the CIE sample project (the playground)",
+ "collected_at": "2026-10-18T23:23:45+00:00",
+ "environment": {
+  "python": "3.12.15",
+  "platform": "Linux-5.10.134-013.15.kangaroo.al8.x86_64-x86_64-with-glibc2.41",
+  "cpu_count": 2,
+  "collected_at": "2026-10-18T23:23:45+00:00"
+ },
+ "honesty": "Every value here is either measured (a tool captured a number from a real run on this machine) or recorded (a walkthrough of the product workflow was really performed while this file was collected, and its real artifacts were saved). Nothing is simulated, extrapolated or invented. Each story names its tool, its command shape, how the same data is extracted from any other repo (extract \u2192 transform \u2192 load), and what part remains honest product work.",
+ "counts": {
+  "measured": 23,
+  "recorded": 10,
+  "total": 33
+ },
+ "registry": {
+  "total": 147,
+  "delivered": 113,
+  "partial": 1,
+  "planned_shown_here": 33
+ },
+ "stories": {
+  "US-005": {
+   "id": "US-005",
+   "title": "Pull updates straight from GitHub or GitLab",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Fetched from the hosting service",
+     "Value"
+    ],
+    "rows": [
+     [
+      "connection",
+      "healthy"
+     ],
+     [
+      "key health",
+      "key supplied by the operator; used for this request only, never stored"
+     ],
+     [
+      "default branch",
+      "main"
+     ],
+     [
+      "open issues (as counted by the host)",
+      "0"
+     ],
+     [
+      "open pull requests listed",
+      "0"
+     ],
+     [
+      "latest commit",
+      "65dae897 fix task_022_guard adapter-count asser"
+     ],
+     [
+      "rate limit left this window",
+      "4993"
+     ]
+    ]
+   },
+   "source": {
+    "label": "GitHub REST API, read-only",
+    "detail": "GET /repos/arunsoman/cie and /commits, /pulls \u2014 real HTTP responses received at 2026-10-18T23:23:45+00:00"
+   },
+   "etl": {
+    "extract": "the hosting service's API (commits, pull requests, health endpoints)",
+    "transform": "keep sha/date/title; drop everything secret; mark anything suspicious instead of dropping it silently",
+    "load": "the indexed store, with the connection health shown beside it"
+   },
+   "gap": "The dashboard reads these from the store, not live; a scheduled fetcher is the shipped-work piece.",
+   "honesty": "A real API call really answered. On a private repo the same call uses your own key, held in your settings \u2014 never stored in the report.",
+   "real_world_equivalents": [
+    "gh CLI / GitHub Actions",
+    "GitLab API with project tokens"
+   ]
+  },
+  "US-012": {
+   "id": "US-012",
+   "title": "Follow-ups like \u201cshow only these\u201d or \u201cwhat about this file?\u201d",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "You said",
+     "CIE kept as context",
+     "Happened next"
+    ],
+    "rows": [
+     [
+      "\u201cshow only auth\u201d",
+      "scope = auth.py",
+      "the next answers only looked at auth.py"
+     ],
+     [
+      "\u201cwhat about payments?\u201d",
+      "scope swapped to payments.py",
+      "same chart, new part \u2014 no re-explaining"
+     ],
+     [
+      "\u201cignore ui.py\u201d",
+      "ui.py removed from scope",
+      "the scope chip list showed exactly that"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the follow-up exchange was really carried out against the sample report while this file was collected"
+   },
+   "etl": {
+    "extract": "the conversation itself (chips: scope, pinned, ignored)",
+    "transform": "chips \u2192 scoped query parameters",
+    "load": "the same scoped queries the engine already runs"
+   },
+   "gap": "This dashboard's shipped equivalent: picking a map bubble offers it to the chat as a referent chip. Full phrasings (\u201cpin\u201d, \u201czoom out\u201d) are product work.",
+   "honesty": "Real chips from a real session; the wording commands are listed, not yet parsed live."
+  },
+  "US-043": {
+   "id": "US-043",
+   "title": "A map of who knows which part",
+   "kind": "measured",
+   "demo": {
+    "shape": "hbar",
+    "unit": "commits",
+    "title": "Where the work went (this repo's own history)",
+    "data": [
+     {
+      "name": "web",
+      "value": 167
+     },
+     {
+      "name": "crates",
+      "value": 154
+     },
+     {
+      "name": "cie-stories",
+      "value": 82
+     },
+     {
+      "name": "cie-analysis",
+      "value": 43
+     },
+     {
+      "name": "viz-adapter",
+      "value": 39
+     },
+     {
+      "name": "Cargo.lock",
+      "value": 38
+     },
+     {
+      "name": "cie-cli",
+      "value": 30
+     },
+     {
+      "name": "cie-contract",
+      "value": 28
+     }
+    ],
+    "thinly_known": [
+     {
+      "part": "crates",
+      "authors": 1,
+      "days_quiet": 1
+     },
+     {
+      "part": "viz-adapter",
+      "authors": 1,
+      "days_quiet": 0
+     },
+     {
+      "part": "tests",
+      "authors": 1,
+      "days_quiet": 1
+     },
+     {
+      "part": "cie-core",
+      "authors": 1,
+      "days_quiet": 1
+     },
+     {
+      "part": "cie-viz",
+      "authors": 1,
+      "days_quiet": 0
+     },
+     {
+      "part": "cie-relations",
+      "authors": 1,
+      "days_quiet": 1
+     }
+    ]
+   },
+   "source": {
+    "label": "git log over the CIE repo itself",
+    "detail": "137 commits, per top-level part; author names hashed at source (salt recorded, names never stored)"
+   },
+   "etl": {
+    "extract": "git log --name-only (any repo, any host)",
+    "transform": "group by top-level part; count commits + distinct authors; age the last touch",
+    "load": "the code map: bubbles sized by knowledge, thinly-known parts highlighted"
+   },
+   "gap": "Drawing it ON the interactive map bubbles (not just bars) is the remaining piece; the data pipeline exists now.",
+   "honesty": "Computed from the real history of the repo this app ships in. A fair version also takes your declared ownership policy as input.",
+   "real_world_equivalents": [
+    "git-quick-stats / code-maat",
+    "CodeScene knowledge map"
+   ]
+  },
+  "US-047": {
+   "id": "US-047",
+   "title": "Point performance measurements at the exact code",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Measured hotspot",
+     "Self time"
+    ],
+    "rows": [
+     [
+      "cpu_burn_mixed  (runtime_probes.py:32)",
+      "0.25 ms"
+     ],
+     [
+      "cpu_work  (runtime_probes.py:24)",
+      "308.61 ms"
+     ]
+    ]
+   },
+   "source": {
+    "label": "cProfile over the sample's own probe",
+    "detail": "the same run that feeds the Watching-it-run page \u2014 hot functions with file:line, ready to sit on map bubbles"
+   },
+   "etl": {
+    "extract": "a profiler export (py-spy, JFR, perf, pprof\u2026)",
+    "transform": "map function/file to the store's symbols; keep unmeasured parts out",
+    "load": "the code map overlay: hotspots lit, uncertainty shown"
+   },
+   "gap": "Painting these onto the interactive map bubbles is the remaining piece; the measured hotspots and their file:line exist now.",
+   "honesty": "Every hotspot names the tool and run that measured it. Unmeasured code stays unknown \u2014 no invented hotspots.",
+   "real_world_equivalents": [
+    "py-spy record",
+    "Java Flight Recorder",
+    "perf + flamegraph"
+   ]
+  },
+  "US-063": {
+   "id": "US-063",
+   "title": "Question a compiled binary, not just source code",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Question about this machine's own python binary",
+     "Answer from the bytes"
+    ],
+    "rows": [
+     [
+      "format / class",
+      "ELF 64-bit, little-endian"
+     ],
+     [
+      "machine",
+      "x86-64"
+     ],
+     [
+      "type",
+      "executable"
+     ],
+     [
+      "size",
+      "30,990,408 bytes"
+     ],
+     [
+      "entry point",
+      "0x19bdc40"
+     ],
+     [
+      "linked libraries",
+      "libpthread.so.0, libdl.so.2, libutil.so.1, libm.so.6, librt.so.1, libc.so.6"
+     ],
+     [
+      "dynamic symbols",
+      "2398"
+     ],
+     [
+      "\u201cwhat does this code intend?\u201d",
+      "unanswerable from bytes \u2014 listed as unresolved, never guessed"
+     ]
+    ]
+   },
+   "source": {
+    "label": "stdlib ELF parser over sys.executable",
+    "detail": "header, program/section tables, .dynamic DT_NEEDED, .dynsym count \u2014 a real binary parsed for real"
+   },
+   "etl": {
+    "extract": "the binary file itself (ELF/PE/Mach-O headers)",
+    "transform": "magic \u2192 format; tables \u2192 sections/libs/symbols; strip nothing",
+    "load": "a binary evidence card beside the source report"
+   },
+   "gap": "A dedicated binary panel is the remaining piece; the parser and its evidence card work now.",
+   "honesty": "Only what the bytes say. Behaviour questions are listed as unanswerable \u2014 the honesty rule holds even for binaries.",
+   "real_world_equivalents": [
+    "file / readelf / objdump",
+    "PE-bear (Windows)",
+    "otool (macOS)"
+   ]
+  },
+  "US-075": {
+   "id": "US-075",
+   "title": "Lay live system activity over the code map",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Part of bankapp",
+     "In the measured window",
+     "Lines touched"
+    ],
+    "rows": [
+     [
+      "auth.py",
+      "ran in the window",
+      "75.0% lines"
+     ],
+     [
+      "deadlock_probe.py",
+      "did not run",
+      "0.0% lines"
+     ],
+     [
+      "payments.py",
+      "did not run",
+      "0.0% lines"
+     ],
+     [
+      "runtime_probes.py",
+      "did not run",
+      "0.0% lines"
+     ],
+     [
+      "test_auth.py",
+      "ran in the window",
+      "100.0% lines"
+     ],
+     [
+      "ui.py",
+      "did not run",
+      "0.0% lines"
+     ]
+    ]
+   },
+   "source": {
+    "label": "coverage.py over the project's own tests",
+    "detail": "which parts really executed while the probe ran \u2014 the same evidence the coverage page shows"
+   },
+   "etl": {
+    "extract": "a coverage/trace run (or an APM feed in production)",
+    "transform": "file/line \u2192 store nodes; exact matches labelled exact, weaker labelled unknown",
+    "load": "the code map: bubbles that ran light up for the chosen window"
+   },
+   "gap": "A live streaming window is not wired yet; the measured 'what actually ran' overlay is here now.",
+   "honesty": "This is the execution record of one measured window \u2014 not a promise about every run.",
+   "real_world_equivalents": [
+    "JaCoCo / cobertura feeds",
+    "APM spans (OTel)",
+    "eBPF overlays"
+   ]
+  },
+  "US-076": {
+   "id": "US-076",
+   "title": "Replay a past request, step by step",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Step",
+     "Where",
+     "What it produced"
+    ],
+    "rows": [
+     [
+      "1",
+      "good_auth  line 13",
+      ""
+     ],
+     [
+      "2",
+      "verify_password  line 19",
+      ""
+     ],
+     [
+      "3",
+      "hash_matches  line 22",
+      ""
+     ],
+     [
+      "4",
+      "hash_matches  line 23",
+      ""
+     ],
+     [
+      "5",
+      "hash_matches  line 23",
+      "true"
+     ],
+     [
+      "6",
+      "verify_password  line 19",
+      "true"
+     ],
+     [
+      "7",
+      "good_auth  line 14",
+      ""
+     ],
+     [
+      "8",
+      "good_auth  line 14",
+      "true"
+     ]
+    ]
+   },
+   "source": {
+    "label": "sys.settrace over bankapp's own good_auth('alice')",
+    "detail": "8 real trace events captured from the real project code, result = True"
+   },
+   "etl": {
+    "extract": "an execution recording (settrace, rr, JFR flight recording, OTel spans)",
+    "transform": "events \u2192 ordered steps with locals; unrecorded values stay unrecorded",
+    "load": "a step-by-step replay beside the source"
+   },
+   "gap": "A rewind/scrub UI is the remaining piece; the real recording and its steps are here now.",
+   "honesty": "Marked as a recording throughout. Values the trace did not capture are never made up.",
+   "real_world_equivalents": [
+    "rr (record & replay)",
+    "JFR flight recordings",
+    "time-travel debuggers"
+   ]
+  },
+  "US-077": {
+   "id": "US-077",
+   "title": "Explain \u201cit works in staging\u201d precisely",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Setting",
+     "dev",
+     "staging",
+     "prod",
+     "Verdict"
+    ],
+    "rows": [
+     [
+      "api_base_url",
+      "http://localhost:8080",
+      "https://staging.bankapp.example",
+      "https://api.bankapp.example",
+      "DIFFERS"
+     ],
+     [
+      "db_pool_size",
+      "2",
+      "8",
+      "32",
+      "DIFFERS"
+     ],
+     [
+      "email_notifications",
+      "False",
+      "True",
+      "True",
+      "DIFFERS"
+     ],
+     [
+      "feature_transfers_v2",
+      "True",
+      "True",
+      "False",
+      "DIFFERS"
+     ],
+     [
+      "log_level",
+      "debug",
+      "info",
+      "warn",
+      "DIFFERS"
+     ],
+     [
+      "payment_retry_limit",
+      "1",
+      "3",
+      "3",
+      "DIFFERS"
+     ],
+     [
+      "transfer_limit_monthly_reset",
+      "True",
+      "True",
+      "True",
+      "same"
+     ],
+     [
+      "transfer_spending_limit",
+      "1000",
+      "1000",
+      "1000",
+      "same"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the project's real config files",
+    "detail": "config/dev.json, staging.json, prod.json \u2014 read and diffed for real; feature_transfers_v2 is on in staging and off in prod, which is exactly the \u201cworks in staging\u201d story"
+   },
+   "etl": {
+    "extract": "config files and env manifests per environment",
+    "transform": "key-by-key diff; flag values normalised and shown as written",
+    "load": "a side-by-side environment table; exploring a flag change writes to a scratch copy only"
+   },
+   "gap": "An interactive flag sandbox is the remaining piece; the diff and the proof it never touches prod are here (prod file checksum unchanged by the exploration run).",
+   "honesty": "prod.json checksum before the exploration: f9b25416c14d\u2026, after: f9b25416c14d\u2026 \u2014 identical, as it must be.",
+   "real_world_equivalents": [
+    "docker-compose env diffs",
+    "Helm values diff",
+    "LaunchDarkly environments"
+   ]
+  },
+  "US-081": {
+   "id": "US-081",
+   "title": "Spot how retries and duplicates can break data rules",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Duplicate-delivery probe",
+     "Measured"
+    ],
+    "rows": [
+     [
+      "deliveries of order 42",
+      "2"
+     ],
+     [
+      "charges the rule expects",
+      "1"
+     ],
+     [
+      "charges the ledger really holds",
+      "2"
+     ],
+     [
+      "customer charged in total",
+      "150"
+     ],
+     [
+      "customer owed",
+      "75"
+     ],
+     [
+      "overcharge",
+      "+75"
+     ]
+    ]
+   },
+   "source": {
+    "label": "real in-memory ledger, two real deliveries",
+    "detail": "The probe's ledger mirrors the write-without-checking pattern that payments.py charge() really has (cursor.execute twice, no idempotency check). The double charge below really happened in this run."
+   },
+   "etl": {
+    "extract": "a delivery probe / broker redelivery log / broker metrics (duplicate counts)",
+    "transform": "deliveries vs writes; guards (idempotency keys) checked mechanically",
+    "load": "candidate failure scenarios attached to the readers/writers involved"
+   },
+   "gap": "Full distributed-hazard modelling stays unbuilt; the measured failure mode and the guard rule are demonstrated for real.",
+   "honesty": "The double charge really happened in this run. Races and logic errors stay separate categories; no promise of finding everything.",
+   "real_world_equivalents": [
+    "broker duplicate metrics (Kafka/SQS)",
+    "idempotency-key audits",
+    "Jepsen-style checks"
+   ]
+  },
+  "US-082": {
+   "id": "US-082",
+   "title": "Trace why something is slow, down to the code",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Where the slow request's time went",
+     "Self time",
+     "Kind"
+    ],
+    "rows": [
+     [
+      "slow_request",
+      "0.01 ms",
+      "compute"
+     ],
+     [
+      "<built-in method time.sleep>",
+      "170.15 ms",
+      "waiting"
+     ],
+     [
+      "_external_call",
+      "0.01 ms",
+      "compute"
+     ],
+     [
+      "_db_query",
+      "0.0 ms",
+      "compute"
+     ],
+     [
+      "_password_check",
+      "0.02 ms",
+      "compute"
+     ],
+     [
+      "<built-in method _hashlib.pbkdf2_hmac>",
+      "16.63 ms",
+      "compute"
+     ]
+    ]
+   },
+   "source": {
+    "label": "cProfile over one composed slow request",
+    "detail": "compute 16.73 ms vs waiting 170.15 ms \u2014 sleep shows up as time.sleep, so waiting is never confused with CPU"
+   },
+   "etl": {
+    "extract": "a profile of a slow request (py-spy, JFR, pprof)",
+    "transform": "self/cumulative time per function; compute vs waiting vs data vs outside",
+    "load": "the trace story: hotspots with uncertainty, guesses labelled as guesses"
+   },
+   "gap": "A dedicated slow-request wizard is the remaining piece; the measured compute/waiting split is here.",
+   "honesty": "The waiting here was real sleeping in a real run; on your project the same split comes from the same kind of profile.",
+   "real_world_equivalents": [
+    "py-spy top",
+    "JFR method samples",
+    "pprof + flamegraph"
+   ]
+  },
+  "US-083": {
+   "id": "US-083",
+   "title": "Prove \u201cfaster\u201d with the conditions stated",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Prove-it-faster pair",
+     "Median",
+     "Runs (all kept)"
+    ],
+    "rows": [
+     [
+      "before \u2014 one worker at a time",
+      "361.58 ms",
+      "3 runs, 0 failed"
+     ],
+     [
+      "after \u2014 four workers",
+      "90.56 ms",
+      "3 runs, 0 failed"
+     ],
+     [
+      "verdict under stated conditions",
+      "measured 3.99\u00d7 faster under these conditions",
+      "speedup \u00d73.99"
+     ]
+    ]
+   },
+   "source": {
+    "label": "two really run workloads, same machine, same input",
+    "detail": "conditions: pipeline(tasks=12): each task sleeps 30 ms, then doubles a number \u2014 declared, not implied"
+   },
+   "etl": {
+    "extract": "two measured runs under one declared equivalence",
+    "transform": "keep every run incl. failures; compare medians; refuse unfair pairs",
+    "load": "the comparison with its conditions attached"
+   },
+   "gap": "An interactive A/B certificate builder is the remaining piece; the discipline and the real numbers are here.",
+   "honesty": "If the runs had failed, the failures would stay in the count. Dropping work can never dress up as an improvement.",
+   "real_world_equivalents": [
+    "hyperfine",
+    "JMH",
+    "criterion"
+   ]
+  },
+  "US-084": {
+   "id": "US-084",
+   "title": "Demonstrate a slowdown before and after a change",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Before/after pair",
+     "Median",
+     "Verdict"
+    ],
+    "rows": [
+     [
+      "before the change \u2014 no global lock",
+      "90.58 ms",
+      "the reference run"
+     ],
+     [
+      "after the change \u2014 one global lock around every task",
+      "361.37 ms",
+      "measured 3.99\u00d7 slower with the lock \u2014 the workload was identical; only the change differed"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the same 12-task workload, really run twice",
+    "detail": "only the change differed (a global lock added); workload, input and machine identical"
+   },
+   "etl": {
+    "extract": "baseline + candidate runs of the same workload",
+    "transform": "paired comparison; workload differences surfaced, not hidden",
+    "load": "the slowdown story with its conditions"
+   },
+   "gap": "Same remaining piece as US-083; the measured slowdown is real and reproducible from the stored runs.",
+   "honesty": "The lock really serialised the workers \u2014 no overlap was possible, and the wall time shows it.",
+   "real_world_equivalents": [
+    "hyperfine before/after",
+    "CI perf budgets",
+    "criterion baselines"
+   ]
+  },
+  "US-088": {
+   "id": "US-088",
+   "title": "History insights without exposing anyone",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Privacy-at-source check",
+     "Measured result"
+    ],
+    "rows": [
+     [
+      "identities in the store",
+      "hashed at source \u2014 salt cie-privacy-at-s\u2026, names never stored"
+     ],
+     [
+      "per-person leaderboard",
+      "none built \u2014 areas are ranked, people never are"
+     ],
+     [
+      "paths denied by policy",
+      "8 file-touches excluded (counted, never named)"
+     ],
+     [
+      "what IS shown",
+      "commits + distinct authors per part, last-touch age \u2014 see US-043"
+     ]
+    ]
+   },
+   "source": {
+    "label": "git log over the CIE repo, hashed before storage",
+    "detail": "the hash step ran inside the collector before any data was written \u2014 privacy by construction, not by policy PDF"
+   },
+   "etl": {
+    "extract": "git history (any repo)",
+    "transform": "hash contributor identity at source; apply the denied-path policy; aggregate what remains",
+    "load": "history insights where no field can de-anonymise anyone"
+   },
+   "gap": "The full history-insights surface is product work; the privacy-at-source pipeline is real and running.",
+   "honesty": "The denied paths were really excluded during collection; the count is honest and the names are nowhere.",
+   "real_world_equivalents": [
+    "gitmailmap",
+    "de-identified DORA metrics",
+    "CodeScene privacy mode"
+   ]
+  },
+  "US-101": {
+   "id": "US-101",
+   "title": "Compare sandbox experiments before deciding",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Sandbox A/B on the same basket",
+     "Variant A (round at end)",
+     "Variant B (round per line)"
+    ],
+    "rows": [
+     [
+      "total charged",
+      "31.4",
+      "31.39"
+     ],
+     [
+      "difference",
+      "\u2014",
+      "-0.01"
+     ],
+     [
+      "runs kept",
+      "3 of 3 (failures kept)",
+      "3 of 3 (failures kept)"
+     ],
+     [
+      "empty basket",
+      "refused: ValueError",
+      "accepted"
+     ]
+    ]
+   },
+   "source": {
+    "label": "both variants really executed on identical inputs",
+    "detail": "the basket [19.99 \u00d73, 0.10 \u00d72, 4.005] \u2014 A and B really disagree by the measured cents; the edge case really refused in one variant"
+   },
+   "etl": {
+    "extract": "two sandbox runs of the same workload",
+    "transform": "keep failures in the count; verdict only when the evidence meets the bar",
+    "load": "a decision card: measured difference + conditions + failures"
+   },
+   "gap": "A general 'run my change in a sandbox' button is the remaining piece; the comparison discipline and real numbers are here.",
+   "honesty": "Inconclusive stays inconclusive: the certificate in the demo is exactly as strong as the measured evidence.",
+   "real_world_equivalents": [
+    "feature-flag A/B",
+    "criterion/hyperfine pairs",
+    "shadow deployments"
+   ]
+  },
+  "US-104": {
+   "id": "US-104",
+   "title": "Start a feature from a plain-language prompt",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Intake moment",
+     "What was recorded"
+    ],
+    "rows": [
+     [
+      "your words",
+      "Add a spending limit to bank transfers so nobody can move more than the limit in one go."
+     ],
+     [
+      "repo identified",
+      "bankapp (the loaded sample project)"
+     ],
+     [
+      "deliverable identified",
+      "a spending limit on transfer(...) with tests"
+     ],
+     [
+      "internal names you had to learn",
+      "none"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "this intake really happened and opened the session every build/ship story below continues"
+   },
+   "etl": {
+    "extract": "the prompt + the loaded store",
+    "transform": "prompt \u2192 target repo + deliverable",
+    "load": "the session's first checkpoint"
+   },
+   "gap": "The intake UI is product work; the recorded session it produces is real and everything below grew from it.",
+   "honesty": "A real recorded session from this collection run \u2014 the numbers downstream (commits, tests, patches) are its real outputs."
+  },
+  "US-105": {
+   "id": "US-105",
+   "title": "Be asked only what actually matters",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Asked",
+     "Why it mattered"
+    ],
+    "rows": [
+     [
+      "What should the default limit be?",
+      "the number goes straight into the rule the code must keep"
+     ],
+     [
+      "One limit for everyone, or per account?",
+      "it decides where the check lives and what the tests cover"
+     ],
+     [
+      "Should the limit reset monthly?",
+      "a reset changes bookkeeping and needs a clock in the tests"
+     ],
+     [
+      "no answer is never read as a yes \u2014 the plan waits on decisions it names",
+      "the repo scan and dependency read continued while these were open"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the questions were really asked and answered in the session the brief below carries"
+   },
+   "etl": {
+    "extract": "the plan's decision points",
+    "transform": "only decisions that change the rules become questions",
+    "load": "answers feed the brief's rules"
+   },
+   "gap": "The clarification UI is product work; the recorded questions and the silence rule are real.",
+   "honesty": "Each question names why it matters; nothing important ever silently defaulted."
+  },
+  "US-108": {
+   "id": "US-108",
+   "title": "An approval-worthy brief before any code",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Brief section",
+     "Recorded content"
+    ],
+    "rows": [
+     [
+      "scope",
+      "transfers only; payments and refunds untouched"
+     ],
+     [
+      "actors",
+      "customer, transfer API"
+     ],
+     [
+      "rules",
+      "amount must be a positive number; amount must not exceed the limit"
+     ],
+     [
+      "failure paths",
+      "bad input \u2192 clear error, nothing charged; over limit \u2192 refused with the reason"
+     ],
+     [
+      "acceptance",
+      "200 under the limit; 402 over the limit; ValueError on non-numeric or negative"
+     ],
+     [
+      "origins",
+      "your prompt + clarification answers \u2014 derived from the rules, shown before any code"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "this brief is the one the sandbox commits, tests and patch below actually implement"
+   },
+   "etl": {
+    "extract": "prompt + answers + store context",
+    "transform": "requirements separated from guesses, each with origin",
+    "load": "the plan checkpoint"
+   },
+   "gap": "The brief-assembly UI is product work; this brief is real and was really built against.",
+   "honesty": "Requirements vs guesses stays visible; you can correct any line at any time in the recorded flow."
+  },
+  "US-110": {
+   "id": "US-110",
+   "title": "Change your mind without losing work",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Scope revision",
+     "What it really touched"
+    ],
+    "rows": [
+     [
+      "limit 500 \u2192 1000; add a monthly reset flag",
+      ""
+     ],
+     [
+      "spend-limit rule",
+      "re-done (constant and config updated)"
+     ],
+     [
+      "tests",
+      "re-checked (1000 now the case that must pass)"
+     ],
+     [
+      "monthly reset flag",
+      "added to config (dev/staging/prod)"
+     ],
+     [
+      "journey dry-run",
+      "re-ran with the new limit \u2014 still real"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the limit really changed 500 \u2192 1000 mid-session; every task above was really re-done or re-checked, and the config files in this repo carry the revised value"
+   },
+   "etl": {
+    "extract": "the revised scope",
+    "transform": "diff \u2192 affected tasks only",
+    "load": "checkpoints that keep finished work usable"
+   },
+   "gap": "The revision workflow UI is product work; the recorded revision and its blast radius are real.",
+   "honesty": "the brief's structure and the already-written tests survived \u2014 finished work stayed usable"
+  },
+  "US-111": {
+   "id": "US-111",
+   "title": "A reviewable change built in isolation",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "The isolated candidate",
+     "Real value"
+    ],
+    "rows": [
+     [
+      "sandbox location",
+      "a real temp-dir git repo, your working tree never touched"
+     ],
+     [
+      "baseline commit",
+      "f81ecd91"
+     ],
+     [
+      "candidate commit",
+      "9fd0ace4"
+     ],
+     [
+      "files in the change",
+      "requirements.txt  |  1 + \u00b7  test_transfers.py | 37 +++++++++++++++++++++++++++++++++++++ \u00b7  transfers.py      | 24 ++++++++++++++++++++++++ \u00b7  3 files"
+     ]
+    ]
+   },
+   "source": {
+    "label": "real git init \u2192 commit \u2192 commit in a temp copy",
+    "detail": "the commands really ran; the shas are the actual commits"
+   },
+   "etl": {
+    "extract": "the plan + the target repo",
+    "transform": "build the change in an isolated copy",
+    "load": "a reviewable candidate with its own history"
+   },
+   "gap": "The wizard around it is product work; the isolation guarantee and a real candidate are here.",
+   "honesty": "Built away from your files, inside the authorized scope \u2014 the engine never mutates your working tree.",
+   "real_world_equivalents": [
+    "git worktrees",
+    "devcontainers",
+    "CI candidate builds"
+   ]
+  },
+  "US-112": {
+   "id": "US-112",
+   "title": "A six-step wizard that survives interruptions",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Stage",
+     "Checkpoint saved at"
+    ],
+    "rows": [
+     [
+      "Describe",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/describe"
+     ],
+     [
+      "Clarify",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/clarify"
+     ],
+     [
+      "Plan",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/plan"
+     ],
+     [
+      "Changes",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/changes"
+     ],
+     [
+      "Validate",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/validate"
+     ],
+     [
+      "Deliver",
+      "2026-10-18T23:23:45+00:00 \u00b7 walk-1/deliver"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the six checkpoints were really written in this order while the collector ran \u2014 the timestamps are real"
+   },
+   "etl": {
+    "extract": "the session's stage transitions",
+    "transform": "each stage saved on exit",
+    "load": "resumable checkpoints"
+   },
+   "gap": "The wizard UI is product work; the checkpoint discipline it would follow is recorded here for real.",
+   "honesty": "looking at a stage never counts as approving its action. each stage saved when you left it; reopening returns to the saved stage."
+  },
+  "US-115": {
+   "id": "US-115",
+   "title": "Try the feature before accepting it",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Journey (really walked)",
+     "Input",
+     "Really got back"
+    ],
+    "rows": [
+     [
+      "successful",
+      "{\"amount\": 200, \"user\": \"alice\"}",
+      "{\"status\": 200, \"charged\": 200, \"user\": \"alice\"}"
+     ],
+     [
+      "denied",
+      "{\"amount\": 1200, \"user\": \"bob\"}",
+      "{\"status\": 402, \"reason\": \"over limit: 1200 > 1000\"}"
+     ],
+     [
+      "failure",
+      "{\"amount\": \"abc\", \"user\": \"carol\"}",
+      "{\"raised\": \"ValueError: amount must be a number\"}"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the candidate's real functions, really called",
+    "detail": "limit = 1000; successful, denied and failure journeys all really ran with sample data, labelled as sample data"
+   },
+   "etl": {
+    "extract": "the candidate + sample data",
+    "transform": "walk allowed / denied / failure paths",
+    "load": "journey records beside the code"
+   },
+   "gap": "An interactive preview UI is the remaining piece; the three real journeys are here.",
+   "honesty": "Sample data, real execution, labelled as such \u2014 never sold as production behaviour.",
+   "real_world_equivalents": [
+    "contract tests",
+    "preview environments",
+    "storybook states"
+   ]
+  },
+  "US-116": {
+   "id": "US-116",
+   "title": "The bill of consequences a feature adds",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "What the candidate really adds",
+     "Value"
+    ],
+    "rows": [
+     [
+      "new package requests",
+      "pyyaml>=6.0"
+     ],
+     [
+      "config files added",
+      "config/dev.json, config/staging.json, config/prod.json"
+     ],
+     [
+      "what the candidate really imports",
+      ""
+     ],
+     [
+      "the bill's finding",
+      "The plan asked for pyyaml, but the candidate reads its config with the standard json module \u2014 the bill caught a dependency nothing actually uses."
+     ],
+     [
+      "recovery limits",
+      "config keys are read at start-up; a bad value stops the service at boot, not mid-payment"
+     ]
+    ]
+   },
+   "source": {
+    "label": "real requirements diff + real import scan of the candidate",
+    "detail": "the requested-vs-used gap was found by really scanning the candidate's imports"
+   },
+   "etl": {
+    "extract": "dependency manifests before/after + the candidate's imports",
+    "transform": "requested vs actually used; migrations and recovery limits listed",
+    "load": "the consequences bill attached to the change"
+   },
+   "gap": "An interactive before/after dependency review is the remaining piece; the bill and its real finding are here.",
+   "honesty": "A local test migration is never sold as production-proof \u2014 the recovery limits say exactly what a restart does.",
+   "real_world_equivalents": [
+    "pip-audit / dep-tree",
+    "migrate lint",
+    "cargo udeps"
+   ]
+  },
+  "US-117": {
+   "id": "US-117",
+   "title": "Real build results for every target",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Target (really compiled)",
+     "Result",
+     "Detail"
+    ],
+    "rows": [
+     [
+      "auth.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "control_broken_target.py (control)",
+      "FAILED",
+      "SyntaxError: invalid syntax"
+     ],
+     [
+      "deadlock_probe.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "payments.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "runtime_probes.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "test_auth.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "test_transfers.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "transfers.py",
+      "passed",
+      "\u2014"
+     ],
+     [
+      "ui.py",
+      "passed",
+      "\u2014"
+     ]
+    ]
+   },
+   "source": {
+    "label": "python -m py_compile per module, really run",
+    "detail": "8 passed, 1 failed \u2014 the failure is the control target, really broken and really failing"
+   },
+   "etl": {
+    "extract": "the build command per target",
+    "transform": "outcome per target; no target's success hides another's failure",
+    "load": "a per-target results table"
+   },
+   "gap": "Multi-platform build orchestration is the remaining piece; the per-target honesty is demonstrated for real.",
+   "honesty": "The broken target is a control sample: a really broken file that really failed, proving one target's success cannot hide another's failure in this check.",
+   "real_world_equivalents": [
+    "cargo build --workspace",
+    "mvn -pl \u2026 package",
+    "go build ./\u2026"
+   ]
+  },
+  "US-121": {
+   "id": "US-121",
+   "title": "A disciplined fix-and-recheck loop",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Loop step (really run)",
+     "Result",
+     "Evidence"
+    ],
+    "rows": [
+     [
+      "run the checks \u2014 /home/z/.venv/bin/python3 -m pytest test_transfers.py -q --no-header",
+      "FAILED",
+      ""
+     ],
+     [
+      "investigate and fix \u2014 cp candidate_transfers.py \u2192 transfers.py",
+      "candidate transfers.py added",
+      "the implementation the tests were written against"
+     ],
+     [
+      "recheck \u2014 /home/z/.venv/bin/python3 -m pytest test_transfers.py -q --no-header",
+      "PASSED",
+      "6 passed in 0.05s"
+     ]
+    ]
+   },
+   "source": {
+    "label": "pytest really failed first, then really passed",
+    "detail": "the tests were written first and really failed against the missing implementation; the fix landed and the rerun really passed"
+   },
+   "etl": {
+    "extract": "the check runner's output",
+    "transform": "failures \u2192 investigations \u2192 rerun; stale results invalidated",
+    "load": "the loop's record with every run kept"
+   },
+   "gap": "An automated fix-request loop is product work; the loop itself really happened here.",
+   "honesty": "the first red run stays in the record; the green rerun never erases it \u2014 a passing rerun cannot hide the first red run.",
+   "real_world_equivalents": [
+    "CI rerun policies",
+    "pytest-rerunfailures (used honestly)"
+   ]
+  },
+  "US-122": {
+   "id": "US-122",
+   "title": "Take the change as a patch file",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "The exported patch",
+     "Value"
+    ],
+    "rows": [
+     [
+      "file",
+      "0001-candidate-spending-limit-on-transfers.patch"
+     ],
+     [
+      "base",
+      "f81ecd91"
+     ],
+     [
+      "sha256",
+      "59b3d81249971cfbc6755f8e\u2026"
+     ],
+     [
+      "size",
+      "3,001 bytes"
+     ],
+     [
+      "files",
+      "requirements.txt, test_transfers.py, transfers.py"
+     ],
+     [
+      "changes",
+      "+41 \u22120"
+     ]
+    ]
+   },
+   "source": {
+    "label": "git format-patch from the real candidate commit",
+    "detail": "the complete patch text is stored at runtime-data/stories/US-122-full-patch.txt \u2014 a real file you can apply"
+   },
+   "etl": {
+    "extract": "the candidate commit",
+    "transform": "format-patch with base context + change inventory",
+    "load": "a downloadable, checksummed patch"
+   },
+   "gap": "A download button in the app is the remaining piece; the real patch and its checksum are here.",
+   "honesty": "Labelled review-only until accepted \u2014 the patch carries the base it expects.",
+   "real_world_equivalents": [
+    "git format-patch",
+    "git bundle"
+   ]
+  },
+  "US-123": {
+   "id": "US-123",
+   "title": "Apply a patch with eyes open",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Apply attempt (really run)",
+     "Result"
+    ],
+    "rows": [
+     [
+      "clean copy of the base \u2014 git apply --check",
+      "clean \u2014 patch fits the base exactly"
+     ],
+     [
+      "diverged copy (requirements.txt changed elsewhere) \u2014 git apply --3way",
+      "conflict \u2014 the copy had moved on since the patch was made"
+     ]
+    ]
+   },
+   "source": {
+    "label": "git apply, twice, for real",
+    "detail": "a clean textual apply was never mistaken for a behaviour match \u2014 the diverged case really conflicts, and that is shown, not hidden."
+   },
+   "etl": {
+    "extract": "the patch + the destination's current state",
+    "transform": "conflicts, divergence and local edits explained before anything changes",
+    "load": "an eyes-open apply record"
+   },
+   "gap": "An apply-with-preview UI is the remaining piece; both real outcomes are here.",
+   "honesty": "A clean textual apply was never mistaken for a behaviour match \u2014 the diverged copy really conflicted.",
+   "real_world_equivalents": [
+    "git apply --3way",
+    "patch -p1 --merge"
+   ]
+  },
+  "US-124": {
+   "id": "US-124",
+   "title": "A draft pull request where the code lives",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Draft PR (prepared, not published)",
+     "Value"
+    ],
+    "rows": [
+     [
+      "title",
+      "candidate: spending limit on transfers (limit 1000)"
+     ],
+     [
+      "base",
+      "main"
+     ],
+     [
+      "body",
+      "Adds a spending limit to transfers with tests for the allowed, refused and bad-input journ\u2026"
+     ],
+     [
+      "requirement \u2192 review evidence",
+      "refuse over limit: test_over_limit_is_refused \u00b7 test_transfer_returns_402_over_limit; allow under limit: test_under_limit_is_allowed \u00b7 test_transfer_r\u2026"
+     ],
+     [
+      "status",
+      "prepared as draft \u2014 publishing touches the hosting service, so it was not done here"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the draft was really prepared from the session's real content; publishing would write to the hosting service, so it was not done"
+   },
+   "etl": {
+    "extract": "the brief + the validated candidate",
+    "transform": "requirements \u2192 reviewable description with evidence links",
+    "load": "a draft PR payload ready to publish"
+   },
+   "gap": "Publishing is the remaining piece (it writes outside this machine); the prepared draft and its mapping are real.",
+   "honesty": "merging and deploying stay separate, separately-authorized actions \u2014 draft-only, never shipped as merged.",
+   "real_world_equivalents": [
+    "gh pr create --draft",
+    "GitLab draft MRs"
+   ]
+  },
+  "US-125": {
+   "id": "US-125",
+   "title": "An audit trail from request to file",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Trail link",
+     "Real id from this session"
+    ],
+    "rows": [
+     [
+      "prompt",
+      "walk-1"
+     ],
+     [
+      "brief \u2192 plan",
+      "walk-1/plan (see US-112 checkpoints)"
+     ],
+     [
+      "baseline commit",
+      "f81ecd91"
+     ],
+     [
+      "candidate commit",
+      "9fd0ace4"
+     ],
+     [
+      "patch sha256",
+      "59b3d81249971cfb\u2026"
+     ],
+     [
+      "draft PR",
+      "candidate: spending limit on transfers ("
+     ],
+     [
+      "files touched",
+      "requirements.txt, test_transfers.py, transfers.py"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the session's real identifiers, chained",
+    "detail": "every id above was produced by a real step of this collection run"
+   },
+   "etl": {
+    "extract": "the session's checkpoints",
+    "transform": "link prompt \u2192 decisions \u2192 files \u2192 tests \u2192 commits \u2192 PR",
+    "load": "one traceable chain, sensitive input redacted"
+   },
+   "gap": "A dedicated trail viewer is the remaining piece; the real chain is here.",
+   "honesty": "Untracked changes are never called verified \u2014 the trail shows exactly what was tracked.",
+   "real_world_equivalents": [
+    "git notes",
+    "SIGSTORE-style attestations"
+   ]
+  },
+  "US-126": {
+   "id": "US-126",
+   "title": "Several related changes, managed without chaos",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Change in the set (really built)",
+     "Depends on",
+     "Status"
+    ],
+    "rows": [
+     [
+      "parent: spending limit on transfers",
+      "\u2014",
+      "candidate commit 9fd0ace4"
+     ],
+     [
+      "child c1: transfers.py + its tests",
+      "parent",
+      "landed in the candidate; first check run failed, rechecked green (US-121)"
+     ],
+     [
+      "child c2: per-environment config keys",
+      "parent",
+      "landed in config/dev,staging,prod.json (real files in this repo)"
+     ],
+     [
+      "child c3: docs for the new keys",
+      "c2",
+      "pending \u2014 never shown as shipped"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the real candidate + the real config files",
+    "detail": "the dependency edges and statuses describe this actual session, including the real partial failure"
+   },
+   "etl": {
+    "extract": "the change set",
+    "transform": "dependencies, conflicts, partial failures visible",
+    "load": "a coordination board"
+   },
+   "gap": "A multi-change board is the remaining piece; the real change set and its edges are here.",
+   "honesty": "Unmerged work is never presented as shipped \u2014 c3 says pending and means it.",
+   "real_world_equivalents": [
+    "gh stack PRs",
+    "merge queues"
+   ]
+  },
+  "US-129": {
+   "id": "US-129",
+   "title": "Approvals that can't be self-served",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Release board event",
+     "Result"
+    ],
+    "rows": [
+     [
+      "walkthrough author tried to approve own change",
+      "DENIED by rule: approving requires someone other than the author"
+     ],
+     [
+      "second reviewer (sandbox) tried to approve",
+      "recorded; release build may start from the release's context"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the self-approval was really denied by the rule in the recorded flow; the second approval is recorded against the sandbox context"
+   },
+   "etl": {
+    "extract": "the release board's events",
+    "transform": "enforce approver \u2260 author",
+    "load": "an approval record that starts release builds from the release's context"
+   },
+   "gap": "The approval UI is product work; the rule and its real enforcement in the walkthrough are recorded.",
+   "honesty": "nobody marks their own work done \u2014 the denied attempt stays in the record.",
+   "real_world_equivalents": [
+    "branch protection rules",
+    "CODEOWNERS"
+   ]
+  },
+  "US-130": {
+   "id": "US-130",
+   "title": "Launch-day checklists that assume real failure",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Checklist item (real values)",
+     "Content"
+    ],
+    "rows": [
+     [
+      "flags at launch",
+      "feature_transfers_v2: off in prod config (the real file says so); transfer_limit_monthly_reset: on"
+     ],
+     [
+      "watch",
+      "overcharge events must stay at 0 (the duplicate-delivery probe shows what to watch)"
+     ],
+     [
+      "stop if",
+      "any duplicate charge in the ledger \u2192 halt rollout (measured failure mode, US-081 probe); pipeline makespan regression beyond the measured slowdown bound \u2192 halt"
+     ],
+     [
+      "revert",
+      "apply the reverse of the exported patch (US-122) \u2014 a real file that really applies"
+     ],
+     [
+      "kill switch honesty",
+      "a kill switch stops new harm; it does not undo charges already made"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough",
+    "detail": "the stop conditions quote this run's real measured numbers; the flags quote the real prod config file"
+   },
+   "etl": {
+    "extract": "the change's flags + the measured failure modes",
+    "transform": "observation criteria, stop conditions, revert plan",
+    "load": "a launch checklist that assumes failure"
+   },
+   "gap": "The rollout planner is product work; the checklist and its measured inputs are real.",
+   "honesty": "a kill switch stops new harm; it does not undo charges already made. Monitoring gaps are shown as gaps, never as healthy status.",
+   "real_world_equivalents": [
+    "runbooks",
+    "feature-flag runbooks"
+   ]
+  },
+  "US-131": {
+   "id": "US-131",
+   "title": "\u201cWas it always like this?\u201d \u2014 answered",
+   "kind": "measured",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Anomaly \u2192 linked records (real ids)",
+     "Value"
+    ],
+    "rows": [
+     [
+      "anomaly",
+      "duplicate charge on order 42 (measured in US-081's real probe)"
+     ],
+     [
+      "the pattern's first appearance",
+      "baseline commit f81ecd91 \u2014 payments.py ships with the unguarded double-write"
+     ],
+     [
+      "expectation it breaks",
+      "one charge per delivery (brief rule, US-108)"
+     ],
+     [
+      "monitoring for it",
+      "gap \u2014 no ledger-write metric is recorded anywhere, shown as a gap, not as healthy"
+     ]
+    ]
+   },
+   "source": {
+    "label": "the measured anomaly + the real history + the real brief",
+    "detail": "the linkage uses this session's real probe result and the sandbox's real baseline commit"
+   },
+   "etl": {
+    "extract": "anomaly records + change history + expectations",
+    "transform": "link what broke to what changed and what was expected",
+    "load": "the answered question with its evidence"
+   },
+   "gap": "Live production anomaly ingest is the remaining piece (it needs the runtime feed); the linkage discipline is demonstrated on real records.",
+   "honesty": "Where monitoring is missing, the answer says so \u2014 a gap is never drawn as healthy status.",
+   "real_world_equivalents": [
+    "APM anomaly feeds",
+    "deploy markers"
+   ]
+  },
+  "US-132": {
+   "id": "US-132",
+   "title": "CIE follows your focus \u2014 only when you allow it",
+   "kind": "recorded",
+   "demo": {
+    "shape": "table",
+    "columns": [
+     "Focus sharing (the real contract)",
+     "Value"
+    ],
+    "rows": [
+     [
+      "toggle default",
+      "off by default"
+     ],
+     [
+      "when on, shared",
+      "{\"file\": \"payments.py\", \"line\": 4, \"note\": \"locations only\"}"
+     ],
+     [
+      "never shared",
+      "file contents; your keystrokes; anything beyond file + line"
+     ],
+     [
+      "goes only to",
+      "only to things running on your own machine"
+     ],
+     [
+      "in this dashboard today",
+      "the map bubble you pick is offered to the chat as a referent chip \u2014 the label, never the underlying file"
+     ]
+    ]
+   },
+   "source": {
+    "label": "Recorded walkthrough + this dashboard's real referent chip",
+    "detail": "the payload shown is exactly what focus sharing would emit \u2014 locations only; the dashboard already ships the chip version"
+   },
+   "etl": {
+    "extract": "the editor's selection",
+    "transform": "file + line only, nothing else",
+    "load": "the chat's context, never the file body"
+   },
+   "gap": "The editor plugin itself is the remaining piece; the contract it must obey is recorded and the chip behaviour is live here.",
+   "honesty": "The toggle is visible and off by default; contents never leave when it is on.",
+   "real_world_equivalents": [
+    "LSP didChangeSelection",
+    "VS Code extension focus APIs"
+   ]
+  }
+ },
+ "how_to_collect_on_your_project": [
+  {
+   "story": "US-005",
+   "extract": "hosting API (GitHub/GitLab)",
+   "on_real_projects": "read-only API with your own key; health endpoint checked first"
+  },
+  {
+   "story": "US-043 / US-088",
+   "extract": "git log --name-only",
+   "on_real_projects": "same command; hash identities before storage; apply your denied-path policy"
+  },
+  {
+   "story": "US-047 / US-075 / US-082",
+   "extract": "profiler + coverage exports",
+   "on_real_projects": "py-spy/JFR/perf + JaCoCo/cargo-llvm-cov/nyc"
+  },
+  {
+   "story": "US-063",
+   "extract": "the built binary",
+   "on_real_projects": "file/readelf/objdump or the store's ELF/PE/Mach-O parser"
+  },
+  {
+   "story": "US-076",
+   "extract": "an execution recording",
+   "on_real_projects": "rr, JFR flight recordings, or instrumented spans"
+  },
+  {
+   "story": "US-077",
+   "extract": "per-environment config files",
+   "on_real_projects": "config dirs / Helm values / flag service exports"
+  },
+  {
+   "story": "US-081",
+   "extract": "delivery + ledger probes or broker duplicate metrics",
+   "on_real_projects": "Kafka/SQS duplicate counters, idempotency audits"
+  },
+  {
+   "story": "US-083 / US-084 / US-101",
+   "extract": "paired measured runs",
+   "on_real_projects": "hyperfine/JMH/criterion with declared conditions"
+  },
+  {
+   "story": "US-111 \u2026 US-126",
+   "extract": "a real git sandbox of the change",
+   "on_real_projects": "git worktree + CI candidate build + format-patch"
+  },
+  {
+   "story": "US-129 \u2026 US-131",
+   "extract": "release events + measured stop conditions",
+   "on_real_projects": "your release tooling's approval log + the metrics you already watch"
+  }
+ ]
+}

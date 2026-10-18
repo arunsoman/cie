@@ -1,0 +1,51 @@
+{
+ "id": "US-101",
+ "title": "Compare sandbox experiments before deciding",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Sandbox A/B on the same basket",
+   "Variant A (round at end)",
+   "Variant B (round per line)"
+  ],
+  "rows": [
+   [
+    "total charged",
+    "31.4",
+    "31.39"
+   ],
+   [
+    "difference",
+    "\u2014",
+    "-0.01"
+   ],
+   [
+    "runs kept",
+    "3 of 3 (failures kept)",
+    "3 of 3 (failures kept)"
+   ],
+   [
+    "empty basket",
+    "refused: ValueError",
+    "accepted"
+   ]
+  ]
+ },
+ "source": {
+  "label": "both variants really executed on identical inputs",
+  "detail": "the basket [19.99 \u00d73, 0.10 \u00d72, 4.005] \u2014 A and B really disagree by the measured cents; the edge case really refused in one variant"
+ },
+ "etl": {
+  "extract": "two sandbox runs of the same workload",
+  "transform": "keep failures in the count; verdict only when the evidence meets the bar",
+  "load": "a decision card: measured difference + conditions + failures"
+ },
+ "gap": "A general 'run my change in a sandbox' button is the remaining piece; the comparison discipline and real numbers are here.",
+ "honesty": "Inconclusive stays inconclusive: the certificate in the demo is exactly as strong as the measured evidence.",
+ "real_world_equivalents": [
+  "feature-flag A/B",
+  "criterion/hyperfine pairs",
+  "shadow deployments"
+ ]
+}

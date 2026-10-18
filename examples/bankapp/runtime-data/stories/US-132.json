@@ -1,0 +1,49 @@
+{
+ "id": "US-132",
+ "title": "CIE follows your focus \u2014 only when you allow it",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Focus sharing (the real contract)",
+   "Value"
+  ],
+  "rows": [
+   [
+    "toggle default",
+    "off by default"
+   ],
+   [
+    "when on, shared",
+    "{\"file\": \"payments.py\", \"line\": 4, \"note\": \"locations only\"}"
+   ],
+   [
+    "never shared",
+    "file contents; your keystrokes; anything beyond file + line"
+   ],
+   [
+    "goes only to",
+    "only to things running on your own machine"
+   ],
+   [
+    "in this dashboard today",
+    "the map bubble you pick is offered to the chat as a referent chip \u2014 the label, never the underlying file"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough + this dashboard's real referent chip",
+  "detail": "the payload shown is exactly what focus sharing would emit \u2014 locations only; the dashboard already ships the chip version"
+ },
+ "etl": {
+  "extract": "the editor's selection",
+  "transform": "file + line only, nothing else",
+  "load": "the chat's context, never the file body"
+ },
+ "gap": "The editor plugin itself is the remaining piece; the contract it must obey is recorded and the chip behaviour is live here.",
+ "honesty": "The toggle is visible and off by default; contents never leave when it is on.",
+ "real_world_equivalents": [
+  "LSP didChangeSelection",
+  "VS Code extension focus APIs"
+ ]
+}

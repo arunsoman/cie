@@ -1,0 +1,46 @@
+{
+ "id": "US-083",
+ "title": "Prove \u201cfaster\u201d with the conditions stated",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Prove-it-faster pair",
+   "Median",
+   "Runs (all kept)"
+  ],
+  "rows": [
+   [
+    "before \u2014 one worker at a time",
+    "361.58 ms",
+    "3 runs, 0 failed"
+   ],
+   [
+    "after \u2014 four workers",
+    "90.56 ms",
+    "3 runs, 0 failed"
+   ],
+   [
+    "verdict under stated conditions",
+    "measured 3.99\u00d7 faster under these conditions",
+    "speedup \u00d73.99"
+   ]
+  ]
+ },
+ "source": {
+  "label": "two really run workloads, same machine, same input",
+  "detail": "conditions: pipeline(tasks=12): each task sleeps 30 ms, then doubles a number \u2014 declared, not implied"
+ },
+ "etl": {
+  "extract": "two measured runs under one declared equivalence",
+  "transform": "keep every run incl. failures; compare medians; refuse unfair pairs",
+  "load": "the comparison with its conditions attached"
+ },
+ "gap": "An interactive A/B certificate builder is the remaining piece; the discipline and the real numbers are here.",
+ "honesty": "If the runs had failed, the failures would stay in the count. Dropping work can never dress up as an improvement.",
+ "real_world_equivalents": [
+  "hyperfine",
+  "JMH",
+  "criterion"
+ ]
+}

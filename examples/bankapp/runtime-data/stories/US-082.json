@@ -1,0 +1,61 @@
+{
+ "id": "US-082",
+ "title": "Trace why something is slow, down to the code",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Where the slow request's time went",
+   "Self time",
+   "Kind"
+  ],
+  "rows": [
+   [
+    "slow_request",
+    "0.01 ms",
+    "compute"
+   ],
+   [
+    "<built-in method time.sleep>",
+    "170.15 ms",
+    "waiting"
+   ],
+   [
+    "_external_call",
+    "0.01 ms",
+    "compute"
+   ],
+   [
+    "_db_query",
+    "0.0 ms",
+    "compute"
+   ],
+   [
+    "_password_check",
+    "0.02 ms",
+    "compute"
+   ],
+   [
+    "<built-in method _hashlib.pbkdf2_hmac>",
+    "16.63 ms",
+    "compute"
+   ]
+  ]
+ },
+ "source": {
+  "label": "cProfile over one composed slow request",
+  "detail": "compute 16.73 ms vs waiting 170.15 ms \u2014 sleep shows up as time.sleep, so waiting is never confused with CPU"
+ },
+ "etl": {
+  "extract": "a profile of a slow request (py-spy, JFR, pprof)",
+  "transform": "self/cumulative time per function; compute vs waiting vs data vs outside",
+  "load": "the trace story: hotspots with uncertainty, guesses labelled as guesses"
+ },
+ "gap": "A dedicated slow-request wizard is the remaining piece; the measured compute/waiting split is here.",
+ "honesty": "The waiting here was real sleeping in a real run; on your project the same split comes from the same kind of profile.",
+ "real_world_equivalents": [
+  "py-spy top",
+  "JFR method samples",
+  "pprof + flamegraph"
+ ]
+}

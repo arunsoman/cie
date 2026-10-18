@@ -1,0 +1,76 @@
+{
+ "id": "US-117",
+ "title": "Real build results for every target",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Target (really compiled)",
+   "Result",
+   "Detail"
+  ],
+  "rows": [
+   [
+    "auth.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "control_broken_target.py (control)",
+    "FAILED",
+    "SyntaxError: invalid syntax"
+   ],
+   [
+    "deadlock_probe.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "payments.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "runtime_probes.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "test_auth.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "test_transfers.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "transfers.py",
+    "passed",
+    "\u2014"
+   ],
+   [
+    "ui.py",
+    "passed",
+    "\u2014"
+   ]
+  ]
+ },
+ "source": {
+  "label": "python -m py_compile per module, really run",
+  "detail": "8 passed, 1 failed \u2014 the failure is the control target, really broken and really failing"
+ },
+ "etl": {
+  "extract": "the build command per target",
+  "transform": "outcome per target; no target's success hides another's failure",
+  "load": "a per-target results table"
+ },
+ "gap": "Multi-platform build orchestration is the remaining piece; the per-target honesty is demonstrated for real.",
+ "honesty": "The broken target is a control sample: a really broken file that really failed, proving one target's success cannot hide another's failure in this check.",
+ "real_world_equivalents": [
+  "cargo build --workspace",
+  "mvn -pl \u2026 package",
+  "go build ./\u2026"
+ ]
+}

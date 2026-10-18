@@ -1,0 +1,57 @@
+{
+ "id": "US-005",
+ "title": "Pull updates straight from GitHub or GitLab",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Fetched from the hosting service",
+   "Value"
+  ],
+  "rows": [
+   [
+    "connection",
+    "healthy"
+   ],
+   [
+    "key health",
+    "key supplied by the operator; used for this request only, never stored"
+   ],
+   [
+    "default branch",
+    "main"
+   ],
+   [
+    "open issues (as counted by the host)",
+    "0"
+   ],
+   [
+    "open pull requests listed",
+    "0"
+   ],
+   [
+    "latest commit",
+    "65dae897 fix task_022_guard adapter-count asser"
+   ],
+   [
+    "rate limit left this window",
+    "4993"
+   ]
+  ]
+ },
+ "source": {
+  "label": "GitHub REST API, read-only",
+  "detail": "GET /repos/arunsoman/cie and /commits, /pulls \u2014 real HTTP responses received at 2026-10-18T23:23:45+00:00"
+ },
+ "etl": {
+  "extract": "the hosting service's API (commits, pull requests, health endpoints)",
+  "transform": "keep sha/date/title; drop everything secret; mark anything suspicious instead of dropping it silently",
+  "load": "the indexed store, with the connection health shown beside it"
+ },
+ "gap": "The dashboard reads these from the store, not live; a scheduled fetcher is the shipped-work piece.",
+ "honesty": "A real API call really answered. On a private repo the same call uses your own key, held in your settings \u2014 never stored in the report.",
+ "real_world_equivalents": [
+  "gh CLI / GitHub Actions",
+  "GitLab API with project tokens"
+ ]
+}

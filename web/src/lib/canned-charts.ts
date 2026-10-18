@@ -474,7 +474,7 @@ export function buildCannedCharts(
       question: "What do the tests really cover?",
       hint: cov ? `Measured by ${cov.tool} on the sample project.` : "No collected coverage for this project — honest empty.",
       icon: "shield",
-      spec: data?.length
+      spec: data?.length && cov
         ? {
             ...spec("hbar", "Test coverage by file (measured)", "Percent of lines the project's own tests touched. Zero means never even imported — the note says so."),
             data,
@@ -498,7 +498,7 @@ export function buildCannedCharts(
       question: "Where did the CPU time go?",
       hint: cpu ? `Measured by ${cpu.tool}.` : "No collected CPU profile — honest empty.",
       icon: "gauge",
-      spec: data?.length
+      spec: data?.length && cpu
         ? {
             ...spec("hbar", "CPU hotspots (measured)", "Cumulative milliseconds per function, from a real profile run."),
             data,

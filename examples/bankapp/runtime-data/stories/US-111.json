@@ -1,0 +1,46 @@
+{
+ "id": "US-111",
+ "title": "A reviewable change built in isolation",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "The isolated candidate",
+   "Real value"
+  ],
+  "rows": [
+   [
+    "sandbox location",
+    "a real temp-dir git repo, your working tree never touched"
+   ],
+   [
+    "baseline commit",
+    "f81ecd91"
+   ],
+   [
+    "candidate commit",
+    "9fd0ace4"
+   ],
+   [
+    "files in the change",
+    "requirements.txt  |  1 + \u00b7  test_transfers.py | 37 +++++++++++++++++++++++++++++++++++++ \u00b7  transfers.py      | 24 ++++++++++++++++++++++++ \u00b7  3 files"
+   ]
+  ]
+ },
+ "source": {
+  "label": "real git init \u2192 commit \u2192 commit in a temp copy",
+  "detail": "the commands really ran; the shas are the actual commits"
+ },
+ "etl": {
+  "extract": "the plan + the target repo",
+  "transform": "build the change in an isolated copy",
+  "load": "a reviewable candidate with its own history"
+ },
+ "gap": "The wizard around it is product work; the isolation guarantee and a real candidate are here.",
+ "honesty": "Built away from your files, inside the authorized scope \u2014 the engine never mutates your working tree.",
+ "real_world_equivalents": [
+  "git worktrees",
+  "devcontainers",
+  "CI candidate builds"
+ ]
+}

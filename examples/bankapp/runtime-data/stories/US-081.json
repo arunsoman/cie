@@ -1,0 +1,54 @@
+{
+ "id": "US-081",
+ "title": "Spot how retries and duplicates can break data rules",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Duplicate-delivery probe",
+   "Measured"
+  ],
+  "rows": [
+   [
+    "deliveries of order 42",
+    "2"
+   ],
+   [
+    "charges the rule expects",
+    "1"
+   ],
+   [
+    "charges the ledger really holds",
+    "2"
+   ],
+   [
+    "customer charged in total",
+    "150"
+   ],
+   [
+    "customer owed",
+    "75"
+   ],
+   [
+    "overcharge",
+    "+75"
+   ]
+  ]
+ },
+ "source": {
+  "label": "real in-memory ledger, two real deliveries",
+  "detail": "The probe's ledger mirrors the write-without-checking pattern that payments.py charge() really has (cursor.execute twice, no idempotency check). The double charge below really happened in this run."
+ },
+ "etl": {
+  "extract": "a delivery probe / broker redelivery log / broker metrics (duplicate counts)",
+  "transform": "deliveries vs writes; guards (idempotency keys) checked mechanically",
+  "load": "candidate failure scenarios attached to the readers/writers involved"
+ },
+ "gap": "Full distributed-hazard modelling stays unbuilt; the measured failure mode and the guard rule are demonstrated for real.",
+ "honesty": "The double charge really happened in this run. Races and logic errors stay separate categories; no promise of finding everything.",
+ "real_world_equivalents": [
+  "broker duplicate metrics (Kafka/SQS)",
+  "idempotency-key audits",
+  "Jepsen-style checks"
+ ]
+}

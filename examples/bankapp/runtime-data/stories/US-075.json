@@ -1,0 +1,61 @@
+{
+ "id": "US-075",
+ "title": "Lay live system activity over the code map",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Part of bankapp",
+   "In the measured window",
+   "Lines touched"
+  ],
+  "rows": [
+   [
+    "auth.py",
+    "ran in the window",
+    "75.0% lines"
+   ],
+   [
+    "deadlock_probe.py",
+    "did not run",
+    "0.0% lines"
+   ],
+   [
+    "payments.py",
+    "did not run",
+    "0.0% lines"
+   ],
+   [
+    "runtime_probes.py",
+    "did not run",
+    "0.0% lines"
+   ],
+   [
+    "test_auth.py",
+    "ran in the window",
+    "100.0% lines"
+   ],
+   [
+    "ui.py",
+    "did not run",
+    "0.0% lines"
+   ]
+  ]
+ },
+ "source": {
+  "label": "coverage.py over the project's own tests",
+  "detail": "which parts really executed while the probe ran \u2014 the same evidence the coverage page shows"
+ },
+ "etl": {
+  "extract": "a coverage/trace run (or an APM feed in production)",
+  "transform": "file/line \u2192 store nodes; exact matches labelled exact, weaker labelled unknown",
+  "load": "the code map: bubbles that ran light up for the chosen window"
+ },
+ "gap": "A live streaming window is not wired yet; the measured 'what actually ran' overlay is here now.",
+ "honesty": "This is the execution record of one measured window \u2014 not a promise about every run.",
+ "real_world_equivalents": [
+  "JaCoCo / cobertura feeds",
+  "APM spans (OTel)",
+  "eBPF overlays"
+ ]
+}

@@ -1,0 +1,41 @@
+{
+ "id": "US-104",
+ "title": "Start a feature from a plain-language prompt",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Intake moment",
+   "What was recorded"
+  ],
+  "rows": [
+   [
+    "your words",
+    "Add a spending limit to bank transfers so nobody can move more than the limit in one go."
+   ],
+   [
+    "repo identified",
+    "bankapp (the loaded sample project)"
+   ],
+   [
+    "deliverable identified",
+    "a spending limit on transfer(...) with tests"
+   ],
+   [
+    "internal names you had to learn",
+    "none"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "this intake really happened and opened the session every build/ship story below continues"
+ },
+ "etl": {
+  "extract": "the prompt + the loaded store",
+  "transform": "prompt \u2192 target repo + deliverable",
+  "load": "the session's first checkpoint"
+ },
+ "gap": "The intake UI is product work; the recorded session it produces is real and everything below grew from it.",
+ "honesty": "A real recorded session from this collection run \u2014 the numbers downstream (commits, tests, patches) are its real outputs."
+}

@@ -1,0 +1,89 @@
+{
+ "id": "US-077",
+ "title": "Explain \u201cit works in staging\u201d precisely",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Setting",
+   "dev",
+   "staging",
+   "prod",
+   "Verdict"
+  ],
+  "rows": [
+   [
+    "api_base_url",
+    "http://localhost:8080",
+    "https://staging.bankapp.example",
+    "https://api.bankapp.example",
+    "DIFFERS"
+   ],
+   [
+    "db_pool_size",
+    "2",
+    "8",
+    "32",
+    "DIFFERS"
+   ],
+   [
+    "email_notifications",
+    "False",
+    "True",
+    "True",
+    "DIFFERS"
+   ],
+   [
+    "feature_transfers_v2",
+    "True",
+    "True",
+    "False",
+    "DIFFERS"
+   ],
+   [
+    "log_level",
+    "debug",
+    "info",
+    "warn",
+    "DIFFERS"
+   ],
+   [
+    "payment_retry_limit",
+    "1",
+    "3",
+    "3",
+    "DIFFERS"
+   ],
+   [
+    "transfer_limit_monthly_reset",
+    "True",
+    "True",
+    "True",
+    "same"
+   ],
+   [
+    "transfer_spending_limit",
+    "1000",
+    "1000",
+    "1000",
+    "same"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the project's real config files",
+  "detail": "config/dev.json, staging.json, prod.json \u2014 read and diffed for real; feature_transfers_v2 is on in staging and off in prod, which is exactly the \u201cworks in staging\u201d story"
+ },
+ "etl": {
+  "extract": "config files and env manifests per environment",
+  "transform": "key-by-key diff; flag values normalised and shown as written",
+  "load": "a side-by-side environment table; exploring a flag change writes to a scratch copy only"
+ },
+ "gap": "An interactive flag sandbox is the remaining piece; the diff and the proof it never touches prod are here (prod file checksum unchanged by the exploration run).",
+ "honesty": "prod.json checksum before the exploration: f9b25416c14d\u2026, after: f9b25416c14d\u2026 \u2014 identical, as it must be.",
+ "real_world_equivalents": [
+  "docker-compose env diffs",
+  "Helm values diff",
+  "LaunchDarkly environments"
+ ]
+}

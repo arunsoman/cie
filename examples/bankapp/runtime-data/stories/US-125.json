@@ -1,0 +1,57 @@
+{
+ "id": "US-125",
+ "title": "An audit trail from request to file",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Trail link",
+   "Real id from this session"
+  ],
+  "rows": [
+   [
+    "prompt",
+    "walk-1"
+   ],
+   [
+    "brief \u2192 plan",
+    "walk-1/plan (see US-112 checkpoints)"
+   ],
+   [
+    "baseline commit",
+    "f81ecd91"
+   ],
+   [
+    "candidate commit",
+    "9fd0ace4"
+   ],
+   [
+    "patch sha256",
+    "59b3d81249971cfb\u2026"
+   ],
+   [
+    "draft PR",
+    "candidate: spending limit on transfers ("
+   ],
+   [
+    "files touched",
+    "requirements.txt, test_transfers.py, transfers.py"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the session's real identifiers, chained",
+  "detail": "every id above was produced by a real step of this collection run"
+ },
+ "etl": {
+  "extract": "the session's checkpoints",
+  "transform": "link prompt \u2192 decisions \u2192 files \u2192 tests \u2192 commits \u2192 PR",
+  "load": "one traceable chain, sensitive input redacted"
+ },
+ "gap": "A dedicated trail viewer is the remaining piece; the real chain is here.",
+ "honesty": "Untracked changes are never called verified \u2014 the trail shows exactly what was tracked.",
+ "real_world_equivalents": [
+  "git notes",
+  "SIGSTORE-style attestations"
+ ]
+}

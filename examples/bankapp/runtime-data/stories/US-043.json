@@ -1,0 +1,59 @@
+{
+ "id": "US-043",
+ "title": "A map of who knows which part",
+ "kind": "measured",
+ "demo": {
+  "shape": "hbar",
+  "unit": "commits",
+  "title": "Where the work went (this repo's own history)",
+  "data": [
+   {
+    "name": "web",
+    "value": 167
+   },
+   {
+    "name": "crates",
+    "value": 154
+   },
+   {
+    "name": "cie-stories",
+    "value": 82
+   },
+   {
+    "name": "cie-analysis",
+    "value": 43
+   },
+   {
+    "name": "viz-adapter",
+    "value": 39
+   },
+   {
+    "name": "Cargo.lock",
+    "value": 38
+   },
+   {
+    "name": "cie-cli",
+    "value": 30
+   },
+   {
+    "name": "cie-contract",
+    "value": 28
+   }
+  ]
+ },
+ "source": {
+  "label": "git log over the CIE repo itself",
+  "detail": "137 commits, per top-level part; author names hashed at source (salt recorded, names never stored)"
+ },
+ "etl": {
+  "extract": "git log --name-only (any repo, any host)",
+  "transform": "group by top-level part; count commits + distinct authors; age the last touch",
+  "load": "the code map: bubbles sized by knowledge, thinly-known parts highlighted"
+ },
+ "gap": "Drawing it ON the interactive map bubbles (not just bars) is the remaining piece; the data pipeline exists now.",
+ "honesty": "Computed from the real history of the repo this app ships in. A fair version also takes your declared ownership policy as input.",
+ "real_world_equivalents": [
+  "git-quick-stats / code-maat",
+  "CodeScene knowledge map"
+ ]
+}

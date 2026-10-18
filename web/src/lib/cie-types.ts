@@ -302,3 +302,52 @@ export interface CieRuntime {
     on_real_projects: string;
   }[];
 }
+
+// ---------------------------------------------------------------------------
+// Stories — the 33 remaining registry stories, each shown with real data
+// from the sample project. Produced by
+// examples/bankapp/scripts/collect_stories.py (see runtime-data/stories/):
+// "measured" = a tool captured a number from a real run on a machine;
+// "recorded" = the workflow walkthrough was really performed and its real
+// artifacts saved. Nothing is invented; gaps stay named.
+// ---------------------------------------------------------------------------
+
+export interface StoryDemo {
+  shape: "hbar" | "table" | "stat" | "donut" | "steps" | "timeline" | "kv" | "diff";
+  // hbar
+  data?: { name: string; value: number; color?: string }[];
+  unit?: string;
+  title?: string;
+  // table / diff
+  columns?: string[];
+  rows?: (string | number)[][];
+  // stat
+  headline?: string;
+  items?: { label: string; value: string; note?: string }[];
+  // hbar extras (US-043 thinly-known list)
+  thinly_known?: { part: string; authors: number; days_quiet: number }[];
+  [key: string]: unknown;
+}
+
+export interface CieStory {
+  id: string; // registry id, e.g. "US-043"
+  title: string;
+  kind: "measured" | "recorded";
+  demo: StoryDemo;
+  source: { label: string; detail: string };
+  etl: { extract: string; transform: string; load: string };
+  gap: string; // what honestly remains
+  honesty: string;
+  real_world_equivalents?: string[];
+}
+
+export interface CieStories {
+  project: string;
+  collected_at: string;
+  environment: Record<string, unknown>;
+  honesty: string;
+  counts: { measured: number; recorded: number; total: number };
+  registry: { total: number; delivered: number; partial: number; planned_shown_here: number };
+  stories: Record<string, CieStory>;
+  how_to_collect_on_your_project: { story: string; extract: string; on_real_projects: string }[];
+}

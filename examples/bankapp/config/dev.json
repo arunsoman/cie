@@ -1,0 +1,11 @@
+{
+  "_note": "bankapp dev environment config — a real file the story collector reads and diffs.",
+  "feature_transfers_v2": true,
+  "transfer_spending_limit": 1000,
+  "transfer_limit_monthly_reset": true,
+  "log_level": "debug",
+  "db_pool_size": 2,
+  "payment_retry_limit": 1,
+  "api_base_url": "http://localhost:8080",
+  "email_notifications": false
+}

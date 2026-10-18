@@ -1,0 +1,11 @@
+{
+  "_note": "bankapp production environment config — a real file the story collector reads and diffs. Lives in the repo as a record; the real prod machine keeps its own copy.",
+  "feature_transfers_v2": false,
+  "transfer_spending_limit": 1000,
+  "transfer_limit_monthly_reset": true,
+  "log_level": "warn",
+  "db_pool_size": 32,
+  "payment_retry_limit": 3,
+  "api_base_url": "https://api.bankapp.example",
+  "email_notifications": true
+}

@@ -45,7 +45,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   fixes: { title: "Things to look at", caption: "Sorted by urgency — red first." },
   promises: { title: "Promises", caption: "Things the code must always do." },
   numbers: { title: "Your project in pictures", caption: "Same facts as the other views, drawn as charts." },
-  menu: { title: "One-tap chart menu", caption: "Charts with zero typing — tap a question." },
+  menu: { title: "One-tap chart menu", caption: "Charts with zero typing — plus all 33 stories, shown with the sample project's real data." },
   trust: { title: "Can I trust this?", caption: "What CIE knows, what it guessed, what it couldn't check." },
   deps: { title: "Dependencies", caption: "What your project declares it needs — names and versions as written." },
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },

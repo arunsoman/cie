@@ -70,3 +70,29 @@ by exactly this collector. When you connect a real project, CIE can accept
 the same shapes of evidence — a profile export, a thread dump, a coverage
 report — and will keep the same honesty contract: tool named, command
 named, gaps named, nothing invented.
+
+## The 33 story demos
+
+```bash
+python3 scripts/collect_stories.py     # → runtime-data/stories/*.json + stories.json
+```
+
+Every story the dashboard used to mark "can't show yet" carries real data
+now. Two kinds, and each artifact says which:
+
+- **measured** — a real tool on a real run: the GitHub API (health, latest
+  commits), git history (ownership, privacy-at-source), an ELF parser over a
+  real binary, coverage + profile overlays, a recorded line-by-line replay
+  of `auth.py`, real config drift across dev/staging/prod, a measured
+  duplicate-charge failure, compute-vs-waiting profiles, before/after speed
+  pairs, a real sandbox A/B, real py_compile targets, a real
+  fail-then-fix-then-pass pytest loop, a real `git format-patch` and two
+  real apply attempts (clean + conflicting).
+- **recorded** — the workflow walkthrough really happened while collecting:
+  the prompt, the clarifications, the brief, the scope revision, the six
+  wizard checkpoints, the prepared draft PR, the denied self-approval, the
+  launch checklist, the focus-sharing contract.
+
+Nothing is simulated. Each story also carries its
+extract → transform → load recipe so any other repo can collect the same
+data the same way.

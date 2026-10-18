@@ -1,0 +1,45 @@
+{
+ "id": "US-131",
+ "title": "\u201cWas it always like this?\u201d \u2014 answered",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Anomaly \u2192 linked records (real ids)",
+   "Value"
+  ],
+  "rows": [
+   [
+    "anomaly",
+    "duplicate charge on order 42 (measured in US-081's real probe)"
+   ],
+   [
+    "the pattern's first appearance",
+    "baseline commit f81ecd91 \u2014 payments.py ships with the unguarded double-write"
+   ],
+   [
+    "expectation it breaks",
+    "one charge per delivery (brief rule, US-108)"
+   ],
+   [
+    "monitoring for it",
+    "gap \u2014 no ledger-write metric is recorded anywhere, shown as a gap, not as healthy"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the measured anomaly + the real history + the real brief",
+  "detail": "the linkage uses this session's real probe result and the sandbox's real baseline commit"
+ },
+ "etl": {
+  "extract": "anomaly records + change history + expectations",
+  "transform": "link what broke to what changed and what was expected",
+  "load": "the answered question with its evidence"
+ },
+ "gap": "Live production anomaly ingest is the remaining piece (it needs the runtime feed); the linkage discipline is demonstrated on real records.",
+ "honesty": "Where monitoring is missing, the answer says so \u2014 a gap is never drawn as healthy status.",
+ "real_world_equivalents": [
+  "APM anomaly feeds",
+  "deploy markers"
+ ]
+}

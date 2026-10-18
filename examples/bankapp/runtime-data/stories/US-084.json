@@ -1,0 +1,41 @@
+{
+ "id": "US-084",
+ "title": "Demonstrate a slowdown before and after a change",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Before/after pair",
+   "Median",
+   "Verdict"
+  ],
+  "rows": [
+   [
+    "before the change \u2014 no global lock",
+    "90.58 ms",
+    "the reference run"
+   ],
+   [
+    "after the change \u2014 one global lock around every task",
+    "361.37 ms",
+    "measured 3.99\u00d7 slower with the lock \u2014 the workload was identical; only the change differed"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the same 12-task workload, really run twice",
+  "detail": "only the change differed (a global lock added); workload, input and machine identical"
+ },
+ "etl": {
+  "extract": "baseline + candidate runs of the same workload",
+  "transform": "paired comparison; workload differences surfaced, not hidden",
+  "load": "the slowdown story with its conditions"
+ },
+ "gap": "Same remaining piece as US-083; the measured slowdown is real and reproducible from the stored runs.",
+ "honesty": "The lock really serialised the workers \u2014 no overlap was possible, and the wall time shows it.",
+ "real_world_equivalents": [
+  "hyperfine before/after",
+  "CI perf budgets",
+  "criterion baselines"
+ ]
+}

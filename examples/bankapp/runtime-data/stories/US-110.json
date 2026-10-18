@@ -1,0 +1,45 @@
+{
+ "id": "US-110",
+ "title": "Change your mind without losing work",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Scope revision",
+   "What it really touched"
+  ],
+  "rows": [
+   [
+    "limit 500 \u2192 1000; add a monthly reset flag",
+    ""
+   ],
+   [
+    "spend-limit rule",
+    "re-done (constant and config updated)"
+   ],
+   [
+    "tests",
+    "re-checked (1000 now the case that must pass)"
+   ],
+   [
+    "monthly reset flag",
+    "added to config (dev/staging/prod)"
+   ],
+   [
+    "journey dry-run",
+    "re-ran with the new limit \u2014 still real"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the limit really changed 500 \u2192 1000 mid-session; every task above was really re-done or re-checked, and the config files in this repo carry the revised value"
+ },
+ "etl": {
+  "extract": "the revised scope",
+  "transform": "diff \u2192 affected tasks only",
+  "load": "checkpoints that keep finished work usable"
+ },
+ "gap": "The revision workflow UI is product work; the recorded revision and its blast radius are real.",
+ "honesty": "the brief's structure and the already-written tests survived \u2014 finished work stayed usable"
+}

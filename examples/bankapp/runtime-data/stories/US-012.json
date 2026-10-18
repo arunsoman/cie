@@ -1,0 +1,41 @@
+{
+ "id": "US-012",
+ "title": "Follow-ups like \u201cshow only these\u201d or \u201cwhat about this file?\u201d",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "You said",
+   "CIE kept as context",
+   "Happened next"
+  ],
+  "rows": [
+   [
+    "\u201cshow only auth\u201d",
+    "scope = auth.py",
+    "the next answers only looked at auth.py"
+   ],
+   [
+    "\u201cwhat about payments?\u201d",
+    "scope swapped to payments.py",
+    "same chart, new part \u2014 no re-explaining"
+   ],
+   [
+    "\u201cignore ui.py\u201d",
+    "ui.py removed from scope",
+    "the scope chip list showed exactly that"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the follow-up exchange was really carried out against the sample report while this file was collected"
+ },
+ "etl": {
+  "extract": "the conversation itself (chips: scope, pinned, ignored)",
+  "transform": "chips \u2192 scoped query parameters",
+  "load": "the same scoped queries the engine already runs"
+ },
+ "gap": "This dashboard's shipped equivalent: picking a map bubble offers it to the chat as a referent chip. Full phrasings (\u201cpin\u201d, \u201czoom out\u201d) are product work.",
+ "honesty": "Real chips from a real session; the wording commands are listed, not yet parsed live."
+}

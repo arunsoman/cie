@@ -1,0 +1,41 @@
+{
+ "id": "US-105",
+ "title": "Be asked only what actually matters",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Asked",
+   "Why it mattered"
+  ],
+  "rows": [
+   [
+    "What should the default limit be?",
+    "the number goes straight into the rule the code must keep"
+   ],
+   [
+    "One limit for everyone, or per account?",
+    "it decides where the check lives and what the tests cover"
+   ],
+   [
+    "Should the limit reset monthly?",
+    "a reset changes bookkeeping and needs a clock in the tests"
+   ],
+   [
+    "no answer is never read as a yes \u2014 the plan waits on decisions it names",
+    "the repo scan and dependency read continued while these were open"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the questions were really asked and answered in the session the brief below carries"
+ },
+ "etl": {
+  "extract": "the plan's decision points",
+  "transform": "only decisions that change the rules become questions",
+  "load": "answers feed the brief's rules"
+ },
+ "gap": "The clarification UI is product work; the recorded questions and the silence rule are real.",
+ "honesty": "Each question names why it matters; nothing important ever silently defaulted."
+}

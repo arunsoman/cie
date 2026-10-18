@@ -1,0 +1,46 @@
+{
+ "id": "US-115",
+ "title": "Try the feature before accepting it",
+ "kind": "measured",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Journey (really walked)",
+   "Input",
+   "Really got back"
+  ],
+  "rows": [
+   [
+    "successful",
+    "{\"amount\": 200, \"user\": \"alice\"}",
+    "{\"status\": 200, \"charged\": 200, \"user\": \"alice\"}"
+   ],
+   [
+    "denied",
+    "{\"amount\": 1200, \"user\": \"bob\"}",
+    "{\"status\": 402, \"reason\": \"over limit: 1200 > 1000\"}"
+   ],
+   [
+    "failure",
+    "{\"amount\": \"abc\", \"user\": \"carol\"}",
+    "{\"raised\": \"ValueError: amount must be a number\"}"
+   ]
+  ]
+ },
+ "source": {
+  "label": "the candidate's real functions, really called",
+  "detail": "limit = 1000; successful, denied and failure journeys all really ran with sample data, labelled as sample data"
+ },
+ "etl": {
+  "extract": "the candidate + sample data",
+  "transform": "walk allowed / denied / failure paths",
+  "load": "journey records beside the code"
+ },
+ "gap": "An interactive preview UI is the remaining piece; the three real journeys are here.",
+ "honesty": "Sample data, real execution, labelled as such \u2014 never sold as production behaviour.",
+ "real_world_equivalents": [
+  "contract tests",
+  "preview environments",
+  "storybook states"
+ ]
+}

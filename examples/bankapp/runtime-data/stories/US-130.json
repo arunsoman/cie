@@ -1,0 +1,49 @@
+{
+ "id": "US-130",
+ "title": "Launch-day checklists that assume real failure",
+ "kind": "recorded",
+ "demo": {
+  "shape": "table",
+  "columns": [
+   "Checklist item (real values)",
+   "Content"
+  ],
+  "rows": [
+   [
+    "flags at launch",
+    "feature_transfers_v2: off in prod config (the real file says so); transfer_limit_monthly_reset: on"
+   ],
+   [
+    "watch",
+    "overcharge events must stay at 0 (the duplicate-delivery probe shows what to watch)"
+   ],
+   [
+    "stop if",
+    "any duplicate charge in the ledger \u2192 halt rollout (measured failure mode, US-081 probe); pipeline makespan regression beyond the measured slowdown bound \u2192 halt"
+   ],
+   [
+    "revert",
+    "apply the reverse of the exported patch (US-122) \u2014 a real file that really applies"
+   ],
+   [
+    "kill switch honesty",
+    "a kill switch stops new harm; it does not undo charges already made"
+   ]
+  ]
+ },
+ "source": {
+  "label": "Recorded walkthrough",
+  "detail": "the stop conditions quote this run's real measured numbers; the flags quote the real prod config file"
+ },
+ "etl": {
+  "extract": "the change's flags + the measured failure modes",
+  "transform": "observation criteria, stop conditions, revert plan",
+  "load": "a launch checklist that assumes failure"
+ },
+ "gap": "The rollout planner is product work; the checklist and its measured inputs are real.",
+ "honesty": "a kill switch stops new harm; it does not undo charges already made. Monitoring gaps are shown as gaps, never as healthy status.",
+ "real_world_equivalents": [
+  "runbooks",
+  "feature-flag runbooks"
+ ]
+}
