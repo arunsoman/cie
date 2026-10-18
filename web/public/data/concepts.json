@@ -1,0 +1,804 @@
+{
+  "nodes": [
+    {
+      "id": 0,
+      "label": "Project",
+      "kind": "Domain",
+      "parent": null,
+      "children": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "extra_edges": [],
+      "primary_edge": "PackageContainment",
+      "symbols": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        11,
+        13
+      ],
+      "behaviors": [
+        {
+          "summary": 1,
+          "kind": "Authorize",
+          "confidence": 1.0
+        },
+        {
+          "summary": 2,
+          "kind": "Authorize Good Auth",
+          "confidence": 1.0
+        },
+        {
+          "summary": 3,
+          "kind": "Verify Password",
+          "confidence": 1.0
+        },
+        {
+          "summary": 4,
+          "kind": "Hash Matches",
+          "confidence": 1.0
+        },
+        {
+          "summary": 6,
+          "kind": "Move money via Charge",
+          "confidence": 1.0
+        },
+        {
+          "summary": 7,
+          "kind": "Query data via List Purchases",
+          "confidence": 1.0
+        },
+        {
+          "summary": 8,
+          "kind": "Move money via Refund",
+          "confidence": 1.0
+        },
+        {
+          "summary": 9,
+          "kind": "Notify User",
+          "confidence": 1.0
+        },
+        {
+          "summary": 11,
+          "kind": "Authorize Test Good Auth",
+          "confidence": 1.0
+        },
+        {
+          "summary": 13,
+          "kind": "Mutate data via Delete Account",
+          "confidence": 1.0
+        }
+      ],
+      "rules": [
+        {
+          "contract": 0,
+          "kind": "must_authorize",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 1,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 2,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 3,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 4,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 5,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 6,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 7,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 8,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 1,
+      "label": "auth.py",
+      "kind": "Module",
+      "parent": 0,
+      "children": [
+        6,
+        7,
+        8,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "extra_edges": [],
+      "primary_edge": "PackageContainment",
+      "symbols": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "behaviors": [
+        {
+          "summary": 1,
+          "kind": "Authorize",
+          "confidence": 1.0
+        },
+        {
+          "summary": 2,
+          "kind": "Authorize Good Auth",
+          "confidence": 1.0
+        },
+        {
+          "summary": 3,
+          "kind": "Verify Password",
+          "confidence": 1.0
+        },
+        {
+          "summary": 4,
+          "kind": "Hash Matches",
+          "confidence": 1.0
+        }
+      ],
+      "rules": [
+        {
+          "contract": 0,
+          "kind": "must_authorize",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 1,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 2,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        },
+        {
+          "contract": 3,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 4,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 5,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:package",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 2,
+      "label": "payments.py",
+      "kind": "Module",
+      "parent": 0,
+      "children": [
+        5,
+        10,
+        17,
+        18
+      ],
+      "extra_edges": [],
+      "primary_edge": "PackageContainment",
+      "symbols": [
+        1,
+        6,
+        7,
+        8,
+        9,
+        13
+      ],
+      "behaviors": [
+        {
+          "summary": 6,
+          "kind": "Move money via Charge",
+          "confidence": 1.0
+        },
+        {
+          "summary": 7,
+          "kind": "Query data via List Purchases",
+          "confidence": 1.0
+        },
+        {
+          "summary": 8,
+          "kind": "Move money via Refund",
+          "confidence": 1.0
+        },
+        {
+          "summary": 9,
+          "kind": "Notify User",
+          "confidence": 1.0
+        }
+      ],
+      "rules": [
+        {
+          "contract": 6,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        },
+        {
+          "contract": 7,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:package",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 3,
+      "label": "test_auth.py",
+      "kind": "Module",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "PackageContainment",
+      "symbols": [
+        11
+      ],
+      "behaviors": [
+        {
+          "summary": 11,
+          "kind": "Authorize Test Good Auth",
+          "confidence": 1.0
+        }
+      ],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 1.0,
+      "provenance": "rule:package",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 4,
+      "label": "ui.py",
+      "kind": "Module",
+      "parent": 0,
+      "children": [
+        9,
+        19
+      ],
+      "extra_edges": [],
+      "primary_edge": "PackageContainment",
+      "symbols": [
+        6,
+        13
+      ],
+      "behaviors": [
+        {
+          "summary": 13,
+          "kind": "Mutate data via Delete Account",
+          "confidence": 1.0
+        }
+      ],
+      "rules": [
+        {
+          "contract": 8,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:package",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 5,
+      "label": "Concept:print:prints",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          2,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        1,
+        6,
+        8,
+        9,
+        13
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "print"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 6,
+      "label": "Concept:auth:authorization",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          1,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        1,
+        2,
+        3
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "auth"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 7,
+      "label": "Concept:crypto:uses crypto",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          1,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        2,
+        3,
+        4
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "crypto"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 8,
+      "label": "Concept:auth+crypto:authorization & uses crypto",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          1,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        2,
+        3
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "auth",
+        "crypto"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 9,
+      "label": "Concept:db Write+mutation+print:writes data & mutations & prints",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          4,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        6,
+        13
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "db_write",
+        "mutation",
+        "print"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 10,
+      "label": "Concept:money+print:money movement & prints",
+      "kind": "UseCase",
+      "parent": 0,
+      "children": [],
+      "extra_edges": [
+        [
+          2,
+          "ClusterCohesion"
+        ]
+      ],
+      "primary_edge": "FcaSubsumption",
+      "symbols": [
+        6,
+        8
+      ],
+      "behaviors": [],
+      "rules": [],
+      "finding_ids": [],
+      "intent": [
+        "money",
+        "print"
+      ],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.8,
+      "provenance": "fca:godin-v1",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 11,
+      "label": "must authorize the user before returning",
+      "kind": "Rule",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        1
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 0,
+          "kind": "must_authorize",
+          "authority": "Explicit"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 1.0,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 12,
+      "label": "must verify credentials via the verification primitive",
+      "kind": "Rule",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        2
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 1,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 1.0,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 13,
+      "label": "must verify credentials against the credential store",
+      "kind": "Rule",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        3
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 2,
+          "kind": "must_not_leak_secrets",
+          "authority": "Explicit"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 1.0,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 14,
+      "label": "'authorize' must perform real authorization before returning success",
+      "kind": "Invariant",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        1
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 3,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 15,
+      "label": "'good_auth' must perform real authorization before returning success",
+      "kind": "Invariant",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        2
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 4,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 16,
+      "label": "'verify_password' must perform real authorization before returning success",
+      "kind": "Invariant",
+      "parent": 1,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        3
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 5,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 17,
+      "label": "'charge' must be preceded by established authorization",
+      "kind": "Invariant",
+      "parent": 2,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        6
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 6,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 18,
+      "label": "'refund' must be preceded by established authorization",
+      "kind": "Invariant",
+      "parent": 2,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        8
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 7,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    },
+    {
+      "id": 19,
+      "label": "'delete_account' must be preceded by established authorization",
+      "kind": "Invariant",
+      "parent": 4,
+      "children": [],
+      "extra_edges": [],
+      "primary_edge": "CallOwnership",
+      "symbols": [
+        13
+      ],
+      "behaviors": [],
+      "rules": [
+        {
+          "contract": 8,
+          "kind": "must_authorize",
+          "authority": "InferredCandidate"
+        }
+      ],
+      "finding_ids": [],
+      "intent": [],
+      "coverage_ratio": 1.0,
+      "coverage_complete": true,
+      "confidence": 0.6,
+      "provenance": "rule:contract",
+      "created_ns": 1792283958585365823,
+      "compute_ns": 0
+    }
+  ],
+  "unattached_behaviors": [],
+  "unattached_rules": [],
+  "dirty": []
+}

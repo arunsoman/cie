@@ -8,6 +8,9 @@
 //! and budget-capped.
 
 pub mod budget;
+pub mod readings;
+
+pub use readings::{alternative_readings, apply_choice, ChosenReading, InterpretationLine, Reading, CONFIDENCE_FLOOR};
 pub mod persist;
 
 pub mod cache;

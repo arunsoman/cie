@@ -3,6 +3,9 @@
 //! labeler build on `cie-llm`.
 
 pub mod model;
+pub mod share;
+
+pub use share::{share_view, trail_for_reader, covered_elements, DecisionTrail, NoteScope, Position, RedactionRecord, ShareItem, SharedView, TrailEntry, Visibility};
 pub mod persist;
 
 pub use persist::{ClaimStore, ClaimStoreExt, StoredClaim};

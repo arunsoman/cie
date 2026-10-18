@@ -1,5 +1,57 @@
 # Changelog
 
+## 1.1.0 — CIE-US partials close (2026-10-18)
+
+All 45 `partial` user-story dispositions implemented and flipped to
+`delivered`; the honest registry now reads **110 delivered / 0 partial /
+37 planned** (the 37 planned keep their stated reasons). One cluster per
+commit, each with deep checks (`cie-stories::checks::s11_closes`) and the
+permanent honesty labels:
+
+- **git-history archaeology** — `cie-ingest::history` (SystemGit seam:
+  log/numstat/blame porcelain) + `churn` (exclusion ledger with re-ranking
+  effects, rank stability, co-change coupling). Closes US-037/086/060.
+- **runtime evidence feeds** — `cie-fault::trace` (python/rust/java/
+  javascript trace parsers, fingerprinted exceptions inbox, LDFI suspects
+  with frame evidence) + `next_steps` (ranked discriminating checks with
+  concrete blockers). Closes US-032/039/064/069.
+- **static concurrency** — `cie-analysis::concurrency` (lock sites,
+  wait-for ordering risks with call paths, interleaving windows citing
+  both statements, witness proposals that never claim certificates).
+  Closes US-040/079/080.
+- **composite analytics** — `cie-analysis::risk` (change-risk terrain with
+  disclosed weights and neutral missing data), `cie-drift::causal`
+  (chronology vs causal chain, alternatives visible). Closes US-046/071.
+- **interface timelines** — `cie-incremental::timeline`. Closes US-089.
+- **measurement protocol** — `cie-evidence::workload` (named workloads;
+  measured-vs-potential by construction) + `readiness` (external evidence
+  verdicts, readiness rollup with waivers-that-disclose, capacity sandbox
+  refusing unsupported domains, calibration states). Closes US-074/085/
+  100/102/119/120.
+- **MCP server seam** — `cie-server::mcp` (JSON-RPC 2.0 over stdio,
+  read-only declared-scope tools, budget-exhausted as explicit errors,
+  honesty envelope). Closes US-134.
+- **what-if simulation** — `cie-incremental::whatif` (remove/split dry
+  runs; structural vs inferred consequences). Closes US-099.
+- **query + capability layer** — `cie-llm::readings`, `cie-analysis::{
+  query, endpoints, alternatives, impact_dims, steps}`. Closes US-009/
+  010/024/034/052/059/109.
+- **steering + collaboration** — `cie-incremental::steer`, `cie-claims::
+  share`, `cie-drift::conflicts`, `cie-incremental::{attrib, diffgen}`.
+  Closes US-066/091/107/113/114.
+- **overlap + delivery oversight** — `cie-concepts::overlap`,
+  `cie-evidence::scope`. Closes US-106/127/128.
+- **host interaction layer** — `viz-adapter/src/interaction.ts` (LOD +
+  settle, hover lens, gesture→proposal, measured layout quality, keyboard
+  parity contract, announcements, never-colour-alone audit, theme tokens;
+  15 new vitest cases, 274 total). Closes US-022/023/028/030/140/141/142/143.
+
+Fidelity fixes surfaced by the batch: the miniature incremental world now
+ingests repo content before dep recomputation (per its documented two-pass
+contract) and the `pending_callees` orphan invariant key/caller semantics
+were corrected.
+
+
 ## 1.0.0 — Full Task Matrix (2026-10-17)
 
 All 84 instructor tasks implemented to their validation contracts; the 21 tasks

@@ -8,6 +8,7 @@ pub mod environment;
 pub mod profile;
 pub mod readiness;
 pub mod runtime;
+pub mod scope;
 pub mod workload;
 
 pub use environment::{compare_environments, explore_flag_change, EnvironmentComparison, EnvironmentSnapshot, FlagDifference};
@@ -29,6 +30,7 @@ pub use workload::{
     classify_claim, ClaimClass, ClassifiedCandidate, PerfCandidate, TimingEntry, Workload,
     WorkloadManifest,
 };
+pub use scope::{lens_view, Lens, LensView, ScopeEvent, ScopeEventKind, ScopeFreeze};
 pub use cie_core::evidence::{Coverage, Evidence};
 
 use cie_core::types::SymbolId;

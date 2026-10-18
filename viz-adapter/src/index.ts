@@ -41,6 +41,34 @@ export type { EngineDecision, NegotiationDisclosure, HeadlessResult } from './ne
 export { engineBanner, layoutChip, fidelityBanner } from './disclosure.js';
 export type { EngineBanner, LayoutChip, FidelityBanner } from './disclosure.js';
 export { textOutline, outlineSummary, renderOutline } from './outline.js';
+export {
+  MODE_CHANNELS,
+  SettleDetector,
+  THEME_TOKENS,
+  announce,
+  colourAloneAudit,
+  expansionLens,
+  gestureToProposal,
+  keyboardMap,
+  layoutQuality,
+  levelOfDetail,
+  rovingOrder,
+  verifyParity,
+  verifyTheme,
+} from './interaction.js';
+export type {
+  Gesture,
+  GestureKind,
+  KeyBinding,
+  LensData,
+  LodDecision,
+  LodTier,
+  Position,
+  Proposal,
+  Theme,
+  ThemeToken,
+  LayoutQuality,
+} from './interaction.js';
 export type { OutlineEntry } from './outline.js';
 export { CATALOG, CATALOG_SUMMARY } from './catalog.js';
 export type { CatalogEntry, CatalogCategory, G6Status } from './catalog.js';
