@@ -217,6 +217,42 @@ pub fn compare_profiles(
     ProfileComparison { verdict, reasons, rejected: false }
 }
 
+/// Before/after regression verdict (US-084): a candidate that looks
+/// faster by dropping work or hiding errors can never be presented as an
+/// improvement.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RegressionReport {
+    pub comparison: ProfileComparison,
+    pub baseline_errors: u64,
+    pub candidate_errors: u64,
+    pub baseline_dropped: u64,
+    pub candidate_dropped: u64,
+    /// True only when the comparison says Faster *and* neither errors nor
+    /// dropped samples increased on the candidate side.
+    pub improvement_confirmed: bool,
+}
+
+/// Investigate a performance regression between a baseline and a
+/// candidate run under a declared equivalence (US-084).
+pub fn regression_report(
+    baseline: &Profile,
+    candidate: &Profile,
+    equivalence: &EquivalenceDeclaration,
+) -> RegressionReport {
+    let comparison = compare_profiles(baseline, candidate, equivalence);
+    let improvement_confirmed = matches!(comparison.verdict, ComparisonVerdict::Faster { .. })
+        && candidate.error_count <= baseline.error_count
+        && candidate.dropped_samples <= baseline.dropped_samples;
+    RegressionReport {
+        comparison,
+        baseline_errors: baseline.error_count,
+        candidate_errors: candidate.error_count,
+        baseline_dropped: baseline.dropped_samples,
+        candidate_dropped: candidate.dropped_samples,
+        improvement_confirmed,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,6 +263,10 @@ mod tests {
 
     fn timed_profile(ns: u64) -> Profile {
         Profile { duration_ns: Some(ns), ..Default::default() }
+    }
+
+    fn equivalent() -> EquivalenceDeclaration {
+        EquivalenceDeclaration { same_workload: true, same_build: true, notes: String::new() }
     }
 
     #[test]
@@ -340,5 +380,30 @@ mod tests {
         let eq = EquivalenceDeclaration { same_workload: true, same_build: true, notes: String::new() };
         let cmp = compare_profiles(&Profile::default(), &timed_profile(800), &eq);
         assert!(cmp.rejected);
+    }
+
+    #[test]
+    fn genuine_improvement_is_confirmed() {
+        let base = timed_profile(1000);
+        let cand = timed_profile(800);
+        let rep = regression_report(&base, &cand, &equivalent());
+        assert!(rep.improvement_confirmed);
+    }
+
+    #[test]
+    fn faster_but_more_errors_is_not_confirmed_as_an_improvement() {
+        let base = timed_profile(1000);
+        let cand = Profile { duration_ns: Some(800), error_count: 5, ..Default::default() };
+        let rep = regression_report(&base, &cand, &equivalent());
+        assert!(matches!(rep.comparison.verdict, ComparisonVerdict::Faster { .. }));
+        assert!(!rep.improvement_confirmed, "dropping into more errors is not an improvement");
+    }
+
+    #[test]
+    fn faster_but_more_dropped_samples_is_not_confirmed() {
+        let base = timed_profile(1000);
+        let cand = Profile { duration_ns: Some(800), dropped_samples: 50, ..Default::default() };
+        let rep = regression_report(&base, &cand, &equivalent());
+        assert!(!rep.improvement_confirmed, "dropping work is not an improvement");
     }
 }

@@ -242,8 +242,11 @@ pub const REGISTRY: &[Entry] = &[
         "Declared-equivalence duration comparison: a failed same_workload/same_build \
          declaration or a missing measured duration rejects the comparison with named \
          reasons instead of comparing anyway. The metric-table view is host layer."),
-    entry!("US-084", Planned, [],
-        "Performance regression comparison needs profiles; not shipped."),
+    entry!("US-084", Partial, ["cie-evidence::profile::regression_report"],
+        "Wraps compare_profiles with an improvement_confirmed guard: a candidate \
+         that is faster only by raising error_count or dropped_samples is never \
+         marked confirmed. Workload/environment-difference narration and the \
+         baseline/candidate chart view are host layer."),
     entry!("US-085", Partial, ["cie-adapters::effects", "cie-analysis::findings"],
         "Pattern-based opportunity candidates only; no measured-speedup claims without experiments, by construction."),
     entry!("US-086", Partial, ["cie-analysis::findings", "cli:report"],

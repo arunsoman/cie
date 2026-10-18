@@ -9,9 +9,9 @@ pub mod readiness;
 pub mod workload;
 
 pub use profile::{
-    attribute_hotspots, category_breakdown, compare_profiles, CategoryBreakdown,
-    ComparisonVerdict, EquivalenceDeclaration, Hotspot, HotspotAttribution, Profile,
-    ProfileComparison, ProfileSample, SampleCategory,
+    attribute_hotspots, category_breakdown, compare_profiles, regression_report,
+    CategoryBreakdown, ComparisonVerdict, EquivalenceDeclaration, Hotspot, HotspotAttribution,
+    Profile, ProfileComparison, ProfileSample, RegressionReport, SampleCategory,
 };
 
 pub use readiness::{
