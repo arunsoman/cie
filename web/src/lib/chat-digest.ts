@@ -60,7 +60,7 @@ export function buildDigest(
   };
 
   // Map summary — counts only; the digest stays small.
-  let map = null;
+  let map: Record<string, unknown> | null = null;
   if (viewspec) {
     const tally = (items: { displayMode: string }[]) => {
       const t = { proven: 0, good_guess: 0, not_sure: 0 };
@@ -86,7 +86,7 @@ export function buildDigest(
   }
 
   // Concepts — what each code file does, in plain words.
-  let whatItDoes = null;
+  let whatItDoes: Record<string, unknown> | null = null;
   if (concepts) {
     const byKind = (kind: string) => concepts.nodes.filter((n) => n.kind === kind);
     whatItDoes = {

@@ -1,13 +1,13 @@
 "use client";
 
-// All tab content for the CIE dashboard, written in plain words.
+// All stage views for the CIE workspace, written in plain words.
+// Each renders only when the stage shows it (see stage.tsx).
 
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TabsContent } from "@/components/ui/tabs";
 import {
   Collapsible,
   CollapsibleContent,
@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/collapsible";
 import MapView from "@/components/cie/map-view";
 import { useCie } from "@/lib/cie-store";
-import type { CieReport, VizElement, Finding } from "@/lib/cie-types";
+import type { CieReport, Finding } from "@/lib/cie-types";
+import { KNOWN_UNSUPPORTED } from "@/lib/language-profiles";
 import {
   severityPlain,
   findingTitle,
@@ -37,6 +38,7 @@ import {
   BookOpen,
   FileCode2,
   ListChecks,
+  Languages,
 } from "lucide-react";
 
 // ---------- small shared pieces ----------
@@ -100,22 +102,22 @@ function ruleStatusPlain(s?: string): { label: string; cls: string } {
 
 // ---------- Loading ----------
 
-export function LoadingTab() {
+export function LoadingView() {
   return (
-    <TabsContent value="start" className="space-y-6">
+    <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
           <Card key={i}><CardContent className="p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
         ))}
       </div>
       <Card><CardContent className="p-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
-    </TabsContent>
+    </div>
   );
 }
 
 // ---------- Tab: Start here ----------
 
-export function StartTab() {
+export function StartView() {
   const { report } = useCie();
   if (!report) return null;
   const criticals = report.findings.filter((f) => f.severity === "Critical").length;
@@ -131,7 +133,7 @@ export function StartTab() {
   ];
 
   return (
-    <TabsContent value="start" className="space-y-6">
+    <div className="space-y-6">
       {/* 3-step story */}
       <div className="grid gap-4 md:grid-cols-3">
         {[
@@ -197,64 +199,77 @@ export function StartTab() {
           ))}
         </CardContent>
       </Card>
-    </TabsContent>
+    </div>
   );
 }
 
-// ---------- Tab: Map ----------
+// ---------- View: Map (a canvas view — the stage puts the camera and the
+// fisheye lens around it; the picked bubble becomes the chat's referent).
+// The bubble's details are a STAGE overlay (MapInfoCard), so they stay a
+// constant size while the map itself zooms. ----------
 
-export function MapTab() {
-  const { viewspec } = useCie();
-  const [sel, setSel] = useState<VizElement | null>(null);
+export function MapViewSection() {
+  const { viewspec, mapSelected: sel, setMapSelected: setSel } = useCie();
   if (!viewspec) return null;
 
   return (
-    <TabsContent value="map" className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px] items-start">
-        <Card className="border-stone-200">
-          <CardContent className="p-4 sm:p-6">
-            <MapView spec={viewspec} selected={sel} onSelect={setSel} />
-          </CardContent>
-        </Card>
+    <div className="p-4 sm:p-6 pb-16 max-w-[880px]">
+      <Card className="border-stone-200 shadow-sm bg-white">
+        <CardContent className="p-4 sm:p-6">
+          <MapView spec={viewspec} selected={sel} onSelect={setSel} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
-        <Card className="border-stone-200 lg:sticky lg:top-24">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{sel ? sel.label : "Pick a bubble"}</CardTitle>
-            <CardDescription>
-              {sel ? elementKindPlain(sel.elementKind) : "Tap any bubble on the map to learn about it."}
-            </CardDescription>
-          </CardHeader>
-          {sel && (
-            <CardContent className="space-y-3 text-sm">
-              <div>
-                <p className="font-medium text-stone-800 mb-1">How sure is CIE?</p>
-                <CertaintyChip mode={sel.displayMode} />
-                <p className="text-stone-600 mt-1.5 leading-relaxed">{certaintyPlain(sel.displayMode).hint}</p>
-              </div>
-              {sel.salience?.whyShown && (
-                <div>
-                  <p className="font-medium text-stone-800 mb-1">Why is it on the map?</p>
-                  <p className="text-stone-600 leading-relaxed">{sel.salience.whyShown.replace("(s)", "s")}</p>
-                </div>
-              )}
-              <div>
-                <p className="font-medium text-stone-800 mb-1">Where in your code?</p>
-                <p className="text-stone-600 font-mono text-xs bg-stone-100 rounded px-2 py-1 inline-block">{sel.evidence.file}</p>
-              </div>
-              {sel.claimId && (
-                <p className="text-xs text-stone-400">Reference number: {sel.claimId}</p>
-              )}
-            </CardContent>
+/** Fixed-size overlay: the plain-words facts about the picked bubble. */
+export function MapInfoCard() {
+  const { mapSelected: sel, setMapSelected: setSel } = useCie();
+  return (
+    <Card className="border-stone-200 shadow-md bg-white/95 backdrop-blur w-[250px]" data-lens-ui>
+      <CardHeader className="pb-1.5 px-4 py-3">
+        <CardTitle className="text-sm break-words">{sel ? sel.label : "Pick a bubble"}</CardTitle>
+        <CardDescription className="text-xs">
+          {sel ? elementKindPlain(sel.elementKind) : "Tap any bubble — it becomes the “these” in your next chat message."}
+        </CardDescription>
+      </CardHeader>
+      {sel && (
+        <CardContent className="space-y-2.5 text-xs px-4 pb-4">
+          <div>
+            <p className="font-medium text-stone-800 mb-1">How sure is CIE?</p>
+            <CertaintyChip mode={sel.displayMode} />
+            <p className="text-stone-600 mt-1 leading-relaxed">{certaintyPlain(sel.displayMode).hint}</p>
+          </div>
+          {sel.salience?.whyShown && (
+            <div>
+              <p className="font-medium text-stone-800 mb-1">Why is it on the map?</p>
+              <p className="text-stone-600 leading-relaxed">{sel.salience.whyShown.replace("(s)", "s")}</p>
+            </div>
           )}
-        </Card>
-      </div>
-    </TabsContent>
+          <div>
+            <p className="font-medium text-stone-800 mb-1">Where in your code?</p>
+            <p className="text-stone-600 font-mono text-[10px] bg-stone-100 rounded px-1.5 py-0.5 inline-block break-all">{sel.evidence.file}</p>
+          </div>
+          {sel.claimId && <p className="text-[10px] text-stone-400">Reference number: {sel.claimId}</p>}
+          <div className="flex gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setSel(null)}
+              className="text-[11px] text-stone-500 hover:text-stone-800 underline"
+            >
+              Clear pick
+            </button>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
 // ---------- Tab: What your app does (concepts) ----------
 
-export function ConceptsTab() {
+export function ConceptsView() {
   const { concepts, report } = useCie();
   if (!concepts || !report) return null;
   const roots = concepts.nodes.filter((n) => n.parent === null);
@@ -289,7 +304,7 @@ export function ConceptsTab() {
   );
 
   return (
-    <TabsContent value="does" className="space-y-4">
+    <div className="space-y-4">
       <Card className="border-stone-200">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">The big picture</CardTitle>
@@ -319,7 +334,7 @@ export function ConceptsTab() {
           </Card>
         ))}
       </div>
-    </TabsContent>
+    </div>
   );
 }
 
@@ -361,7 +376,7 @@ function FindingCard({ f, file }: { f: Finding; file: string }) {
   );
 }
 
-export function FindingsTab() {
+export function FindingsView() {
   const { report } = useCie();
   const sorted = useMemo(() => {
     if (!report) return [];
@@ -379,7 +394,7 @@ export function FindingsTab() {
 
   if (!report.findings.length) {
     return (
-      <TabsContent value="fixes">
+      <div>
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="p-8 text-center">
             <BadgeCheck className="h-10 w-10 text-emerald-700 mx-auto mb-3" />
@@ -387,12 +402,12 @@ export function FindingsTab() {
             <p className="text-sm text-emerald-800 mt-1">CIE looked through everything and found no problems to report. Well done!</p>
           </CardContent>
         </Card>
-      </TabsContent>
+      </div>
     );
   }
 
   return (
-    <TabsContent value="fixes" className="space-y-6">
+    <div className="space-y-6">
       {groups.map((g) => {
         const items = sorted.filter((f) => f.severity === g.key);
         if (!items.length) return null;
@@ -408,17 +423,17 @@ export function FindingsTab() {
           </section>
         );
       })}
-    </TabsContent>
+    </div>
   );
 }
 
 // ---------- Tab: Promises (contracts) ----------
 
-export function PromisesTab() {
+export function PromisesView() {
   const { report } = useCie();
   if (!report) return null;
   return (
-    <TabsContent value="promises" className="space-y-4">
+    <div className="space-y-4">
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 text-sm text-stone-700 leading-relaxed">
           <span className="font-semibold">What is a promise?</span> Code makes silent promises, like
@@ -451,18 +466,18 @@ export function PromisesTab() {
           </Card>
         );
       })}
-    </TabsContent>
+    </div>
   );
 }
 
 // ---------- Tab: Can I trust this? (evidence) ----------
 
-export function TrustTab() {
-  const { report, viewspec } = useCie();
+export function TrustView() {
+  const { report, viewspec, repoScan } = useCie();
   if (!report) return null;
   const ev = report.evidence;
   return (
-    <TabsContent value="trust" className="space-y-4">
+    <div className="space-y-4">
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 text-sm text-stone-700 leading-relaxed">
           <span className="font-semibold">Why this page exists: </span>
@@ -471,6 +486,56 @@ export function TrustTab() {
           decide how much to trust it.
         </CardContent>
       </Card>
+
+      {/* language honesty — only exists for connect-a-repo flows */}
+      {repoScan && (
+        <Card className={repoScan.unsupported.length ? "border-amber-200" : "border-emerald-200"}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Languages className={`h-4 w-4 ${repoScan.unsupported.length ? "text-amber-700" : "text-emerald-700"}`} />
+              Languages in your repo — what CIE read, and what it couldn't
+            </CardTitle>
+            <CardDescription>Taken from a quick look inside {repoScan.name} before the check started.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {repoScan.languages.map((l) => (
+                <span key={l.id} className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-xs font-medium">
+                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} read
+                </span>
+              ))}
+              {repoScan.unsupported.map((l) => (
+                <span key={l.id} className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-xs font-medium">
+                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} skipped
+                </span>
+              ))}
+            </div>
+            {repoScan.unsupported.length > 0 ? (
+              <ul className="space-y-1.5 text-sm text-stone-600">
+                {repoScan.unsupported.map((l) => {
+                  const meta = KNOWN_UNSUPPORTED.find((k) => k.id === l.id);
+                  return (
+                    <li key={l.id} className="flex gap-2 leading-relaxed">
+                      <span className="text-amber-600 mt-0.5">•</span>
+                      <span>
+                        <span className="font-medium text-stone-800">{l.name}</span> — {meta?.why ?? "CIE skips these files for now."}
+                      </span>
+                    </li>
+                  );
+                })}
+                <li className="flex gap-2 leading-relaxed text-stone-600">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>Anything in those files is missing from every page here. CIE would rather leave an honest gap than guess about code it can&apos;t read.</span>
+                </li>
+              </ul>
+            ) : (
+              <p className="text-sm text-emerald-800 flex items-center gap-1.5">
+                <BadgeCheck className="h-4 w-4 shrink-0" /> Every code file in this repo uses a language CIE can read.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-amber-200">
@@ -530,6 +595,6 @@ export function TrustTab() {
           </CardContent>
         </Card>
       </div>
-    </TabsContent>
+    </div>
   );
 }
