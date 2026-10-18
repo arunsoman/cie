@@ -10,12 +10,16 @@ import type { ChatChartSpec } from "./chat-chart";
 export type DataSource = "demo" | "custom" | null;
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
-// chart the AI attached to its answer (US-020 catalog pick), if any.
+// chart the AI attached to its answer (US-020 catalog pick), if any. Failed
+// sends carry `technical` (collapsible) and `providerIssue` (offer to open
+// the connection settings).
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   error?: boolean;
   chart?: ChatChartSpec;
+  technical?: string;
+  providerIssue?: boolean;
 }
 
 interface CieState {

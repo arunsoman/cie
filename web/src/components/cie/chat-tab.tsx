@@ -8,11 +8,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
-import { MessageCircle, Send, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import { BrainCog, MessageCircle, Send, Settings2, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply } from "@/lib/chat-chart";
 import { ChatChart } from "@/components/cie/chat-chart";
+import { LlmSettingsDialog } from "@/components/cie/llm-settings";
+import {
+  DEFAULT_LLM,
+  loadLlmConfig,
+  llmConfigForRequest,
+  providerLabel,
+  saveLlmConfig,
+  type LlmConfig,
+} from "@/lib/llm-config";
 
 const STARTERS = [
   "What should I fix first?",
@@ -70,6 +79,18 @@ export function AskTab() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Who answers: built-in AI, the user's Ollama, or any OpenAI-compatible
+  // service. Loaded from localStorage after mount (server render = default).
+  const [llm, setLlm] = useState<LlmConfig>(DEFAULT_LLM);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    setLlm(loadLlmConfig());
+  }, []);
+  const saveLlm = (cfg: LlmConfig) => {
+    saveLlmConfig(cfg);
+    setLlm(cfg);
+  };
+
   // The digest is recomputed whenever the loaded project changes.
   const digest = useMemo(
     () => buildDigest(report, viewspec, concepts, label),
@@ -100,14 +121,16 @@ export function AskTab() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, digest }),
+        body: JSON.stringify({ messages: history, digest, llm: llmConfigForRequest(llm) }),
       });
-      const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string; technical?: string; providerIssue?: boolean };
       if (!res.ok || !data.reply) {
         pushChat({
           role: "assistant",
           content: data.error ?? "CIE had trouble answering just now. Please try again.",
           error: true,
+          technical: data.technical,
+          providerIssue: data.providerIssue,
         });
       } else {
         // The model answers with JSON { answer, chart? }; the tolerant parser
@@ -128,6 +151,25 @@ export function AskTab() {
 
   return (
     <TabsContent value="ask" className="space-y-4">
+      {/* who answers — status + change */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5">
+        <p className="text-sm text-stone-600 flex items-center gap-2 min-w-0">
+          <BrainCog className="h-4 w-4 text-emerald-700 shrink-0" />
+          <span className="truncate">
+            Answered by: <span className="font-semibold text-stone-900">{providerLabel(llm)}</span>
+          </span>
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Settings2 className="h-3.5 w-3.5" /> Change
+        </Button>
+      </div>
+
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 flex items-start gap-3 text-sm text-stone-700 leading-relaxed">
           <MessageCircle className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
@@ -190,6 +232,23 @@ export function AskTab() {
                     </span>
                   )}
                   {m.role === "user" ? m.content : <Formatted text={m.content} />}
+                  {m.technical && (
+                    <details className="mt-1.5 text-[11px] text-stone-400">
+                      <summary className="cursor-pointer select-none hover:text-stone-500">Technical details</summary>
+                      <p className="mt-1 font-mono break-all whitespace-pre-wrap">{m.technical}</p>
+                    </details>
+                  )}
+                  {m.providerIssue && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 h-8 border-rose-200 text-rose-800 hover:bg-rose-50"
+                      onClick={() => setSettingsOpen(true)}
+                    >
+                      <Settings2 className="h-3.5 w-3.5" /> Check the connection settings
+                    </Button>
+                  )}
                   {m.chart && <ChatChart spec={m.chart} />}
                 </div>
               </div>
@@ -253,12 +312,15 @@ export function AskTab() {
               )}
             </form>
             <p className="mt-2 text-[11px] text-stone-400 leading-relaxed">
-              CIE only knows what&apos;s in the report you loaded ({label || "no project yet"}). For fresh
+              CIE only knows what&apos;s in the report you loaded ({label || "no project yet"}) — whoever answers. For fresh
               answers about new changes, export the files again and upload them above.
             </p>
           </div>
         </CardContent>
       </Card>
+
+      {/* who answers — settings dialog */}
+      <LlmSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} config={llm} onSave={saveLlm} />
     </TabsContent>
   );
 }
