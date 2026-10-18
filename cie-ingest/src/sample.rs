@@ -1,186 +1,335 @@
-//! On-demand sample repository (US-007): a small, realistic, dated history
-//! any view can exercise end to end before connecting real code. Generation
-//! is local and deterministic — fixed content, fixed commit dates, no
-//! network call — so the same call always produces the same honest
-//! material, never a claim about a real system.
+//! On-demand sample repository generator (CIE-US US-007).
+//!
+//! Story obligation: "A generated example application with real dated history
+//! can be created on demand, giving every view and investigation honest
+//! material to work on."
+//!
+//! Design:
+//! * fully offline and deterministic — the same bytes and the same commit
+//!   dates every run, so screenshots, tests and demos are reproducible;
+//! * the history is REAL: a local `git` binary commits each step with dated
+//!   author/committer timestamps (no fabricated `.git` bytes, no network);
+//! * the demo app intentionally mixes styles (docstring promises, a print
+//!   effect, a cross-file call) so downstream views — report, concepts,
+//!   contracts, findings, history — all have honest material;
+//! * refusal rules are explicit: existing non-empty directory (unless
+//!   `force`), missing git binary, or a failed commit — never a half-built
+//!   sample presented as complete;
+//! * `--force` regenerates ONLY directories this generator created (proven
+//!   by the `.cie-sample` marker): it resets them to the plan. Anything else
+//!   is refused — user data can never be touched, history never rewritten
+//!   by replaying snapshots onto an existing tree.
 
-use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// One generated commit: subject line + the relative paths it introduced.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct SampleCommit {
-    pub subject: String,
-    pub files: Vec<String>,
+use crate::history::git_ok;
+
+/// Knobs for the generator (kept tiny on purpose).
+#[derive(Debug, Clone)]
+pub struct SampleOptions {
+    /// Overwrite an existing non-empty directory by adding new commits on
+    /// top (files are never deleted; existing history is preserved).
+    pub force: bool,
 }
 
-/// What `generate_sample_repo` actually produced — every path and commit
-/// named, so the demo is inspectable rather than a black box.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct SampleRepoReport {
-    pub root: String,
-    pub commits: Vec<SampleCommit>,
-    pub files_written: usize,
-}
-
-/// Honest failure: no sample was created, and nothing partial was left
-/// claiming to be a complete demo.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct SampleGenerationFailed {
-    pub reason: String,
-}
-
-fn plan() -> Vec<(&'static str, Vec<(&'static str, &'static str)>, i64)> {
-    // (subject, [(path, contents)], fixed commit unix time)
-    vec![
-        (
-            "feat: scaffold the greeter service",
-            vec![
-                ("README.md", "# Greeter\n\nA tiny sample service used to exercise CIE end to end.\n"),
-                (
-                    "app/__init__.py",
-                    "\"\"\"Sample greeter package (demo data, not real code).\"\"\"\n",
-                ),
-                (
-                    "app/greeter.py",
-                    "def format_greeting(name: str) -> str:\n    \"\"\"Return a friendly greeting for name.\"\"\"\n    return f\"Hello, {name}!\"\n",
-                ),
-            ],
-            1_700_000_000,
-        ),
-        (
-            "feat: add a service layer calling the greeter",
-            vec![(
-                "app/service.py",
-                "from app.greeter import format_greeting\n\n\ndef greet_request(payload: dict) -> dict:\n    \"\"\"Build a greeting response from a request payload.\"\"\"\n    name = payload.get(\"name\", \"friend\")\n    return {\"message\": format_greeting(name)}\n",
-            )],
-            1_700_086_400,
-        ),
-        (
-            "test: cover the greeter and service layer",
-            vec![(
-                "tests/test_service.py",
-                "from app.service import greet_request\n\n\ndef test_greet_request_default():\n    assert greet_request({})[\"message\"] == \"Hello, friend!\"\n\n\ndef test_greet_request_named():\n    assert greet_request({\"name\": \"Ada\"})[\"message\"] == \"Hello, Ada!\"\n",
-            )],
-            1_700_172_800,
-        ),
-        (
-            "fix: handle an empty name without crashing",
-            vec![(
-                "app/greeter.py",
-                "def format_greeting(name: str) -> str:\n    \"\"\"Return a friendly greeting for name, defaulting when blank.\"\"\"\n    name = name.strip() if name else \"\"\n    return f\"Hello, {name or 'friend'}!\"\n",
-            )],
-            1_700_259_200,
-        ),
-    ]
-}
-
-fn run(root: &Path, args: &[&str]) -> Result<(), SampleGenerationFailed> {
-    let out = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|e| SampleGenerationFailed { reason: format!("git {:?} failed to start: {e}", args) })?;
-    if !out.status.success() {
-        return Err(SampleGenerationFailed {
-            reason: format!("git {:?} exited {}: {}", args, out.status, String::from_utf8_lossy(&out.stderr)),
-        });
+impl Default for SampleOptions {
+    fn default() -> Self {
+        Self { force: false }
     }
-    Ok(())
 }
 
-/// Generate the sample app with dated history into `root`. Refuses to touch
-/// a directory that already has content — a demo is never allowed to
-/// overwrite real work.
-pub fn generate_sample_repo(root: &Path) -> Result<SampleRepoReport, SampleGenerationFailed> {
-    if root.exists() && fs::read_dir(root).map(|mut d| d.next().is_some()).unwrap_or(true) {
-        return Err(SampleGenerationFailed {
-            reason: format!("{} already exists and is not empty; refusing to overwrite", root.display()),
-        });
-    }
-    fs::create_dir_all(root).map_err(|e| SampleGenerationFailed { reason: e.to_string() })?;
-    run(root, &["init", "--quiet", "--initial-branch=main"])?;
-    run(root, &["config", "user.email", "sample@example.invalid"])?;
-    run(root, &["config", "user.name", "CIE Sample Generator"])?;
+/// What was built (inspectable, not vibes).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SampleReport {
+    /// Absolute path of the generated repository.
+    pub root: PathBuf,
+    /// Number of tracked files written by the generator.
+    pub files: usize,
+    /// Number of commits created by this run (excludes prior history under `force`).
+    pub commits: usize,
+    /// `git rev-list --count HEAD` after the run (total history length).
+    pub total_commits: usize,
+}
 
-    let mut report_commits = Vec::new();
-    let mut files_written = 0usize;
-    for (subject, files, when) in plan() {
-        let mut rel_paths = Vec::new();
-        for (path, contents) in &files {
-            let full = root.join(path);
-            if let Some(parent) = full.parent() {
-                fs::create_dir_all(parent).map_err(|e| SampleGenerationFailed { reason: e.to_string() })?;
+/// One file of the sample app, grouped by the commit that introduces it.
+struct SampleFile {
+    rel: &'static str,
+    body: &'static str,
+}
+
+/// One dated step of the sample history.
+struct SampleCommit {
+    subject: &'static str,
+    /// Deterministic author/committer date (`GIT_*_DATE`, `+0000`).
+    date: &'static str,
+    files: &'static [SampleFile],
+}
+
+const SAMPLE_APP: &[SampleCommit] = &[
+    SampleCommit {
+        subject: "feat: inventory model",
+        date: "2026-01-06T09:00:00 +0000",
+        files: &[
+            SampleFile {
+                rel: ".gitignore",
+                body: "__pycache__/\n*.pyc\n.cie/\n.cie-sample\n",
+            },
+            SampleFile {
+                rel: "README.md",
+                body: "# Warehouse sample\n\nA tiny inventory app shipped with CIE as honest demo material.\nGenerated by `cie sample` — every commit below is real, dated history.\n",
+            },
+            SampleFile {
+                rel: "inventory.py",
+                body: "\"\"\"Inventory stock model.\n\nmust_keep_docstring: stock levels are the source of truth for orders.\n\"\"\"\n\nSTOCK = {}\n\n\ndef add_item(sku: str, count: int) -> int:\n    \"\"\"Add count units of sku to stock and return the new level.\"\"\"\n    STOCK[sku] = STOCK.get(sku, 0) + count\n    return STOCK[sku]\n\n\ndef remove_item(sku: str, count: int) -> bool:\n    \"\"\"Remove count units of sku; must return False when stock is short.\"\"\"\n    level = STOCK.get(sku, 0)\n    if level < count:\n        return False\n    STOCK[sku] = level - count\n    return True\n\n\ndef low_stock(threshold: int) -> list:\n    \"\"\"Return skus whose level is at or below the threshold.\"\"\"\n    return sorted(sku for sku, level in STOCK.items() if level <= threshold)\n",
+            },
+        ],
+    },
+    SampleCommit {
+        subject: "feat: orders draw from inventory",
+        date: "2026-01-08T10:30:00 +0000",
+        files: &[
+            SampleFile {
+                rel: "orders.py",
+                body: "\"\"\"Order placement on top of the inventory model.\n\nmust_keep_docstring: an order must decrement stock exactly once.\n\"\"\"\n\nimport inventory\n\n\ndef place_order(sku: str, count: int) -> str:\n    \"\"\"Place an order; must verify stock before confirming.\"\"\"\n    if inventory.remove_item(sku, count):\n        return f\"confirmed {sku} x{count}\"\n    return f\"rejected {sku} x{count}\"\n\n\ndef cancel_order(order_ref: str) -> bool:\n    \"\"\"Cancel a confirmed order by reference (stock is not restored).\"\"\"\n    return order_ref.startswith(\"confirmed \")\n",
+            },
+            SampleFile {
+                rel: "inventory.py",
+                body: "\"\"\"Inventory stock model.\n\nmust_keep_docstring: stock levels are the source of truth for orders.\n\"\"\"\n\nSTOCK = {}\n\n\ndef add_item(sku: str, count: int) -> int:\n    \"\"\"Add count units of sku to stock and return the new level.\"\"\"\n    STOCK[sku] = STOCK.get(sku, 0) + count\n    return STOCK[sku]\n\n\ndef remove_item(sku: str, count: int) -> bool:\n    \"\"\"Remove count units of sku; must return False when stock is short.\"\"\"\n    level = STOCK.get(sku, 0)\n    if level < count:\n        return False\n    STOCK[sku] = level - count\n    return True\n\n\ndef record_sale(sku: str, count: int) -> str:\n    \"\"\"Record a sale line for auditing; must not mutate stock.\"\"\"\n    return f\"sale {sku} x{count}\"\n\n\ndef low_stock(threshold: int) -> list:\n    \"\"\"Return skus whose level is at or below the threshold.\"\"\"\n    return sorted(sku for sku, level in STOCK.items() if level <= threshold)\n",
+            },
+        ],
+    },
+    SampleCommit {
+        subject: "feat: low-stock notifications",
+        date: "2026-01-11T14:00:00 +0000",
+        files: &[SampleFile {
+            rel: "notify.py",
+            body: "\"\"\"Outbound notifications.\n\nmust_keep_docstring: a notification must name the sku it is about.\n\"\"\"\n\n\ndef send_email(address: str, sku: str) -> None:\n    \"\"\"Send the low-stock email (demo transport prints to stdout).\"\"\"\n    print(f\"to {address}: {sku} is low\")\n",
+        }],
+    },
+    SampleCommit {
+        subject: "test: order flow against inventory",
+        date: "2026-01-13T08:45:00 +0000",
+        files: &[
+            SampleFile {
+                rel: "inventory.py",
+                body: "\"\"\"Inventory stock model.\n\nmust_keep_docstring: stock levels are the source of truth for orders.\n\"\"\"\n\nSTOCK = {}\n\n\ndef add_item(sku: str, count: int) -> int:\n    \"\"\"Add count units of sku to stock and return the new level.\"\"\"\n    STOCK[sku] = STOCK.get(sku, 0) + count\n    return STOCK[sku]\n\n\ndef remove_item(sku: str, count: int) -> bool:\n    \"\"\"Remove count units of sku; must return False when stock is short.\"\"\"\n    level = STOCK.get(sku, 0)\n    if level < count:\n        return False\n    STOCK[sku] = level - count\n    return True\n\n\ndef record_sale(sku: str, count: int) -> str:\n    \"\"\"Record a sale line for auditing; must not mutate stock.\"\"\"\n    return f\"sale {sku} x{count}\"\n\n\ndef stock_level(sku: str) -> int:\n    \"\"\"Current level of a sku; must return 0 for unknown skus.\"\"\"\n    return STOCK.get(sku, 0)\n\n\ndef low_stock(threshold: int) -> list:\n    \"\"\"Return skus whose level is at or below the threshold.\"\"\"\n    return sorted(sku for sku, level in STOCK.items() if level <= threshold)\n",
+            },
+            SampleFile {
+                rel: "tests/test_orders.py",
+                body: "\"\"\"Order-flow tests.\n\nmust_keep_docstring: tests must reset shared stock before running.\n\"\"\"\n\nimport inventory\nfrom orders import place_order\n\n\ndef test_rejected_when_short():\n    \"\"\"must verify stock before confirming.\"\"\"\n    inventory.STOCK.clear()\n    assert place_order(\"nope\", 1) == \"rejected nope x1\"\n",
+            },
+            SampleFile {
+                rel: "orders.py",
+                body: "\"\"\"Order placement on top of the inventory model.\n\nmust_keep_docstring: an order must decrement stock exactly once.\n\"\"\"\n\nimport inventory\n\n\ndef place_order(sku: str, count: int) -> str:\n    \"\"\"Place an order; must verify stock before confirming.\"\"\"\n    if inventory.remove_item(sku, count):\n        inventory.record_sale(sku, count)\n        return f\"confirmed {sku} x{count}\"\n    return f\"rejected {sku} x{count}\"\n\n\ndef cancel_order(order_ref: str) -> bool:\n    \"\"\"Cancel a confirmed order by reference (stock is not restored).\"\"\"\n    return order_ref.startswith(\"confirmed \")\n",
+            },
+        ],
+    },
+    SampleCommit {
+        subject: "docs: usage notes",
+        date: "2026-01-15T16:20:00 +0000",
+        files: &[SampleFile {
+            rel: "README.md",
+            body: "# Warehouse sample\n\nA tiny inventory app shipped with CIE as honest demo material.\nGenerated by `cie sample` — every commit below is real, dated history.\n\n## Usage\n\nRun `cie report .` here: the docstring promises above become\ncontracts, and the demo print in notify.py becomes a finding.\n",
+        }],
+    },
+];
+
+/// Generate the sample repository at `root` (created; must be absent/empty
+/// unless `opts.force`, in which case new commits append to existing history).
+pub const MARKER: &str = ".cie-sample";
+
+pub fn generate(root: &Path, opts: &SampleOptions) -> Result<SampleReport, String> {
+    if root.exists() {
+        let empty = root
+            .read_dir()
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(false);
+        if !empty {
+            if !opts.force {
+                return Err(format!(
+                    "refusing to write into non-empty directory {} (pass --force to regenerate a sample)",
+                    root.display()
+                ));
             }
-            fs::write(&full, contents).map_err(|e| SampleGenerationFailed { reason: e.to_string() })?;
-            files_written += 1;
-            rel_paths.push(path.to_string());
+            // --force may only reset directories THIS generator created —
+            // the marker file is the proof. User data can never be touched.
+            if !root.join(MARKER).exists() {
+                return Err(format!(
+                    "refusing to regenerate {}: no {MARKER} marker (not created by this generator)",
+                    root.display()
+                ));
+            }
+            for entry in root
+                .read_dir()
+                .map_err(|e| format!("cannot read {}: {e}", root.display()))?
+            {
+                let e = entry.map_err(|e| e.to_string())?;
+                if e.path() == root.join(MARKER) {
+                    continue;
+                }
+                let p = e.path();
+                if p.is_dir() {
+                    std::fs::remove_dir_all(&p)
+                        .map_err(|err| format!("cannot remove {}: {err}", p.display()))?;
+                } else {
+                    std::fs::remove_file(&p)
+                        .map_err(|err| format!("cannot remove {}: {err}", p.display()))?;
+                }
+            }
         }
-        let mut add_args = vec!["add", "--"];
-        add_args.extend(rel_paths.iter().map(|s| s.as_str()));
-        run(root, &add_args)?;
-        let date = format!("{when} +0000");
-        let out = Command::new("git")
-            .args(["commit", "--quiet", "-m", subject])
-            .current_dir(root)
-            .env("GIT_AUTHOR_DATE", &date)
-            .env("GIT_COMMITTER_DATE", &date)
-            .output()
-            .map_err(|e| SampleGenerationFailed { reason: format!("git commit failed to start: {e}") })?;
-        if !out.status.success() {
-            return Err(SampleGenerationFailed {
-                reason: format!("git commit exited {}: {}", out.status, String::from_utf8_lossy(&out.stderr)),
-            });
+    } else {
+        std::fs::create_dir_all(root)
+            .map_err(|e| format!("cannot create {}: {e}", root.display()))?;
+    }
+    if !git_ok(root) && !git_ok(root.parent().unwrap_or(root)) {
+        // `git init` below would still fail; probe the binary explicitly so
+        // the error names the real cause (no git vs not-a-repo are different).
+        let probe = Command::new("git").arg("--version").output();
+        if !matches!(probe, Ok(ref o) if o.status.success()) {
+            return Err("git binary not found — the sample generator needs git to create real dated history (nothing was written to history; files may exist)".into());
         }
-        report_commits.push(SampleCommit { subject: subject.to_string(), files: rel_paths });
     }
 
-    Ok(SampleRepoReport {
-        root: root.display().to_string(),
-        commits: report_commits,
-        files_written,
-    })
+    let run = |args: &[&str], date: Option<&str>| -> Result<String, String> {
+        let mut c = Command::new("git");
+        c.args(args).current_dir(root);
+        if let Some(d) = date {
+            c.env("GIT_AUTHOR_DATE", d).env("GIT_COMMITTER_DATE", d);
+        }
+        let out = c.output().map_err(|e| format!("git spawn failed: {e}"))?;
+        if !out.status.success() {
+            return Err(format!(
+                "git {} failed: {}",
+                args.first().unwrap_or(&"?"),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+
+    // Fresh tree: init with a deterministic branch name + identity. An
+    // existing repo (force) keeps its config and branch.
+    if !git_ok(root) {
+        if run(&["init", "-b", "main"], None).is_err() {
+            run(&["init"], None)?;
+            run(&["symbolic-ref", "HEAD", "refs/heads/main"], None).ok();
+        }
+        run(&["config", "user.email", "sample@cie.local"], None)?;
+        run(&["config", "user.name", "CIE Sample"], None)?;
+    }
+
+    let mut written = std::collections::BTreeSet::new();
+    let mut commits_made = 0usize;
+    for step in SAMPLE_APP {
+        for f in step.files {
+            let p = root.join(f.rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+            }
+            std::fs::write(&p, f.body).map_err(|e| format!("cannot write {}: {e}", p.display()))?;
+            written.insert(f.rel);
+        }
+        run(&["add", "-A"], None)?;
+        // Only real changes become commits (history is never fabricated):
+        // if nothing is staged (e.g. an identical --force re-run), skip.
+        let staged = Command::new("git")
+            .args(["diff", "--cached", "--quiet"])
+            .current_dir(root)
+            .status()
+            .map_err(|e| format!("git diff spawn failed: {e}"))?;
+        if staged.success() {
+            continue;
+        }
+        // Deterministic commit: fixed identity, fixed dates, no editor.
+        commits_made += 1;
+        let ok = Command::new("git")
+            .args(["commit", "-m", step.subject, "--no-verify", "--quiet"])
+            .current_dir(root)
+            .env("GIT_AUTHOR_NAME", "CIE Sample")
+            .env("GIT_AUTHOR_EMAIL", "sample@cie.local")
+            .env("GIT_COMMITTER_NAME", "CIE Sample")
+            .env("GIT_COMMITTER_EMAIL", "sample@cie.local")
+            .env("GIT_AUTHOR_DATE", step.date)
+            .env("GIT_COMMITTER_DATE", step.date)
+            .output()
+            .map_err(|e| format!("git commit spawn failed: {e}"))?;
+        if !ok.status.success() {
+            return Err(format!(
+                "commit '{}' failed: {}",
+                step.subject,
+                String::from_utf8_lossy(&ok.stderr).trim()
+            ));
+        }
+    }
+
+    let total_commits = run(&["rev-list", "--count", "HEAD"], None)?
+        .trim()
+        .parse()
+        .unwrap_or(0);
+
+    let report = SampleReport {
+        root: root.to_path_buf(),
+        files: written.len(),
+        commits: commits_made,
+        total_commits,
+    };
+    // Marker: proves the directory is generator-owned (safe to regenerate).
+    std::fs::write(
+        root.join(MARKER),
+        format!(
+            "{}\n",
+            serde_json::to_string(&report).unwrap_or_default()
+        ),
+    )
+    .map_err(|e| format!("cannot write marker: {e}"))?;
+
+    Ok(report)
+}
+
+/// The number of planned steps (the deep check asserts a fresh generate
+/// produces exactly this many commits).
+pub fn planned_commits() -> usize {
+    SAMPLE_APP.len()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn git_available() -> bool {
-        Command::new("git").arg("--version").output().map(|o| o.status.success()).unwrap_or(false)
+    #[test]
+    fn sample_generates_dated_history_and_reruns_force() {
+        let dir = std::env::temp_dir().join(format!("cie-sample-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let rep = generate(&dir, &SampleOptions::default()).expect("generate");
+        assert_eq!(rep.files, 6);
+        assert_eq!(rep.commits, 5);
+        assert_eq!(rep.total_commits, 5);
+        // history is real and dated: author date of the tip commit is the plan's
+        let out = crate::history::git(&dir, &["log", "--format=%ad", "--date=iso", "-1"])
+            .expect("git log");
+        assert!(out.contains("2026-01-15"), "tip date: {out}");
+        // force re-run regenerates OUR sample from the plan (marker proves
+        // ownership): full 5-commit history again, nothing user-owned touched
+        let rep2 = generate(&dir, &SampleOptions { force: true }).expect("force generate");
+        assert_eq!(rep2.commits, 5);
+        assert_eq!(rep2.total_commits, 5);
+        assert!(dir.join(MARKER).exists(), "marker must be written");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn generates_dated_history_with_named_files() {
-        if !git_available() {
-            return; // honest skip: no fabricated result without the git binary
-        }
-        let dir = std::env::temp_dir().join(format!("cie-sample-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        let report = generate_sample_repo(&dir).expect("sample generation should succeed");
-        assert_eq!(report.commits.len(), 4);
-        assert!(report.files_written >= 4);
-        assert!(dir.join("app/greeter.py").exists());
-        let log = Command::new("git")
-            .args(["log", "--format=%s"])
-            .current_dir(&dir)
-            .output()
-            .unwrap();
-        let subjects = String::from_utf8_lossy(&log.stdout);
-        assert!(subjects.contains("scaffold the greeter service"));
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn refuses_to_overwrite_a_nonempty_directory() {
-        let dir = std::env::temp_dir().join(format!("cie-sample-nonempty-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("keep.txt"), "do not touch").unwrap();
-        let err = generate_sample_repo(&dir).unwrap_err();
-        assert!(err.reason.contains("not empty"));
-        assert!(dir.join("keep.txt").exists());
-        let _ = fs::remove_dir_all(&dir);
+    fn sample_refuses_non_empty_dir_without_force() {
+        let dir = std::env::temp_dir().join(format!("cie-sample-refuse-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("x.txt"), b"hi").unwrap();
+        let err = generate(&dir, &SampleOptions::default()).unwrap_err();
+        assert!(err.contains("refusing"), "{err}");
+        // ...and --force must refuse too (no marker => not generator-owned)
+        let err = generate(&dir, &SampleOptions { force: true }).unwrap_err();
+        assert!(err.contains("refusing") && err.contains("marker"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

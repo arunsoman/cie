@@ -160,3 +160,53 @@ pub fn us_006() -> Result<(), String> {
     }
     Ok(())
 }
+
+/// US-007: a sample repository with REAL dated history can be generated on
+/// demand; the product ingests it end to end (every view gets honest
+/// material). Also asserts the refusal rule (no silent overwrite).
+pub fn us_007() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("cie-check-us007-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    let rep = cie_ingest::sample::generate(&root, &cie_ingest::sample::SampleOptions::default())
+        .map_err(|e| format!("sample generation failed: {e}"))?;
+    if rep.files < 5 || rep.commits != 5 || rep.total_commits != 5 {
+        return Err(format!(
+            "sample plan changed: files {} commits {} total {}",
+            rep.files, rep.commits, rep.total_commits
+        ));
+    }
+    // History is real: git log shows the deterministic dated tip.
+    let out = std::process::Command::new("git")
+        .args(["log", "--format=%ad", "--date=iso", "-1"])
+        .current_dir(&root)
+        .output()
+        .map_err(|e| format!("git spawn failed: {e}"))?;
+    if !out.status.success() {
+        return Err("git log failed on generated sample".into());
+    }
+    let date = String::from_utf8_lossy(&out.stdout).into_owned();
+    if !date.contains("2026-01-15") {
+        return Err(format!("tip commit date not the planned one: {date}"));
+    }
+    // The sample is honest material: full ingest works end to end.
+    let outcome = cie_ingest::run_ingest(&root, &cie_ingest::IngestOptions::default())
+        .map_err(|e| e.to_string())?;
+    let s = &outcome.snapshot;
+    if s.files.len() < 4 {
+        return Err(format!("sample should ingest >=4 files, got {}", s.files.len()));
+    }
+    if s.symbols.len() < 6 {
+        return Err(format!("sample should yield >=6 symbols, got {}", s.symbols.len()));
+    }
+    if !s.coverage.complete {
+        return Err("unbudgeted sample ingest must report complete coverage".into());
+    }
+    // Refusal rule: non-empty dir without --force is refused (never overwritten).
+    let err = cie_ingest::sample::generate(&root, &cie_ingest::sample::SampleOptions::default())
+        .expect_err("non-empty dir must be refused");
+    if !err.contains("refusing") {
+        return Err(format!("refusal must be explicit, got: {err}"));
+    }
+    let _ = fs::remove_dir_all(&root);
+    Ok(())
+}

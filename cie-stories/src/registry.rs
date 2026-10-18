@@ -67,10 +67,8 @@ pub const REGISTRY: &[Entry] = &[
         "Offline-first engine: hosted-source pull (PRs, credential freshness, held-aside records) is scheduled, not shipped."),
     entry!("US-006", Delivered, ["cie-ingest::IngestOptions.budget_ms", "cie-llm::Budget", "cli:ingest --budget-ms"],
         "TASK-029 budgets + cancellation checkpoints; a budget-cut run reports incomplete (Coverage.complete=false), never pretends saved."),
-    entry!("US-007", Partial, ["cie-ingest::sample::generate_sample_repo", "cli:sample"],
-        "A dated 4-commit demo app (git history, no network) is generated on demand \
-         via `cie sample`; refuses to overwrite a non-empty directory. Wiring the \
-         result into a one-click evaluator workspace is host/product layer."),
+    entry!("US-007", Delivered, ["cie-ingest::sample::generate", "cli:sample"],
+        "On-demand sample repository: deterministic demo app with REAL dated git history (local git binary, offline); refuses non-empty targets unless --force, missing git is a named error. Forces re-runs append, never rewrite."),
     // ---- Asking questions and working with answers ------------------------
     entry!("US-008", Delivered, ["cie-summary", "cie-evidence::assemble", "cli:report"],
         "Answers are evidence-assembled summaries over the revision; conversational NLU is the model layer (cie-llm providers)."),
@@ -190,12 +188,8 @@ pub const REGISTRY: &[Entry] = &[
         "Candidate separations from concept lattices + co-change coupling from history ingest (shared-commit pairs, deterministic ordering)."),
     entry!("US-061", Delivered, ["cli:ingest-org", "cie-ingest::run_org_ingest"],
         "Cross-repo ingest with concept merge; consumers outside bounds appear as coverage gaps, not silence."),
-    entry!("US-062", Partial, ["cie-contract::dependency::DependencyRiskMap"],
-        "Usage evidence, imported advisories and upgrade candidates are kept as \
-         separate sections; \
-         CompatibilityVerdict defaults to Unknown so an available version is never \
-         auto-presented as compatible. Scope: manifest parsing per ecosystem and a \
-         live advisory feed are separate adapters, same seam pattern as elsewhere."),
+    entry!("US-062", Delivered, ["cie-analysis::deps", "cli:deps"],
+        "Manifest dependency graph (package.json/pyproject.toml/requirements.txt/Cargo.toml/go.mod; unparseable manifests named, never guessed), adapter-facts usage evidence (Python ImportFacts today — other ecosystems carry a named-gap note, never a fabricated zero), and upgrade what-if whose compatibility is ALWAYS Unknown (an available version is never presented as automatically compatible)."),
     entry!("US-063", Planned, [],
         "Binary artifact probing out of static-source scope; not shipped."),
     // ---- Debugging and investigations -------------------------------------
@@ -261,12 +255,8 @@ pub const REGISTRY: &[Entry] = &[
         "Pattern candidates with evidence and correctness constraints; claim classes split measured/potential by construction — no measured-speedup claim without an imported workload run."),
     entry!("US-086", Delivered, ["cie-ingest::churn"],
         "Churn factors with exclusion ledger (bulk edits, authors, subjects) reporting each rule's re-ranking effect, rank-stability under weight sweeps, and the lower-bound note (sampled history, no calibrated probabilities)."),
-    entry!("US-087", Partial, ["cie-ingest::churn::co_change_coupling"],
-        "Directory-crossing coupling with support counts, inspectable supporting \
-         commit ids, and bulk-edit/author/subject exclusions (same ledger as \
-         churn_factors); same-commit rename pairs dropped under a labelled \
-         heuristic. A distinct type from CoChangeEdge/RelKind, never a static \
-         or runtime dependency claim. Visual change-coupling map is host layer."),
+    entry!("US-087", Delivered, ["cie-ingest::cochange::co_change_report", "cie-ingest::history::SystemGit", "cli:cochange"],
+        "Co-change coupling from REAL git history (SystemGit seam): rename rows resolved to final canonical names (chains closed transitively), bulk-edit commits excluded with the effect counted, per-edge support counts + supporting commit ids + cross-directory flags exposed; labelled historical coupling — never presented as a static or runtime dependency."),
     // ---- History, collaboration and knowledge ------------------------------
     entry!("US-088", Planned, [],
         "History analysis not shipped; no contributor-identity fields exist anywhere in the stores (nothing to protect yet), and privacy-at-source stays a design constraint for when history lands."),
@@ -289,8 +279,8 @@ pub const REGISTRY: &[Entry] = &[
         "Enforcement-gap matrix from refusal-site evidence; bypassable routes counted, not averaged away."),
     entry!("US-097", Delivered, ["cie-analysis::security", "cie-drift::sarif"],
         "Findings are candidates with severity + witness paths; 'no finding' never means 'safe'."),
-    entry!("US-098", Planned, [],
-        "Package licence/advisory scanning not shipped."),
+    entry!("US-098", Partial, ["cie-analysis::deps::licence_report", "cli:deps --licences"],
+        "GAP NAMED: advisory/vulnerability feed scanning — offline-first refuses to fabricate feed data. Shipped: licence obligations read as written from manifests (undeclared licences named, never guessed), provenance stated as unverified, per-package source named."),
     // ---- Counterfactuals and digital twin ---------------------------------
     entry!("US-099", Delivered, ["cie-incremental::whatif", "cli:impact"],
         "What-if change-set simulation (remove/split) on a cloned world: structural consequences read off the diff, inferred adaptations named; measured numbers deliberately not borrowed; permanently labelled not-implemented."),

@@ -26,17 +26,17 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 
 | Section | Delivered | Partial | Planned | Total |
 |---|---|---|---|---|
-| Repository access and orientation | 5 | 1 | 1 | 7 |
+| Repository access and orientation | 6 | 0 | 1 | 7 |
 | Asking questions and working with answers | 9 | 1 | 0 | 10 |
 | Interactive visual exploration | 13 | 0 | 0 | 13 |
 | The visual catalogue | 17 | 1 | 1 | 19 |
 | Behaviour, concepts and business rules | 7 | 0 | 0 | 7 |
-| Architecture, dependencies and impact | 5 | 1 | 1 | 7 |
+| Architecture, dependencies and impact | 6 | 0 | 1 | 7 |
 | Debugging and investigations | 11 | 0 | 0 | 11 |
 | Runtime, concurrency and data consistency | 3 | 2 | 2 | 7 |
-| Performance and technical health | 2 | 4 | 0 | 6 |
+| Performance and technical health | 3 | 3 | 0 | 6 |
 | History, collaboration and knowledge | 5 | 0 | 1 | 6 |
-| Security, permissions and supply chain | 4 | 0 | 1 | 5 |
+| Security, permissions and supply chain | 4 | 1 | 0 | 5 |
 | Counterfactuals and digital twin | 4 | 0 | 1 | 5 |
 | Prompt-to-feature discovery and planning | 3 | 3 | 1 | 7 |
 | Feature implementation and inspection | 2 | 0 | 4 | 6 |
@@ -47,7 +47,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Accessibility and interaction parity | 4 | 0 | 0 | 4 |
 | Honest operation | 4 | 0 | 0 | 4 |
 
-**Totals** — delivered: 110, partial: 13, planned: 24, total: 147
+**Totals** — delivered: 113, partial: 11, planned: 23, total: 147
 
 ## The partials close (2026-10 batch)
 
@@ -70,11 +70,23 @@ flipped to `delivered`, one engine capability per named gap:
 | host interaction layer | US-022, US-023, US-028, US-030, US-140, US-141, US-142, US-143 | `viz-adapter/src/interaction.ts` (vitest-covered) |
 | transaction steps | US-034 | `cie-analysis::steps` (adapter-classified async hand-offs) |
 
-The 37 `planned` stories remain planned with their reasons (hosted-source
+The 36 `planned` stories remain planned with their reasons (hosted-source
 pull, conversational steering, live model training, MCP-over-network
 transports beyond the stdio seam, and similar) — no silent upgrades.
 
-## Deep verification — 96 stories engine-checked
+## The opens close (v1.2 batch)
+
+Planned stories whose named gap became engine work, flipped one commit at a
+time with a dedicated deep check each:
+
+| Story | Gap closed | Where |
+|---|---|---|
+| US-007 | on-demand sample repository (real dated git history, deterministic, marker-guarded regeneration) | `cie-ingest::sample` + `cli:sample` |
+| US-087 | co-change coupling from real git history (canonical rename resolution, bulk-edit exclusion ledger, support counts + supporting commits + cross-directory flags) | `cie-ingest::cochange` + `cli:cochange` |
+| US-062 | dependency manifests + usage evidence + upgrade what-if (5 manifest formats; unparseable named; unresolved ≠ unused; compatibility always Unknown) | `cie-analysis::deps` + `cli:deps --what-if` |
+| US-098 | licence obligations from manifests (undeclared named, never guessed; provenance stated unverified) — PARTIAL by design: advisory/vulnerability feeds are never fabricated offline | `cie-analysis::deps::licence_report` + `cli:deps --licences` |
+
+## Deep verification — 102 stories engine-checked
 
 Every check is a `fn() -> Result<(), String>` in `cie-stories/src/checks/`,
 dispatched by `cie stories verify --id US-xxx` and executed in bulk by the

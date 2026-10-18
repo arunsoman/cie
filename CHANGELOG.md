@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.2.0 — CIE-US opens close + plain-English web dashboard (2026-10-18)
+
+Four planned user stories whose named gap became engine work, one commit per
+story, each with a dedicated deep check; plus the first user-facing UI.
+Registry after the batch: **113 delivered / 1 partial / 33 planned** (100
+stories engine-checked).
+
+- **US-007 (delivered)** — `cie-ingest::sample` + `cli:sample`: on-demand
+  sample repository with REAL dated git history (deterministic demo app;
+  marker-guarded `--force` regeneration; refusal rules; missing git named).
+- **US-087 (delivered)** — `cie-ingest::cochange` + `cli:cochange`: co-change
+  coupling from real git history — renames resolved to final canonical names
+  (transitive chains), bulk-edit commits excluded with the effect counted,
+  per-edge support counts + supporting commit ids + cross-directory flags,
+  labelled historical coupling (never a static/runtime dependency claim).
+- **US-062 (delivered)** — `cie-analysis::deps` + `cli:deps`: dependency
+  manifests (package.json / pyproject.toml / requirements.txt / Cargo.toml /
+  go.mod; unparseable named, never guessed), usage evidence from
+  adapter-recorded ImportFacts (other ecosystems carry a named-gap note —
+  never a fabricated zero; unresolved packages are NOT called unused), and
+  upgrade what-if whose compatibility is ALWAYS `Unknown`.
+- **US-098 (partial BY DESIGN)** — `cie-analysis::deps::licence_report` +
+  `cli:deps --licences`: licence obligations read as written, undeclared
+  licences NAMED (provenance unavailable ≠ guessed), honesty statements in
+  the report itself; advisory/vulnerability feeds stay unplanned offline
+  (fabricated feed data is refused).
+- **web/** — plain-English Next.js dashboard ("Your code, in plain words"):
+  map (ViewSpec as layered SVG), promises, findings by urgency, trust page;
+  load-your-own-project flow; every engine term translated
+  (`web/src/lib/plain-words.ts` is the language policy).
+
 ## 1.1.0 — CIE-US partials close (2026-10-18)
 
 All 45 `partial` user-story dispositions implemented and flipped to

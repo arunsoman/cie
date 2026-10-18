@@ -219,3 +219,28 @@ pub fn us_103() -> Result<(), String> {
         .map_err(|vs| vs.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("; "))?;
     Ok(())
 }
+
+/// US-098 (partial by design): licence obligations from manifests —
+/// undeclared licences are NAMED, advisories carry the honest gap statement,
+/// provenance is stated as unverified. The advisory-feed gap stays planned.
+pub fn us_098() -> Result<(), String> {
+    use cie_analysis::deps::{licence_report, read_cargo_toml, read_requirements, DependencyTable};
+    let mut t = DependencyTable::default();
+    read_cargo_toml("Cargo.toml", "[package]\nlicense=\"MIT\"\n\n[dependencies]\nserde = \"1\"\n", &mut t);
+    read_requirements("requirements.txt", "mysterypkg==1.0\n", &mut t);
+    let r = licence_report(&t);
+    if r.entries.len() != 2 {
+        return Err(format!("entries {}", r.entries.len()));
+    }
+    let serde = r.entries.iter().find(|e| e.name == "serde").ok_or("serde missing")?;
+    if serde.licence.as_deref() != Some("MIT") || serde.source != "Cargo.toml" {
+        return Err("licence + provenance must flow from the manifest".into());
+    }
+    if r.unknown_licence.len() != 1 || !r.unknown_licence[0].contains("mysterypkg") {
+        return Err("undeclared licences must be named, never guessed".into());
+    }
+    if !r.advisories.contains("NOT scanned") || !r.provenance.contains("not verified") {
+        return Err("honesty statements must be present".into());
+    }
+    Ok(())
+}

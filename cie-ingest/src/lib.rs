@@ -3,9 +3,10 @@
 
 
 pub mod churn;
+pub mod cochange;
+pub mod sample;
 pub mod history;
 pub mod pipeline;
-pub mod sample;
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -16,7 +17,6 @@ pub use churn::{
     churn_factors, co_change, co_change_coupling, ChurnExclusions, ChurnFactor, ChurnReport,
     CoChangeCoupling, CoChangeCouplingReport, CoChangeEdge, ExclusionEffect,
 };
-pub use sample::{generate_sample_repo, SampleCommit, SampleGenerationFailed, SampleRepoReport};
 use cie_analysis::{self, AnalysisConfig};
 use cie_claims::persist::ClaimStoreExt;
 use cie_core::types::{content_hash, now_ns, Hash, Ns, RevId, SymbolId};

@@ -54,6 +54,36 @@ pub struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
+    /// Dependency manifest scan + usage evidence + upgrade what-if (US-062)
+    Deps {
+        path: PathBuf,
+        /// Upgrade what-if: "name=version" (e.g. requests=2.32.0)
+        #[arg(long)]
+        what_if: Option<String>,
+        /// Licence-obligation report (US-098; advisory feeds stay unplanned-by-design offline)
+        #[arg(long)]
+        licences: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Co-change coupling report from git history (US-087)
+    Cochange {
+        path: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        min_shared: u64,
+        #[arg(long, default_value_t = 20)]
+        bulk: usize,
+        #[arg(long)]
+        max_commits: Option<u32>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Generate the built-in sample repository with real dated history (US-007)
+    Sample {
+        path: PathBuf,
+        #[arg(long)]
+        force: bool,
+    },
     /// Ingest a folder path (full assimilation or incremental re-ingest)
     Ingest {
         path: PathBuf,
@@ -132,12 +162,6 @@ pub enum Command {
         path: PathBuf,
         #[arg(long)]
         as_of_rev: Option<u64>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Generate a small sample app with dated git history on demand (US-007)
-    Sample {
-        path: PathBuf,
         #[arg(long)]
         json: bool,
     },
@@ -262,6 +286,168 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::Deps { path, what_if, licences, json } => {
+            let table = cie_analysis::deps::scan_manifests(&path);
+            if licences {
+                let rep = cie_analysis::deps::licence_report(&table);
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep).unwrap_or_default());
+                    return 0;
+                }
+                println!("licence obligations (as written in manifests):");
+                for e in &rep.entries {
+                    println!(
+                        "  {:<9} {:<28} {}",
+                        e.ecosystem.as_str(),
+                        e.name,
+                        e.licence.as_deref().unwrap_or("UNDECLARED — provenance unavailable")
+                    );
+                }
+                if !rep.unknown_licence.is_empty() {
+                    println!("undeclared (named, never guessed):");
+                    for u in &rep.unknown_licence {
+                        println!("  - {u}");
+                    }
+                }
+                println!("note: {}", rep.advisories);
+                println!("note: {}", rep.provenance);
+                return 0;
+            }
+            let reg = cie_ingest::default_registry();
+            let imports = cie_analysis::deps::collect_imports(&path, &reg);
+            if json {
+                let usage = cie_analysis::deps::usage(&table, &imports);
+                let whatif = what_if.as_deref().and_then(|w| {
+                    let (n, v) = w.split_once('=')?;
+                    Some(cie_analysis::deps::upgrade_what_if(
+                        &table,
+                        &imports,
+                        n.trim(),
+                        v.trim(),
+                    ))
+                });
+                let out = serde_json::json!({
+                    "table": table,
+                    "usage": usage,
+                    "what_if": whatif,
+                });
+                println!("{}", serde_json::to_string_pretty(&out).unwrap_or_default());
+                return 0;
+            }
+            println!(
+                "manifests read: {} ({} dependencies declared{})",
+                table.files_scanned,
+                table.deps.len(),
+                if table.unparsed.is_empty() {
+                    String::new()
+                } else {
+                    format!(", {} UNPARSED: {}", table.unparsed.len(), table.unparsed.join("; "))
+                }
+            );
+            let usage = cie_analysis::deps::usage(&table, &imports);
+            for (d, u) in table.deps.iter().zip(usage.iter()) {
+                println!(
+                    "  {:<9} {:<28} {:<12} {} — {}",
+                    d.ecosystem.as_str(),
+                    d.name,
+                    if d.version_req.is_empty() { "*" } else { &d.version_req },
+                    if u.resolved {
+                        format!("used by {} file(s)", u.imported_by.len())
+                    } else {
+                        "no import-backed usage".to_string()
+                    },
+                    u.note
+                );
+            }
+            if let Some(w) = what_if.as_deref() {
+                let Some((n, v)) = w.split_once('=') else {
+                    eprintln!("error: --what-if expects name=version");
+                    return 1;
+                };
+                match cie_analysis::deps::upgrade_what_if(&table, &imports, n.trim(), v.trim()) {
+                    Some(imp) => {
+                        println!(
+                            "what-if: upgrade {} -> {} touches {} import-backed consumer(s); compatibility: UNKNOWN",
+                            imp.name,
+                            imp.to,
+                            imp.consumers.len()
+                        );
+                        for st in &imp.statements {
+                            println!("  - {st}");
+                        }
+                    }
+                    None => {
+                        println!("what-if: '{}' is not declared in any scanned manifest", n.trim());
+                    }
+                }
+            }
+            0
+        }
+        Command::Cochange { path, min_shared, bulk, max_commits, json } => {
+            let opts = cie_ingest::cochange::CoChangeOptions {
+                min_shared,
+                bulk_edit_min_paths: bulk,
+                max_commits,
+            };
+            match cie_ingest::cochange::co_change_report(&path, &opts) {
+                Ok(rep) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&rep).unwrap_or_default());
+                    } else {
+                        println!(
+                            "co-change for {} — sample {} commits ({} counted, {} bulk-excluded), {} renames resolved",
+                            path.display(),
+                            rep.sample_commits,
+                            rep.counted_commits,
+                            rep.excluded_bulk,
+                            rep.rename_events
+                        );
+                        if rep.edges.is_empty() {
+                            println!("  no co-change pairs at the given threshold");
+                        }
+                        for e in &rep.edges {
+                            println!(
+                                "  {:>4}x  {} <-> {}{}",
+                                e.support,
+                                e.a,
+                                e.b,
+                                if e.cross_directory { "  [cross-directory]" } else { "" }
+                            );
+                        }
+                        println!("  note: {}", rep.note);
+                    }
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {}", e.reason);
+                    1
+                }
+            }
+        }
+        Command::Sample { path, force } => {
+            match cie_ingest::sample::generate(&path, &cie_ingest::sample::SampleOptions { force }) {
+                Ok(rep) => {
+                    println!(
+                        "sample written: {} files, {} new commits ({} total) at {}",
+                        rep.files,
+                        rep.commits,
+                        rep.total_commits,
+                        rep.root.display()
+                    );
+                    println!(
+                        "try: cie report {} | cie viz {} --out viewspec.json | cie cochange {}",
+                        path.display(),
+                        path.display(),
+                        path.display()
+                    );
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    1
+                }
+            }
+        }
         Command::Ingest {
             path,
             watch,
@@ -743,23 +929,6 @@ fn run(cli: Cli) -> i32 {
                 }
             }
         }
-        Command::Sample { path, json } => match cie_ingest::generate_sample_repo(&path) {
-            Ok(report) => {
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-                } else {
-                    println!("sample repository created at {}", report.root);
-                    for c in &report.commits {
-                        println!("  - {} ({} file(s))", c.subject, c.files.len());
-                    }
-                }
-                0
-            }
-            Err(e) => {
-                eprintln!("error: {}", e.reason);
-                1
-            }
-        },
         Command::IngestOrg { paths, json } => {
             let opts = IngestOptions::default();
             let canonical: Vec<PathBuf> = paths
