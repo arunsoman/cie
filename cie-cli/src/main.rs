@@ -141,12 +141,6 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Serve the engine's inspectable views over HTTP (GET only, no network
-    /// write, local tool — see `cie-server::http`)
-    Serve {
-        #[arg(long, default_value = "127.0.0.1:8089")]
-        addr: String,
-    },
     /// Ingest multiple repositories and merge concepts (FR-46)
     IngestOrg {
         #[arg(required = true)]
@@ -763,13 +757,6 @@ fn run(cli: Cli) -> i32 {
             }
             Err(e) => {
                 eprintln!("error: {}", e.reason);
-                1
-            }
-        },
-        Command::Serve { addr } => match cie_server::serve(&addr) {
-            Ok(()) => 0,
-            Err(e) => {
-                eprintln!("error: {e}");
                 1
             }
         },

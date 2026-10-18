@@ -26,19 +26,19 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 
 | Section | Delivered | Partial | Planned | Total |
 |---|---|---|---|---|
-| Repository access and orientation | 5 | 0 | 2 | 7 |
-| Asking questions and working with answers | 9 | 0 | 1 | 10 |
+| Repository access and orientation | 5 | 1 | 1 | 7 |
+| Asking questions and working with answers | 9 | 1 | 0 | 10 |
 | Interactive visual exploration | 13 | 0 | 0 | 13 |
-| The visual catalogue | 17 | 0 | 2 | 19 |
+| The visual catalogue | 17 | 1 | 1 | 19 |
 | Behaviour, concepts and business rules | 7 | 0 | 0 | 7 |
-| Architecture, dependencies and impact | 5 | 0 | 2 | 7 |
+| Architecture, dependencies and impact | 5 | 1 | 1 | 7 |
 | Debugging and investigations | 11 | 0 | 0 | 11 |
-| Runtime, concurrency and data consistency | 3 | 0 | 4 | 7 |
-| Performance and technical health | 2 | 0 | 4 | 6 |
+| Runtime, concurrency and data consistency | 3 | 2 | 2 | 7 |
+| Performance and technical health | 2 | 4 | 0 | 6 |
 | History, collaboration and knowledge | 5 | 0 | 1 | 6 |
 | Security, permissions and supply chain | 4 | 0 | 1 | 5 |
 | Counterfactuals and digital twin | 4 | 0 | 1 | 5 |
-| Prompt-to-feature discovery and planning | 3 | 0 | 4 | 7 |
+| Prompt-to-feature discovery and planning | 3 | 3 | 1 | 7 |
 | Feature implementation and inspection | 2 | 0 | 4 | 6 |
 | Validation and safe delivery | 3 | 0 | 7 | 10 |
 | Release and delivery oversight | 2 | 0 | 3 | 5 |
@@ -47,7 +47,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Accessibility and interaction parity | 4 | 0 | 0 | 4 |
 | Honest operation | 4 | 0 | 0 | 4 |
 
-**Totals** — delivered: 110, partial: 0, planned: 37, total: 147
+**Totals** — delivered: 110, partial: 13, planned: 24, total: 147
 
 ## The partials close (2026-10 batch)
 

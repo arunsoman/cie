@@ -470,7 +470,6 @@ dependencies = [
  "cie-llm",
  "cie-relations",
  "cie-semantic",
- "cie-server",
  "cie-store",
  "cie-stories",
  "cie-viz",
@@ -668,11 +667,7 @@ dependencies = [
 name = "cie-server"
 version = "1.1.0"
 dependencies = [
- "cie-analysis",
- "cie-contract",
  "cie-core",
- "cie-evidence",
- "cie-ingest",
  "serde",
  "serde_json",
  "tokio",

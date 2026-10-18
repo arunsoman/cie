@@ -67,12 +67,10 @@ pub const REGISTRY: &[Entry] = &[
         "Offline-first engine: hosted-source pull (PRs, credential freshness, held-aside records) is scheduled, not shipped."),
     entry!("US-006", Delivered, ["cie-ingest::IngestOptions.budget_ms", "cie-llm::Budget", "cli:ingest --budget-ms"],
         "TASK-029 budgets + cancellation checkpoints; a budget-cut run reports incomplete (Coverage.complete=false), never pretends saved."),
-    entry!("US-007", Delivered, ["cie-ingest::sample::generate_sample_repo", "cli:sample", "cli:serve", "cie-server::http"],
+    entry!("US-007", Partial, ["cie-ingest::sample::generate_sample_repo", "cli:sample"],
         "A dated 4-commit demo app (git history, no network) is generated on demand \
-         via `cie sample`, refusing to overwrite a non-empty directory; it is an \
-         ordinary git repo any existing engine command (ingest/analyze/impact/...) \
-         can already study. `cie serve` + GET /view/sample gives it its own real, \
-         inspectable page (and GET /api/sample the raw JSON) — not a mockup."),
+         via `cie sample`; refuses to overwrite a non-empty directory. Wiring the \
+         result into a one-click evaluator workspace is host/product layer."),
     // ---- Asking questions and working with answers ------------------------
     entry!("US-008", Delivered, ["cie-summary", "cie-evidence::assemble", "cli:report"],
         "Answers are evidence-assembled summaries over the revision; conversational NLU is the model layer (cie-llm providers)."),
@@ -82,12 +80,11 @@ pub const REGISTRY: &[Entry] = &[
         "Composed conditions over the symbol universe with per-condition explanations; unevidenced absence lands in a suspected-gaps ledger, never a silent drop. Natural-language routing stays model-layer."),
     entry!("US-011", Delivered, ["cli:analyze", "cie-ingest::run_drift"],
         "Multi-step read-only pipelines compose in the CLI; per-step failures are reported individually (findings vs errors)."),
-    entry!("US-012", Partial, ["cie-analysis::focus::FocusContext", "cie-analysis::focus::resolve_referent", "cie-server::http (GET /view/focus)"],
+    entry!("US-012", Partial, ["cie-analysis::focus::FocusContext", "cie-analysis::focus::resolve_referent"],
         "Chips (ignore/pin/focus), zoom-out and ambiguous-referent resolution (named, \
-         never guessed) are shipped engine primitives with a real demo page \
-         (GET /view/focus) showing their effect. Still not Delivered: recognising \
-         the steering phrase itself ('ignore X', 'zoom out'), removable chip UI and \
-         editor-selection context are product/NLU layer this repo has no way to ship."),
+         never guessed) are shipped engine primitives over SymbolId sets. Recognising \
+         the steering phrase itself ('ignore X', 'zoom out') and editor-selection \
+         context are product/NLU layer."),
     entry!("US-013", Delivered, ["cli:report --json", "cli:concepts --format", "cli:analyze --format sarif"],
         "Same facts rendered human/json/md/sarif — the level-of-detail seam; prose audience-tuning is model-layer."),
     entry!("US-014", Delivered, ["cie-claims::model", "cie-claims::persist", "cie-drift::pipeline"],
@@ -158,13 +155,11 @@ pub const REGISTRY: &[Entry] = &[
         "Routes×rules enforcement statuses derived from refusal-site evidence; convention-only rules marked as such."),
     entry!("US-046", Delivered, ["cie-analysis::risk", "cli:report"],
         "Composite change-risk assembles findings+drift+test-gap+churn with adjustable weights, per-factor contributions, neutral missing-data handling and the permanent 'composite, not fact' label."),
-    entry!("US-047", Delivered, ["cie-evidence::profile::attribute_hotspots", "cie-server::http (GET /view/hotspots)"],
+    entry!("US-047", Partial, ["cie-evidence::profile::attribute_hotspots"],
         "Imported-profile hotspot attribution with a dropped-sample-derived \
-         uncertainty half-width, unresolved frames kept unattributed rather than \
-         guessed, and every metric's source artifact shown — now a real rendered \
-         view (GET /view/hotspots), not unviewable output. Scope: this takes an \
-         already-decoded Profile; a vendor-format decoder (pprof/perf/...) is a \
-         separate adapter, same seam pattern as the language adapters."),
+         uncertainty half-width; unresolved stack frames stay unattributed \
+         rather than guessed onto a known symbol. Profile import tooling for \
+         specific vendor formats and the visual hotspot view are host layer."),
     entry!("US-048", Delivered, ["cie-adapters::effects", "cie-analysis::security"],
         "Routes+guards from framework-evidence classification; no-evidence case renders as explicit unknown."),
     entry!("US-049", Delivered, ["cie-viz::produce", "host:viz-adapter"],
@@ -195,9 +190,9 @@ pub const REGISTRY: &[Entry] = &[
         "Candidate separations from concept lattices + co-change coupling from history ingest (shared-commit pairs, deterministic ordering)."),
     entry!("US-061", Delivered, ["cli:ingest-org", "cie-ingest::run_org_ingest"],
         "Cross-repo ingest with concept merge; consumers outside bounds appear as coverage gaps, not silence."),
-    entry!("US-062", Delivered, ["cie-contract::dependency::DependencyRiskMap", "cie-server::http (GET /view/dependency-risk)"],
-        "Usage evidence, imported advisories and upgrade candidates kept as \
-         separate sections in a real rendered view (GET /view/dependency-risk); \
+    entry!("US-062", Partial, ["cie-contract::dependency::DependencyRiskMap"],
+        "Usage evidence, imported advisories and upgrade candidates are kept as \
+         separate sections; \
          CompatibilityVerdict defaults to Unknown so an available version is never \
          auto-presented as compatible. Scope: manifest parsing per ecosystem and a \
          live advisory feed are separate adapters, same seam pattern as elsewhere."),
@@ -227,20 +222,18 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-074", Delivered, ["cie-evidence::workload", "cie-adapters::effects"],
         "Named-workload manifest: a claim is 'measured' only with a workload-backed timing entry (orphan timings refuse); candidates carry affected behaviour + correctness constraints."),
     // ---- Runtime, concurrency and data consistency ------------------------
-    entry!("US-075", Delivered, ["cie-evidence::runtime::join_structure_with_runtime", "cie-server::http (GET /view/runtime-overlay)"],
+    entry!("US-075", Partial, ["cie-evidence::runtime::join_structure_with_runtime"],
         "Static symbol joined against imported runtime observations with Exact/ \
-         Partial/Unknown exactness, now in a real view (GET /view/runtime-overlay) \
-         that names the environment and observation window and shows an unobserved \
-         symbol as Unknown, never 'unused'. A live ingest feed (as opposed to \
-         imported observations) is a separate, future adapter."),
+         Partial/Unknown exactness (revision+deployment agreement); no 'unused' \
+         verdict exists in the type, so a quiet window can never produce one. \
+         The runtime overlay view and a live ingest feed are host layer."),
     entry!("US-076", Planned, [],
         "Recorded-request replay not shipped."),
-    entry!("US-077", Delivered, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change", "cie-server::http (GET /view/environment)"],
-        "Version/flag differences enumerated between two declared snapshots in a \
-         real view (GET /view/environment); explore_flag_change returns a new, \
-         clearly-labelled snapshot, and the view shows the base snapshot's own \
-         flags unchanged after exploring a hypothetical one. Live configuration \
-         ingest (as opposed to declared snapshots) is a separate adapter."),
+    entry!("US-077", Partial, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change"],
+        "Version/flag differences enumerated between two declared snapshots; \
+         explore_flag_change returns a new, clearly-labelled snapshot and never \
+         mutates the base or applies anywhere. Live configuration ingest and the \
+         environment-topology view are host layer."),
     entry!("US-078", Delivered, ["cie-fault::ldfi", "cie-evidence::readiness::Calibration"],
         "Lineage separates causal chains from co-occurrence within static scope; runtime timing evidence arrives through the calibration import (revision- and environment-bound, staleness exposed)."),
     entry!("US-079", Delivered, ["cie-analysis::concurrency"],
@@ -250,35 +243,30 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-081", Planned, [],
         "Distributed consistency hazard modelling not shipped."),
     // ---- Performance and technical health ---------------------------------
-    entry!("US-082", Delivered, ["cie-evidence::profile::category_breakdown", "cie-server::http (GET /view/slow-op)"],
+    entry!("US-082", Partial, ["cie-evidence::profile::category_breakdown"],
         "CPU/wait/data-work/external-call/missing shares distinguished over an \
-         imported Profile with a real rendered view (GET /view/slow-op); dropped \
-         samples count only as missing, never a guessed category — nothing here \
-         makes an unlabelled speculative claim, so there is nothing left unlabelled. \
-         Hotspot attribution is US-047; same vendor-decoder scope note applies."),
-    entry!("US-083", Delivered, ["cie-evidence::profile::compare_profiles", "cie-server::http (GET /view/profile-compare)"],
-        "Declared-equivalence duration comparison with a real rendered view \
-         (GET /view/profile-compare): a failed same_workload/same_build declaration \
-         or a missing measured duration rejects the comparison with named reasons \
-         instead of comparing anyway, and the verdict/reasons/rejected fields are \
-         all shown, not just computed."),
-    entry!("US-084", Partial, ["cie-evidence::profile::regression_report", "cie-server::http (GET /view/regression)"],
-        "regression_report's improvement_confirmed guard (never marks an \
-         error/dropped-sample-trading candidate as improved) now has a real view \
-         showing two contrasting scenarios side by side, not just computed. Not \
-         promoted: the story also names throughput and workload/environment \
-         differences as visible dimensions, and this still only tracks \
-         duration + errors — throughput has no field in Profile at all yet."),
+         imported Profile; dropped samples count only as missing, never a \
+         guessed category. Hotspot attribution is US-047. The trace-waterfall \
+         view and speculative-mechanism labelling UI are host layer."),
+    entry!("US-083", Partial, ["cie-evidence::profile::compare_profiles"],
+        "Declared-equivalence duration comparison: a failed same_workload/same_build \
+         declaration or a missing measured duration rejects the comparison with named \
+         reasons instead of comparing anyway. The metric-table view is host layer."),
+    entry!("US-084", Partial, ["cie-evidence::profile::regression_report"],
+        "Wraps compare_profiles with an improvement_confirmed guard: a candidate \
+         that is faster only by raising error_count or dropped_samples is never \
+         marked confirmed. Workload/environment-difference narration and the \
+         baseline/candidate chart view are host layer."),
     entry!("US-085", Delivered, ["cie-evidence::workload", "cie-analysis::findings"],
         "Pattern candidates with evidence and correctness constraints; claim classes split measured/potential by construction — no measured-speedup claim without an imported workload run."),
     entry!("US-086", Delivered, ["cie-ingest::churn"],
         "Churn factors with exclusion ledger (bulk edits, authors, subjects) reporting each rule's re-ranking effect, rank-stability under weight sweeps, and the lower-bound note (sampled history, no calibrated probabilities)."),
-    entry!("US-087", Delivered, ["cie-ingest::churn::co_change_coupling", "cie-server::http (GET /view/co-change)"],
+    entry!("US-087", Partial, ["cie-ingest::churn::co_change_coupling"],
         "Directory-crossing coupling with support counts, inspectable supporting \
-         commit ids, and bulk-edit/author/subject exclusions, now in a real map \
-         view (GET /view/co-change) that also renders the exclusion ledger so a \
-         dropped bot/formatting commit is visible, not silently absent. A distinct \
-         type from CoChangeEdge/RelKind, never a static or runtime dependency claim."),
+         commit ids, and bulk-edit/author/subject exclusions (same ledger as \
+         churn_factors); same-commit rename pairs dropped under a labelled \
+         heuristic. A distinct type from CoChangeEdge/RelKind, never a static \
+         or runtime dependency claim. Visual change-coupling map is host layer."),
     // ---- History, collaboration and knowledge ------------------------------
     entry!("US-088", Planned, [],
         "History analysis not shipped; no contributor-identity fields exist anywhere in the stores (nothing to protect yet), and privacy-at-source stays a design constraint for when history lands."),
@@ -315,29 +303,26 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-103", Delivered, ["cie-claims::model::Modality", "cie-store::records"],
         "Every derived record carries modality + provenance; predictions never display as fact."),
     // ---- Prompt-to-feature discovery and planning -------------------------
-    entry!("US-104", Delivered, ["cie-contract::feature::request::FeatureRequest", "cie-server::http (GET /view/feature-request)"],
+    entry!("US-104", Partial, ["cie-contract::feature::request::FeatureRequest"],
         "FeatureRequest carries repository + deliverable (plan/preview/draft-PR) + \
          detail level (prompt/brief/specification/examples) with no field requiring \
-         an internal framework/component name, now shown in a real view accepting \
-         both a bare prompt and a full specification identically."),
-    entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet", "cie-server::http (GET /view/clarify)"],
+         an internal framework/component name. The intake UI is product layer."),
+    entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet"],
         "ClarificationQuestion::new refuses a question with no stated reason; \
          fully_answered only becomes true once every question has an explicit \
-         answer — now shown in a real view distinguishing answered from pending. \
-         Not promoted: deciding which questions are material (vs noise) and \
-         adopting existing conventions where appropriate are product/model layer, \
-         and nothing here demonstrates either."),
+         answer — silence never authorizes one. Deciding which questions are \
+         material (vs noise) is product/model layer."),
     entry!("US-106", Delivered, ["cie-concepts::overlap"],
         "Concept overlap matrix with reuse/add decomposition — duplicate detection is structural (shared symbols), so 'B is X plus Y' names what reuses X and what Y adds despite differing names."),
     entry!("US-107", Delivered, ["cie-drift::conflicts", "cie-drift::pipeline"],
         "Conflict ledger: source statements + applicability + concrete scenario + options; resolution requires an owner, history is append-only, and resolution returns the affected expectations to update."),
-    entry!("US-108", Partial, ["cie-contract::feature::contract::FeatureContract", "cie-server::http (GET /view/feature-contract)"],
+    entry!("US-108", Partial, ["cie-contract::feature::contract::FeatureContract"],
         "Scope/actors/rules/failure-paths/assumptions/acceptance-criteria with every \
          requirement carrying a RequirementOrigin and open_omissions keeping material \
-         gaps visible, now in a real rendered view. Not promoted: the story also \
-         names correcting the brief before or during implementation, which nothing \
-         in this crate implements yet (no revision/edit path exists for a contract \
-         once assembled)."),
+         gaps visible — a real, tested contract assembly. Not promoted: the story \
+         also names correcting the brief before or during implementation, which \
+         nothing in this crate implements yet (no revision/edit path exists for a \
+         contract once assembled), and there is no view exposing it; that's host layer."),
     entry!("US-109", Delivered, ["cie-analysis::impact_dims", "cli:impact"],
         "Impact dimensions (permission/data/operations/performance/interface) from classified effect classes, every hit cited; empty dimensions state themselves (no auth surface is a statement, not a blank); planned label permanent."),
     entry!("US-110", Planned, [],
