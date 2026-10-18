@@ -123,6 +123,7 @@ cie-claims = { path = "cie-claims" }
 cie-drift = { path = "cie-drift" }
 cie-cli = { path = "cie-cli" }
 cie-viz = { path = "cie-viz" }
+cie-server = { path = "cie-server" }
 
 [profile.release]
 opt-level = 3

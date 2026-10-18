@@ -2,8 +2,10 @@
 //! Scaffold stub; `tokio` sits behind the non-default `runtime` feature so
 //! it compiles only when the server is actually requested.
 
+pub mod http;
 pub mod mcp;
 
+pub use http::{escape_html, route, serve, HttpResponse};
 pub use mcp::{
     handle_message, honesty_envelope, McpBudget, RpcError, RpcRequest, RpcResponse, ToolDecl,
     ToolError, ToolExecutor, PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION, TOOLS,

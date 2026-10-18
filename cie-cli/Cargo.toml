@@ -31,6 +31,7 @@ cie-drift = { workspace = true }
 cie-incremental = { workspace = true }
 cie-viz = { workspace = true }
 cie-llm = { workspace = true }
+cie-server = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
