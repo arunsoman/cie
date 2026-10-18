@@ -275,7 +275,7 @@ pub fn bind_claims_to_history(
 
 // ---------------------------------------------------------------- plumbing
 
-fn git(root: &Path, args: &[&str]) -> Option<String> {
+pub(crate) fn git(root: &Path, args: &[&str]) -> Option<String> {
     let out = Command::new("git")
         .args(args)
         .current_dir(root)
@@ -287,7 +287,7 @@ fn git(root: &Path, args: &[&str]) -> Option<String> {
     Some(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
-fn git_ok(root: &Path) -> bool {
+pub(crate) fn git_ok(root: &Path) -> bool {
     Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
         .current_dir(root)

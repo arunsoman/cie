@@ -47,7 +47,7 @@ Dispositions count *engine-level* delivery. `partial` results stay visibly parti
 | Accessibility and interaction parity | 4 | 0 | 0 | 4 |
 | Honest operation | 4 | 0 | 0 | 4 |
 
-**Totals** — delivered: 110, partial: 0, planned: 37, total: 147
+**Totals** — delivered: 111, partial: 0, planned: 36, total: 147
 
 ## The partials close (2026-10 batch)
 
@@ -70,11 +70,20 @@ flipped to `delivered`, one engine capability per named gap:
 | host interaction layer | US-022, US-023, US-028, US-030, US-140, US-141, US-142, US-143 | `viz-adapter/src/interaction.ts` (vitest-covered) |
 | transaction steps | US-034 | `cie-analysis::steps` (adapter-classified async hand-offs) |
 
-The 37 `planned` stories remain planned with their reasons (hosted-source
+The 36 `planned` stories remain planned with their reasons (hosted-source
 pull, conversational steering, live model training, MCP-over-network
 transports beyond the stdio seam, and similar) — no silent upgrades.
 
-## Deep verification — 96 stories engine-checked
+## The opens close (v1.2 batch)
+
+Planned stories whose named gap became engine work, flipped one commit at a
+time with a dedicated deep check each:
+
+| Story | Gap closed | Where |
+|---|---|---|
+| US-007 | on-demand sample repository (real dated git history, deterministic, marker-guarded regeneration) | `cie-ingest::sample` + `cli:sample` |
+
+## Deep verification — 97 stories engine-checked
 
 Every check is a `fn() -> Result<(), String>` in `cie-stories/src/checks/`,
 dispatched by `cie stories verify --id US-xxx` and executed in bulk by the

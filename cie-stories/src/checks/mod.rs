@@ -28,7 +28,8 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         "US-003" => s1_repo::us_003,
         "US-004" => s1_repo::us_004,
         "US-006" => s1_repo::us_006,
-        // US-005, US-007: Planned — no engine obligation to check yet.
+        "US-007" => s1_repo::us_007,
+        // US-005: Planned — no engine obligation to check yet.
         // ---- Asking questions and working with answers ----
         "US-008" => s2_answers::us_008,
         "US-011" => s2_answers::us_011,
@@ -162,7 +163,7 @@ mod tests {
     #[test]
     fn batch_c_dispatch_table_complete() {
         for id in [
-            "US-001", "US-002", "US-003", "US-004", "US-006", "US-008", "US-011", "US-013",
+            "US-001", "US-002", "US-003", "US-004", "US-006", "US-007", "US-008", "US-011", "US-013",
             "US-014", "US-015", "US-016", "US-017",
             // CIE-US closes batch: newly engine-checked stories
             "US-009", "US-010", "US-022", "US-023", "US-024", "US-028", "US-030",
@@ -174,7 +175,7 @@ mod tests {
             assert!(deep_check(id).is_some(), "{id} should have a deep check");
         }
         for id in [
-            "US-005", "US-007", "US-012", "US-020", "US-041", "US-043", "US-047",
+            "US-005", "US-012", "US-020", "US-041", "US-043", "US-047",
             "US-048", "US-061", "US-062", "US-063", "US-070", "US-073", "US-075", "US-076",
             "US-077", "US-078", "US-081", "US-082", "US-083", "US-084", "US-087",
             "US-088", "US-092", "US-096", "US-098", "US-101",

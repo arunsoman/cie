@@ -54,6 +54,12 @@ pub struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
+    /// Generate the built-in sample repository with real dated history (US-007)
+    Sample {
+        path: PathBuf,
+        #[arg(long)]
+        force: bool,
+    },
     /// Ingest a folder path (full assimilation or incremental re-ingest)
     Ingest {
         path: PathBuf,
@@ -256,6 +262,29 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::Sample { path, force } => {
+            match cie_ingest::sample::generate(&path, &cie_ingest::sample::SampleOptions { force }) {
+                Ok(rep) => {
+                    println!(
+                        "sample written: {} files, {} new commits ({} total) at {}",
+                        rep.files,
+                        rep.commits,
+                        rep.total_commits,
+                        rep.root.display()
+                    );
+                    println!(
+                        "try: cie report {} | cie viz {} --out viewspec.json",
+                        path.display(),
+                        path.display()
+                    );
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    1
+                }
+            }
+        }
         Command::Ingest {
             path,
             watch,
