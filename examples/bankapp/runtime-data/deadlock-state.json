@@ -1,0 +1,10 @@
+{
+ "thread-one": {
+  "holds": "lock_a",
+  "wants": "lock_b"
+ },
+ "thread-two": {
+  "holds": "lock_b",
+  "wants": "lock_a"
+ }
+}

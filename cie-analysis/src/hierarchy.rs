@@ -136,6 +136,24 @@ pub fn build_hierarchy(
         }
     }
 
+    // Attach the remaining named-but-not-behavioural symbols to their file's
+    // module node — SQL tables and views (v1.2.1), constants, and the module
+    // symbols themselves. A schema file's tables ARE its content: without
+    // this pass the module node has no symbols, no evidence, and the map
+    // would honestly-but-uselessly hide every SQL file.
+    for sym in &store.symbols {
+        if sym.is_function_like() || node_of_symbol.contains_key(&sym.id) {
+            continue; // functions attach above; type-likes got their own nodes
+        }
+        if let Some(pn) = module_nodes.get(store.files.path(sym.loc.file)) {
+            if let Some(n) = dag.get_mut(*pn) {
+                if !n.symbols.contains(&sym.id) {
+                    n.symbols.push(sym.id);
+                }
+            }
+        }
+    }
+
     // ---- FCA concepts -> UseCase/Subdomain nodes (FcaSubsumption edges) ----
     let objects: Vec<(SymbolId, BTreeSet<String>)> = behavior
         .summaries

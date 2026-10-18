@@ -1,0 +1,48 @@
+{
+ "tool": "faulthandler.dump_traceback_later (stdlib) + waits-for cycle detection",
+ "command": "deadlock_probe.py runs two threads taking lock_a/lock_b in opposite orders; the collector dumps stacks after 1.5s and detects the cycle",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "detected": true,
+ "cycle": [
+  "thread-one",
+  "thread-two"
+ ],
+ "waits_for": {
+  "thread-one": "lock_b",
+  "thread-two": "lock_a"
+ },
+ "held_by": {
+  "lock_a": "thread-one",
+  "lock_b": "thread-two"
+ },
+ "threads": [
+  {
+   "thread": "thread-one",
+   "holds": "lock_a",
+   "wants": "lock_b",
+   "blocked_at": {
+    "line": 48,
+    "file": "deadlock_probe.py"
+   },
+   "stack_captured": true
+  },
+  {
+   "thread": "thread-two",
+   "holds": "lock_b",
+   "wants": "lock_a",
+   "blocked_at": {
+    "line": 56,
+    "file": "deadlock_probe.py"
+   },
+   "stack_captured": true
+  }
+ ],
+ "child_returncode": 1,
+ "stacks_excerpt": "Timeout (0:00:01.500000)!\nThread 0x00007fae1794a6c0 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 56 in thread_two\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1012 in run\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1075 in _bootstrap_inner\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1032 in _bootstrap\n\nThread 0x00007fae1814b6c0 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 48 in thread_one\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1012 in run\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1075 in _bootstrap_inner\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1032 in _bootstrap\n\nThread 0x00007fae18d09740 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 68 in <module>\n",
+ "honesty": "The deadlock is real: both threads were captured blocked at the acquire lines, and the cycle was computed from the holds/wants table they wrote before blocking \u2014 not declared by hand. A one-off capture proves this run deadlocked; repeated occurrences need production thread-dump monitoring.",
+ "real_world_equivalents": [
+  "jstack + thread-dump analysers (Java)",
+  "py-spy dump / py-spy dump --pid (Python)",
+  "Azure FastThread-style cycle detection"
+ ]
+}

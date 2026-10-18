@@ -1,0 +1,405 @@
+{
+ "project": "bankapp \u2014 the CIE sample project (the playground)",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "environment": {
+  "python": "3.12.15",
+  "platform": "Linux-5.10.134-013.15.kangaroo.al8.x86_64-x86_64-with-glibc2.41",
+  "cpu_count": 2,
+  "collected_at": "2026-10-18T14:45:08+00:00"
+ },
+ "honesty": "Every number here was measured by running this sample project's probes under the named tools on the machine that collected it. Nothing is simulated, extrapolated or invented. Where a measurement could not be taken, the artifact says so. Each dataset names the tool, the command shape, and the production tools that would collect the same evidence on a real project.",
+ "datasets": {
+  "cpu": {
+   "tool": "cProfile (Python stdlib)",
+   "command": "cProfile.Profile() around runtime_probes.cpu_burn_mixed()",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "total_wall_ms": 630.64,
+   "top_functions": [
+    {
+     "function": "cpu_burn_mixed",
+     "file": "runtime_probes.py",
+     "line": 32,
+     "self_ms": 0.25,
+     "cum_ms": 630.59,
+     "calls": 1
+    },
+    {
+     "function": "<built-in method time.sleep>",
+     "file": "(built-in)",
+     "line": 0,
+     "self_ms": 321.74,
+     "cum_ms": 321.74,
+     "calls": 60
+    },
+    {
+     "function": "cpu_work",
+     "file": "runtime_probes.py",
+     "line": 24,
+     "self_ms": 308.61,
+     "cum_ms": 308.61,
+     "calls": 60
+    },
+    {
+     "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+     "file": "(built-in)",
+     "line": 0,
+     "self_ms": 0.04,
+     "cum_ms": 0.04,
+     "calls": 1
+    }
+   ],
+   "honesty": "Measured on this machine during this run; the profiler's own bookkeeping adds a little overhead. A different machine or run will give different numbers \u2014 that is what honest measurement looks like.",
+   "real_world_equivalents": [
+    "py-spy top / py-spy record (sampling, safe in production)",
+    "Java Flight Recorder + Mission Control",
+    "perf record + flamegraphs"
+   ]
+  },
+  "concurrency": {
+   "tool": "threading + time.monotonic (Python stdlib)",
+   "command": "runtime_probes.pipeline(tasks=12, workers=4) with per-span timestamps",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "workers": 4,
+   "tasks": 12,
+   "makespan_ms": 104.58,
+   "sum_of_task_ms": 362.53,
+   "observed_overlap": 3.47,
+   "spans": [
+    {
+     "thread": "worker-0",
+     "task": 0,
+     "start_ms": 0.27,
+     "end_ms": 30.34
+    },
+    {
+     "thread": "worker-1",
+     "task": 1,
+     "start_ms": 0.4,
+     "end_ms": 30.47
+    },
+    {
+     "thread": "worker-2",
+     "task": 2,
+     "start_ms": 0.47,
+     "end_ms": 30.53
+    },
+    {
+     "thread": "worker-3",
+     "task": 3,
+     "start_ms": 0.54,
+     "end_ms": 30.73
+    },
+    {
+     "thread": "worker-0",
+     "task": 4,
+     "start_ms": 33.07,
+     "end_ms": 63.13
+    },
+    {
+     "thread": "worker-1",
+     "task": 5,
+     "start_ms": 33.16,
+     "end_ms": 63.24
+    },
+    {
+     "thread": "worker-2",
+     "task": 6,
+     "start_ms": 34.17,
+     "end_ms": 64.23
+    },
+    {
+     "thread": "worker-3",
+     "task": 7,
+     "start_ms": 37.25,
+     "end_ms": 67.31
+    },
+    {
+     "thread": "worker-0",
+     "task": 8,
+     "start_ms": 66.98,
+     "end_ms": 97.04
+    },
+    {
+     "thread": "worker-1",
+     "task": 9,
+     "start_ms": 67.04,
+     "end_ms": 97.12
+    },
+    {
+     "thread": "worker-2",
+     "task": 10,
+     "start_ms": 70.18,
+     "end_ms": 100.24
+    },
+    {
+     "thread": "worker-3",
+     "task": 11,
+     "start_ms": 73.17,
+     "end_ms": 104.85
+    }
+   ],
+   "honesty": "This is a measured timeline of one run, not a benchmark. overlap = sum of task time / wall time; >1 means threads genuinely ran at the same time on this run.",
+   "real_world_equivalents": [
+    "JFR thread events / async-profiler",
+    "eBPF run-queue traces",
+    "strace -f -e sched (crude but real)"
+   ]
+  },
+  "memory": {
+   "tool": "tracemalloc (Python stdlib)",
+   "command": "runtime_probes.allocate_blocks(blocks=400, size=4096) under tracemalloc",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "allocated_bytes": 1655032,
+   "peak_bytes": 1655104,
+   "blocks": 400,
+   "block_size": 4096,
+   "top_sites": [
+    {
+     "where": "runtime_probes.py:99",
+     "bytes": 1654800,
+     "count": 401
+    },
+    {
+     "where": "runtime_probes.py:97",
+     "bytes": 232,
+     "count": 2
+    },
+    {
+     "where": "tracemalloc.py:551",
+     "bytes": 72,
+     "count": 1
+    },
+    {
+     "where": "runtime_probes.py:102",
+     "bytes": 64,
+     "count": 2
+    }
+   ],
+   "honesty": "tracemalloc only sees allocations made while it is tracing, and tracing slows the program a little. Peak here is this run's peak, not the process's whole life.",
+   "real_world_equivalents": [
+    "heaptrack / memray (full-process flamegraphs)",
+    "jemalloc / tcmalloc stats",
+    "Java heap dumps + JFR memory events"
+   ]
+  },
+  "deadlock": {
+   "tool": "faulthandler.dump_traceback_later (stdlib) + waits-for cycle detection",
+   "command": "deadlock_probe.py runs two threads taking lock_a/lock_b in opposite orders; the collector dumps stacks after 1.5s and detects the cycle",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "detected": true,
+   "cycle": [
+    "thread-one",
+    "thread-two"
+   ],
+   "waits_for": {
+    "thread-one": "lock_b",
+    "thread-two": "lock_a"
+   },
+   "held_by": {
+    "lock_a": "thread-one",
+    "lock_b": "thread-two"
+   },
+   "threads": [
+    {
+     "thread": "thread-one",
+     "holds": "lock_a",
+     "wants": "lock_b",
+     "blocked_at": {
+      "line": 48,
+      "file": "deadlock_probe.py"
+     },
+     "stack_captured": true
+    },
+    {
+     "thread": "thread-two",
+     "holds": "lock_b",
+     "wants": "lock_a",
+     "blocked_at": {
+      "line": 56,
+      "file": "deadlock_probe.py"
+     },
+     "stack_captured": true
+    }
+   ],
+   "child_returncode": 1,
+   "stacks_excerpt": "Timeout (0:00:01.500000)!\nThread 0x00007fae1794a6c0 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 56 in thread_two\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1012 in run\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1075 in _bootstrap_inner\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1032 in _bootstrap\n\nThread 0x00007fae1814b6c0 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 48 in thread_one\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1012 in run\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1075 in _bootstrap_inner\n  File \"/home/z/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/lib/python3.12/threading.py\", line 1032 in _bootstrap\n\nThread 0x00007fae18d09740 (most recent call first):\n  File \"/home/z/my-project/cie/examples/bankapp/deadlock_probe.py\", line 68 in <module>\n",
+   "honesty": "The deadlock is real: both threads were captured blocked at the acquire lines, and the cycle was computed from the holds/wants table they wrote before blocking \u2014 not declared by hand. A one-off capture proves this run deadlocked; repeated occurrences need production thread-dump monitoring.",
+   "real_world_equivalents": [
+    "jstack + thread-dump analysers (Java)",
+    "py-spy dump / py-spy dump --pid (Python)",
+    "Azure FastThread-style cycle detection"
+   ]
+  },
+  "race": {
+   "tool": "read-modify-write observation (no sanitizer needed to SEE this one)",
+   "command": "runtime_probes.racing_counter(threads=4), 3 natural trials (50000 each) + 3 widened trials (20000 each, GIL yielded between read and write \u2014 disclosed)",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "natural_trials": [
+    {
+     "threads": 4,
+     "per_thread": 50000,
+     "expected": 200000,
+     "final": 200000,
+     "lost": 0,
+     "wall_ms": 19.93,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": false
+    },
+    {
+     "threads": 4,
+     "per_thread": 50000,
+     "expected": 200000,
+     "final": 200000,
+     "lost": 0,
+     "wall_ms": 18.92,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": false
+    },
+    {
+     "threads": 4,
+     "per_thread": 50000,
+     "expected": 200000,
+     "final": 200000,
+     "lost": 0,
+     "wall_ms": 19.25,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": false
+    }
+   ],
+   "widened_trials": [
+    {
+     "threads": 4,
+     "per_thread": 20000,
+     "expected": 80000,
+     "final": 20132,
+     "lost": 59868,
+     "wall_ms": 1495.33,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": true
+    },
+    {
+     "threads": 4,
+     "per_thread": 20000,
+     "expected": 80000,
+     "final": 19948,
+     "lost": 60052,
+     "wall_ms": 1366.0,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": true
+    },
+    {
+     "threads": 4,
+     "per_thread": 20000,
+     "expected": 80000,
+     "final": 20000,
+     "lost": 60000,
+     "wall_ms": 1416.69,
+     "switch_interval_s": 0.001,
+     "start_barrier": true,
+     "widened": true
+    }
+   ],
+   "lost_natural": 0,
+   "lost_widened": 179920,
+   "honesty": "Both windows are real concurrent read-add-write with no lock. The natural window may lose nothing on a given run \u2014 CPython's switch checks land on the loop backedge \u2014 and that is an honest result: races are timing-dependent, so a clean run is NOT proof the race is gone. The widened window yields the GIL between the read and the write (the same window real code leaves open) and is fully disclosed; it reliably loses updates, proving the sequence is not atomic.",
+   "real_world_equivalents": [
+    "ThreadSanitizer (clang -fsanitize=thread)",
+    "Go's -race detector",
+    "Helgrind/Valgrind"
+   ]
+  },
+  "coverage": {
+   "tool": "coverage.py",
+   "command": "python -m coverage run -m pytest test_auth.py -q (inside the sample project)",
+   "collected_at": "2026-10-18T14:45:08+00:00",
+   "files": [
+    {
+     "file": "auth.py",
+     "statements": 12,
+     "covered": 9,
+     "percent": 75.0
+    },
+    {
+     "file": "deadlock_probe.py",
+     "statements": 39,
+     "covered": 0,
+     "percent": 0.0
+    },
+    {
+     "file": "payments.py",
+     "statements": 23,
+     "covered": 0,
+     "percent": 0.0
+    },
+    {
+     "file": "runtime_probes.py",
+     "statements": 80,
+     "covered": 0,
+     "percent": 0.0
+    },
+    {
+     "file": "test_auth.py",
+     "statements": 3,
+     "covered": 3,
+     "percent": 100.0
+    },
+    {
+     "file": "ui.py",
+     "statements": 4,
+     "covered": 0,
+     "percent": 0.0
+    }
+   ],
+   "totals": {
+    "percent": 7.5,
+    "statements": 161,
+    "covered_lines": 12,
+    "note": "percent covers files the tests actually import; unmeasured files are listed separately below 0 with their reason"
+   },
+   "honesty": "Line coverage of the sample project's own tests, measured for real. The gaps are the point: test_auth.py covers auth.py only, so payments.py, ui.py and runtime_probes.py were never even imported by a test \u2014 they show as 0 with that reason, not as a fake number.",
+   "real_world_equivalents": [
+    "JaCoCo (Java)",
+    "cargo-tarpaulin / llvm-cov (Rust)",
+    "go test -cover (Go)",
+    "nyc / vitest coverage (JS/TS)"
+   ]
+  }
+ },
+ "how_to_collect_on_your_project": [
+  {
+   "dataset": "cpu",
+   "this_demo": "cProfile around the probe",
+   "on_real_projects": "py-spy (Python), Java Flight Recorder, perf + flamegraphs"
+  },
+  {
+   "dataset": "memory",
+   "this_demo": "tracemalloc snapshots",
+   "on_real_projects": "heaptrack / memray, jemalloc stats, JFR memory events"
+  },
+  {
+   "dataset": "concurrency",
+   "this_demo": "threading spans via time.monotonic",
+   "on_real_projects": "JFR thread events, async-profiler, eBPF run-queue traces"
+  },
+  {
+   "dataset": "deadlock",
+   "this_demo": "faulthandler stack dump + waits-for cycle detection",
+   "on_real_projects": "jstack + thread-dump analysers, py-spy dump, live thread-dump monitoring"
+  },
+  {
+   "dataset": "race",
+   "this_demo": "observed lost updates in an unguarded counter",
+   "on_real_projects": "ThreadSanitizer, Go -race, Helgrind"
+  },
+  {
+   "dataset": "coverage",
+   "this_demo": "coverage.py over the project's own tests",
+   "on_real_projects": "JaCoCo, cargo-tarpaulin/llvm-cov, go test -cover, nyc/vitest"
+  }
+ ]
+}

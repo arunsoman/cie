@@ -33,10 +33,12 @@ import {
   ListChecks,
   Map as MapIcon,
   Menu as MenuIcon,
+  Package,
   PieChart,
   Settings2,
   ShieldCheck,
   Sparkles,
+  Timer,
   Upload,
   Wand2,
   LayoutGrid,
@@ -48,6 +50,7 @@ import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
 const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "chart"];
+const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   // Spreads Radix's trigger props through — a custom trigger child that
@@ -168,6 +171,26 @@ export function Topbar() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              <NavButton active={WATCH_VIEWS.includes(view)}>
+                Watching it run <ChevronDown className="h-3 w-3 opacity-50" aria-hidden />
+              </NavButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuItem onClick={go("runtime")} className={view === "runtime" ? "bg-emerald-50" : ""}>
+                <Timer className="h-4 w-4 text-stone-400" /> Runtime evidence
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={go("deps")} className={view === "deps" ? "bg-emerald-50" : ""}>
+                <Package className="h-4 w-4 text-stone-400" /> Dependencies
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <p className="px-2 py-1.5 text-xs text-stone-500 leading-relaxed">
+                Measured evidence only: every number names the tool that measured it. No collected evidence? The page says so — and shows how to collect it.
+              </p>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <NavButton active={view === "trust"}>
                 Trust <ChevronDown className="h-3 w-3 opacity-50" aria-hidden />
               </NavButton>
@@ -205,6 +228,10 @@ export function Topbar() {
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>What it does</DropdownMenuItem>
               <DropdownMenuItem onClick={go("fixes")} className={view === "fixes" ? "bg-emerald-50" : ""}>Things to look at</DropdownMenuItem>
               <DropdownMenuItem onClick={go("promises")} className={view === "promises" ? "bg-emerald-50" : ""}>Promises</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Watching it run</DropdownMenuLabel>
+              <DropdownMenuItem onClick={go("runtime")} className={view === "runtime" ? "bg-emerald-50" : ""}>Runtime evidence</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("deps")} className={view === "deps" ? "bg-emerald-50" : ""}>Dependencies</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Charts</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("numbers")} className={view === "numbers" ? "bg-emerald-50" : ""}>In pictures</DropdownMenuItem>

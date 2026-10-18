@@ -21,6 +21,8 @@ cie-adapter-csharp = { workspace = true }
 cie-adapter-go = { workspace = true }
 cie-adapter-rust = { workspace = true }
 cie-adapter-php = { workspace = true }
+cie-adapter-sql = { workspace = true }
+cie-adapter-shell = { workspace = true }
 cie-store = { workspace = true }
 cie-incremental = { workspace = true }
 cie-docs = { workspace = true }

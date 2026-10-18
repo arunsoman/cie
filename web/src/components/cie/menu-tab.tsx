@@ -20,9 +20,11 @@ import {
   Gauge,
   ListFilter,
   Map as MapIcon,
+  Package,
   Shapes,
   ShieldCheck,
   Sparkles,
+  Timer,
 } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildCannedCharts } from "@/lib/canned-charts";
@@ -36,16 +38,18 @@ const ICONS = {
   shield: ShieldCheck,
   map: MapIcon,
   activity: Activity,
+  package: Package,
+  timer: Timer,
 } as const;
 
-const GROUPS = ["Problems", "Promises", "The map", "What the code does"] as const;
+const GROUPS = ["Problems", "Promises", "The map", "What the code does", "Dependencies", "Watching it run"] as const;
 
 export function MenuView() {
-  const { report, viewspec, concepts } = useCie();
+  const { report, viewspec, concepts, deps, runtime } = useCie();
 
   const charts = useMemo(
-    () => buildCannedCharts(report, viewspec, concepts),
-    [report, viewspec, concepts]
+    () => buildCannedCharts(report, viewspec, concepts, deps, runtime),
+    [report, viewspec, concepts, deps, runtime]
   );
 
   const [activeId, setActiveId] = useState<string>(charts[0]?.id ?? "");

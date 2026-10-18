@@ -390,6 +390,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "cie-adapter-shell"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-sql"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
 name = "cie-adapter-typescript"
 version = "1.2.0"
 dependencies = [
@@ -606,6 +626,8 @@ dependencies = [
  "cie-adapter-php",
  "cie-adapter-python",
  "cie-adapter-rust",
+ "cie-adapter-shell",
+ "cie-adapter-sql",
  "cie-adapter-typescript",
  "cie-adapters",
  "cie-analysis",

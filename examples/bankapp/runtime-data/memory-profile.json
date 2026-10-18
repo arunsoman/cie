@@ -1,0 +1,37 @@
+{
+ "tool": "tracemalloc (Python stdlib)",
+ "command": "runtime_probes.allocate_blocks(blocks=400, size=4096) under tracemalloc",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "allocated_bytes": 1655032,
+ "peak_bytes": 1655104,
+ "blocks": 400,
+ "block_size": 4096,
+ "top_sites": [
+  {
+   "where": "runtime_probes.py:99",
+   "bytes": 1654800,
+   "count": 401
+  },
+  {
+   "where": "runtime_probes.py:97",
+   "bytes": 232,
+   "count": 2
+  },
+  {
+   "where": "tracemalloc.py:551",
+   "bytes": 72,
+   "count": 1
+  },
+  {
+   "where": "runtime_probes.py:102",
+   "bytes": 64,
+   "count": 2
+  }
+ ],
+ "honesty": "tracemalloc only sees allocations made while it is tracing, and tracing slows the program a little. Peak here is this run's peak, not the process's whole life.",
+ "real_world_equivalents": [
+  "heaptrack / memray (full-process flamegraphs)",
+  "jemalloc / tcmalloc stats",
+  "Java heap dumps + JFR memory events"
+ ]
+}

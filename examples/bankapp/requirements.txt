@@ -1,0 +1,6 @@
+# bankapp dev/test tooling — the only external packages the sample project
+# uses. Both are genuinely exercised: coverage.py by scripts/collect_runtime.py,
+# pytest by the test suite. CIE's dependency view will honestly show that
+# coverage is import-backed while pytest is runner-invoked (not imported).
+coverage>=7.4
+pytest>=8.0

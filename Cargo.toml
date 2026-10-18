@@ -18,6 +18,8 @@ members = [
     "cie-adapter-go",
     "cie-adapter-rust",
     "cie-adapter-php",
+    "cie-adapter-sql",
+    "cie-adapter-shell",
     "cie-ingest",
     "cie-evidence",
     "cie-summary",
@@ -107,6 +109,8 @@ cie-adapter-csharp = { path = "cie-adapter-csharp" }
 cie-adapter-go = { path = "cie-adapter-go" }
 cie-adapter-rust = { path = "cie-adapter-rust" }
 cie-adapter-php = { path = "cie-adapter-php" }
+cie-adapter-sql = { path = "cie-adapter-sql" }
+cie-adapter-shell = { path = "cie-adapter-shell" }
 cie-ingest = { path = "cie-ingest" }
 cie-evidence = { path = "cie-evidence" }
 cie-summary = { path = "cie-summary" }

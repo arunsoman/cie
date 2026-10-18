@@ -153,3 +153,152 @@ export interface ConceptTree {
   unattached_rules: ConceptRule[];
   dirty: boolean;
 }
+
+// ---- deps.json (the `cie deps <dir> --json` export, US-062) ----
+
+export interface DeclaredDep {
+  name: string;
+  ecosystem: string; // pypi | npm | cargo | go | maven | gradle | composer | nuget
+  version_req: string; // exactly as written, never interpreted
+  licence: string | null;
+  scope: string; // runtime | dev
+  source: string; // manifest file that declared it
+}
+
+export interface DepUsage {
+  name: string;
+  ecosystem: string;
+  imported_by: string[];
+  resolved: boolean;
+  note: string; // the honesty statement, never empty
+}
+
+export interface CieDeps {
+  table: {
+    deps: DeclaredDep[];
+    unparsed: string[]; // manifests CIE could not follow — named, never guessed
+    files_scanned: number;
+  };
+  usage: DepUsage[];
+}
+
+// ---- runtime.json (the sample project's collected runtime evidence) ----
+
+export interface RuntimeCpuRow {
+  function: string;
+  file: string;
+  line: number;
+  self_ms: number;
+  cum_ms: number;
+  calls: number;
+}
+
+export interface RuntimeSpan {
+  thread: string;
+  task: number;
+  start_ms: number;
+  end_ms: number;
+}
+
+export interface RuntimeTrial {
+  threads: number;
+  per_thread: number;
+  expected: number;
+  final: number;
+  lost: number;
+  wall_ms: number;
+  widened?: boolean;
+}
+
+export interface RuntimeCoverageFile {
+  file: string;
+  statements: number | null;
+  covered: number | null;
+  percent: number;
+  note?: string;
+}
+
+export interface CieRuntime {
+  project: string;
+  collected_at: string;
+  environment: { python: string; platform: string; cpu_count?: number; collected_at: string };
+  honesty: string;
+  datasets: {
+    cpu?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      top_functions: RuntimeCpuRow[];
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+    concurrency?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      workers: number;
+      tasks: number;
+      makespan_ms: number;
+      sum_of_task_ms: number;
+      observed_overlap: number;
+      spans: RuntimeSpan[];
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+    memory?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      allocated_bytes: number;
+      peak_bytes: number;
+      blocks: number;
+      block_size: number;
+      top_sites: { where: string; bytes: number; count: number }[];
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+    deadlock?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      detected: boolean;
+      cycle: string[];
+      waits_for: Record<string, string>;
+      held_by: Record<string, string>;
+      threads: {
+        thread: string;
+        holds: string | null;
+        wants: string | null;
+        blocked_at: { line: number; file: string } | null;
+        stack_captured: boolean;
+      }[];
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+    race?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      natural_trials: RuntimeTrial[];
+      widened_trials: RuntimeTrial[];
+      lost_natural: number;
+      lost_widened: number;
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+    coverage?: {
+      tool: string;
+      command: string;
+      collected_at: string;
+      files: RuntimeCoverageFile[];
+      totals: { percent: number; statements: number; covered_lines: number; note?: string };
+      honesty: string;
+      real_world_equivalents: string[];
+    };
+  };
+  how_to_collect_on_your_project: {
+    dataset: string;
+    this_demo: string;
+    on_real_projects: string;
+  }[];
+}

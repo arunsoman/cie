@@ -65,11 +65,12 @@ UI, speaking CIE's plain-words language throughout):
    walker (`GET /api/fs/browse`, directories only — never file contents) with
    quick-jump chips for Home and common roots.
    The server clones it (`--depth 1`), runs `cie ingest → report → viz →
-   concepts` in a background job, and deletes the clone the moment it's done.
-   The dialog shows every state in plain words: *Getting your code → Taking
-   inventory → Reading every file → Drawing the map → Listing what it does*,
-   with per-step timings, honest failure cards ("That repo looks private (or
-   the address is wrong)…") and a *Show my project* button at the end. The job
+   concepts → deps` in a background job, and deletes the clone the moment
+   it's done. The dialog shows every state in plain words: *Getting your code
+   → Taking inventory → Reading every file → Drawing the map → Listing what
+   it does → Listing the dependencies*, with per-step timings, honest failure
+   cards ("That repo looks private (or the address is wrong)…") and a *Show
+   my project* button at the end. The job
    keeps running if you close the dialog and the panel resumes when you reopen
    it.
    - Server pieces: `POST /api/analyze`, `GET /api/analyze/status?job=ID`,
@@ -100,8 +101,15 @@ UI, speaking CIE's plain-words language throughout):
      the failure card when nothing is readable, and on the **Can I trust
      this?** tab as a permanent "Languages in your repo — what CIE read, and
      what it couldn't" card.
-   CIE currently reads **10 languages**: Python, JavaScript, TypeScript, Java,
-   Rust, Go, C, C++, C# and PHP.
+   CIE currently reads **12 languages**: Python, JavaScript, TypeScript, Java,
+   Rust, Go, C, C++, C#, PHP, **SQL** (tables, views, procedures and the
+   table-to-table links the statements write down) and **Shell scripts**
+   (functions, sourced files, the commands scripts run and their effects).
+
+   **Ask before skipping** — when the inventory finds files CIE can't read
+   yet, the check *pauses before reading anything* and asks: go ahead with
+   the readable ones (the rest stay honestly skipped), or stop right there?
+   Nothing is read until you answer; "No" leaves the repo completely unread.
 2. **Upload files** — drop in the three JSON files the `cie` CLI exports;
    nothing ever leaves your machine.
 
@@ -115,8 +123,10 @@ UI, speaking CIE's plain-words language throughout):
 | **Things to look at** | Findings grouped by urgency: Fix soon / Please look / Worth checking / Good to know, each with "How to fix" |
 | **Promises** | Contracts with plain titles ("Check permission first") and who must keep them |
 | **Numbers** | The charting engine: six plain-English charts — urgency bars, problem kinds, findings per file, what the code touches, promises donut (written by you vs CIE's guess), map-certainty donut (proven / good guess). Built with Recharts in `src/components/cie/charts.tsx` |
-| **Menu** | Two shortcuts on one page. **One-tap charts**: 13 pre-canned questions (grouped Problems / Promises / The map / What the code does) whose charts are computed deterministically from the loaded report — no typing, no AI round-trip; rendered by the same `ChatChart` component, so engine + layout disclosure, the fisheye lens and keyboard parity carry over (`src/lib/canned-charts.ts`). **What CIE can't do yet**: all 33 remaining Planned stories from the engine's own registry (147 stories: 113 delivered + 1 honest partial + 33 planned), hand-translated into plain words with "what you'd get" and "why it's not here yet", filterable by 12 themes (`src/lib/whats-next.ts`) |
+| **Menu** | Two shortcuts on one page. **One-tap charts**: 19 pre-canned questions (grouped Problems / Promises / The map / What the code does / Dependencies / Watching it run) whose charts are computed deterministically from the loaded report, deps and runtime evidence — no typing, no AI round-trip; rendered by the same `ChatChart` component, so engine + layout disclosure, the fisheye lens and keyboard parity carry over (`src/lib/canned-charts.ts`). **What CIE can't do yet**: all 33 remaining Planned stories from the engine's own registry (147 stories: 113 delivered + 1 honest partial + 33 planned), hand-translated into plain words with "what you'd get" and "why it's not here yet", filterable by 12 themes (`src/lib/whats-next.ts`) |
 | **Can I trust this?** | Assumptions, unmatched names, coverage notes, provenance — plus the **language honesty card** (what CIE read in your repo, and which languages it skipped) when the project came from Connect a repo. Honesty first |
+| **Dependencies** | Every package the project *declares* — read from pom.xml, build.gradle(.kts), package.json, requirements.txt, pyproject.toml, Cargo.toml, go.mod, composer.json and *.csproj — versions exactly as written, per-ecosystem cards, and the honest usage note per package ("no import-backed usage" is never called "unused"). No manifests? An honest empty state names the files CIE looks for |
+| **Runtime evidence** *(Watching it run)* | Measured evidence only, from the project's own collector output (`runtime-data/runtime.json`): test-coverage bars, CPU hotspots, memory top sites, a thread-span timeline with the measured overlap, the captured deadlock (stacks + waits-for cycle) and counted race lost updates — every dataset naming its tool, its command and the real-world equivalents (py-spy, JFR, ThreadSanitizer, JaCoCo…). No collected evidence? The page says so and shows exactly what to collect and how |
 | **Ask CIE** *(right panel)* | A chat about *your* project — always docked on the right of the stage. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via the **chosen LLM provider** (see below). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`) — and a button that renders it **big on the canvas**. Bars keep the hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
 
 ## Run it
@@ -150,13 +160,16 @@ Without any setup the built-in AI answers; if it fails, the chat shows a
 friendly error bubble (plus a shortcut to the connection settings) and every
 other view keeps working.
 
-The **sample project** (a 4-file banking app) ships pre-loaded in
-`public/data/` — generated by the real engine:
+The **sample project** (a 13-file banking app — Python, SQL and shell, with
+its own runtime collector) ships pre-loaded in `public/data/` — generated by
+the real engine:
 
 ```bash
 cie report examples/bankapp --json  > report.json
 cie viz    examples/bankapp --out   viewspec.json
 cie concepts examples/bankapp --format json > concepts.json
+cie deps   examples/bankapp --json  > deps.json
+python3 examples/bankapp/scripts/collect_runtime.py   # → runtime-data/, merged into runtime.json
 ```
 
 ## Use it on your own project
