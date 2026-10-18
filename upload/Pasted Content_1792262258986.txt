@@ -1,0 +1,686 @@
+# PRD: CIE-VIZ-MULTI — Multi-Engine Visualization Platform
+
+**Codename:** CIE-VIZ-MULTI  
+**Status:** Implementation-ready  
+**Supersedes:** CIE-VIZ (single-engine G6 PRD)  
+**Purpose:** Make visualization a first-class citizen of the Code Intelligence Engine across multiple charting and layouting engines, with a single semantic contract, a closed honesty invariant, an explicit negotiation policy, and a complete catalog of every diagram the engine must produce.  
+**Source basis:** CIE PRD, `feature-requirements.md`, the G6 PRD, the multi-engine analysis, and the diagram inventory.
+
+---
+
+# Part I — Foundation
+
+## 1. Definition of done
+
+Visualization is native when all six are true:
+
+1. **CIE emits `ViewSpec`** — a semantic graph with epistemic metadata — and no engine reference.
+2. **Each engine is an adapter** implementing the same `EngineAdapter` interface.
+3. **The negotiator chooses the engine** by capability gate → user preference → size limits → deterministic order.
+4. **The adapter enforces honesty once** via `gate(spec)`; renderers never re-check.
+5. **Epistemic encoding is preserved or explicitly degraded**, never silently dropped.
+6. **The chart catalog is bounded only by registered extensions**, not by a fixed enumeration.
+
+## 2. Actors and decision authority
+
+### 2.1 Engine decision ladder
+
+```text
+1. Capability gate       (negotiator, policy — hard, non-overridable)
+2. User preference       (UI, bounded by 1)
+3. Graph size limits     (negotiator, hard)
+4. Deterministic order   (negotiator; g6 → jointjs → reactflow → mermaid)
+```
+
+### 2.2 Layout decision ladder
+
+```text
+1. User layout choice    (explicit UI selection — highest)
+2. ViewSpec.layoutHint   (CIE shape-based suggestion)
+3. Adapter auto-select   (graph-shape analysis)
+4. Adapter substitution  (if hint unavailable in engine — always disclosed)
+```
+
+Layout precedence is inverted from engine precedence because layout is a legitimate preference, while engine capability is a hard renderability constraint.
+
+### 2.3 What each actor may and may not decide
+
+| Actor | May | May not |
+|---|---|---|
+| **CIE** | Emit `layoutHint` (strategy name only) | Name an engine, name a layout library |
+| **Negotiator** | Reject by capability/size, honour user preference when eligible, fall back deterministically | Override user preference when ineligible without disclosure; silently degrade |
+| **User** | Pin engine (subject to capability), pin layout, toggle fisheye per view | Bypass capability gate silently; change semantic content by changing engine |
+| **Adapter** | Translate layout hint, substitute unavailable layout and report `LAYOUT_SUBSTITUTED`, decline if limits exceeded | Select its own engine; claim a layout was honoured when substituted |
+
+Every override is **disclosed in the UI** as a named decision with a reason.
+
+## 3. Hash split (cache correctness)
+
+This is the correction that makes multi-engine caching work:
+
+```rust
+pub struct ViewSpec {
+    // … content
+    pub semantic_hash: Hash,   // covers elements, edges, groups, gaps, footer, scope
+    pub render_hash:   Hash,   // semantic_hash + layoutHint + preferences + engine_id
+}
+```
+
+- **Cache key:** `semantic_hash` — layout swap does not invalidate content.
+- **Render artifact key:** `render_hash` — layout swap produces a new artifact.
+- **Audit baseline:** keyed by `(semantic_hash, engine_id, layout_hint_hash)`.
+
+Without this split, the first-chosen layout would become the only stable one, and multi-engine support would be nominal.
+
+---
+
+# Part II — The `EngineAdapter` contract
+
+## 4. Interface
+
+```typescript
+export interface EngineAdapter {
+  readonly id: EngineId;                    // 'g6' | 'mermaid' | 'reactflow' | 'jointjs'
+  readonly capabilities: CapabilitySet;
+  readonly limits: EngineLimits;
+
+  gate(spec: ViewSpec): void;               // throws on unevidenced elements
+  adapt(spec: ViewSpec): unknown;           // ViewSpec → engine-native data
+  configure(spec: ViewSpec, options: RenderOptions): unknown;
+  render(container: HTMLElement, spec: ViewSpec, options: RenderOptions): Promise<RenderHandle>;
+  relayout(handle: RenderHandle, layout: LayoutHint): Promise<LayoutOutcome>;
+  audit(handle: RenderHandle, spec: ViewSpec): AuditReport;
+}
+
+export interface CapabilitySet {
+  fisheye: boolean;
+  customNodes: boolean;
+  customEdges: boolean;
+  customLayouts: boolean;
+  plugins: boolean;
+  interactive: boolean;
+  editable: boolean;
+  combos: boolean;
+  animatedLayout: boolean;
+  svgExport: boolean;
+  canvasExport: boolean;
+  webgl: boolean;
+}
+
+export interface EngineLimits {
+  maxNodes: number;
+  maxEdges: number;
+  supportedLayouts: string[];
+  unsupportedFeatures: string[];
+}
+
+export interface LayoutOutcome {
+  requested: string | undefined;
+  actual:    string;
+  fidelity:  'Exact' | 'Substituted' | 'Unavailable';
+}
+
+export interface RenderHandle {
+  engineId:     EngineId;
+  semanticHash: string;
+  renderHash:   string;
+  layout:       LayoutOutcome;
+  dispose():    Promise<void>;
+}
+```
+
+## 5. The gate (single honesty enforcement point)
+
+```typescript
+export function gate(spec: ViewSpec): void {
+  for (const el of spec.elements) {
+    if (!el.evidence)                                     throw new VizError('ELEMENT_WITHOUT_EVIDENCE', el.id);
+    if (el.displayMode !== 'Fact' && !el.claimId)          throw new VizError('NON_FACT_WITHOUT_CLAIM', el.id);
+    if (el.displayMode === 'Hypothesis' && !el.counterArgument)
+                                                            throw new VizError('HYPOTHESIS_WITHOUT_COUNTER', el.id);
+    if (el.displayMode === 'Fog' && !el.fogReason)          throw new VizError('FOG_WITHOUT_REASON', el.id);
+  }
+  for (const e of spec.edges) {
+    if (!e.evidence) throw new VizError('EDGE_WITHOUT_EVIDENCE', e.id);
+  }
+}
+```
+
+`gate` is called by every adapter's `adapt`. There is no render path that bypasses it.
+
+## 6. Registry and negotiation
+
+```typescript
+export interface EngineRequest {
+  required: Partial<CapabilitySet>;
+  preferred?: EngineId;
+  graphSize: { nodes: number; edges: number };
+  layoutHint?: LayoutHint;
+}
+
+export function chooseEngine(
+  request: EngineRequest,
+  registry: Map<EngineId, EngineAdapter>
+): EngineAdapter {
+  const order: EngineId[] = ['g6', 'jointjs', 'reactflow', 'mermaid'];
+  const candidates = [...registry.values()].filter(a => {
+    for (const [cap, needed] of Object.entries(request.required)) {
+      if (needed && !a.capabilities[cap]) return false;
+    }
+    if (request.graphSize.nodes > a.limits.maxNodes) return false;
+    if (request.graphSize.edges > a.limits.maxEdges) return false;
+    if (request.layoutHint &&
+        !a.limits.supportedLayouts.includes(request.layoutHint.strategy) &&
+        !a.capabilities.customLayouts) return false;
+    return true;
+  });
+  if (request.preferred && candidates.some(a => a.id === request.preferred)) {
+    return candidates.find(a => a.id === request.preferred)!;
+  }
+  return candidates.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0];
+}
+```
+
+The negotiator is a **pure function**. Same inputs → same output, always. Every fallback is disclosed in the UI as `Preferred: X ✗ (reason) · Rendered: Y`.
+
+---
+
+# Part III — Engine capability matrix
+
+| Capability | G6 | JointJS | ReactFlow | Mermaid |
+|---|---|---|---|---|
+| fisheye | ✅ native | ❌ | ❌ | ❌ |
+| customNodes | ✅ | ✅ | ✅ (React) | ❌ |
+| customEdges | ✅ | ✅ | ✅ | ❌ |
+| customLayouts | ✅ | ✅ | ❌ external | ❌ |
+| plugins | ✅ | ✅ | ✅ | ❌ |
+| interactive | ✅ | ✅ | ✅ | ❌ |
+| editable | ✅ | ✅ | ✅ | ❌ |
+| combos | ✅ | ✅ | ⚠ parent-nodes | ❌ |
+| animatedLayout | ✅ | ✅ | ✅ | ❌ |
+| svgExport | ✅ | ✅ | ❌ | ✅ |
+| canvasExport | ✅ | ❌ | ❌ | ❌ |
+| webgl | ✅ | ❌ | ❌ | ❌ |
+| **maxNodes** | 10,000 | 5,000 | 2,000 | 500 |
+| **Layouts** | 20+ registry | directed-graph, spring, force, … | external Dagre/ELK | dagre, elk |
+
+**Engine eligibility by requirement:**
+
+| Requirement | Eligible engines |
+|---|---|
+| `fisheye: true` | G6 only |
+| `nodes > 2,000` | G6, JointJS |
+| `nodes > 500` and `preferred: mermaid` | Negotiated to G6 (disclosed) |
+| `interactive: true` and `preferred: mermaid` | Negotiated to G6, JointJS, or ReactFlow |
+| `customNodes: true` and `preferred: mermaid` | Negotiated with disclosure |
+
+---
+
+# Part IV — Epistemic encoding across engines
+
+## 7. Fidelity levels
+
+| Engine | Fact | Inference | Hypothesis | Fog | Fidelity |
+|---|---|---|---|---|---|
+| G6 | solid | `lineDash [6,4]` | `lineDash [2,4]` | hatched + `[1,3]` | **Full** |
+| JointJS | solid | `strokeDasharray` | finer dash | pattern fill | **Full** |
+| ReactFlow | solid border | dashed CSS | dotted CSS | hatched node background | **Full** (custom node) |
+| Mermaid | solid | `classDef` dashed | `classDef` fine dash | grey fill only | **Degraded** — no hatched fill |
+
+**Requirement VIZ-V-01:** every adapter's `audit()` returns `EncodingFidelity: Full | Degraded | Unsupported`. The UI must show degraded fidelity as a banner.
+
+**Requirement VIZ-V-02:** the **text outline** (A11Y linearization) is authoritative when fidelity is degraded. It is generated from the ViewSpec, not from the rendered output.
+
+## 8. Layout translation
+
+| Engine | Translation |
+|---|---|
+| G6 | Pass `layoutHint.strategy` verbatim to `layout.type`; spread `params` |
+| Mermaid | `dagre` or `elk` only; substitute otherwise and report `LAYOUT_SUBSTITUTED` |
+| ReactFlow | Run Dagre or ELK **before** rendering; pass positions to nodes |
+| JointJS | Map to nearest JointJS layout; report substitution |
+
+Every adapter reports `LayoutOutcome { requested, actual, fidelity }`. UI shows a `Layout: dagre (substituted from force)` chip when fidelity is `Substituted`.
+
+## 9. Fisheye
+
+Only G6 has native fisheye. For other engines the adapter declares `fisheye: false`; the negotiator excludes them when fisheye is required. If a user prefers an engine without fisheye and fisheye is *optional*, the adapter may approximate focus+context (ReactFlow contextual zoom; JointJS `PaperScroller.focus`) but must label it `FOCUS_APPROXIMATION`, never `FISHEYE`.
+
+---
+
+# Part V — Worked example: Flame Graph in G6
+
+## 10. Why G6 cannot do this natively
+
+G6 ships graph layouts (dagre, force, radial, …) that position nodes on a plane. A flame graph is not a graph layout: it is a **rect-in-rect hierarchical packing** where each node's width is proportional to a sample count and its position is determined by cumulative widths of siblings to the left.
+
+G6 has:
+- ❌ no `flame` layout in its registry
+- ❌ no `flame-frame` node type
+- ❌ no native width-proportional placement
+
+G6 has:
+- ✅ a **custom layout registration** (`register(ExtensionCategory.LAYOUT, …)`)
+- ✅ a **custom node registration** (`register(ExtensionCategory.NODE, …)`)
+- ✅ access to node `size` and `style.size` per node
+
+So a flame graph is built by registering **one custom layout** and **one custom node**. This is exactly the extension surface the PRD requires.
+
+## 11. The `ViewSpec` for a flame graph
+
+```typescript
+{
+  elements: [
+    { id: 'root',  elementKind: 'stack-frame', displayMode: 'Fact',
+      label: 'main', evidence: {…}, fields: { samples: 1000, depth: 0 },
+      salience: { factors: ['RUNTIME_HOTNESS'], weight: 1, whyShown: 'root' } },
+    { id: 'f1',    elementKind: 'stack-frame', displayMode: 'Fact',
+      label: 'handleRequest', evidence: {…}, fields: { samples: 600, depth: 1 } },
+    { id: 'f2',    elementKind: 'stack-frame', displayMode: 'Fact',
+      label: 'serialize', evidence: {…}, fields: { samples: 400, depth: 1 } },
+    { id: 'f1a',   elementKind: 'stack-frame', displayMode: 'Fact',
+      label: 'db.query', evidence: {…}, fields: { samples: 450, depth: 2 } },
+    { id: 'f1b',   elementKind: 'stack-frame', displayMode: 'Hypothesis',
+      label: 'cache.hit', claimId: 'C-xxx',
+      counterArgument: 'no cache instrumentation observed',
+      evidence: {…}, fields: { samples: 150, depth: 2 } },
+    // …
+  ],
+  edges: [
+    // parent→child is encoded in fields.depth and edgeKind 'calls'
+    { id: 'e1', source: 'root', target: 'f1', edgeKind: 'calls', displayMode: 'Fact', evidence: {…} },
+    { id: 'e2', source: 'root', target: 'f2', edgeKind: 'calls', displayMode: 'Fact', evidence: {…} },
+    // …
+  ],
+  layoutHint: { strategy: 'cie-flame' },   // ← new strategy name
+  footer: { facts: 4, inferences: 0, hypotheses: 1, fog: 0, stale: 0,
+            caption: 'Display categories, not a confidence score.' },
+  semantic_hash: 'sha256:…',
+  render_hash:   'sha256:…',
+  // …
+}
+```
+
+## 12. The custom layout
+
+G6 custom layouts extend `BaseLayout` and implement `execute()`. The layout computes `x`, `y`, `width`, `height` for each node and returns new node data with position and size.
+
+```typescript
+import { register, ExtensionCategory, BaseLayout, Graph } from '@antv/g6';
+
+class FlameLayout extends BaseLayout {
+  id = 'cie-flame';
+
+  async execute(model: any): Promise<void> {
+    const { nodes, edges } = model;
+
+    // 1. Build parent→children from edges
+    const childrenOf: Record<string, string[]> = {};
+    const parentOf:   Record<string, string>   = {};
+    for (const e of edges) {
+      childrenOf[e.source] ??= [];
+      childrenOf[e.source].push(e.target);
+      parentOf[e.target]   = e.source;
+    }
+
+    // 2. Find root: node with no parentOf entry
+    const root = nodes.find((n: any) => !parentOf[n.id]);
+    if (!root) return;
+
+    // 3. Root fills the canvas width; height per depth level
+    const canvasW = 960;
+    const levelH  = 24;
+    const rootSamples = root.data.fields.samples;
+
+    // 4. Depth-first pass computing each node's x/width
+    const visit = (nodeId: string, depth: number, xOffset: number) => {
+      const node = nodes.find((n: any) => n.id === nodeId);
+      if (!node) return;
+
+      const width = (node.data.fields.samples / rootSamples) * canvasW;
+      node.style = node.style ?? {};
+      node.style.x      = xOffset + width / 2;      // G6 uses center-x
+      node.style.y      = depth * levelH + levelH / 2;
+      node.style.size   = [width, levelH];
+
+      let childX = xOffset;
+      for (const child of childrenOf[nodeId] ?? []) {
+        const childNode = nodes.find((n: any) => n.id === child);
+        if (!childNode) continue;
+        const childW = (childNode.data.fields.samples / rootSamples) * canvasW;
+        visit(child, depth + 1, childX);
+        childX += childW;
+      }
+    };
+    visit(root.id, 0, 0);
+  }
+}
+
+register(ExtensionCategory.LAYOUT, 'cie-flame', FlameLayout);
+```
+
+## 13. The custom node
+
+G6 custom nodes extend `Rect` and render label + size from the datum. The epistemic stroke is preserved.
+
+```typescript
+import { register, ExtensionCategory, Rect } from '@antv/g6';
+
+class FlameFrame extends Rect {
+  render(attributes: any, container: any) {
+    super.render(attributes, container);
+
+    const [w, h] = attributes.size;
+    const data   = attributes.data;
+
+    // Label — truncated to fit
+    const maxChars = Math.max(0, Math.floor(w / 7));
+    const label = data.label.length > maxChars
+      ? data.label.slice(0, maxChars - 1) + '…'
+      : data.label;
+
+    this.upsert('label', 'text', {
+      text: label,
+      x: 0, y: 0,
+      textAlign: 'center', textBaseline: 'middle',
+      fontSize: 11, fill: '#c9d1d9',
+      pointerEvents: 'none',
+    }, container);
+  }
+}
+
+register(ExtensionCategory.NODE, 'cie-flame-frame', FlameFrame);
+```
+
+## 14. The graph construction
+
+```typescript
+const DASH   = { Fact: undefined, Inference: [6,4], Hypothesis: [2,4], Fog: [1,3] };
+const STROKE = { Fact: '#2ea043', Inference: '#d29922', Hypothesis: '#f85149', Fog: '#8b949e' };
+
+const graph = new Graph({
+  container: 'c',
+  data: adapt(spec),
+  node: {
+    type: 'cie-flame-frame',
+    style: {
+      fill:     (d) => depthColor(d.data.fields.depth),
+      stroke:   (d) => STROKE[d.data.displayMode],
+      lineDash: (d) => DASH[d.data.displayMode],
+      lineWidth: (d) => d.data.displayMode === 'Fact' ? 1 : 1.5,
+    },
+  },
+  edge: { style: { opacity: 0 } },   // flame graphs have no visible edges
+  layout: { type: 'cie-flame' },
+  plugins: [
+    { type: 'fisheye', key: 'cie-fisheye', trigger: 'pointermove', d: 1.5, r: 120 },
+  ],
+});
+
+await graph.render();
+```
+
+## 15. Expected render
+
+```text
+ ┌─────────────────────────────────────────────────────────────────┐
+ │ main (1000 samples)                                             │   ← solid green
+ └─────────────────────────────────────────────────────────────────┘
+ ┌───────────────────────────────┐┌───────────────────────────────┐
+ │ handleRequest (600)           ││ serialize (400)               │   ← solid
+ └───────────────────────────────┘└───────────────────────────────┘
+ ┌───────────────────────┐┌──────┐┌───────────────────────────────┐
+ │ db.query (450)        ││cache…││ …                             │   ← solid │ dotted
+ └───────────────────────┘└──────┘└───────────────────────────────┘
+```
+
+With fisheye enabled, hovering over any frame magnifies nearby frames without moving the camera, exactly as for any other G6 view.
+
+## 16. Assertions for the flame-graph test
+
+| # | Assertion | How |
+|---|---|---|
+| 1 | 5+ nodes rendered | `graph.getNodeData().length === N` |
+| 2 | Root width = canvas width | `node.style.size[0] === 960` |
+| 3 | Child widths proportional to samples | `f1.width / f2.width === 600/400` |
+| 4 | Sibling cumulative widths do not overlap | `f1.x + f1.w/2 <= f2.x - f2.w/2` |
+| 5 | Depth → y position monotone | `root.y < f1.y < f1a.y` |
+| 6 | Hypothesis node (`cache.hit`) has `lineDash [2,4]` | Evaluate style function |
+| 7 | Fisheye present and camera unchanged | Same as TC-02 |
+| 8 | Every drawn node id exists in spec | Provenance audit |
+| 9 | `semantic_hash` unchanged when layout swaps to `dagre` | Hash equality |
+| 10 | Renderer (canvas) shows frames with correct widths | Screenshot baseline |
+
+## 17. Why this is "not native" but "fully supported"
+
+The flame graph is not in G6's registry. It is built by:
+1. Registering a custom layout (`cie-flame`) via `register(ExtensionCategory.LAYOUT, …)`.
+2. Registering a custom node (`cie-flame-frame`) via `register(ExtensionCategory.NODE, …)`.
+3. Using the same `gate(spec)` honesty enforcement as every other adapter.
+4. Preserving the same epistemic encoding as every other node type.
+
+The adapter contains no branching on "flame" — it uses `node.type: 'cie-flame-frame'` and `layout.type: 'cie-flame'`, which are just strings. If a future PRD requires a flame graph in JointJS, a new `FlameLayout` and `FlameFrame` are registered in JointJS's equivalent extension system, and the ViewSpec is unchanged.
+
+**This is the proof that the architecture generalizes**: a chart that G6 does not ship is implemented in ~60 lines of extension code, with no schema change and no adapter change.
+
+---
+
+# Part VI — Complete chart catalog
+
+Every diagram type the engine must produce, grouped by category. Columns:
+
+- **Chart** — the diagram
+- **Shape** — semantic shape (elements → edges/groups)
+- **Best engine** — engine recommendation
+- **G6 status** — Native / Custom / Alt-engine
+- **CIE use** — which capability it serves
+
+## A. Structural / UML (13)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| A1 UML class | class+attrs+methods → inheritance, association, dependency | G6 | Custom (uml-class-node + uml-edge) | CAP-12.1, CAP-1.7 |
+| A2 Component | component+interface → provides, requires | G6 | Native + combo | CAP-1.7 |
+| A3 Package | package → imports | G6 | Native (combo) | CAP-1.3 |
+| A4 Deployment | node+artifact → deployed-to | G6 | Native | CAP-9.6 |
+| A5 Object | instance+values → links | G6 | Native | CAP-13.6 |
+| A6 Composite structure | part+port → wiring | G6 | Custom (ports) | CAP-1.10 |
+| A7 Use case | actor+usecase → include, extend | G6 | Custom (actor-icon) | CAP-14.2 |
+| A8 Layer | layer → allowed/forbidden | G6 | Native (grid) | CAP-1.1 |
+| A9 C4 Context | person+system → uses | G6 | Native | CAP-12.1 |
+| A10 C4 Container | container+person → uses | G6 | Native + combo | CAP-12.1 |
+| A11 C4 Component | component+container → uses | G6 | Native + combo | CAP-12.1 |
+| A12 C4 Code | class+package (reuses A1+A3) | G6 | Custom (reuses) | CAP-12.1 |
+| A13 Hexagonal | domain+port+adapter | G6 | Native (concentric) | CAP-12.1 |
+
+## B. Behavioral / UML (7)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| B1 Activity / swimlane | action+decision → control flow | G6 | Native + combo | CAP-12.5 |
+| B2 State machine | state+initial+final → transitions | G6 | Native | CAP-1.6 |
+| B3 Sequence | lifeline+message → ordered | **Mermaid** | Alt-engine | CAP-17.7, RT-05 |
+| B4 Communication | object+message | G6 | Native | CAP-17.7 |
+| B5 Interaction overview | frame → flow | G6 | Native + combo | CAP-17.7 |
+| B6 Timing | lifeline+state band | **Custom SVG** | Custom plugin | CAP-4.7 |
+| B7 BPMN | task+gateway+event+pool | G6 | Native + combo | CAP-12.5 |
+
+## C. Architecture patterns (9)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| C1 Event-driven / message flow | producer+topic+consumer | G6 | Native | CAP-1.10 |
+| C2 Saga / compensation | step+compensation → forward, compensate | G6 | Native | CAP-13.1 |
+| C3 Outbox | aggregate+outbox+relay | G6 | Native | CAP-1.10 |
+| C4 Event storming | command+aggregate+event+policy | G6 | Native | CAP-12.7 |
+| C5 Domain model / bounded contexts | aggregate+entity+value | G6 | Native + combo | CAP-12.1 |
+| C6 Microservices graph | service → HTTP, message | G6 | Native | CAP-9.6, CAP-17.8 |
+| C7 Service dependency | service → depends-on | G6 | Native | CAP-9.6 |
+| C8 Feature module map | feature+module | G6 | Native | CAP-14.1 |
+| C9 Modular monolith | module → allowed/forbidden | G6 | Native + combo | CAP-12.2 |
+
+## D. Data (6)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| D1 ER diagram | entity+attribute → relation | G6 | Native | CAP-7.8 |
+| D2 Data flow (DFD) | process+store+external → data flow | G6 | Native | CAP-2.1, CAP-7.3 |
+| D3 Data lineage | field+writer+reader | G6 | Native | CAP-2.1 |
+| D4 Schema evolution | table+column → added, removed | G6 | Native (dagre timeline) | CAP-7.8 |
+| D5 Table relationship matrix | table × table | G6 | Native (grid) | CAP-7.8 |
+| D6 Data mutation flow | mutation+field | G6 | Native | CAP-2.1 |
+
+## E. Code-level (10)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| E1 Call graph | function → calls (tier) | G6 | Native | CAP-1.3, CAP-10.2 |
+| E2 CFG | block → branch | G6 | Native | CAP-4.1, CAP-13.4 |
+| E3 PDG | statement → data+control dep | G6 | Native | CAP-13.2 |
+| E4 Data flow / def-use | def+use → reaching-def | G6 | Native | CAP-2.1 |
+| E5 Module dependency | module → imports | G6 | Native | CAP-1.3 |
+| E6 Dead code reachability | function+entry → reachable | G6 | Native | CAP-1.4 |
+| E7 Hot path | function → frequency-weighted call | G6 | Native | CAP-4.7 |
+| E8 Import/export graph | file → imports, re-exports | G6 | Native | CAP-1.8 |
+| E9 IR/pseudocode structure | block+instruction | G6 | Native | ANL-05 |
+| E10 Concept atlas | cluster → similarity | G6 | Native (fruchterman) | CAP-11.1 |
+
+## F. Runtime / operational (7)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| F1 Trace waterfall | span → parent-child, time | **Custom SVG / Mermaid gantt** | Custom plugin | CAP-8.1, CAP-8.5 |
+| F2 Flame graph | stack frame → contains | **G6 custom (flame layout)** | Custom (see §10–16) | CAP-4.7, ANL-15 |
+| F3 Runtime overlay | architecture tinted by runtime | G6 | Native | CAP-8.7 |
+| F4 Concurrency / race windows | lane+statement → interleaving | G6 | Native + combo | CAP-13.5 |
+| F5 Lock ordering | lock → ordering | G6 | Native | CAP-13.5 |
+| F6 Resource lifecycle | acquire+release | G6 | Native | CAP-4.4 |
+| F7 Incident timeline | event → occurred-before | G6 | Native (dagre timeline) | CAP-8.5, CAP-17.7 |
+
+## G. Quality / testing (5)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| G1 Test-confidence matrix | behavior × test | G6 | Native (grid) | CAP-3.1 |
+| G2 Test guarantee matrix | behavior × guarantee | G6 | Native (grid) | CAP-3.4 |
+| G3 Policy enforcement matrix | route × rule | G6 | Native (grid) | CAP-7.5 |
+| G4 Idempotency matrix | operation × retry | G6 | Native (grid) | CAP-13.1 |
+| G5 Coverage map | file → coverage | G6 | Native (grid/treemap) | CAP-3.1 |
+
+## H. Decision / analysis (5)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| H1 Decision table | condition × action | G6 | Native (grid) | CAP-12.7 |
+| H2 FMEA table | mode+severity+detection+occurrence | G6 | Native (grid) | CAP-13.5 |
+| H3 Metrics map | metric × scope | G6 | Native (grid) | CAP-4.1 |
+| H4 Counterfactual overlay | current+hypothetical | G6 | Native | CAP-17.8 |
+| H5 Change-risk terrain | file cell weighted | G6 | Native (treemap) | CAP-10.4 |
+
+## I. Epistemic / investigation (7)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| I1 Hypothesis graph | hypothesis+evidence → supports, contradicts | G6 | Native | CAP-8.5, INV-07 |
+| I2 Failure space / invariant map | failure+invariant | G6 | Native | CAP-13.2 |
+| I3 Trust boundary | zone+gate+resource | G6 | Native + combo | CAP-2.8 |
+| I4 Archaeology chain | commit+change → caused | G6 | Native (dagre timeline) | CAP-15.1 |
+| I5 Semantic diff timeline | before+after | G6 | Native | CAP-1.10 |
+| I6 Concept atlas | concept → similarity | G6 | Native (fruchterman) | FR-40–44 |
+| I7 Concept hierarchy | concept → contains | G6 | Native (compact-box, mindmap) | FR-40–44 |
+
+## J. Journey / flow (4)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| J1 Transaction journey | step+branch → ordered | G6 | Native + combo | CAP-1.10 |
+| J2 User journey | step+branch (user-facing) | G6 | Native + combo | CAP-14.2 |
+| J3 API journey | request+handler+service+repo | G6 | Native | CAP-1.10 |
+| J4 Process orchestration | activity+task | G6 | Native | CAP-12.5 |
+
+## K. Organizational / knowledge (3)
+
+| Chart | Shape | Best engine | G6 status | CIE use |
+|---|---|---|---|---|
+| K1 Ownership map | file+owner → owned-by | G6 | Native | CAP-6.5 |
+| K2 Knowledge distribution | file+knowledge density | G6 | Native (grid) | CAP-6.5 |
+| K3 Concept hierarchy (2-axis) | containment × specialization | G6 | Native (compact-box) | FR-40–44 |
+
+## Catalog summary
+
+| Category | Count | G6 Native | G6 Custom | Alt-engine |
+|---|---|---|---|---|
+| A Structural / UML | 13 | 10 | 3 | 0 |
+| B Behavioral / UML | 7 | 5 | 0 | 2 |
+| C Architecture | 9 | 9 | 0 | 0 |
+| D Data | 6 | 6 | 0 | 0 |
+| E Code-level | 10 | 10 | 0 | 0 |
+| F Runtime | 7 | 4 | 1 | 2 |
+| G Quality | 5 | 5 | 0 | 0 |
+| H Decision | 5 | 5 | 0 | 0 |
+| I Epistemic | 7 | 7 | 0 | 0 |
+| J Journey | 4 | 4 | 0 | 0 |
+| K Organizational | 3 | 3 | 0 | 0 |
+| **Total** | **76** | **68** | **4** | **4** |
+
+**G6 extension budget for the entire catalog:** 4 custom node types, 2 custom edge types, 2 custom layouts, 2 custom plugins. Everything else uses G6's shipped primitives and layout registry.
+
+**Non-G6 charts** (F1, F2, B3, B6) are either served by Mermaid (B3) or implemented as G6 custom extensions (F1, F2) or custom SVG (B6) — all through the same `EngineAdapter` contract.
+
+---
+
+# Part VII — Acceptance ledger
+
+| ID | Item | Named test |
+|---|---|---|
+| VIZ-01 | `gate()` rejects unevidenced elements before any engine runs | `adapter.gate.spec.ts` |
+| VIZ-02 | `semantic_hash` unchanged across layout and engine swaps | `hash.split.spec.ts` |
+| VIZ-03 | `render_hash` changes across layout swap | `hash.render.spec.ts` |
+| VIZ-04 | Negotiator is a pure function of `(request, registry, graphSize)` | `negotiator.pure.spec.ts` |
+| VIZ-05 | User preference honoured when eligible | `negotiator.preference-ok.spec.ts` |
+| VIZ-06 | User preference rejected with disclosed reason when ineligible | `negotiator.preference-blocked.spec.ts` |
+| VIZ-07 | `nodes > 2000` excludes Mermaid and ReactFlow | `negotiator.size.spec.ts` |
+| VIZ-08 | `fisheye: true` restricts to G6 | `negotiator.fisheye.spec.ts` |
+| VIZ-09 | Adapter never invoked without negotiator decision | `negotiator.boundary.spec.ts` |
+| VIZ-10 | CIE output contains no engine id | `schema.no-engine.spec.ts` |
+| VIZ-11 | G6 renders UML class diagram | `tc01.uml-g6.spec.ts` |
+| VIZ-12 | G6 renders flame graph via custom layout + node | `tc02.flame-g6.spec.ts` |
+| VIZ-13 | Mermaid renders sequence diagram | `tc03.sequence-mermaid.spec.ts` |
+| VIZ-14 | JointJS renders architecture with full encoding fidelity | `tc04.arch-jointjs.spec.ts` |
+| VIZ-15 | ReactFlow renders hypothesis graph with dashed borders | `tc05.hyp-reactflow.spec.ts` |
+| VIZ-16 | Same ViewSpec rendered by two engines has identical element ids | `tc06.parity.spec.ts` |
+| VIZ-17 | Layout substitution is disclosed | `layout.substitution.spec.ts` |
+| VIZ-18 | Encoding fidelity is `Degraded` for Mermaid and surfaced | `fidelity.mermaid.spec.ts` |
+| VIZ-19 | Text outline is authoritative when fidelity is degraded | `outline.authoritative.spec.ts` |
+| VIZ-20 | Fisheye works on all G6 layouts | `fisheye.all-layouts.spec.ts` |
+| VIZ-21 | Fisheye is `false` for Mermaid/ReactFlow/JointJS | `capability.fisheye.spec.ts` |
+| VIZ-22 | Canvas/SVG parity in G6 | `renderer.parity-g6.spec.ts` |
+| VIZ-23 | Every catalog chart renders in its recommended engine | `catalog.all.spec.ts` (parameterised over 76 charts) |
+| VIZ-24 | Screenshot baseline exists for every catalog chart | `catalog.baselines.spec.ts` |
+| VIZ-25 | Provenance audit passes for every catalog chart | `catalog.audit.spec.ts` |
+| VIZ-26 | Keyboard-only completion works for every catalog chart | `catalog.keyboard.spec.ts` |
+| VIZ-27 | Adding a new chart requires no adapter change | `extension.new-chart.spec.ts` (adds a toy chart via `register()` only) |
+| VIZ-28 | Engine negotiation disclosed in UI | `ui.disclosure.spec.ts` |
+| VIZ-29 | Layout chip shows `Exact` / `Substituted` / `Unavailable` | `ui.layout-chip.spec.ts` |
+| VIZ-30 | Fidelity banner appears when `Degraded` | `ui.fidelity-banner.spec.ts` |
+
+---
+
+# Part VIII — Non-goals
+
+| Excluded | Reason |
+|---|---|
+| Reimplementing any layout algorithm in CIE | Layout is engine-owned; adapters translate |
+| Reimplementing fisheye in non-G6 engines | Only G6 has it; other engines declare `fisheye: false` |
+| A fixed enumeration of chart types in CIE | The registry is the enumeration; additions are `register()` calls |
+| Chart-specific branching in the adapter | Adapters are generic over `elementKind` and `edgeKind` |
+| Enforcing honesty inside each renderer | `gate()` is the single enforcement point |
+| Guaranteeing full encoding fidelity across all engines | Fidelity is disclosed; text outline is authoritative when degraded |
+| Supporting an engine-specific chart that no other engine can approximate | If no engine can render the semantic shape, the shape is not producible; the negotiator returns a typed error |
+| Live syncing of view state across engines | Each engine has its own interaction model; the ViewSpec is the sync point, not the rendered canvas |
+
+---
+
+# Part IX — One-sentence summary
+
+**CIE emits a semantic `ViewSpec`; a negotiator picks an engine by hard capability gate → user preference → size limits → deterministic order; every adapter enforces honesty once via `gate()`, translates `layoutHint` to its engine's nearest layout and discloses substitution, preserves or explicitly degrades epistemic encoding, and produces a `RenderHandle` whose `audit()` is checked in CI; the chart catalog is bounded only by registered extensions — 76 charts today, of which 68 are G6-native, 4 are G6-custom (UML class, flame graph, ports, actor), and 4 use Mermaid or custom SVG — with `semantic_hash` making layout and engine swaps cache-safe and every override surfaced in the UI as a named decision with a reason.**

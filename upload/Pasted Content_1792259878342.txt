@@ -1,0 +1,907 @@
+# PRD: Native Visualization via ViewSpec → G6
+
+**Codename:** CIE-VIZ  
+**Status:** Implementation-ready  
+**Implementation language:** TypeScript adapter + Rust ViewSpec producer  
+**Rendering substrate:** AntV G6 v5 (`@antv/g6`)  
+**Source basis:** CIE PRD (FR-9, FR-40–44), feature-requirements.md (EV-01…09, VIS-01…19, ZM-01…16, LY-01…05, A11Y-01…05), and the G6 extension/layout/plugin/fisheye APIs  
+**Purpose:** Make visualization a first-class citizen of the platform by defining a single, closed contract between CIE and G6, so that any semantic graph can be rendered by any registered G6 extension, in any layout, with fisheye enabled by configuration — without adding chart-specific code to CIE and without limiting the number of charts to a fixed catalogue.
+
+---
+
+## 1. Definition of "Native"
+
+Visualization is native when all five of the following are true:
+
+1. **CIE never knows what a chart is.** It emits `ViewSpec` — a semantic graph with epistemic metadata. It has no `ViewKind` enum, no chart name, no layout name, no colour.
+2. **G6 never knows what a claim is.** It receives `GraphData` and draws it. Every honesty rule is expressed as a style mapping on `datum.data`, not as logic in the renderer.
+3. **The adapter is the only bridge.** One function, `adapt(ViewSpec) → GraphData`, plus one `graphOptions(spec) → GraphOptions`. Adding a chart type never changes the adapter's contract.
+4. **Fisheye is configuration, not implementation.** Enabling it is one object in `plugins[]`; G6's built-in plugin supplies the lens.
+5. **The chart count is unbounded.** Any G6 extension category — Node, Edge, Combo, Layout, Plugin, Behavior, Transform, Theme, Palette, Animation — is a valid rendering surface. The catalogue is whatever has been registered.
+
+---
+
+## 2. Architecture
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ CIE (Rust)                                                            │
+│   claim store · five gates · coverage · ConceptNode DAG · evidence    │
+│                                    │                                  │
+│                                    ▼                                  │
+│                          ViewSpec (semantic graph)                    │
+│            elements[] · edges[] · groups[] · gaps[] · footer          │
+│            every element: displayMode, evidence, salience             │
+└────────────────────────────────────┬─────────────────────────────────┘
+                                     │  JSON over HTTP / stdio
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ Viz adapter (TypeScript)                                              │
+│   gate(spec)        → throws on unevidenced element                   │
+│   adapt(spec)       → { nodes[], edges[], combos[] }                  │
+│   graphOptions(spec) → G6 GraphOptions (node/edge/layout/plugins)     │
+└────────────────────────────────────┬─────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ G6 (rendering substrate)                                              │
+│   register(ExtensionCategory.*, name, impl)   ← open surface          │
+│   layout.type: any built-in or registered layout                      │
+│   plugins: ['fisheye', 'minimap', 'edge-bundling', 'history', …]       │
+│   renderer: 'canvas' | 'svg' | 'webgl'                                │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+There is exactly **one** place where semantic honesty meets visual freedom: the adapter's `gate()`. Every renderer downstream is free to be as creative as G6 allows, because it only receives data that has already passed the gate.
+
+---
+
+## 3. The ViewSpec contract
+
+### 3.1 Type
+
+```typescript
+export interface ViewSpec {
+  /** Semantic graph — no chart type, no layout, no colour. */
+  elements: ViewElement[];
+  edges:    ViewEdge[];
+  groups?:  ViewGroup[];
+
+  /** Epistemic footer — always present, always rendered. */
+  footer: EpistemicFooter;
+
+  /** Incompleteness is inside the spec, never hidden outside it. */
+  gaps:   Gap[];
+  hidden: HiddenCandidate[];
+
+  /** Attestation — makes cache, staleness and audit possible. */
+  scope: ScopeAttestation;
+
+  /** Optional render hints. Absent = adapter chooses. */
+  layoutHint?:  LayoutHint;
+  preferences?: Preferences;
+
+  /** Content hash over everything above except itself. */
+  contentHash: string;
+}
+
+export interface ViewElement {
+  id:            string;              // stable across revisions
+  elementKind:   ElementKind;         // concept | symbol | file | route | rule | …
+  displayMode:   'Fact' | 'Inference' | 'Hypothesis' | 'Fog';
+  label:         string;
+  evidence:      EvidenceRef;         // REQUIRED — no element without it
+  claimId?:      string;              // REQUIRED iff displayMode ≠ Fact
+  counterArgument?: string;           // REQUIRED iff displayMode = Hypothesis
+  fogReason?:    string;              // REQUIRED iff displayMode = Fog
+  salience:      { factors: string[]; weight: number; whyShown: string };
+  fields:        Record<string, unknown>;
+  parentId?:     string;              // group / hierarchy containment
+}
+
+export interface ViewEdge {
+  id:          string;
+  source:      string;
+  target:      string;
+  edgeKind:    string;                // calls | reads | writes | exposes | …
+  displayMode: 'Fact' | 'Inference' | 'Hypothesis';
+  evidence:    EvidenceRef;
+  counterArgument?: string;
+}
+
+export interface LayoutHint {
+  strategy: 'dagre' | 'fruchterman' | 'radial' | 'grid' | 'circular'
+          | 'compact-box' | 'concentric' | 'force' | string;   // any G6 name
+  params?:  Record<string, unknown>;    // passed through to G6 untouched
+}
+
+export interface Preferences {
+  fisheye?: {
+    trigger?: 'pointermove' | 'click' | 'drag';
+    d?: number; r?: number; maxR?: number; minR?: number;
+    maxD?: number; minD?: number;
+    scaleRBy?: 'wheel' | 'drag';
+    scaleDBy?: 'wheel' | 'drag';
+    showDPercent?: boolean;
+  };
+  minimap?:  boolean | { size?: [number, number]; position?: string };
+  edgeBundling?: boolean;
+  history?:  boolean;
+  renderer?: 'canvas' | 'svg' | 'webgl';
+}
+```
+
+### 3.2 Contract clauses
+
+| ID | Clause | Testable by |
+|---|---|---|
+| VIZ-A-01 | `ViewSpec` contains no chart name, layout name, colour or pixel value | Schema test: reject unknown keys |
+| VIZ-A-02 | Every element has `displayMode` | Type-level non-optional |
+| VIZ-A-03 | Every element has `evidence` | Adapter gate throws |
+| VIZ-A-04 | `displayMode ≠ Fact ⇒ claimId` present | Adapter gate throws |
+| VIZ-A-05 | `displayMode = Hypothesis ⇒ counterArgument` present | Adapter gate throws |
+| VIZ-A-06 | `displayMode = Fog ⇒ fogReason` present | Adapter gate throws |
+| VIZ-A-07 | `footer` is always present, even when all counts are zero | Schema test |
+| VIZ-A-08 | `contentHash` covers every field except itself | Recomputation test |
+| VIZ-A-09 | `layoutHint` is optional; absence means adapter chooses | Two renders, one with/without hint |
+| VIZ-A-10 | `preferences` never changes semantic content | Hash equality across preference variants |
+
+---
+
+## 4. The adapter contract
+
+### 4.1 Gate (runs before anything is drawn)
+
+```typescript
+export function gate(spec: ViewSpec): void {
+  for (const el of spec.elements) {
+    if (!el.evidence) throw new VizError('ELEMENT_WITHOUT_EVIDENCE', el.id);
+    if (el.displayMode !== 'Fact' && !el.claimId)
+      throw new VizError('NON_FACT_WITHOUT_CLAIM', el.id);
+    if (el.displayMode === 'Hypothesis' && !el.counterArgument)
+      throw new VizError('HYPOTHESIS_WITHOUT_COUNTER', el.id);
+    if (el.displayMode === 'Fog' && !el.fogReason)
+      throw new VizError('FOG_WITHOUT_REASON', el.id);
+  }
+  for (const e of spec.edges) {
+    if (!e.evidence) throw new VizError('EDGE_WITHOUT_EVIDENCE', e.id);
+  }
+}
+```
+
+`gate()` is the **only** honesty enforcement point in the viz layer. Renderers do not re-check; they trust that `adapt()` was only reached after `gate()` passed.
+
+### 4.2 Adapt (semantic → G6 data)
+
+```typescript
+export function adapt(spec: ViewSpec): GraphData {
+  gate(spec);
+  return {
+    nodes: spec.elements.map(el => ({
+      id: el.id,
+      data: {
+        elementKind:  el.elementKind,
+        displayMode:  el.displayMode,
+        label:        el.label,
+        evidence:     el.evidence,
+        claimId:      el.claimId,
+        counterArgument: el.counterArgument,
+        fogReason:    el.fogReason,
+        salienceWeight: el.salience.weight,
+        fields:       el.fields,
+        parentId:     el.parentId,
+      },
+    })),
+    edges: spec.edges.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      data: {
+        edgeKind: e.edgeKind,
+        displayMode: e.displayMode,
+        evidence: e.evidence,
+        counterArgument: e.counterArgument,
+      },
+    })),
+    combos: (spec.groups ?? []).map(g => ({
+      id: g.id, data: { label: g.label, kind: g.kind },
+    })),
+  };
+}
+```
+
+G6's data model places business fields under `data` and visual fields under `style`. The adapter follows that split exactly: **semantics go to `data`, appearance is decided by `graphOptions`.**
+
+### 4.3 Graph options (semantic → visual mapping)
+
+```typescript
+export function graphOptions(spec: ViewSpec): GraphOptions {
+  return {
+    data: adapt(spec),
+
+    // ── Epistemic encoding: the visual law ──────────────────────────
+    node: {
+      type: (d) => NODE_TYPE[d.data.elementKind] ?? 'circle',
+      style: {
+        lineDash: (d) => DASH[d.data.displayMode],        // Fact none, Inference [6,4], Hypothesis [2,4], Fog [1,3]
+        stroke:   (d) => STROKE[d.data.displayMode],
+        lineWidth:(d) => d.data.displayMode === 'Fact' ? 2 : 1.5,
+        size:     (d) => 20 + d.data.salienceWeight * 40,
+        labelText:(d) => d.data.label,
+        labelPlacement: 'bottom',
+        badge:    (d) => d.data.displayMode === 'Fog'
+                          ? [{ text: '?', placement: 'right-top' }] : [],
+      },
+    },
+    edge: {
+      style: {
+        lineDash: (d) => EDGE_DASH[d.data.displayMode],
+        endArrow: true,
+        labelText: (d) => d.data.edgeKind,
+      },
+    },
+
+    // ── Layout: pass-through to G6's layout registry ────────────────
+    layout: spec.layoutHint
+      ? { type: spec.layoutHint.strategy, ...spec.layoutHint.params }
+      : autoLayout(spec),          // acyclic → dagre, dense → force, tree → compact-box
+
+    // ── Plugins: fisheye is one entry ───────────────────────────────
+    plugins: buildPlugins(spec.preferences),
+
+    renderer: spec.preferences?.renderer ?? 'canvas',
+  };
+}
+
+function buildPlugins(p: Preferences = {}): PluginOptions[] {
+  const out: PluginOptions[] = [];
+  if (p.fisheye) {
+    out.push({
+      type: 'fisheye',
+      key: 'cie-fisheye',
+      trigger: p.fisheye.trigger ?? 'pointermove',
+      d: p.fisheye.d ?? 1.5,
+      r: p.fisheye.r ?? 120,
+      ...p.fisheye,
+    });
+  }
+  if (p.minimap) out.push({ type: 'minimap', key: 'cie-minimap', size: [240, 160] });
+  if (p.edgeBundling) out.push({ type: 'edge-bundling', key: 'cie-bundling' });
+  if (p.history) out.push({ type: 'history', key: 'cie-history' });
+  return out;
+}
+```
+
+`buildPlugins` is deliberately small because **G6 owns the plugin implementations**. Fisheye is configured by its documented options — `trigger`, `d`, `r`, `maxR`, `minR`, `maxD`, `minD`, `scaleRBy`, `scaleDBy`, `showDPercent`, `style`, `nodeStyle`, `preventDefault`. There is no custom lens geometry, no coordinate transform, and no hit-testing in the adapter.
+
+### 4.4 Adapter requirements
+
+| ID | Requirement | Acceptance |
+|---|---|---|
+| VIZ-B-01 | `gate()` runs before `adapt()` on every render path | Unit test: unevidenced element throws, graph never constructed |
+| VIZ-B-02 | `adapt()` is pure | Same spec twice → deep-equal `GraphData` |
+| VIZ-B-03 | `graphOptions()` is pure | Same spec twice → deep-equal options |
+| VIZ-B-04 | No `ViewKind` branching anywhere in the adapter | Static analysis: adapter has no chart-name string constants |
+| VIZ-B-05 | Adding a new `ElementKind` requires only a new `NODE_TYPE` entry | New kind test: renders without touching adapter logic |
+| VIZ-B-06 | Adding a new layout requires only a new `LayoutHint.strategy` string | Layout swap test |
+| VIZ-B-07 | `preferences` never alters `GraphData` | Hash equality test |
+
+---
+
+## 5. Extension surface requirements
+
+G6 registers extensions under ten categories, and the first registration for a given name wins. The platform treats every category as an open rendering surface:
+
+| ID | Requirement | Notes |
+|---|---|---|
+| VIZ-C-01 | Every built-in G6 node type is usable without adapter change | `circle`, `diamond`, `donut`, `ellipse`, `hexagon`, `html`, `image`, `rect`, `star`, `triangle` |
+| VIZ-C-02 | Custom node types are registered via `register(ExtensionCategory.NODE, name, impl)` | A new chart-specific shape is a registration, not a schema change |
+| VIZ-C-03 | Custom edge types are registered via `register(ExtensionCategory.EDGE, …)` | Same |
+| VIZ-C-04 | Custom combos are registered via `register(ExtensionCategory.COMBO, …)` | Used for swim lanes and owner columns |
+| VIZ-C-05 | Custom layouts are registered via `register(ExtensionCategory.LAYOUT, …)` | Used for journey, terrain, matrix |
+| VIZ-C-06 | Custom plugins are registered via `register(ExtensionCategory.PLUGIN, …)` | Used for gap overlay, footer overlay |
+| VIZ-C-07 | Registration is idempotent and deterministic | First registration wins; duplicate name test |
+| VIZ-C-08 | Unregistered name in `node.type` falls back to `circle`, never crashes | Fallback test |
+| VIZ-C-09 | `getExtension`/`getExtensions` are used by tests to prove registration | Registry introspection test |
+
+**VIZ-C-10 (the "not limited to 16" clause):** The number of renderable charts is bounded only by the number of registered extensions. There is no enumeration of charts in the adapter, the ViewSpec, or the CIE producer.
+
+---
+
+## 6. Layout requirements
+
+G6 ships more than twenty layouts — `antv-dagre`, `circular`, `combo-combined`, `concentric`, `d3-force`, `d3-force-3d`, `dagre`, `fishbone`, `force`, `force-atlas2`, `fruchterman`, `grid`, `mds`, `radial`, `random`, `snake`, `compact-box`, `dendrogram`, `mindmap`, `indented`. The adapter must not reinvent any of them.
+
+| ID | Requirement | Acceptance |
+|---|---|---|
+| VIZ-D-01 | `layoutHint.strategy` is passed verbatim to `layout.type` | Spy on `graphOptions` |
+| VIZ-D-02 | `layoutHint.params` is spread into the layout config | Dagre test with `rankdir: 'LR'` |
+| VIZ-D-03 | Absent hint → deterministic auto-selection from graph shape | Acyclic → `dagre`; tree → `compact-box`; dense → `force` |
+| VIZ-D-04 | Layout swap never changes element ids or display modes | Dagre vs fruchterman hash test |
+| VIZ-D-05 | Every layout in G6's registry is addressable by name | Parametrised test over the layout list |
+| VIZ-D-06 | Custom layout registered by name is usable via `layoutHint.strategy` | Journey layout test |
+| VIZ-D-07 | Layout computation runs under `enableWorker` where available | Config assertion |
+
+**VIZ-D-08:** No layout algorithm is implemented in CIE or in the adapter. Geometry is G6's responsibility, always.
+
+---
+
+## 7. Fisheye requirements
+
+| ID | Requirement | Acceptance |
+|---|---|---|
+| VIZ-E-01 | Enabling fisheye is exactly one `plugins[]` entry | `buildPlugins` unit test |
+| VIZ-E-02 | All documented fisheye options pass through unchanged | Option round-trip test |
+| VIZ-E-03 | Fisheye works on every layout, not just force layouts | Parametrised over dagre, radial, grid, fruchterman |
+| VIZ-E-04 | Fisheye does not move the camera | `graph.getZoom()` and `graph.getCenter()` unchanged after pointermove |
+| VIZ-E-05 | Fisheye magnifies near-cursor elements and preserves far context | Coordinate delta test: near node moves, far node does not |
+| VIZ-E-06 | Fisheye can be toggled at runtime without re-render | `graph.setPlugins` / `updatePlugin` |
+| VIZ-E-07 | Fisheye respects `preventDefault` and does not swallow selection events | Interaction test: click still selects |
+| VIZ-E-08 | Fisheye is never required for correctness; disabling it never changes `ViewSpec` | Hash equality test |
+
+**VIZ-E-09 (the "without too much" clause):** The adapter contains **zero lines** of lens geometry, coordinate transformation, or hit-testing. If a future G6 release changes the lens implementation, the adapter does not change.
+
+---
+
+## 8. Epistemic encoding requirements
+
+The visual law is fixed; the visual vocabulary is open.
+
+| Display mode | Stroke | Glyph | Word |
+|---|---|---|---|
+| Fact | solid | ● | "Fact · statically proven" |
+| Inference | dashed `[6,4]` | ◐ | "Inference · derived from cited evidence" |
+| Hypothesis | dotted `[2,4]` | ○ | "Hypothesis · cannot be proven statically" |
+| Fog | hatched `[1,3]` | ? | "Fog · not determinable from static analysis" |
+
+| ID | Requirement |
+|---|---|
+| VIZ-F-01 | Encoding is redundant: stroke + glyph + word, never colour alone |
+| VIZ-F-02 | `lineDash` is computed from `datum.data.displayMode`, not from node type |
+| VIZ-F-03 | A custom node type must still honour `lineDash` and `stroke` |
+| VIZ-F-04 | Hypothesis nodes render their `counterArgument` in the inspector, not on canvas |
+| VIZ-F-05 | Fog nodes always carry a visible `fogReason` |
+| VIZ-F-06 | The footer is rendered by a registered overlay plugin, outside the graph canvas |
+| VIZ-F-07 | Contrast ≥ 4.5:1 for labels and ≥ 3:1 for display modes in light, dark, high-contrast |
+
+---
+
+## 9. Interaction and accessibility requirements
+
+| ID | Requirement |
+|---|---|
+| VIZ-G-01 | Canvas is one tab stop; arrow keys move spatially between elements |
+| VIZ-G-02 | Enter inspects, Space selects, **E** opens code, **O** opens text outline, **L** pauses hover expansion |
+| VIZ-G-03 | Matrix cells use roving tabindex with arrow navigation |
+| VIZ-G-04 | Screen-reader announcements state *what it is, how it is known, how many links* |
+| VIZ-G-05 | Reduced motion disables layout animation and fisheye transitions |
+| VIZ-G-06 | A text outline lists every element and edge in reading order with its display mode in words |
+| VIZ-G-07 | The outline is the fallback when canvas rendering fails |
+
+---
+
+## 10. Audit requirements
+
+| ID | Requirement | Acceptance |
+|---|---|---|
+| VIZ-H-01 | For every drawn node, its `id` exists in `ViewSpec.elements` | Provenance audit |
+| VIZ-H-02 | For every drawn edge, its `evidence` mentions the target element | Provenance audit |
+| VIZ-H-03 | No element is drawn as Fact unless `displayMode === 'Fact'` | Audit |
+| VIZ-H-04 | Every drawn Hypothesis element has a visible counter-argument affordance | Audit |
+| VIZ-H-05 | Every gap in `spec.gaps` is reachable from the footer | Audit |
+| VIZ-H-06 | `render(spec)` is byte-comparable across runs for the same layout seed | Snapshot test |
+| VIZ-H-07 | Audit runs in CI for every registered renderer | CI gate |
+
+---
+
+## 11. Performance requirements
+
+| ID | Requirement | Target |
+|---|---|---|
+| VIZ-I-01 | Adapter `gate + adapt + graphOptions` | ≤ 5 ms for 2,000 elements |
+| VIZ-I-02 | First render, 500 nodes / 1,000 edges, canvas | ≤ 800 ms |
+| VIZ-I-03 | Fisheye pointermove frame | ≤ 16 ms |
+| VIZ-I-04 | Layout swap without re-parsing spec | ≤ 300 ms |
+| VIZ-I-05 | Renderer switch canvas → svg preserves element count | Assertion |
+| VIZ-I-06 | Element cap: salience-bounded to ≤ 2,000 per view | Enforced in `adapt` |
+
+---
+
+## 12. Test harness requirements
+
+| ID | Requirement |
+|---|---|
+| VIZ-J-01 | Every renderer has a fixture `ViewSpec` under `fixtures/specs/` |
+| VIZ-J-02 | Every fixture has a screenshot baseline under `fixtures/baselines/` |
+| VIZ-J-03 | Every fixture has a provenance audit test |
+| VIZ-J-04 | Every fixture has a keyboard-only interaction test (pointer events counted = 0) |
+| VIZ-J-05 | Every fixture renders in canvas and svg; webgl is opt-in |
+| VIZ-J-06 | Registry introspection test proves every extension used is registered |
+| VIZ-J-07 | Adding a renderer requires a fixture, a baseline, an audit, and a keyboard test |
+| VIZ-J-08 | CI fails if a registered extension name collides with an unregistered one |
+
+---
+
+## 13. Test cases (runnable, with expected rendered output)
+
+Each test case is a complete, self-contained page. Open it in a browser, or run it headless with Playwright. Each names the G6 engine surface it exercises and the assertions that prove the chart actually rendered.
+
+---
+
+### TC-01 — Architecture map with epistemic encoding (Dagre layout)
+
+**Engine surfaces:** `Graph`, `layout: dagre`, dynamic `node.style.lineDash`, dynamic `node.style.stroke`, dynamic `edge.style.lineDash`
+
+**Input `ViewSpec` (excerpt):**
+
+```json
+{
+  "elements": [
+    { "id": "checkout",   "elementKind": "concept", "displayMode": "Fact",
+      "label": "Checkout", "evidence": {"file":"checkout.py","start":88,"end":120},
+      "salience": {"factors":["TASK_MATCH"],"weight":0.9,"whyShown":"matches question"} },
+    { "id": "authorize",  "elementKind": "symbol",  "displayMode": "Inference",
+      "label": "PaymentGateway.authorize", "claimId": "C-0042",
+      "evidence": {"file":"payment.py","start":19,"end":31},
+      "salience": {"factors":["STRUCTURAL_CENTRALITY"],"weight":0.7,"whyShown":"called by checkout"} },
+    { "id": "fulfill",    "elementKind": "symbol",  "displayMode": "Fact",
+      "label": "Order.fulfill", "evidence": {"file":"order.py","start":64,"end":91},
+      "salience": {"factors":["TASK_MATCH"],"weight":0.8,"whyShown":"terminal step"} },
+    { "id": "topup",      "elementKind": "symbol",  "displayMode": "Hypothesis",
+      "label": "Inventory.top_up", "claimId": "C-0099",
+      "counterArgument": "no test asserts top-up idempotency",
+      "evidence": {"file":"inventory.py","start":41,"end":58},
+      "salience": {"factors":["USER_OVERRIDE"],"weight":0.4,"whyShown":"pinned"} },
+    { "id": "legacy",     "elementKind": "file",    "displayMode": "Fog",
+      "label": "legacy/refund.py", "fogReason": "dynamic import unresolved",
+      "evidence": {"file":"legacy/refund.py","start":1,"end":10},
+      "salience": {"factors":["RECENCY"],"weight":0.2,"whyShown":"recently changed"} }
+  ],
+  "edges": [
+    { "id":"e1","source":"checkout","target":"authorize","edgeKind":"calls",
+      "displayMode":"Fact","evidence":{"file":"checkout.py","start":92,"end":92} },
+    { "id":"e2","source":"checkout","target":"fulfill","edgeKind":"calls",
+      "displayMode":"Fact","evidence":{"file":"checkout.py","start":101,"end":101} },
+    { "id":"e3","source":"fulfill","target":"topup","edgeKind":"calls",
+      "displayMode":"Inference","evidence":{"file":"order.py","start":77,"end":77} }
+  ],
+  "footer": { "facts":3, "inferences":1, "hypotheses":1, "fog":1, "stale":0,
+              "caption":"Display categories, not a confidence score." },
+  "gaps": [], "hidden": [],
+  "scope": { "revision":42, "environments":[], "coverage":{"analyzed":true} },
+  "layoutHint": { "strategy":"dagre", "params":{"rankdir":"LR","nodesep":60,"ranksep":120} },
+  "contentHash": "sha256:…"
+}
+```
+
+**Runnable page:**
+
+```html
+<!doctype html>
+<meta charset="utf-8" />
+<div id="c" style="width:960px;height:540px"></div>
+<script type="module">
+import { Graph } from 'https://esm.sh/@antv/g6@5';
+
+const DASH   = { Fact: undefined, Inference: [6,4], Hypothesis: [2,4], Fog: [1,3] };
+const STROKE = { Fact:'#2ea043', Inference:'#d29922', Hypothesis:'#f85149', Fog:'#8b949e' };
+
+const data = {
+  nodes: [
+    { id:'checkout',  data:{ displayMode:'Fact',       label:'Checkout',              weight:.9 } },
+    { id:'authorize', data:{ displayMode:'Inference',  label:'PaymentGateway.authorize', weight:.7 } },
+    { id:'fulfill',   data:{ displayMode:'Fact',       label:'Order.fulfill',          weight:.8 } },
+    { id:'topup',     data:{ displayMode:'Hypothesis', label:'Inventory.top_up',       weight:.4 } },
+    { id:'legacy',    data:{ displayMode:'Fog',        label:'legacy/refund.py',       weight:.2 } },
+  ],
+  edges: [
+    { id:'e1', source:'checkout', target:'authorize', data:{ displayMode:'Fact' } },
+    { id:'e2', source:'checkout', target:'fulfill',   data:{ displayMode:'Fact' } },
+    { id:'e3', source:'fulfill',  target:'topup',     data:{ displayMode:'Inference' } },
+  ],
+};
+
+const graph = new Graph({
+  container: 'c',
+  data,
+  node: {
+    type: 'rect',
+    style: {
+      lineDash:  (d) => DASH[d.data.displayMode],
+      stroke:    (d) => STROKE[d.data.displayMode],
+      lineWidth: (d) => d.data.displayMode === 'Fact' ? 2 : 1.5,
+      size:      (d) => [160, 36],
+      radius: 6,
+      fill: '#161b22',
+      labelText: (d) => d.data.label,
+      labelFill: '#c9d1d9',
+      labelPlacement: 'center',
+    },
+  },
+  edge: {
+    style: {
+      lineDash: (d) => DASH[d.data.displayMode],
+      stroke:   (d) => STROKE[d.data.displayMode],
+      endArrow: true,
+    },
+  },
+  layout: { type: 'dagre', rankdir: 'LR', nodesep: 60, ranksep: 120 },
+});
+
+await graph.render();
+window.__graph = graph;
+</script>
+```
+
+**Expected render (Dagre, left-to-right):**
+
+```text
+ ┌────────────┐        ┌──────────────────────────┐
+ │  Checkout  │───▶────│ PaymentGateway.authorize │   (dashed amber)
+ └────────────┘        └──────────────────────────┘
+        │
+        ▼
+ ┌────────────┐        ┌──────────────────┐
+ │Order.fulfill│───▶───│ Inventory.top_up │   (dotted red)
+ └────────────┘        └──────────────────┘
+                                    
+ ┌──────────────────┐
+ │ legacy/refund.py │   (hatched grey, isolated rank)
+ └──────────────────┘
+```
+
+**Assertions:**
+
+| # | Assertion | How |
+|---|---|---|
+| 1 | 5 nodes, 3 edges rendered | `graph.getNodeData().length === 5` |
+| 2 | Checkout and authorize share the same rank | `Math.abs(x(checkout) - x(authorize)) < 1` |
+| 3 | authorize has `lineDash = [6,4]` | Evaluate style function on datum |
+| 4 | topup has `lineDash = [2,4]` and stroke `#f85149` | Evaluate style function |
+| 5 | legacy is drawn with `[1,3]` | Evaluate style function |
+| 6 | Every drawn node id exists in spec | Provenance audit |
+| 7 | Screenshot matches baseline | Playwright `toHaveScreenshot()` |
+
+---
+
+### TC-02 — Fisheye enabled by one plugin entry
+
+**Engine surfaces:** built-in `fisheye` plugin with `trigger`, `d`, `r`, `scaleRBy`, `scaleDBy`
+
+**Change from TC-01:** add `plugins`.
+
+```ts
+const graph = new Graph({
+  container: 'c',
+  data,
+  node: { /* same as TC-01 */ },
+  edge: { /* same as TC-01 */ },
+  layout: { type: 'dagre', rankdir: 'LR' },
+  plugins: [
+    {
+      type: 'fisheye',
+      key: 'cie-fisheye',
+      trigger: 'pointermove',
+      d: 1.5,
+      r: 120,
+      maxR: 300,
+      minR: 60,
+      maxD: 3,
+      minD: 1,
+      scaleRBy: 'wheel',
+      scaleDBy: 'drag',
+      showDPercent: true,
+    },
+  ],
+});
+```
+
+**Expected render:** the same Dagre layout as TC-01, plus a circular lens that follows the pointer; nodes near the cursor are magnified; nodes outside the lens keep their normal size; the canvas camera does not pan or zoom.
+
+**Assertions:**
+
+| # | Assertion | How |
+|---|---|---|
+| 1 | Fisheye plugin is active | `graph.getPlugins().some(p => p.type === 'fisheye')` |
+| 2 | Camera did not move | `zoom` and `center` unchanged before/after pointermove |
+| 3 | Near-cursor node screen position changed | Compare `graph.getElementPosition(id)` before/after |
+| 4 | Far node screen position unchanged | Same comparison for a node outside the lens radius |
+| 5 | Semantic content unchanged | `contentHash` identical to TC-01 |
+| 6 | Disabling fisheye changes nothing in `ViewSpec` | Hash equality |
+
+---
+
+### TC-03 — Custom node type, registered, used by `node.type` callback
+
+**Engine surfaces:** `register(ExtensionCategory.NODE, name, impl)`; dynamic `node.type`
+
+```ts
+import { Graph, register, ExtensionCategory, Circle } from 'https://esm.sh/@antv/g6@5';
+
+class ConceptNode extends Circle {
+  render(attributes, container) {
+    super.render(attributes, container);
+    // draw a small "concept" badge; the epistemic stroke is untouched
+    this.upsert('badge', 'text', {
+      text: 'C', x: 0, y: -attributes.size / 2 - 8,
+      fill: '#bc8cff', fontSize: 11, textAlign: 'center',
+    }, container);
+  }
+}
+register(ExtensionCategory.NODE, 'cie-concept-node', ConceptNode);
+
+const graph = new Graph({
+  container: 'c',
+  data,
+  node: {
+    type: (d) => d.data.elementKind === 'concept' ? 'cie-concept-node' : 'rect',
+    style: {
+      lineDash: (d) => DASH[d.data.displayMode],
+      stroke:   (d) => STROKE[d.data.displayMode],
+      size: (d) => d.data.elementKind === 'concept' ? 44 : [160, 36],
+      labelText: (d) => d.data.label,
+    },
+  },
+  layout: { type: 'fruchterman', gravity: 10, speed: 5 },
+});
+await graph.render();
+```
+
+**Expected render:** the `Checkout` node is a circle with a `C` badge above it and the same solid green Fact stroke; every other node remains a rectangle with its dashed/dotted/hatched stroke; the layout is force-directed.
+
+**Assertions:**
+
+| # | Assertion | How |
+|---|---|---|
+| 1 | Extension is registered | `getExtension(ExtensionCategory.NODE, 'cie-concept-node')` is defined |
+| 2 | Checkout uses the custom type | `graph.getElementRenderStyle('checkout').type` or inspect shape |
+| 3 | Custom node still obeys epistemic encoding | `lineDash` equals `undefined` for Fact |
+| 4 | Fruchterman layout produced non-grid coordinates | At least 3 distinct x and y values |
+
+---
+
+### TC-04 — Same ViewSpec, two layouts, identical semantics
+
+**Engine surfaces:** `layout.type` swap between `dagre` and `radial`
+
+```ts
+const spec = await fetch('/fixtures/specs/architecture.json').then(r => r.json());
+
+async function renderWith(strategy) {
+  const g = new Graph({
+    container: 'c',
+    data: adapt(spec),
+    node: { style: { labelText: (d) => d.data.label } },
+    layout: { type: strategy },
+    animation: false,
+  });
+  await g.render();
+  return g;
+}
+
+const dagreGraph = await renderWith('dagre');
+const radialGraph = await renderWith('radial');
+```
+
+**Expected render:** two images with different geometry but identical node ids, labels and display modes.
+
+**Assertions:**
+
+| # | Assertion |
+|---|---|
+| 1 | Node id sets are identical |
+| 2 | Display mode per id is identical |
+| 3 | At least 80% of node coordinates differ |
+| 4 | `spec.contentHash` unchanged |
+| 5 | Provenance audit passes for both |
+
+---
+
+### TC-05 — Matrix fallback via grid layout
+
+**Engine surfaces:** `layout.type: 'grid'`
+
+```ts
+const graph = new Graph({
+  container: 'c',
+  data: adapt(matrixSpec),          // cells as elements, rows/cols in fields
+  node: {
+    type: 'rect',
+    style: {
+      size: [120, 40],
+      lineDash: (d) => DASH[d.data.displayMode],
+      stroke: (d) => STROKE[d.data.displayMode],
+      labelText: (d) => d.data.label,
+    },
+  },
+  layout: { type: 'grid', rows: 4, cols: 5, width: 700, height: 300 },
+});
+```
+
+**Expected render:** a 4×5 grid of evidence-bound cells; unknown cells are hatched Fog; the same `ViewSpec` can be switched back to a node-link view without change.
+
+**Assertions:**
+
+| # | Assertion |
+|---|---|
+| 1 | 20 cells rendered |
+| 2 | Each cell shares x with its column and y with its row (within tolerance) |
+| 3 | Every cell has an evidence ref |
+| 4 | Switching to `dagre` preserves the same 20 element ids |
+
+---
+
+### TC-06 — Renderer parity: canvas vs SVG
+
+**Engine surfaces:** `renderer: 'canvas' | 'svg'`
+
+```ts
+const opts = (renderer) => ({
+  container: 'c',
+  data,
+  node: { style: { labelText: (d) => d.data.label } },
+  layout: { type: 'dagre', rankdir: 'LR' },
+  renderer,
+});
+
+const canvasGraph = new Graph(opts('canvas')); await canvasGraph.render();
+const svgGraph    = new Graph(opts('svg'));    await svgGraph.render();
+```
+
+**Expected render:** identical geometry and labels in both; the SVG container contains real `<g>` and `<text>` elements.
+
+**Assertions:**
+
+| # | Assertion |
+|---|---|
+| 1 | SVG DOM contains exactly 5 label texts |
+| 2 | Canvas screenshot and SVG screenshot are perceptually equal within tolerance |
+| 3 | Element count is identical |
+| 4 | Provenance audit passes for both |
+
+---
+
+### TC-07 — Unevidenced element is rejected before any chart renders
+
+**Engine surfaces:** adapter `gate()` only; no G6 involvement.
+
+```ts
+const badSpec = { ...spec, elements: [{ ...spec.elements[0], evidence: undefined }] };
+
+test('unevidenced element never reaches G6', () => {
+  expect(() => graphOptions(badSpec)).toThrow('ELEMENT_WITHOUT_EVIDENCE');
+  expect(document.querySelector('#c canvas')).toBeNull();
+});
+```
+
+**Expected render:** none. The graph is never constructed.
+
+**Assertions:**
+
+| # | Assertion |
+|---|---|
+| 1 | `gate` throws with a stable error code |
+| 2 | No canvas element exists in the DOM |
+| 3 | The error is shown as a typed UI card, not a blank chart |
+
+---
+
+### TC-08 — Three plugins combined: fisheye + minimap + edge-bundling
+
+**Engine surfaces:** plugin array with multiple entries; minimap config; edge-bundling config; fisheye config
+
+```ts
+const graph = new Graph({
+  container: 'c',
+  data,
+  node: { style: { labelText: (d) => d.data.label } },
+  edge: { style: { endArrow: true } },
+  layout: { type: 'force', preventOverlap: true },
+  plugins: [
+    { type: 'fisheye', key: 'cie-fisheye', trigger: 'pointermove', d: 1.5, r: 120 },
+    { type: 'minimap', key: 'cie-minimap', size: [240, 160], position: 'right-bottom' },
+    { type: 'edge-bundling', key: 'cie-bundling', bundleThreshold: 0.6, cycles: 6 },
+  ],
+});
+await graph.render();
+```
+
+**Expected render:** force-directed graph with bundled edges, a minimap in the bottom-right, and a fisheye lens following the pointer. All three plugins are visible and interactive simultaneously.
+
+**Assertions:**
+
+| # | Assertion |
+|---|---|
+| 1 | Three plugins active |
+| 2 | Minimap canvas exists in DOM with size 240×160 |
+| 3 | Edge paths are bundled (fewer distinct control-point clusters than unbundled) |
+| 4 | Fisheye lens present and camera unchanged |
+| 5 | Render time ≤ 2 s for 200 nodes / 400 edges |
+
+---
+
+### TC-09 — Layout registry introspection (the "unbounded chart count" proof)
+
+**Engine surfaces:** `getExtensions(ExtensionCategory.LAYOUT)`
+
+```ts
+import { getExtensions, ExtensionCategory } from 'https://esm.sh/@antv/g6@5';
+
+const layouts = getExtensions(ExtensionCategory.LAYOUT);
+test('every G6 layout is addressable by name', () => {
+  for (const name of ['dagre','fruchterman','radial','grid','circular',
+                      'compact-box','concentric','force','mindmap']) {
+    expect(layouts).toContain(name);
+  }
+});
+```
+
+**Expected result:** the test passes without any adapter change, proving that adding a layout does not require a code change in CIE or the adapter.
+
+---
+
+## 14. Acceptance ledger
+
+An item is **done only when a named test exists** and passes.
+
+| ID | Item | Named test |
+|---|---|---|
+| VIZ-01 | `gate()` rejects unevidenced elements | `adapter.gate.spec.ts` |
+| VIZ-02 | `adapt()` is pure | `adapter.purity.spec.ts` |
+| VIZ-03 | Epistemic encoding is redundant | `encoding.redundancy.spec.ts` |
+| VIZ-04 | Dagre architecture map renders | `tc01.dagre.spec.ts` |
+| VIZ-05 | Fisheye enabled by one entry | `tc02.fisheye.spec.ts` |
+| VIZ-06 | Custom node registered and used | `tc03.custom-node.spec.ts` |
+| VIZ-07 | Layout swap preserves semantics | `tc04.layout-swap.spec.ts` |
+| VIZ-08 | Grid matrix renders | `tc05.grid-matrix.spec.ts` |
+| VIZ-09 | Canvas/SVG parity | `tc06.renderer-parity.spec.ts` |
+| VIZ-10 | Unevidenced element never rendered | `tc07.gate-reject.spec.ts` |
+| VIZ-11 | Three plugins combined | `tc08.plugin-stack.spec.ts` |
+| VIZ-12 | Layout registry introspection | `tc09.layout-registry.spec.ts` |
+| VIZ-13 | Provenance audit passes for every fixture | `audit.all-fixtures.spec.ts` |
+| VIZ-14 | Keyboard-only completion of a view | `a11y.keyboard.spec.ts` |
+| VIZ-15 | Screenshot baselines exist for every fixture | `visual.baselines.spec.ts` |
+| VIZ-16 | Adapter contains no chart-name branching | `static.no-viewkind.spec.ts` |
+| VIZ-17 | Fisheye works on every layout | `fisheye.layout-matrix.spec.ts` |
+| VIZ-18 | `preferences` never changes `ViewSpec` | `prefs.hash.spec.ts` |
+| VIZ-19 | Unregistered node type falls back to `circle` | `registry.fallback.spec.ts` |
+| VIZ-20 | Renderer switch preserves element count | `renderer.count.spec.ts` |
+
+---
+
+## 15. Non-goals
+
+| Excluded | Reason |
+|---|---|
+| Reimplementing any G6 layout | G6 owns geometry; the adapter passes names and params |
+| Reimplementing fisheye lens maths | G6's plugin owns the lens |
+| A fixed enumeration of chart types in CIE | The registry is the enumeration |
+| Chart-specific code in the ViewSpec producer | `ViewSpec` is a semantic graph, not a chart spec |
+| A custom graph renderer | Canvas/SVG/WebGL are G6's renderers |
+| Enforcing honesty inside each renderer | The adapter gate is the single enforcement point |
+| Supporting a chart that G6 cannot be extended to draw | If G6 cannot draw it, the platform cannot promise it |
+
+---
+
+## 16. Traceability
+
+| Prior requirement | This PRD |
+|---|---|
+| CIE PRD FR-9 (result protocol) | ViewSpec added as output protocol |
+| CIE PRD §14 (data structures) | ViewSpec types in §3 |
+| feature-requirements EV-01…09 | Epistemic encoding in §8; gate in §4.1 |
+| feature-requirements ZM-01…16 | Layout and interaction in §6, §9 |
+| feature-requirements LY-01…05 | Layout pass-through in §6; no custom layout |
+| feature-requirements A11Y-01…05 | §9 |
+| G6 extension API | §5 |
+| G6 layout list | §6 |
+| G6 fisheye plugin | §7 |
+| G6 plugins (minimap, edge-bundling, history) | §7, TC-08 |
+| G6 dynamic style | §4.3 |
+| G6 renderer options | TC-06 |
+
+---
+
+## 17. One-sentence summary
+
+**CIE emits a semantic graph; the adapter enforces honesty once; G6 renders it with any registered node, edge, layout, or plugin — so fisheye is one configuration entry, new charts are registrations rather than schema changes, and the visual surface is bounded only by what G6 can be extended to draw.**
