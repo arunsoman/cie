@@ -130,7 +130,7 @@ fn read_package_json(rel: &str, src: &str, table: &mut DependencyTable) -> Resul
 }
 
 /// `requirements.txt`: `name==ver`, `name>=ver`, comments/flags skipped.
-fn read_requirements(rel: &str, src: &str, table: &mut DependencyTable) {
+pub fn read_requirements(rel: &str, src: &str, table: &mut DependencyTable) {
     for line in src.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') || line.starts_with('-') {
@@ -229,7 +229,7 @@ fn read_pyproject(rel: &str, src: &str, table: &mut DependencyTable) {
 }
 
 /// `Cargo.toml`: [package] license + [dependencies] (workspace refs skipped).
-fn read_cargo_toml(rel: &str, src: &str, table: &mut DependencyTable) {
+pub fn read_cargo_toml(rel: &str, src: &str, table: &mut DependencyTable) {
     let licence = toml_section(src, "package")
         .iter()
         .find(|l| l.starts_with("license"))
@@ -644,5 +644,84 @@ mod tests {
         assert_eq!(wi.compatibility, Compatibility::Unknown);
         assert!(wi.statements.iter().any(|x| x.contains("UNKNOWN")));
         assert!(upgrade_what_if(&t, &imports, "not-declared", "1").is_none());
+    }
+    #[test]
+    fn licence_report_names_unknowns_and_states_gaps() {
+        let mut t = DependencyTable::default();
+        read_cargo_toml("Cargo.toml", "[package]\nlicense=\"MIT\"\n\n[dependencies]\nserde = \"1\"\n", &mut t);
+        read_requirements("requirements.txt", "mysterypkg==1.0\n", &mut t);
+        let r = licence_report(&t);
+        assert_eq!(r.entries.len(), 2);
+        let serde = r.entries.iter().find(|e| e.name == "serde").unwrap();
+        assert_eq!(serde.licence.as_deref(), Some("MIT"));
+        assert_eq!(
+            r.unknown_licence,
+            vec!["mysterypkg (pypi, declared in requirements.txt)".to_string()]
+        );
+        assert!(r.advisories.contains("NOT scanned"));
+        assert!(r.provenance.contains("not verified"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Licence obligations (US-098 — the licence slice of the supply-chain story)
+// ---------------------------------------------------------------------------
+
+/// One package's licence obligation record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LicenceEntry {
+    pub name: String,
+    pub ecosystem: Ecosystem,
+    pub version_req: String,
+    /// As written in the manifest (never resolved against SPDX).
+    pub licence: Option<String>,
+    pub source: String,
+}
+
+/// The licence-obligation report (US-098).
+#[derive(Debug, Clone, Serialize)]
+pub struct LicenceReport {
+    pub entries: Vec<LicenceEntry>,
+    /// Declared packages whose manifest carries NO licence field — named,
+    /// never guessed (the obligation is "unavailable provenance is stated").
+    pub unknown_licence: Vec<String>,
+    /// Honesty statement: advisory/vulnerability feeds are NOT scanned
+    /// offline; a fabricated feed would be worse than none.
+    pub advisories: &'static str,
+    /// Honesty statement: licence strings are read as written and are not
+    /// verified against licence registries.
+    pub provenance: &'static str,
+}
+
+/// Licence obligations for every declared package.
+pub fn licence_report(table: &DependencyTable) -> LicenceReport {
+    let mut entries = Vec::new();
+    let mut unknown = Vec::new();
+    for d in &table.deps {
+        match &d.licence {
+            Some(l) => entries.push(LicenceEntry {
+                name: d.name.clone(),
+                ecosystem: d.ecosystem,
+                version_req: d.version_req.clone(),
+                licence: Some(l.clone()),
+                source: d.source.clone(),
+            }),
+            None => {
+                unknown.push(format!("{} ({}, declared in {})", d.name, d.ecosystem.as_str(), d.source));
+                entries.push(LicenceEntry {
+                    name: d.name.clone(),
+                    ecosystem: d.ecosystem,
+                    version_req: d.version_req.clone(),
+                    licence: None,
+                    source: d.source.clone(),
+                });
+            }
+        }
+    }
+    LicenceReport {
+        entries,
+        unknown_licence: unknown,
+        advisories: "advisory/vulnerability feeds are NOT scanned: offline-first refuses to fabricate feed data; supply-chain advisories stay a named gap (US-098)",
+        provenance: "licence strings are read from manifests as written; they are not verified against licence registries or resolved transitively",
     }
 }

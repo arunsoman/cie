@@ -60,6 +60,9 @@ pub enum Command {
         /// Upgrade what-if: "name=version" (e.g. requests=2.32.0)
         #[arg(long)]
         what_if: Option<String>,
+        /// Licence-obligation report (US-098; advisory feeds stay unplanned-by-design offline)
+        #[arg(long)]
+        licences: bool,
         #[arg(long)]
         json: bool,
     },
@@ -283,8 +286,33 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
-        Command::Deps { path, what_if, json } => {
+        Command::Deps { path, what_if, licences, json } => {
             let table = cie_analysis::deps::scan_manifests(&path);
+            if licences {
+                let rep = cie_analysis::deps::licence_report(&table);
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep).unwrap_or_default());
+                    return 0;
+                }
+                println!("licence obligations (as written in manifests):");
+                for e in &rep.entries {
+                    println!(
+                        "  {:<9} {:<28} {}",
+                        e.ecosystem.as_str(),
+                        e.name,
+                        e.licence.as_deref().unwrap_or("UNDECLARED — provenance unavailable")
+                    );
+                }
+                if !rep.unknown_licence.is_empty() {
+                    println!("undeclared (named, never guessed):");
+                    for u in &rep.unknown_licence {
+                        println!("  - {u}");
+                    }
+                }
+                println!("note: {}", rep.advisories);
+                println!("note: {}", rep.provenance);
+                return 0;
+            }
             let reg = cie_ingest::default_registry();
             let imports = cie_analysis::deps::collect_imports(&path, &reg);
             if json {

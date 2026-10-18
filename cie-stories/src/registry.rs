@@ -259,8 +259,8 @@ pub const REGISTRY: &[Entry] = &[
         "Enforcement-gap matrix from refusal-site evidence; bypassable routes counted, not averaged away."),
     entry!("US-097", Delivered, ["cie-analysis::security", "cie-drift::sarif"],
         "Findings are candidates with severity + witness paths; 'no finding' never means 'safe'."),
-    entry!("US-098", Planned, [],
-        "Package licence/advisory scanning not shipped."),
+    entry!("US-098", Partial, ["cie-analysis::deps::licence_report", "cli:deps --licences"],
+        "GAP NAMED: advisory/vulnerability feed scanning — offline-first refuses to fabricate feed data. Shipped: licence obligations read as written from manifests (undeclared licences named, never guessed), provenance stated as unverified, per-package source named."),
     // ---- Counterfactuals and digital twin ---------------------------------
     entry!("US-099", Delivered, ["cie-incremental::whatif", "cli:impact"],
         "What-if change-set simulation (remove/split) on a cloned world: structural consequences read off the diff, inferred adaptations named; measured numbers deliberately not borrowed; permanently labelled not-implemented."),
