@@ -77,7 +77,24 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/regression", "US-084: investigate a performance regression"),
     ("/view/dependency-risk", "US-062: dependency usage/risk map"),
     ("/view/runtime-overlay", "US-075: runtime activity overlay"),
+    ("/view/environment", "US-077: compare environments and flags"),
 ];
+
+fn demo_environment_pair() -> (cie_evidence::EnvironmentSnapshot, cie_evidence::EnvironmentSnapshot, cie_evidence::EnvironmentSnapshot) {
+    use cie_evidence::EnvironmentSnapshot;
+    let staging = EnvironmentSnapshot {
+        name: "staging".into(),
+        deployed_version: "1.4.0".into(),
+        flags: [("new_checkout".to_string(), "on".to_string()), ("beta_search".to_string(), "on".to_string())].into_iter().collect(),
+    };
+    let prod = EnvironmentSnapshot {
+        name: "prod".into(),
+        deployed_version: "1.3.2".into(),
+        flags: [("new_checkout".to_string(), "off".to_string())].into_iter().collect(),
+    };
+    let explored = cie_evidence::explore_flag_change(&prod, "new_checkout", "on");
+    (staging, prod, explored)
+}
 
 fn demo_runtime_joins() -> Vec<cie_evidence::StructureRuntimeJoin> {
     use cie_evidence::{join_structure_with_runtime, RuntimeObservation};
@@ -416,6 +433,36 @@ fn render_runtime_overlay_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&demo_runtime_joins()).unwrap_or_default())
 }
 
+fn render_environment_html() -> HttpResponse {
+    let (staging, prod, explored) = demo_environment_pair();
+    let cmp = cie_evidence::compare_environments(&staging, &prod);
+    let rows: Vec<Vec<String>> = cmp
+        .flag_differences
+        .iter()
+        .map(|d| vec![d.flag.clone(), d.a_value.clone().unwrap_or_else(|| "(unset)".into()), d.b_value.clone().unwrap_or_else(|| "(unset)".into())])
+        .collect();
+    let body = format!(
+        "<p>{} v{} vs {} v{} &middot; version differs: {}</p>{}<p>Exploring prod + new_checkout=on (never applied): resulting snapshot name is \"{}\", prod's own flags remain {:?}.</p>",
+        escape_html(&cmp.a), escape_html(&staging.deployed_version),
+        escape_html(&cmp.b), escape_html(&prod.deployed_version),
+        cmp.version_differs,
+        table(&["flag", cmp.a.as_str(), cmp.b.as_str()], &rows),
+        escape_html(&explored.name),
+        prod.flags,
+    );
+    HttpResponse::html(page(
+        "US-077: compare environments and flags",
+        "Fixed demo environments — configured possibilities only, never a claim about which code path actually executed.",
+        &body,
+    ))
+}
+
+fn render_environment_json() -> HttpResponse {
+    let (staging, prod, _) = demo_environment_pair();
+    let cmp = cie_evidence::compare_environments(&staging, &prod);
+    HttpResponse::json(serde_json::to_string_pretty(&cmp).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -436,6 +483,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/dependency-risk" => render_dependency_risk_json(),
         "/view/runtime-overlay" => render_runtime_overlay_html(),
         "/api/runtime-overlay" => render_runtime_overlay_json(),
+        "/view/environment" => render_environment_html(),
+        "/api/environment" => render_environment_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -620,5 +669,21 @@ mod tests {
         let dead = parsed.as_array().unwrap().iter().find(|j| j["symbol"] == "checkout::dead_code_path").unwrap();
         assert_eq!(dead["exactness"], "Unknown");
         assert!(dead["reason"].as_str().unwrap().contains("not evidence"));
+    }
+
+    #[test]
+    fn environment_view_shows_flag_differences_and_never_applies_exploration() {
+        let resp = route("/view/environment");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("new_checkout"));
+        assert!(resp.body.contains("never applied"));
+        assert!(resp.body.contains("{\"new_checkout\": \"off\"}"));
+    }
+
+    #[test]
+    fn environment_api_matches_engine_comparison() {
+        let resp = route("/api/environment");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert_eq!(parsed["version_differs"], true);
     }
 }

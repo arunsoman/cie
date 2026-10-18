@@ -235,11 +235,12 @@ pub const REGISTRY: &[Entry] = &[
          imported observations) is a separate, future adapter."),
     entry!("US-076", Planned, [],
         "Recorded-request replay not shipped."),
-    entry!("US-077", Partial, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change"],
-        "Version/flag differences enumerated between two declared snapshots; \
-         explore_flag_change returns a new, clearly-labelled snapshot and never \
-         mutates the base or applies anywhere. Live configuration ingest and the \
-         environment-topology view are host layer."),
+    entry!("US-077", Delivered, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change", "cie-server::http (GET /view/environment)"],
+        "Version/flag differences enumerated between two declared snapshots in a \
+         real view (GET /view/environment); explore_flag_change returns a new, \
+         clearly-labelled snapshot, and the view shows the base snapshot's own \
+         flags unchanged after exploring a hypothetical one. Live configuration \
+         ingest (as opposed to declared snapshots) is a separate adapter."),
     entry!("US-078", Partial, ["cie-fault::ldfi"],
         "Lineage separates causal chains from co-occurrence within static scope; runtime timing evidence absent."),
     entry!("US-079", Partial, ["cie-adapters::effects"],
