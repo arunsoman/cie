@@ -82,11 +82,12 @@ pub const REGISTRY: &[Entry] = &[
         "Condition composition exists as engine queries (symbol × tests × changes); natural-language multi-condition routing is model-layer."),
     entry!("US-011", Delivered, ["cli:analyze", "cie-ingest::run_drift"],
         "Multi-step read-only pipelines compose in the CLI; per-step failures are reported individually (findings vs errors)."),
-    entry!("US-012", Partial, ["cie-analysis::focus::FocusContext", "cie-analysis::focus::resolve_referent"],
+    entry!("US-012", Partial, ["cie-analysis::focus::FocusContext", "cie-analysis::focus::resolve_referent", "cie-server::http (GET /view/focus)"],
         "Chips (ignore/pin/focus), zoom-out and ambiguous-referent resolution (named, \
-         never guessed) are shipped engine primitives over SymbolId sets. Recognising \
-         the steering phrase itself ('ignore X', 'zoom out') and editor-selection \
-         context are product/NLU layer."),
+         never guessed) are shipped engine primitives with a real demo page \
+         (GET /view/focus) showing their effect. Still not Delivered: recognising \
+         the steering phrase itself ('ignore X', 'zoom out'), removable chip UI and \
+         editor-selection context are product/NLU layer this repo has no way to ship."),
     entry!("US-013", Delivered, ["cli:report --json", "cli:concepts --format", "cli:analyze --format sarif"],
         "Same facts rendered human/json/md/sarif — the level-of-detail seam; prose audience-tuning is model-layer."),
     entry!("US-014", Delivered, ["cie-claims::model", "cie-claims::persist", "cie-drift::pipeline"],

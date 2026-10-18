@@ -6,7 +6,9 @@
 //! record.
 
 pub mod clarify;
+pub mod contract;
 pub mod request;
 
 pub use clarify::{ClarificationQuestion, ClarificationSet};
+pub use contract::{FeatureContract, Requirement, RequirementOrigin};
 pub use request::{Deliverable, DetailLevel, FeatureRequest};

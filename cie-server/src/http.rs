@@ -68,7 +68,10 @@ fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
 }
 
 /// (path, label) pairs for the index page — one per closed view.
-const INDEX_LINKS: &[(&str, &str)] = &[("/view/sample", "US-007: on-demand sample repository")];
+const INDEX_LINKS: &[(&str, &str)] = &[
+    ("/view/sample", "US-007: on-demand sample repository"),
+    ("/view/focus", "US-012: follow-up chips and referent resolution"),
+];
 
 fn render_index() -> HttpResponse {
     let items: String = INDEX_LINKS
@@ -115,12 +118,85 @@ fn render_sample_json() -> HttpResponse {
     }
 }
 
+#[derive(serde::Serialize)]
+struct FocusDemo {
+    before: Vec<u32>,
+    after_ignore_and_pin: Vec<u32>,
+    after_zoom_focus: Vec<u32>,
+    ambiguous_referent: Vec<u32>,
+    resolved_referent: Option<u32>,
+}
+
+fn focus_demo() -> FocusDemo {
+    use cie_analysis::focus::{resolve_referent, Chip, FocusContext, ReferentResolution};
+    use cie_core::types::SymbolId;
+    let candidates = [SymbolId(1), SymbolId(2), SymbolId(3)];
+    let mut ctx = FocusContext::default();
+    ctx.add(Chip::Ignore(SymbolId(1)));
+    ctx.add(Chip::Pin(SymbolId(3)));
+    let after_ignore_and_pin = ctx.apply(&candidates, None);
+
+    let mut focus_ctx = FocusContext::default();
+    focus_ctx.add(Chip::FocusOn(SymbolId(2)));
+    let neigh = std::collections::BTreeSet::from([SymbolId(2)]);
+    let after_zoom_focus = focus_ctx.apply(&candidates, Some(&neigh));
+
+    let ambiguous = [SymbolId(5), SymbolId(6)];
+    let resolved = match resolve_referent(&FocusContext::default(), &ambiguous) {
+        ReferentResolution::Resolved(s) => Some(s.0),
+        _ => None,
+    };
+
+    FocusDemo {
+        before: candidates.iter().map(|s| s.0).collect(),
+        after_ignore_and_pin: after_ignore_and_pin.iter().map(|s| s.0).collect(),
+        after_zoom_focus: after_zoom_focus.iter().map(|s| s.0).collect(),
+        ambiguous_referent: ambiguous.iter().map(|s| s.0).collect(),
+        resolved_referent: resolved,
+    }
+}
+
+fn render_focus_html() -> HttpResponse {
+    let d = focus_demo();
+    let fmt = |v: &[u32]| v.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ");
+    let body = format!(
+        "{}{}",
+        table(
+            &["step", "symbol ids"],
+            &[
+                vec!["candidates before chips".into(), fmt(&d.before)],
+                vec!["ignore(1) + pin(3) applied".into(), fmt(&d.after_ignore_and_pin)],
+                vec!["focus(2) narrowed to its neighborhood".into(), fmt(&d.after_zoom_focus)],
+            ],
+        ),
+        format!(
+            "<p>Ambiguous referent among {}: {}</p>",
+            fmt(&d.ambiguous_referent),
+            match d.resolved_referent {
+                Some(s) => format!("resolved to {s} (should not happen with no pin/focus tie-break)"),
+                None => "named as Ambiguous, not guessed".to_string(),
+            }
+        )
+    );
+    HttpResponse::html(page(
+        "US-012: follow-up chips and referent resolution",
+        "Fixed demo symbol ids — illustrates FocusContext chip semantics, not a real selection.",
+        &body,
+    ))
+}
+
+fn render_focus_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&focus_demo()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
         "/" | "/index" => render_index(),
         "/view/sample" => render_sample_html(),
         "/api/sample" => render_sample_json(),
+        "/view/focus" => render_focus_html(),
+        "/api/focus" => render_focus_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -194,5 +270,19 @@ mod tests {
     #[test]
     fn unknown_path_is_404() {
         assert_eq!(route("/nope").status, 404);
+    }
+
+    #[test]
+    fn focus_view_shows_ignore_pin_and_zoom_effects() {
+        let resp = route("/view/focus");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("Ambiguous referent"));
+    }
+
+    #[test]
+    fn focus_api_marks_the_ambiguous_case_unresolved() {
+        let resp = route("/api/focus");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert!(parsed["resolved_referent"].is_null());
     }
 }
