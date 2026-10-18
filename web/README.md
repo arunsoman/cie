@@ -40,7 +40,8 @@ Every technical term from the engine is translated to plain English in
 | **Things to look at** | Findings grouped by urgency: Fix soon / Please look / Worth checking / Good to know, each with "How to fix" |
 | **Promises** | Contracts with plain titles ("Check permission first") and who must keep them |
 | **Numbers** | The charting engine: six plain-English charts — urgency bars, problem kinds, findings per file, what the code touches, promises donut (written by you vs CIE's guess), map-certainty donut (proven / good guess). Built with Recharts in `src/components/cie/charts.tsx` |
-| **Ask CIE** | A chat about *your* project. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via `z-ai-web-dev-sdk` (backend only). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`). Bars get a hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
+| **Ask CIE** | A chat about *your* project. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via the **chosen LLM provider** (see below). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`). Bars get a hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
+| **Menu** | Two shortcuts on one page. **One-tap charts**: 13 pre-canned questions (grouped Problems / Promises / The map / What the code does) whose charts are computed deterministically from the loaded report — no typing, no AI round-trip; rendered by the same `ChatChart` component, so engine + layout disclosure, the fisheye lens and keyboard parity carry over (`src/lib/canned-charts.ts`). **What CIE can't do yet**: all 33 remaining Planned stories from the engine's own registry (147 stories: 113 delivered + 1 honest partial + 33 planned), hand-translated into plain words with "what you'd get" and "why it's not here yet", filterable by 12 themes (`src/lib/whats-next.ts`) |
 | **Can I trust this?** | Assumptions, unmatched names, coverage notes, provenance — honesty first |
 
 ## Run it
@@ -51,9 +52,28 @@ bun install        # or npm install
 bun run dev        # http://localhost:3000
 ```
 
-The **Ask CIE** tab needs the AI SDK credentials that ship with the
-z-ai-web-dev-sdk environment; without them the chat tab shows a friendly
-error bubble and every other tab keeps working.
+The **Ask CIE** tab works with any of three answer sources — pick via the
+**“Answered by: … / Change”** bar at the top of the tab (settings live in
+`src/lib/llm-config.ts` + `src/lib/llm-providers.ts`):
+
+| Provider | What it is | Setup |
+|----------|------------|-------|
+| **Built-in AI** | The `z-ai-web-dev-sdk` that ships with this workspace | none — but if it's ever unreachable, connect your own below |
+| **Ollama** | Your local or hosted Ollama server (native `/api/tags` + `/api/chat`) | address (default `http://localhost:11434`) + model — **Check connection** lists the models you actually have |
+| **Another AI service** | Anything that speaks the OpenAI protocol: OpenAI, OpenRouter, Groq, Gemini's OpenAI layer, LM Studio (`http://localhost:1234/v1`), vLLM, llama.cpp server | preset + address + API key + model |
+
+The **Check connection** button (`POST /api/llm/check`) honestly tests the
+service and lists its real models as one-tap chips. Settings (including the
+API key) live **only in your browser's localStorage** and are sent per-request
+to CIE's own endpoints — never stored or logged server-side. Every provider
+gets the same strict grounding prompt and the same plain-words error cards
+("couldn't reach it — is it running?", "the key was rejected", "that model
+isn't pulled yet — `ollama pull …`") with a collapsible technical-details
+toggle; local model calls get a generous 3-minute timeout.
+
+Without any setup the built-in AI answers; if it fails, the chat tab shows a
+friendly error bubble (plus a shortcut to the connection settings) and every
+other tab keeps working.
 
 The **sample project** (a 4-file banking app) ships pre-loaded in
 `public/data/` — generated by the real engine:

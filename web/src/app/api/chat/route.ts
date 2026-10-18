@@ -1,20 +1,31 @@
 // "Ask CIE" backend — receives the chat history plus a digest of the loaded
-// project (built client-side by src/lib/chat-digest.ts) and answers using the
-// z-ai-web-dev-sdk. Backend only: the SDK is never imported on the client.
+// project (built client-side by src/lib/chat-digest.ts) and answers.
+//
+// The user picks WHO answers (src/lib/llm-config.ts):
+//   builtin — the z-ai-web-dev-sdk that ships with this app
+//   ollama  — their own local or hosted Ollama server
+//   openai  — any OpenAI-compatible service (OpenAI, OpenRouter, Groq,
+//             Gemini's OpenAI layer, LM Studio, vLLM, llama.cpp…)
+// Every provider gets the SAME system prompt (strict JSON answer contract,
+// grounded only in the loaded report) and the same plain-words error mapping.
 
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import {
+  chatOllama,
+  chatOpenAi,
+  LlmError,
+  sanitizeLlmCfg,
+  type ChatTurn,
+} from "@/lib/llm-providers";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_HISTORY = 14; // messages sent to the model (excluding system)
 const MAX_CONTENT = 6000; // characters kept per message
-
-interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
+const TIMEOUT_BUILTIN = 55_000;
+const TIMEOUT_OPENAI = 90_000;
+const TIMEOUT_OLLAMA = 180_000; // local models on CPU can be slow
 
 function sanitizeHistory(raw: unknown): ChatTurn[] {
   if (!Array.isArray(raw)) return [];
@@ -73,7 +84,7 @@ function systemPrompt(digest: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: unknown; digest?: unknown };
+  let body: { messages?: unknown; digest?: unknown; llm?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -92,25 +103,42 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  try {
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: systemPrompt(body.digest) },
-        ...history,
-      ],
-      thinking: { type: "disabled" },
-    });
+  const llm = sanitizeLlmCfg(body.llm);
+  const messages: ChatTurn[] = [
+    { role: "assistant", content: systemPrompt(body.digest) },
+    ...history,
+  ];
 
-    const reply = completion.choices?.[0]?.message?.content?.trim();
-    if (!reply) {
-      return NextResponse.json(
-        { error: "CIE couldn't come up with an answer. Please try asking again." },
-        { status: 502 }
-      );
+  try {
+    let reply: string;
+    if (llm.provider === "ollama") {
+      reply = await chatOllama(llm.ollama, messages, TIMEOUT_OLLAMA);
+    } else if (llm.provider === "openai") {
+      reply = await chatOpenAi(llm.openai, messages, TIMEOUT_OPENAI);
+    } else {
+      const { default: ZAI } = await import("z-ai-web-dev-sdk");
+      const zai = await ZAI.create();
+      const completion = await zai.chat.completions.create({
+        messages,
+        thinking: { type: "disabled" },
+      });
+      reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
+      if (!reply) {
+        return NextResponse.json(
+          { error: "CIE couldn't come up with an answer. Please try asking again." },
+          { status: 502 }
+        );
+      }
     }
     return NextResponse.json({ reply });
   } catch (err) {
+    if (err instanceof LlmError) {
+      console.error(`[api/chat] ${llm.provider} failed:`, err.technical);
+      return NextResponse.json(
+        { error: err.plain, technical: err.technical, providerIssue: llm.provider !== "builtin" },
+        { status: 502 }
+      );
+    }
     console.error("[api/chat] failed:", err);
     return NextResponse.json(
       { error: "CIE had trouble answering just now. Please try again in a moment." },

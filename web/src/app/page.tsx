@@ -30,6 +30,7 @@ import {
 } from "@/components/cie/sections";
 import { ChartsTab } from "@/components/cie/charts";
 import { AskTab } from "@/components/cie/chat-tab";
+import { MenuTab } from "@/components/cie/menu-tab";
 import { UseYourOwnDialog } from "@/components/cie/use-your-own-dialog";
 import { Upload, RotateCcw, Compass } from "lucide-react";
 
@@ -114,6 +115,7 @@ export default function Home() {
               <TabsTrigger value="promises">Promises</TabsTrigger>
               <TabsTrigger value="numbers">Numbers</TabsTrigger>
               <TabsTrigger value="ask">Ask CIE</TabsTrigger>
+              <TabsTrigger value="menu">Menu</TabsTrigger>
               <TabsTrigger value="trust">Can I trust this?</TabsTrigger>
             </TabsList>
             {loading ? (
@@ -127,6 +129,7 @@ export default function Home() {
                 <PromisesTab />
                 <ChartsTab />
                 <AskTab />
+                <MenuTab />
                 <TrustTab />
               </>
             )}
