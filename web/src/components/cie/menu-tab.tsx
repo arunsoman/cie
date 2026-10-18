@@ -1,6 +1,6 @@
 "use client";
 
-// The Menu tab — two honest shortcuts on one page:
+// The Menu view — two honest shortcuts on one page (rendered by the stage):
 //
 // 1. One-tap charts: pre-canned questions whose charts are computed straight
 //    from the loaded report (no typing, no waiting). Same renderer as the
@@ -13,7 +13,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TabsContent } from "@/components/ui/tabs";
 import {
   Activity,
   BarChart3,
@@ -41,7 +40,7 @@ const ICONS = {
 
 const GROUPS = ["Problems", "Promises", "The map", "What the code does"] as const;
 
-export function MenuTab() {
+export function MenuView() {
   const { report, viewspec, concepts } = useCie();
 
   const charts = useMemo(
@@ -64,7 +63,7 @@ export function MenuTab() {
   if (!report) return null;
 
   return (
-    <TabsContent value="menu" className="space-y-6">
+    <div className="space-y-6">
       {/* ---------- One-tap charts ---------- */}
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 flex items-start gap-3 text-sm text-stone-700 leading-relaxed">
@@ -73,7 +72,7 @@ export function MenuTab() {
             <span className="font-semibold">Charts with zero typing. </span>
             Tap a question below and the picture appears instantly — worked out
             directly from your loaded report, no waiting. For anything more
-            open-ended, the <span className="font-medium">Ask CIE</span> page is still there.
+            open-ended, the <span className="font-medium">chat on the right</span> is still there.
           </p>
         </CardContent>
       </Card>
@@ -237,6 +236,6 @@ export function MenuTab() {
           );
         })}
       </div>
-    </TabsContent>
+    </div>
   );
 }

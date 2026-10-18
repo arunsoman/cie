@@ -1,6 +1,7 @@
 "use client";
 
 // The charting engine: turns the loaded CIE data into simple, friendly charts.
+// Rendered by the stage's "Numbers" view (see stage.tsx).
 // Rules: every chart gets a plain-words title, a one-line "what this tells you"
 // caption, and honest empty states. No technical words on the axes.
 
@@ -17,7 +18,6 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TabsContent } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { findingTitle, severityPlain, effectPlain, certaintyPlain, authorityPlain } from "@/lib/plain-words";
@@ -256,7 +256,7 @@ function certaintyData(viewspec: CieViewSpec | null) {
 
 // ---- the tab ----
 
-export function ChartsTab() {
+export function NumbersView() {
   const { report, viewspec } = useCie();
 
   const sev = useMemo(() => (report ? severityData(report) : []), [report]);
@@ -270,7 +270,7 @@ export function ChartsTab() {
   const fixSoon = report.findings.filter((f) => f.severity === "Critical" || f.severity === "High").length;
 
   return (
-    <TabsContent value="numbers" className="space-y-4">
+    <div className="space-y-4">
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 flex items-start gap-3 text-sm text-stone-700 leading-relaxed">
           <BarChart3 className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
@@ -322,6 +322,6 @@ export function ChartsTab() {
           )}
         </ChartCard>
       </div>
-    </TabsContent>
+    </div>
   );
 }

@@ -119,7 +119,7 @@ function ConnectRepo() {
       }
       const viewspec = data.viewspec && isValidViewspec(data.viewspec) ? data.viewspec : null;
       const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
-      setCustom(data.report, viewspec, concepts, data.label ?? "Your project", data.scan ?? null);
+      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null);
       setJobId(null);
       setStatus(null);
       setUrl("");

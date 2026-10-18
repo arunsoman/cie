@@ -7,6 +7,55 @@ makes, what to fix first, and how much to trust the tool.
 Every technical term from the engine is translated to plain English in
 `src/lib/plain-words.ts` — that file is the product's language policy.
 
+## The workspace
+
+The UI is a three-zone workspace (heavily inspired by the code-intelligence
+UI, speaking CIE's plain-words language throughout):
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ topbar: [CIE] [who answers ▾] [your project]   Explore Charts ⚙│
+├───────────────────────────────────────────┬────────────────────┤
+│ stage — the chart engine                  │ Ask CIE — chat,    │
+│   map & charts on a zoom/pan camera       │ docked on the      │
+│   (scroll zooms at the pointer, drag      │ right; charts it   │
+│   pans, +/−/0/arrows from the keyboard)   │ draws can go big   │
+│   fisheye lens on the map (hover 350 ms)  │ on the canvas      │
+│   honesty footer under every canvas view  │ map picks become   │
+│                                           │ referent chips     │
+└───────────────────────────────────────────┴────────────────────┘
+```
+
+- **Topbar** (`src/components/cie/topbar.tsx`) — the **model chip** always
+  names who answers (Built-in AI / Ollama / an OpenAI-compatible service);
+  one click opens the full connection settings. The repo chip shows what's
+  loaded; the main menus sit on the top **right**: Explore (the five story
+  views), Charts (Numbers + one-tap menu), Trust, and a ⚙ menu.
+- **Stage** (`src/components/cie/stage.tsx`) — the chart engine in the
+  middle. Story views (Start / What it does / Things to look at / Promises /
+  Numbers / Menu / Trust) scroll as documents; **canvas views** (Map, and any
+  chart the chat sends over) get the camera (`camera-stage.tsx`): wheel zoom
+  at the pointer with an exponential curve clamped to [0.15, 4], drag to pan
+  (a pan never accidentally selects a bubble), zoom buttons, and keyboard
+  parity — `+`/`−` zoom, `0` fits, arrows pan (US-140). Camera behaviour
+  lineage: the code-intelligence G6 canvas.
+- **Fisheye lens** (`src/components/cie/map-fisheye.tsx`) — a faithful port
+  of the code-intelligence bounded radial lens to DOM-sampled map bubbles:
+  everything inside the ring magnifies toward the centre
+  (`scale = R·m / (R + (m−1)·d)`), the boundary and everything outside it
+  stay **fixed**; the base map never mutates (US-023); a 350 ms hover opens
+  it, `L` pauses, Escape closes; the captured bubble's plain-words card
+  (kind, certainty, file) is drawn inside the lens. The map's picked bubble
+  shows its facts in a fixed-size overlay card (`MapInfoCard`) that never
+  zooms.
+- **Ask CIE chat** (`src/components/cie/chat-panel.tsx`) — docked on the
+  right, always visible. Every answer with a chart keeps a small preview and
+  a **"Show this chart big on the canvas"** button that renders it on the
+  stage with the same camera controls. Picking a bubble on the map adds a
+  **referent chip** above the composer — the selected element becomes the
+  "these" in your next question (the composer placeholder changes to "Ask
+  about …"). On phones the workspace stacks: stage 70 vh, chat below.
+
 ## Two ways to see YOUR project
 
 1. **Connect a repo** — paste a public git link (GitHub / GitLab / Bitbucket),
@@ -58,17 +107,17 @@ Every technical term from the engine is translated to plain English in
 
 ## What you get
 
-| Tab | What it shows (plain words) |
+| View (stage) | What it shows (plain words) |
 |-----|------------------------------|
 | **Start here** | 3-step story + health cards (files read, named things, promises, things to look at, % checked) + dictionary |
-| **Map** | The sealed `ViewSpec` drawn as a layered picture (domain → files → use-cases → rules); tap a bubble for details |
+| **Map** *(canvas)* | The sealed `ViewSpec` drawn as a layered picture (domain → files → use-cases → rules); zoom/pan camera + fisheye lens; tap a bubble for details **and** a chat referent |
 | **What it does** | Concept/behaviour tree: "Does: Authorize", "Rule C-000: Check permission first · Written by you" |
 | **Things to look at** | Findings grouped by urgency: Fix soon / Please look / Worth checking / Good to know, each with "How to fix" |
 | **Promises** | Contracts with plain titles ("Check permission first") and who must keep them |
 | **Numbers** | The charting engine: six plain-English charts — urgency bars, problem kinds, findings per file, what the code touches, promises donut (written by you vs CIE's guess), map-certainty donut (proven / good guess). Built with Recharts in `src/components/cie/charts.tsx` |
-| **Ask CIE** | A chat about *your* project. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via the **chosen LLM provider** (see below). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`). Bars get a hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
 | **Menu** | Two shortcuts on one page. **One-tap charts**: 13 pre-canned questions (grouped Problems / Promises / The map / What the code does) whose charts are computed deterministically from the loaded report — no typing, no AI round-trip; rendered by the same `ChatChart` component, so engine + layout disclosure, the fisheye lens and keyboard parity carry over (`src/lib/canned-charts.ts`). **What CIE can't do yet**: all 33 remaining Planned stories from the engine's own registry (147 stories: 113 delivered + 1 honest partial + 33 planned), hand-translated into plain words with "what you'd get" and "why it's not here yet", filterable by 12 themes (`src/lib/whats-next.ts`) |
 | **Can I trust this?** | Assumptions, unmatched names, coverage notes, provenance — plus the **language honesty card** (what CIE read in your repo, and which languages it skipped) when the project came from Connect a repo. Honesty first |
+| **Ask CIE** *(right panel)* | A chat about *your* project — always docked on the right of the stage. The client compiles a capped, plain-words digest of the loaded report (`src/lib/chat-digest.ts`) and posts it with the conversation to `POST /api/chat`, which answers via the **chosen LLM provider** (see below). The system prompt forbids inventing anything: if it isn't in the report, CIE says "I don't know that from the report I have". **Answers can carry a complementary chart** the AI picks from a chat-feasible slice of the CIE chart catalog (US-020): hbar / donut / stat / table, with engine + layout disclosed on a footnote (`src/lib/chat-chart.ts` + `chat-chart.tsx`) — and a button that renders it **big on the canvas**. Bars keep the hover-expansion **fisheye lens** modelled on US-023 — magnify locally, base geometry never mutates, keyboard parity via arrow keys (US-140), labels always visible (US-142) |
 
 ## Run it
 
@@ -78,9 +127,9 @@ bun install        # or npm install
 bun run dev        # http://localhost:3000
 ```
 
-The **Ask CIE** tab works with any of three answer sources — pick via the
-**“Answered by: … / Change”** bar at the top of the tab (settings live in
-`src/lib/llm-config.ts` + `src/lib/llm-providers.ts`):
+The **Ask CIE** chat works with any of three answer sources — pick via the
+**model chip in the topbar** (it always shows the current one; settings live
+in `src/lib/llm-config.ts` + `src/lib/llm-providers.ts`):
 
 | Provider | What it is | Setup |
 |----------|------------|-------|
@@ -97,9 +146,9 @@ gets the same strict grounding prompt and the same plain-words error cards
 isn't pulled yet — `ollama pull …`") with a collapsible technical-details
 toggle; local model calls get a generous 3-minute timeout.
 
-Without any setup the built-in AI answers; if it fails, the chat tab shows a
+Without any setup the built-in AI answers; if it fails, the chat shows a
 friendly error bubble (plus a shortcut to the connection settings) and every
-other tab keeps working.
+other view keeps working.
 
 The **sample project** (a 4-file banking app) ships pre-loaded in
 `public/data/` — generated by the real engine:
@@ -120,7 +169,9 @@ browser — no server, no upload, your code never leaves your machine.
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Zustand.
 No graph library: the map is plain SVG because the ViewSpec already encodes
-the hierarchy (see `src/components/cie/map-view.tsx`). The charts use
-**Recharts** (already in the shadcn ecosystem) so the numbers pages stay
-declarative and accessible; the AI chat uses **z-ai-web-dev-sdk** server-side
-only (`src/app/api/chat/route.ts`).
+the hierarchy (see `src/components/cie/map-view.tsx`), and the zoom/pan
+camera plus the map fisheye lens are self-written ports of the
+code-intelligence implementations (`camera-stage.tsx`, `map-fisheye.tsx`).
+The charts use **Recharts** (already in the shadcn ecosystem) so the numbers
+views stay declarative and accessible; the AI chat uses **z-ai-web-dev-sdk**
+server-side only (`src/app/api/chat/route.ts`).

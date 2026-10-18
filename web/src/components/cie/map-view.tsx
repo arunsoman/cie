@@ -133,10 +133,12 @@ export default function MapView({ spec, selected, onSelect }: Props) {
         <span className="text-stone-400">· Tap a bubble to see it in plain words</span>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white overflow-x-auto">
+      {/* No inner scrolling here on purpose: the stage camera owns pan and
+          zoom for this view, so the map can overflow and be zoomed to fit. */}
+      <div className="rounded-xl border border-stone-200 bg-white">
         <svg
           viewBox={`0 0 ${VB_W} ${vbH}`}
-          className="w-full min-w-[720px]"
+          className="w-full min-w-[680px] block"
           role="img"
           aria-label="Map of how the code is organised"
         >
@@ -178,7 +180,8 @@ export default function MapView({ spec, selected, onSelect }: Props) {
             );
           })}
 
-          {/* nodes */}
+          {/* nodes — each carries its plain-words facts as data attributes,
+              so the fisheye lens (and any test) can read what it magnifies */}
           {nodes.map((n) => {
             const s = style(n.el.displayMode);
             const isSel = selected?.id === n.el.id;
@@ -187,9 +190,14 @@ export default function MapView({ spec, selected, onSelect }: Props) {
               <g
                 key={n.el.id}
                 onClick={() => onSelect(n.el)}
-                className="cursor-pointer"
+                className="map-node cursor-pointer"
                 role="button"
                 aria-label={`${elementKindPlain(n.el.elementKind)}: ${n.el.label}`}
+                data-node-id={n.el.id}
+                data-label={n.el.label}
+                data-kind={elementKindPlain(n.el.elementKind)}
+                data-mode={n.el.displayMode}
+                data-file={n.el.evidence?.file ?? ""}
               >
                 <title>{`${n.el.label} — ${certaintyPlain(n.el.displayMode).label}. ${elementKindPlain(n.el.elementKind)}`}</title>
                 <rect
