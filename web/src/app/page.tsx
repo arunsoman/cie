@@ -29,6 +29,8 @@ import {
   TrustTab,
   LoadingTab,
 } from "@/components/cie/sections";
+import { ChartsTab } from "@/components/cie/charts";
+import { AskTab } from "@/components/cie/chat-tab";
 import { Upload, RotateCcw, Compass, FileUp, CheckCircle2 } from "lucide-react";
 
 function isValidReport(o: unknown): o is CieReport {
@@ -198,6 +200,8 @@ export default function Home() {
               <TabsTrigger value="does">What it does</TabsTrigger>
               <TabsTrigger value="fixes">Things to look at</TabsTrigger>
               <TabsTrigger value="promises">Promises</TabsTrigger>
+              <TabsTrigger value="numbers">Numbers</TabsTrigger>
+              <TabsTrigger value="ask">Ask CIE</TabsTrigger>
               <TabsTrigger value="trust">Can I trust this?</TabsTrigger>
             </TabsList>
             {loading ? (
@@ -209,6 +213,8 @@ export default function Home() {
                 <ConceptsTab />
                 <FindingsTab />
                 <PromisesTab />
+                <ChartsTab />
+                <AskTab />
                 <TrustTab />
               </>
             )}

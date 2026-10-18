@@ -8,6 +8,13 @@ import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
 
 export type DataSource = "demo" | "custom" | null;
 
+// One bubble in the "Ask CIE" conversation.
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  error?: boolean;
+}
+
 interface CieState {
   report: CieReport | null;
   viewspec: CieViewSpec | null;
@@ -16,6 +23,8 @@ interface CieState {
   label: string;
   loading: boolean;
   loadError: string;
+  chat: ChatMessage[];
+  chatBusy: boolean;
   loadDemo: () => Promise<void>;
   setCustom: (
     report: CieReport | null,
@@ -24,6 +33,9 @@ interface CieState {
     label: string
   ) => void;
   reset: () => void;
+  pushChat: (m: ChatMessage) => void;
+  setChatBusy: (b: boolean) => void;
+  clearChat: () => void;
 }
 
 export const useCie = create<CieState>((set) => ({
@@ -34,6 +46,8 @@ export const useCie = create<CieState>((set) => ({
   label: "",
   loading: true,
   loadError: "",
+  chat: [],
+  chatBusy: false,
   loadDemo: async () => {
     set({ loading: true, loadError: "" });
     try {
@@ -49,14 +63,19 @@ export const useCie = create<CieState>((set) => ({
         source: "demo",
         label: "Sample project: a small banking app (4 files)",
         loading: false,
+        chat: [],
+        chatBusy: false,
       });
     } catch {
       set({ loading: false, loadError: "Could not load the sample data. Please refresh the page." });
     }
   },
   setCustom: (report, viewspec, concepts, label) =>
-    set({ report, viewspec, concepts, source: "custom", label, loading: false, loadError: "" }),
+    set({ report, viewspec, concepts, source: "custom", label, loading: false, loadError: "", chat: [], chatBusy: false }),
   reset: () => {
     void useCie.getState().loadDemo();
   },
+  pushChat: (m) => set((s) => ({ chat: [...s.chat, m] })),
+  setChatBusy: (b) => set({ chatBusy: b }),
+  clearChat: () => set({ chat: [] }),
 }));
