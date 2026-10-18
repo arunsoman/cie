@@ -79,7 +79,22 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/runtime-overlay", "US-075: runtime activity overlay"),
     ("/view/environment", "US-077: compare environments and flags"),
     ("/view/co-change", "US-087: directory-crossing co-change coupling"),
+    ("/view/feature-request", "US-104: describe a new feature naturally"),
 ];
+
+fn demo_feature_requests() -> Vec<cie_contract::FeatureRequest> {
+    use cie_contract::{Deliverable, DetailLevel, FeatureRequest};
+    vec![
+        FeatureRequest::new("fr-1", "acme/checkout", Deliverable::Plan, DetailLevel::Prompt, "let guests check out without creating an account"),
+        FeatureRequest::new(
+            "fr-2",
+            "acme/checkout",
+            Deliverable::DraftPullRequest,
+            DetailLevel::Specification,
+            "Given a cart with >=1 item, when guest checkout is enabled, then a guest can complete payment without registering.",
+        ),
+    ]
+}
 
 fn demo_history() -> cie_ingest::HistoryFacts {
     use cie_ingest::{CommitMeta, FileTouch, HistoryFacts};
@@ -520,6 +535,24 @@ fn render_co_change_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&demo_co_change()).unwrap_or_default())
 }
 
+fn render_feature_request_html() -> HttpResponse {
+    let reqs = demo_feature_requests();
+    let rows: Vec<Vec<String>> = reqs
+        .iter()
+        .map(|r| vec![r.repository.clone(), format!("{:?}", r.detail_level), format!("{:?}", r.deliverable), r.raw_text.clone()])
+        .collect();
+    let body = table(&["repository", "detail level", "deliverable", "raw text"], &rows);
+    HttpResponse::html(page(
+        "US-104: describe a new feature naturally",
+        "Two demo requests at different detail levels — neither needs an internal framework or component name to be accepted.",
+        &body,
+    ))
+}
+
+fn render_feature_request_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_feature_requests()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -544,6 +577,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/environment" => render_environment_json(),
         "/view/co-change" => render_co_change_html(),
         "/api/co-change" => render_co_change_json(),
+        "/view/feature-request" => render_feature_request_html(),
+        "/api/feature-request" => render_feature_request_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -763,5 +798,22 @@ mod tests {
         let edge = parsed["edges"].as_array().unwrap().iter().find(|e| e["a"] == "docs/checkout.md" || e["b"] == "docs/checkout.md").unwrap();
         assert_eq!(edge["shared_commits"], 2);
         assert_eq!(edge["crosses_directory_boundary"], true);
+    }
+
+    #[test]
+    fn feature_request_view_accepts_both_detail_levels() {
+        let resp = route("/view/feature-request");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("Prompt"));
+        assert!(resp.body.contains("Specification"));
+    }
+
+    #[test]
+    fn feature_request_api_names_repository_and_deliverable() {
+        let resp = route("/api/feature-request");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let reqs = parsed.as_array().unwrap();
+        assert_eq!(reqs[0]["repository"], "acme/checkout");
+        assert_eq!(reqs[1]["deliverable"], "DraftPullRequest");
     }
 }

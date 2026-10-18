@@ -315,10 +315,11 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-103", Delivered, ["cie-claims::model::Modality", "cie-store::records"],
         "Every derived record carries modality + provenance; predictions never display as fact."),
     // ---- Prompt-to-feature discovery and planning -------------------------
-    entry!("US-104", Partial, ["cie-contract::feature::request::FeatureRequest"],
+    entry!("US-104", Delivered, ["cie-contract::feature::request::FeatureRequest", "cie-server::http (GET /view/feature-request)"],
         "FeatureRequest carries repository + deliverable (plan/preview/draft-PR) + \
          detail level (prompt/brief/specification/examples) with no field requiring \
-         an internal framework/component name. The intake UI is product layer."),
+         an internal framework/component name, now shown in a real view accepting \
+         both a bare prompt and a full specification identically."),
     entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet"],
         "ClarificationQuestion::new refuses a question with no stated reason; \
          fully_answered only becomes true once every question has an explicit \
