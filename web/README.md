@@ -7,6 +7,27 @@ makes, what to fix first, and how much to trust the tool.
 Every technical term from the engine is translated to plain English in
 `src/lib/plain-words.ts` — that file is the product's language policy.
 
+## Two ways to see YOUR project
+
+1. **Connect a repo** — paste a public git link (GitHub / GitLab / Bitbucket).
+   The server clones it (`--depth 1`), runs `cie ingest → report → viz →
+   concepts` in a background job, and deletes the clone the moment it's done.
+   The dialog shows every state in plain words: *Getting your code → Reading
+   every file → Drawing the map → Listing what it does*, with per-step
+   timings, honest failure cards ("That repo looks private (or the address is
+   wrong)…") and a *Show my project* button at the end. The job keeps running
+   if you close the dialog and the panel resumes when you reopen it.
+   - Server pieces: `POST /api/analyze`, `GET /api/analyze/status?job=ID`,
+     `GET /api/analyze/result?job=ID` (in-memory job store,
+     `src/lib/analyze-jobs.ts`; URLs are validated, private/loopback hosts
+     are refused).
+   - The engine binary is found via `CIE_BIN`, then `target/debug|release/cie`,
+     then `cie` on PATH.
+   - Repos with no supported source files (CIE reads Python, Rust,
+     JavaScript/TypeScript, Go) fail honestly instead of pretending.
+2. **Upload files** — drop in the three JSON files the `cie` CLI exports;
+   nothing ever leaves your machine.
+
 ## What you get
 
 | Tab | What it shows (plain words) |

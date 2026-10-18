@@ -25,6 +25,7 @@ interface CieState {
   loadError: string;
   chat: ChatMessage[];
   chatBusy: boolean;
+  jobId: string | null; // active "Connect a repo" job, survives dialog close
   loadDemo: () => Promise<void>;
   setCustom: (
     report: CieReport | null,
@@ -36,6 +37,7 @@ interface CieState {
   pushChat: (m: ChatMessage) => void;
   setChatBusy: (b: boolean) => void;
   clearChat: () => void;
+  setJobId: (id: string | null) => void;
 }
 
 export const useCie = create<CieState>((set) => ({
@@ -48,6 +50,7 @@ export const useCie = create<CieState>((set) => ({
   loadError: "",
   chat: [],
   chatBusy: false,
+  jobId: null,
   loadDemo: async () => {
     set({ loading: true, loadError: "" });
     try {
@@ -78,4 +81,5 @@ export const useCie = create<CieState>((set) => ({
   pushChat: (m) => set((s) => ({ chat: [...s.chat, m] })),
   setChatBusy: (b) => set({ chatBusy: b }),
   clearChat: () => set({ chat: [] }),
+  setJobId: (id) => set({ jobId: id }),
 }));
