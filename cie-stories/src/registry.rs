@@ -273,12 +273,12 @@ pub const REGISTRY: &[Entry] = &[
         "Pattern-based opportunity candidates only; no measured-speedup claims without experiments, by construction."),
     entry!("US-086", Partial, ["cie-analysis::findings", "cli:report"],
         "Complexity/coverage factors shipped; churn/history factors require git ingest (US-037 gap)."),
-    entry!("US-087", Partial, ["cie-ingest::churn::co_change_coupling"],
+    entry!("US-087", Delivered, ["cie-ingest::churn::co_change_coupling", "cie-server::http (GET /view/co-change)"],
         "Directory-crossing coupling with support counts, inspectable supporting \
-         commit ids, and bulk-edit/author/subject exclusions (same ledger as \
-         churn_factors); same-commit rename pairs dropped under a labelled \
-         heuristic. A distinct type from CoChangeEdge/RelKind, never a static \
-         or runtime dependency claim. Visual change-coupling map is host layer."),
+         commit ids, and bulk-edit/author/subject exclusions, now in a real map \
+         view (GET /view/co-change) that also renders the exclusion ledger so a \
+         dropped bot/formatting commit is visible, not silently absent. A distinct \
+         type from CoChangeEdge/RelKind, never a static or runtime dependency claim."),
     // ---- History, collaboration and knowledge ------------------------------
     entry!("US-088", Planned, [],
         "History analysis not shipped; no contributor-identity fields exist anywhere in the stores (nothing to protect yet), and privacy-at-source stays a design constraint for when history lands."),

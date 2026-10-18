@@ -78,7 +78,33 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/dependency-risk", "US-062: dependency usage/risk map"),
     ("/view/runtime-overlay", "US-075: runtime activity overlay"),
     ("/view/environment", "US-077: compare environments and flags"),
+    ("/view/co-change", "US-087: directory-crossing co-change coupling"),
 ];
+
+fn demo_history() -> cie_ingest::HistoryFacts {
+    use cie_ingest::{CommitMeta, FileTouch, HistoryFacts};
+    let cid = |n: u32| format!("{n:040}");
+    HistoryFacts {
+        head: cid(4),
+        commits: vec![
+            CommitMeta { id: cid(1), author: "ada".into(), time: 100, subject: "feat: checkout flow".into() },
+            CommitMeta { id: cid(2), author: "ada".into(), time: 200, subject: "feat: checkout docs".into() },
+            CommitMeta { id: cid(3), author: "bot".into(), time: 300, subject: "chore: formatting sweep".into() },
+            CommitMeta { id: cid(4), author: "ada".into(), time: 400, subject: "fix: checkout edge case".into() },
+        ],
+        touches: vec![
+            FileTouch { commit: cid(1), path: "src/checkout.py".into(), added: Some(50), deleted: Some(0), is_binary: false },
+            FileTouch { commit: cid(1), path: "docs/checkout.md".into(), added: Some(10), deleted: Some(0), is_binary: false },
+            FileTouch { commit: cid(2), path: "src/checkout.py".into(), added: Some(5), deleted: Some(1), is_binary: false },
+            FileTouch { commit: cid(2), path: "docs/checkout.md".into(), added: Some(8), deleted: Some(0), is_binary: false },
+            FileTouch { commit: cid(3), path: "src/checkout.py".into(), added: Some(1), deleted: Some(1), is_binary: false },
+            FileTouch { commit: cid(3), path: "src/unrelated.py".into(), added: Some(1), deleted: Some(1), is_binary: false },
+            FileTouch { commit: cid(4), path: "src/checkout.py".into(), added: Some(3), deleted: Some(0), is_binary: false },
+        ],
+        blames: vec![],
+        blamed_paths: vec![],
+    }
+}
 
 fn demo_environment_pair() -> (cie_evidence::EnvironmentSnapshot, cie_evidence::EnvironmentSnapshot, cie_evidence::EnvironmentSnapshot) {
     use cie_evidence::EnvironmentSnapshot;
@@ -463,6 +489,37 @@ fn render_environment_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&cmp).unwrap_or_default())
 }
 
+fn demo_co_change() -> cie_ingest::CoChangeCouplingReport {
+    use cie_ingest::ChurnExclusions;
+    let excl = ChurnExclusions { bulk_edit_min_paths: 50, authors: vec!["bot".into()], subject_substrings: vec![] };
+    cie_ingest::co_change_coupling(&demo_history(), 2, &excl)
+}
+
+fn render_co_change_html() -> HttpResponse {
+    let rep = demo_co_change();
+    let rows: Vec<Vec<String>> = rep
+        .edges
+        .iter()
+        .map(|e| vec![e.a.clone(), e.b.clone(), e.shared_commits.to_string(), e.crosses_directory_boundary.to_string(), e.supporting_commits.join(", ")])
+        .collect();
+    let exclusion_rows: Vec<Vec<String>> = rep.exclusions.iter().map(|x| vec![x.rule.clone(), x.commits_excluded.to_string()]).collect();
+    let body = format!(
+        "{}<h2>Exclusion ledger</h2>{}<p class=\"note\">{}</p>",
+        table(&["path a", "path b", "shared commits", "crosses directory boundary", "supporting commits"], &rows),
+        table(&["rule", "commits excluded"], &exclusion_rows),
+        escape_html(rep.note),
+    );
+    HttpResponse::html(page(
+        "US-087: directory-crossing co-change coupling",
+        "Fixed demo history — a bot/formatting commit is excluded by the ledger, not silently folded into the coupling signal.",
+        &body,
+    ))
+}
+
+fn render_co_change_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_co_change()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -485,6 +542,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/runtime-overlay" => render_runtime_overlay_json(),
         "/view/environment" => render_environment_html(),
         "/api/environment" => render_environment_json(),
+        "/view/co-change" => render_co_change_html(),
+        "/api/co-change" => render_co_change_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -685,5 +744,24 @@ mod tests {
         let resp = route("/api/environment");
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         assert_eq!(parsed["version_differs"], true);
+    }
+
+    #[test]
+    fn co_change_view_shows_coupling_and_excludes_the_bot_commit() {
+        let resp = route("/view/co-change");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("checkout.py"));
+        assert!(resp.body.contains("true")); // crosses_directory_boundary for src vs docs
+        assert!(resp.body.contains("Exclusion ledger"));
+        assert!(resp.body.contains("bot"));
+    }
+
+    #[test]
+    fn co_change_api_excludes_the_bot_commit_from_support_count() {
+        let resp = route("/api/co-change");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let edge = parsed["edges"].as_array().unwrap().iter().find(|e| e["a"] == "docs/checkout.md" || e["b"] == "docs/checkout.md").unwrap();
+        assert_eq!(edge["shared_commits"], 2);
+        assert_eq!(edge["crosses_directory_boundary"], true);
     }
 }
