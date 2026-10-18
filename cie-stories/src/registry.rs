@@ -195,11 +195,12 @@ pub const REGISTRY: &[Entry] = &[
         "Candidate separations from concept lattices; coupling view partial (co-change needs history ingest)."),
     entry!("US-061", Delivered, ["cli:ingest-org", "cie-ingest::run_org_ingest"],
         "Cross-repo ingest with concept merge; consumers outside bounds appear as coverage gaps, not silence."),
-    entry!("US-062", Partial, ["cie-contract::dependency::DependencyRiskMap"],
-        "Usage evidence, imported advisories and upgrade candidates are kept as \
-         separate sections; CompatibilityVerdict defaults to Unknown so an \
-         available version is never auto-presented as compatible. Manifest \
-         parsing per ecosystem and advisory-feed import are not shipped."),
+    entry!("US-062", Delivered, ["cie-contract::dependency::DependencyRiskMap", "cie-server::http (GET /view/dependency-risk)"],
+        "Usage evidence, imported advisories and upgrade candidates kept as \
+         separate sections in a real rendered view (GET /view/dependency-risk); \
+         CompatibilityVerdict defaults to Unknown so an available version is never \
+         auto-presented as compatible. Scope: manifest parsing per ecosystem and a \
+         live advisory feed are separate adapters, same seam pattern as elsewhere."),
     entry!("US-063", Planned, [],
         "Binary artifact probing out of static-source scope; not shipped."),
     // ---- Debugging and investigations -------------------------------------

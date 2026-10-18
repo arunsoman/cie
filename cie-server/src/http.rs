@@ -75,7 +75,24 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/slow-op", "US-082: explain a slow operation"),
     ("/view/profile-compare", "US-083: compare two profiles"),
     ("/view/regression", "US-084: investigate a performance regression"),
+    ("/view/dependency-risk", "US-062: dependency usage/risk map"),
 ];
+
+fn demo_dependency_risk() -> cie_contract::DependencyRiskMap {
+    use cie_contract::{Advisory, CompatibilityVerdict, Dependency, DependencyRiskMap, UpgradeCandidate, UsageEvidence};
+    let dep = Dependency { name: "left-pad".into(), current_version: "1.3.0".into() };
+    let usage = vec![
+        UsageEvidence { dependency: "left-pad".into(), using_symbol: "report::format_table".into() },
+        UsageEvidence { dependency: "left-pad".into(), using_symbol: "cli::align_columns".into() },
+    ];
+    let advisories = vec![Advisory { id: "GHSA-demo-1".into(), severity: "high".into(), summary: "demo: prototype pollution via crafted input".into() }];
+    let mut fixed = UpgradeCandidate::available("2.0.0");
+    fixed.concerns.push("drops the callback-style API used by report::format_table".into());
+    let mut confirmed_bad = UpgradeCandidate::available("1.9.0");
+    confirmed_bad.compatibility = CompatibilityVerdict::ConfirmedIncompatible;
+    confirmed_bad.concerns.push("renamed export breaks cli::align_columns at compile time".into());
+    DependencyRiskMap::build(&dep, usage, advisories, vec![fixed, confirmed_bad])
+}
 
 fn demo_profile_pair() -> (cie_evidence::Profile, cie_evidence::Profile, cie_evidence::EquivalenceDeclaration) {
     use cie_evidence::{EquivalenceDeclaration, Profile};
@@ -330,6 +347,33 @@ fn render_regression_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&serde_json::json!({"genuine": genuine, "false_improvement": false_improvement})).unwrap_or_default())
 }
 
+fn render_dependency_risk_html() -> HttpResponse {
+    let map = demo_dependency_risk();
+    let usage_rows: Vec<Vec<String>> = map.usage.iter().map(|u| vec![u.using_symbol.clone()]).collect();
+    let advisory_rows: Vec<Vec<String>> = map.advisories.iter().map(|a| vec![a.id.clone(), a.severity.clone(), a.summary.clone()]).collect();
+    let candidate_rows: Vec<Vec<String>> = map
+        .candidates
+        .iter()
+        .map(|c| vec![c.version.clone(), format!("{:?}", c.compatibility), c.concerns.join("; ")])
+        .collect();
+    let body = format!(
+        "<h2>Usage ({} site(s))</h2>{}<h2>Advisories (imported, none fabricated)</h2>{}<h2>Upgrade candidates</h2>{}",
+        map.usage_count(),
+        table(&["using symbol"], &usage_rows),
+        table(&["id", "severity", "summary"], &advisory_rows),
+        table(&["version", "compatibility", "named concerns"], &candidate_rows),
+    );
+    HttpResponse::html(page(
+        "US-062: dependency usage/risk map",
+        "Fixed demo dependency — usage, advisories and upgrade candidates kept separate; an available version is never auto-shown as compatible.",
+        &body,
+    ))
+}
+
+fn render_dependency_risk_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_dependency_risk()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -346,6 +390,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/profile-compare" => render_profile_compare_json(),
         "/view/regression" => render_regression_html(),
         "/api/regression" => render_regression_json(),
+        "/view/dependency-risk" => render_dependency_risk_html(),
+        "/api/dependency-risk" => render_dependency_risk_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -496,5 +542,22 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
         assert_eq!(parsed["genuine"]["improvement_confirmed"], true);
         assert_eq!(parsed["false_improvement"]["improvement_confirmed"], false);
+    }
+
+    #[test]
+    fn dependency_risk_view_keeps_sections_separate() {
+        let resp = route("/view/dependency-risk");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("Usage ("));
+        assert!(resp.body.contains("Advisories"));
+        assert!(resp.body.contains("ConfirmedIncompatible"));
+    }
+
+    #[test]
+    fn dependency_risk_api_never_defaults_an_available_version_to_compatible() {
+        let resp = route("/api/dependency-risk");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let candidates = parsed["candidates"].as_array().unwrap();
+        assert!(candidates.iter().any(|c| c["compatibility"] == "Unknown"));
     }
 }
