@@ -6,6 +6,7 @@
 
 use cie_core::types::{ContractId, SymbolId};
 pub mod dependency;
+pub mod feature;
 pub mod findings;
 pub mod beliefs;
 pub mod houdini;
@@ -17,6 +18,7 @@ pub mod registry;
 pub use dependency::{
     Advisory, CompatibilityVerdict, Dependency, DependencyRiskMap, UpgradeCandidate, UsageEvidence,
 };
+pub use feature::{Deliverable, DetailLevel, FeatureRequest};
 pub use findings::{Finding, FindingKind};
 pub use beliefs::{Belief, BeliefFactor, FactorGraph, Family, Predicate, SiteRef};
 pub use houdini::{Houdini, RefutedEntry};

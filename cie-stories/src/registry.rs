@@ -302,8 +302,10 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-103", Delivered, ["cie-claims::model::Modality", "cie-store::records"],
         "Every derived record carries modality + provenance; predictions never display as fact."),
     // ---- Prompt-to-feature discovery and planning -------------------------
-    entry!("US-104", Planned, [],
-        "Feature-request intake is product layer."),
+    entry!("US-104", Partial, ["cie-contract::feature::request::FeatureRequest"],
+        "FeatureRequest carries repository + deliverable (plan/preview/draft-PR) + \
+         detail level (prompt/brief/specification/examples) with no field requiring \
+         an internal framework/component name. The intake UI is product layer."),
     entry!("US-105", Planned, [],
         "Clarification flow is product layer."),
     entry!("US-106", Partial, ["cie-concepts"],
