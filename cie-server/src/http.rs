@@ -80,7 +80,17 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/environment", "US-077: compare environments and flags"),
     ("/view/co-change", "US-087: directory-crossing co-change coupling"),
     ("/view/feature-request", "US-104: describe a new feature naturally"),
+    ("/view/clarify", "US-105: answer only material questions"),
 ];
+
+fn demo_clarification() -> cie_contract::ClarificationSet {
+    use cie_contract::{ClarificationQuestion, ClarificationSet};
+    let mut set = ClarificationSet::default();
+    set.add(ClarificationQuestion::new("q1", "Allow a guest to save a shipping address for next time?", "changes whether we need a lightweight guest account record at all").unwrap());
+    set.add(ClarificationQuestion::new("q2", "Rate limit on guest checkout attempts?", "affects abuse-prevention design and infra sizing").unwrap());
+    set.answer("q1", "no — one-time only, nothing persisted").unwrap();
+    set
+}
 
 fn demo_feature_requests() -> Vec<cie_contract::FeatureRequest> {
     use cie_contract::{Deliverable, DetailLevel, FeatureRequest};
@@ -553,6 +563,29 @@ fn render_feature_request_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&demo_feature_requests()).unwrap_or_default())
 }
 
+fn render_clarify_html() -> HttpResponse {
+    let set = demo_clarification();
+    let rows: Vec<Vec<String>> = set
+        .questions
+        .iter()
+        .map(|q| vec![q.text.clone(), q.reason.clone(), q.answer.clone().unwrap_or_else(|| "(pending)".into())])
+        .collect();
+    let body = format!(
+        "{}<p>task status: {} question(s) pending — independent work is not blocked on them; nothing is authorized by their silence.</p>",
+        table(&["question", "why it matters", "answer"], &rows),
+        set.pending().len(),
+    );
+    HttpResponse::html(page(
+        "US-105: answer only material questions",
+        "Fixed demo set — every question carries a required reason; an unanswered question never becomes a silent yes.",
+        &body,
+    ))
+}
+
+fn render_clarify_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_clarification()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -579,6 +612,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/co-change" => render_co_change_json(),
         "/view/feature-request" => render_feature_request_html(),
         "/api/feature-request" => render_feature_request_json(),
+        "/view/clarify" => render_clarify_html(),
+        "/api/clarify" => render_clarify_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -815,5 +850,22 @@ mod tests {
         let reqs = parsed.as_array().unwrap();
         assert_eq!(reqs[0]["repository"], "acme/checkout");
         assert_eq!(reqs[1]["deliverable"], "DraftPullRequest");
+    }
+
+    #[test]
+    fn clarify_view_shows_pending_question_and_required_reasons() {
+        let resp = route("/view/clarify");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("1 question(s) pending"));
+        assert!(resp.body.contains("(pending)"));
+    }
+
+    #[test]
+    fn clarify_api_keeps_the_answered_question_distinct_from_pending() {
+        let resp = route("/api/clarify");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        let qs = parsed["questions"].as_array().unwrap();
+        assert!(qs[0]["answer"].is_string());
+        assert!(qs[1]["answer"].is_null());
     }
 }

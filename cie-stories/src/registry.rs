@@ -320,11 +320,13 @@ pub const REGISTRY: &[Entry] = &[
          detail level (prompt/brief/specification/examples) with no field requiring \
          an internal framework/component name, now shown in a real view accepting \
          both a bare prompt and a full specification identically."),
-    entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet"],
+    entry!("US-105", Partial, ["cie-contract::feature::clarify::ClarificationSet", "cie-server::http (GET /view/clarify)"],
         "ClarificationQuestion::new refuses a question with no stated reason; \
          fully_answered only becomes true once every question has an explicit \
-         answer — silence never authorizes one. Deciding which questions are \
-         material (vs noise) is product/model layer."),
+         answer — now shown in a real view distinguishing answered from pending. \
+         Not promoted: deciding which questions are material (vs noise) and \
+         adopting existing conventions where appropriate are product/model layer, \
+         and nothing here demonstrates either."),
     entry!("US-106", Partial, ["cie-concepts"],
         "Concept-level overlap detection shipped; capability-level equivalence is product reasoning."),
     entry!("US-107", Partial, ["cie-drift::pipeline"],
