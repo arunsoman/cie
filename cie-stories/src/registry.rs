@@ -331,8 +331,13 @@ pub const REGISTRY: &[Entry] = &[
         "Concept-level overlap detection shipped; capability-level equivalence is product reasoning."),
     entry!("US-107", Partial, ["cie-drift::pipeline"],
         "Contradictory claims detected by drift; requirement-conflict management is product layer."),
-    entry!("US-108", Planned, [],
-        "Feature-contract assembly is product layer."),
+    entry!("US-108", Partial, ["cie-contract::feature::contract::FeatureContract", "cie-server::http (GET /view/feature-contract)"],
+        "Scope/actors/rules/failure-paths/assumptions/acceptance-criteria with every \
+         requirement carrying a RequirementOrigin and open_omissions keeping material \
+         gaps visible, now in a real rendered view. Not promoted: the story also \
+         names correcting the brief before or during implementation, which nothing \
+         in this crate implements yet (no revision/edit path exists for a contract \
+         once assembled)."),
     entry!("US-109", Partial, ["cli:impact"],
         "Code-impact shipped; permission/data/ops impact dimensions not modelled."),
     entry!("US-110", Planned, [],

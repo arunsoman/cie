@@ -81,7 +81,21 @@ const INDEX_LINKS: &[(&str, &str)] = &[
     ("/view/co-change", "US-087: directory-crossing co-change coupling"),
     ("/view/feature-request", "US-104: describe a new feature naturally"),
     ("/view/clarify", "US-105: answer only material questions"),
+    ("/view/feature-contract", "US-108: review a complete feature contract"),
 ];
+
+fn demo_feature_contract() -> cie_contract::FeatureContract {
+    use cie_contract::{FeatureContract, Requirement, RequirementOrigin};
+    FeatureContract {
+        scope: "Guest checkout for acme/checkout".into(),
+        actors: vec!["guest".into(), "payment gateway".into()],
+        rules: vec![Requirement::new("cart total must exceed $0 to proceed", RequirementOrigin::UserStated)],
+        failure_paths: vec![Requirement::new("a declined payment keeps the cart intact for retry", RequirementOrigin::InferredDefault)],
+        assumptions: vec![Requirement::new("guest email is collected but not verified", RequirementOrigin::NecessaryPrerequisite)],
+        acceptance_criteria: vec![Requirement::new("a guest completes checkout without registering an account", RequirementOrigin::UserStated)],
+        open_omissions: vec!["refund policy for an abandoned guest cart after payment is undecided".into()],
+    }
+}
 
 fn demo_clarification() -> cie_contract::ClarificationSet {
     use cie_contract::{ClarificationQuestion, ClarificationSet};
@@ -586,6 +600,35 @@ fn render_clarify_json() -> HttpResponse {
     HttpResponse::json(serde_json::to_string_pretty(&demo_clarification()).unwrap_or_default())
 }
 
+fn render_feature_contract_html() -> HttpResponse {
+    let c = demo_feature_contract();
+    let section = |label: &str, reqs: &[cie_contract::Requirement]| {
+        let rows: Vec<Vec<String>> = reqs.iter().map(|r| vec![r.text.clone(), format!("{:?}", r.origin)]).collect();
+        format!("<h2>{}</h2>{}", escape_html(label), table(&["requirement", "origin"], &rows))
+    };
+    let omissions: String = c.open_omissions.iter().map(|o| format!("<li>{}</li>", escape_html(o))).collect();
+    let body = format!(
+        "<p><strong>scope:</strong> {}</p><p><strong>actors:</strong> {}</p>{}{}{}{}<h2>Open omissions (material, named, not hidden)</h2><ul>{}</ul><p>complete: {}</p>",
+        escape_html(&c.scope),
+        escape_html(&c.actors.join(", ")),
+        section("Rules", &c.rules),
+        section("Failure paths", &c.failure_paths),
+        section("Assumptions", &c.assumptions),
+        section("Acceptance criteria", &c.acceptance_criteria),
+        omissions,
+        c.is_complete(),
+    );
+    HttpResponse::html(page(
+        "US-108: review a complete feature contract",
+        "Fixed demo contract — every requirement names its origin; an open omission keeps the contract marked incomplete rather than silently absent.",
+        &body,
+    ))
+}
+
+fn render_feature_contract_json() -> HttpResponse {
+    HttpResponse::json(serde_json::to_string_pretty(&demo_feature_contract()).unwrap_or_default())
+}
+
 /// Pure routing: deterministic given a path, no socket required.
 pub fn route(path: &str) -> HttpResponse {
     match path {
@@ -614,6 +657,8 @@ pub fn route(path: &str) -> HttpResponse {
         "/api/feature-request" => render_feature_request_json(),
         "/view/clarify" => render_clarify_html(),
         "/api/clarify" => render_clarify_json(),
+        "/view/feature-contract" => render_feature_contract_html(),
+        "/api/feature-contract" => render_feature_contract_json(),
         _ => HttpResponse::not_found(),
     }
 }
@@ -867,5 +912,22 @@ mod tests {
         let qs = parsed["questions"].as_array().unwrap();
         assert!(qs[0]["answer"].is_string());
         assert!(qs[1]["answer"].is_null());
+    }
+
+    #[test]
+    fn feature_contract_view_names_origin_and_stays_incomplete_with_an_omission() {
+        let resp = route("/view/feature-contract");
+        assert_eq!(resp.status, 200);
+        assert!(resp.body.contains("UserStated"));
+        assert!(resp.body.contains("Open omissions"));
+        assert!(resp.body.contains("complete: false"));
+    }
+
+    #[test]
+    fn feature_contract_api_matches_the_engine_structure() {
+        let resp = route("/api/feature-contract");
+        let parsed: serde_json::Value = serde_json::from_str(&resp.body).unwrap();
+        assert_eq!(parsed["open_omissions"].as_array().unwrap().len(), 1);
+        assert_eq!(parsed["acceptance_criteria"].as_array().unwrap().len(), 1);
     }
 }
