@@ -1,0 +1,83 @@
+{
+ "tool": "read-modify-write observation (no sanitizer needed to SEE this one)",
+ "command": "runtime_probes.racing_counter(threads=4), 3 natural trials (50000 each) + 3 widened trials (20000 each, GIL yielded between read and write \u2014 disclosed)",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "natural_trials": [
+  {
+   "threads": 4,
+   "per_thread": 50000,
+   "expected": 200000,
+   "final": 200000,
+   "lost": 0,
+   "wall_ms": 19.93,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": false
+  },
+  {
+   "threads": 4,
+   "per_thread": 50000,
+   "expected": 200000,
+   "final": 200000,
+   "lost": 0,
+   "wall_ms": 18.92,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": false
+  },
+  {
+   "threads": 4,
+   "per_thread": 50000,
+   "expected": 200000,
+   "final": 200000,
+   "lost": 0,
+   "wall_ms": 19.25,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": false
+  }
+ ],
+ "widened_trials": [
+  {
+   "threads": 4,
+   "per_thread": 20000,
+   "expected": 80000,
+   "final": 20132,
+   "lost": 59868,
+   "wall_ms": 1495.33,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": true
+  },
+  {
+   "threads": 4,
+   "per_thread": 20000,
+   "expected": 80000,
+   "final": 19948,
+   "lost": 60052,
+   "wall_ms": 1366.0,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": true
+  },
+  {
+   "threads": 4,
+   "per_thread": 20000,
+   "expected": 80000,
+   "final": 20000,
+   "lost": 60000,
+   "wall_ms": 1416.69,
+   "switch_interval_s": 0.001,
+   "start_barrier": true,
+   "widened": true
+  }
+ ],
+ "lost_natural": 0,
+ "lost_widened": 179920,
+ "honesty": "Both windows are real concurrent read-add-write with no lock. The natural window may lose nothing on a given run \u2014 CPython's switch checks land on the loop backedge \u2014 and that is an honest result: races are timing-dependent, so a clean run is NOT proof the race is gone. The widened window yields the GIL between the read and the write (the same window real code leaves open) and is fully disclosed; it reliably loses updates, proving the sequence is not atomic.",
+ "real_world_equivalents": [
+  "ThreadSanitizer (clang -fsanitize=thread)",
+  "Go's -race detector",
+  "Helgrind/Valgrind"
+ ]
+}

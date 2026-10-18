@@ -19,6 +19,10 @@ pub enum SymbolKind {
     Method,
     Test,
     Constant,
+    /// SQL: `CREATE TABLE` (v1.2.1).
+    Table,
+    /// SQL: `CREATE VIEW` / `MATERIALIZED VIEW` (v1.2.1).
+    View,
 }
 
 impl SymbolKind {
@@ -68,6 +72,8 @@ impl SymbolFact {
             SymbolKind::Method => "method",
             SymbolKind::Test => "test",
             SymbolKind::Constant => "const",
+            SymbolKind::Table => "table",
+            SymbolKind::View => "view",
         }
     }
 

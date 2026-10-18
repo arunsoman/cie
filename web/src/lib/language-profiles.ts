@@ -92,6 +92,20 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
     reads: "functions, classes, includes and calls, plus file, network and database effects it can spot.",
     limits: "It reads the code as written. It doesn't serve pages or run the web server.",
   },
+  {
+    id: "sql",
+    name: "SQL",
+    extensions: ["sql", "ddl"],
+    reads: "tables, views, stored procedures and functions, CREATE EXTENSION imports, and the table-to-table links the statements write down — foreign keys, the tables a view reads, the tables a statement changes.",
+    limits: "It reads the statements as written. It doesn't run them, resolve schema search paths, or follow SQL built at runtime.",
+  },
+  {
+    id: "shell",
+    name: "Shell scripts",
+    extensions: ["sh", "bash", "zsh"],
+    reads: "functions, sourced files, the external commands scripts run, and the effects those commands have — file reads and writes, network calls, database tools, process execution.",
+    limits: "It reads the script as written. It doesn't run it or expand variables, so commands hidden behind $VARS stay unknown — and it says so.",
+  },
 ];
 
 /** Plain sentence naming every supported language (used in honest empty states). */
@@ -274,8 +288,6 @@ export const KNOWN_UNSUPPORTED: UnsupportedLanguage[] = [
   { id: "nim", name: "Nim", extensions: ["nim"], why: "used for systems code — CIE skips these files for now." },
   { id: "r", name: "R", extensions: ["r"], why: "used for statistics — CIE skips these files for now." },
   { id: "objc", name: "Objective-C", extensions: ["m", "mm"], why: "used in older Apple apps — CIE skips these files for now." },
-  { id: "shell", name: "Shell scripts", extensions: ["sh", "bash", "zsh"], why: "setup and build scripts — CIE skips these files for now." },
-  { id: "sql", name: "SQL scripts", extensions: ["sql"], why: "database definitions and migrations — CIE skips these files for now." },
   { id: "vue-sfc", name: "Vue components", extensions: ["vue"], why: "single-file components — CIE reads the project's JS/TS instead." },
   { id: "svelte-sfc", name: "Svelte components", extensions: ["svelte"], why: "single-file components — CIE reads the project's JS/TS instead." },
 ];

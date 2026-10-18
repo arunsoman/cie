@@ -1,0 +1,56 @@
+{
+ "tool": "coverage.py",
+ "command": "python -m coverage run -m pytest test_auth.py -q (inside the sample project)",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "files": [
+  {
+   "file": "auth.py",
+   "statements": 12,
+   "covered": 9,
+   "percent": 75.0
+  },
+  {
+   "file": "deadlock_probe.py",
+   "statements": 39,
+   "covered": 0,
+   "percent": 0.0
+  },
+  {
+   "file": "payments.py",
+   "statements": 23,
+   "covered": 0,
+   "percent": 0.0
+  },
+  {
+   "file": "runtime_probes.py",
+   "statements": 80,
+   "covered": 0,
+   "percent": 0.0
+  },
+  {
+   "file": "test_auth.py",
+   "statements": 3,
+   "covered": 3,
+   "percent": 100.0
+  },
+  {
+   "file": "ui.py",
+   "statements": 4,
+   "covered": 0,
+   "percent": 0.0
+  }
+ ],
+ "totals": {
+  "percent": 7.5,
+  "statements": 161,
+  "covered_lines": 12,
+  "note": "percent covers files the tests actually import; unmeasured files are listed separately below 0 with their reason"
+ },
+ "honesty": "Line coverage of the sample project's own tests, measured for real. The gaps are the point: test_auth.py covers auth.py only, so payments.py, ui.py and runtime_probes.py were never even imported by a test \u2014 they show as 0 with that reason, not as a fake number.",
+ "real_world_equivalents": [
+  "JaCoCo (Java)",
+  "cargo-tarpaulin / llvm-cov (Rust)",
+  "go test -cover (Go)",
+  "nyc / vitest coverage (JS/TS)"
+ ]
+}

@@ -32,6 +32,7 @@ import {
   PromisesView,
   TrustView,
 } from "@/components/cie/sections";
+import { DepsView, RuntimeView } from "@/components/cie/runtime-views";
 import { NumbersView } from "@/components/cie/charts";
 import { MenuView } from "@/components/cie/menu-tab";
 
@@ -46,6 +47,8 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   numbers: { title: "Your project in pictures", caption: "Same facts as the other views, drawn as charts." },
   menu: { title: "One-tap chart menu", caption: "Charts with zero typing — tap a question." },
   trust: { title: "Can I trust this?", caption: "What CIE knows, what it guessed, what it couldn't check." },
+  deps: { title: "Dependencies", caption: "What your project declares it needs — names and versions as written." },
+  runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
 };
 
@@ -138,6 +141,8 @@ export function Stage() {
             {view === "numbers" && <NumbersView />}
             {view === "menu" && <MenuView />}
             {view === "trust" && <TrustView />}
+            {view === "deps" && <DepsView />}
+            {view === "runtime" && <RuntimeView />}
           </div>
         </div>
       )}

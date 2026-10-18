@@ -1,0 +1,46 @@
+{
+ "tool": "cProfile (Python stdlib)",
+ "command": "cProfile.Profile() around runtime_probes.cpu_burn_mixed()",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "total_wall_ms": 630.64,
+ "top_functions": [
+  {
+   "function": "cpu_burn_mixed",
+   "file": "runtime_probes.py",
+   "line": 32,
+   "self_ms": 0.25,
+   "cum_ms": 630.59,
+   "calls": 1
+  },
+  {
+   "function": "<built-in method time.sleep>",
+   "file": "(built-in)",
+   "line": 0,
+   "self_ms": 321.74,
+   "cum_ms": 321.74,
+   "calls": 60
+  },
+  {
+   "function": "cpu_work",
+   "file": "runtime_probes.py",
+   "line": 24,
+   "self_ms": 308.61,
+   "cum_ms": 308.61,
+   "calls": 60
+  },
+  {
+   "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+   "file": "(built-in)",
+   "line": 0,
+   "self_ms": 0.04,
+   "cum_ms": 0.04,
+   "calls": 1
+  }
+ ],
+ "honesty": "Measured on this machine during this run; the profiler's own bookkeeping adds a little overhead. A different machine or run will give different numbers \u2014 that is what honest measurement looks like.",
+ "real_world_equivalents": [
+  "py-spy top / py-spy record (sampling, safe in production)",
+  "Java Flight Recorder + Mission Control",
+  "perf record + flamegraphs"
+ ]
+}

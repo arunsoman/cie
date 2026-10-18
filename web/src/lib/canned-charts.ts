@@ -5,7 +5,7 @@
 // fisheye lens (US-023), keyboard parity (US-140) and never-colour-alone
 // labels (US-142) all carry over unchanged.
 
-import type { CieReport, CieViewSpec, ConceptTree, Finding } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, Finding, CieDeps, CieRuntime } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartKind, type ChatChartSpec } from "./chat-chart";
 import { buildUmlSpec, buildFlowSpec } from "./draw-anything";
 import {
@@ -20,10 +20,10 @@ import {
 
 export interface CannedChart {
   id: string;
-  group: "Problems" | "Promises" | "The map" | "What the code does";
+  group: "Problems" | "Promises" | "The map" | "What the code does" | "Dependencies" | "Watching it run";
   question: string;
   hint: string; // one line shown under the question chip
-  icon: "list" | "gauge" | "shapes" | "shield" | "map" | "activity";
+  icon: "list" | "gauge" | "shapes" | "shield" | "map" | "activity" | "package" | "timer";
   spec: ChatChartSpec | null; // null → honest empty state (not enough data)
 }
 
@@ -43,7 +43,9 @@ function rows_max(m: Map<number, number>): number {
 export function buildCannedCharts(
   report: CieReport | null,
   viewspec: CieViewSpec | null,
-  concepts: ConceptTree | null
+  concepts: ConceptTree | null,
+  deps?: CieDeps | null,
+  runtime?: CieRuntime | null
 ): CannedChart[] {
   if (!report) return [];
   const charts: CannedChart[] = [];
@@ -394,6 +396,153 @@ export function buildCannedCharts(
             ...spec("table", "Each file, in plain words", "The behaviours CIE recognised in each file."),
             columns: ["File", "What it does"],
             rows,
+          }
+        : null,
+    });
+  }
+
+  // ---------- Dependencies ----------
+
+  // 14. What does the project depend on?
+  {
+    const table = deps?.table;
+    const byEco = new Map<string, number>();
+    if (table) for (const d of table.deps) byEco.set(d.ecosystem, (byEco.get(d.ecosystem) ?? 0) + 1);
+    const names: Record<string, string> = {
+      pypi: "Python (pip)", npm: "npm", cargo: "Rust", go: "Go",
+      maven: "Maven", gradle: "Gradle", composer: "PHP", nuget: ".NET",
+    };
+    const data = [...byEco.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([eco, v]) => ({ name: cut(names[eco] ?? eco, 22), value: v, color: eco === "pypi" ? "emerald" : "stone" }));
+    charts.push({
+      id: "deps-ecosystems",
+      group: "Dependencies",
+      question: "What does the project depend on?",
+      hint: table && table.files_scanned > 0 ? `${table.deps.length} packages declared across ${table.files_scanned} manifest file(s).` : "No manifest files here yet — honest empty.",
+      icon: "package",
+      spec: data.length
+        ? {
+            ...spec("donut", "Declared packages per ecosystem", "Counted straight from the manifests, as written."),
+            data,
+            center: "packages",
+            source: "deps.json (the cie deps export)",
+          }
+        : null,
+    });
+  }
+
+  // 15. Which ecosystems are the biggest lists? (table of the manifest sources)
+  {
+    const table = deps?.table;
+    const rows = table
+      ? [...new Set(table.deps.map((d) => d.source))].slice(0, 8).map((src) => [
+          cut(src, 26),
+          String(table.deps.filter((d) => d.source === src).length),
+        ])
+      : [];
+    charts.push({
+      id: "deps-manifests",
+      group: "Dependencies",
+      question: "Where are the dependency lists?",
+      hint: rows.length ? "Each manifest file and how many packages it declares." : "No manifests found — nothing to list.",
+      icon: "package",
+      spec: rows.length
+        ? {
+            ...spec("table", "Manifest files CIE read", "Names and counts, straight from the scan."),
+            columns: ["Manifest file", "Packages declared"],
+            rows,
+            source: "deps.json",
+          }
+        : null,
+    });
+  }
+
+  // ---------- Watching it run (runtime evidence — measured, never invented) ----------
+
+  // 16. What do the tests really cover?
+  {
+    const cov = runtime?.datasets.coverage;
+    const data = cov?.files.map((f) => ({
+      name: cut(f.file, 20),
+      value: f.percent,
+      color: f.percent >= 70 ? "emerald" : f.percent > 0 ? "amber" : "rose",
+    }));
+    charts.push({
+      id: "runtime-coverage",
+      group: "Watching it run",
+      question: "What do the tests really cover?",
+      hint: cov ? `Measured by ${cov.tool} on the sample project.` : "No collected coverage for this project — honest empty.",
+      icon: "shield",
+      spec: data?.length
+        ? {
+            ...spec("hbar", "Test coverage by file (measured)", "Percent of lines the project's own tests touched. Zero means never even imported — the note says so."),
+            data,
+            source: `runtime.json — ${cov.tool}`,
+          }
+        : null,
+    });
+  }
+
+  // 17. Where did the CPU time go?
+  {
+    const cpu = runtime?.datasets.cpu;
+    const data = cpu?.top_functions.slice(0, 8).map((f) => ({
+      name: cut(f.function, 22),
+      value: Math.round(f.cum_ms),
+      color: f.function.includes("cpu_work") ? "rose" : "amber",
+    }));
+    charts.push({
+      id: "runtime-cpu",
+      group: "Watching it run",
+      question: "Where did the CPU time go?",
+      hint: cpu ? `Measured by ${cpu.tool}.` : "No collected CPU profile — honest empty.",
+      icon: "gauge",
+      spec: data?.length
+        ? {
+            ...spec("hbar", "CPU hotspots (measured)", "Cumulative milliseconds per function, from a real profile run."),
+            data,
+            source: `runtime.json — ${cpu.tool}`,
+          }
+        : null,
+    });
+  }
+
+  // 18. Did the race lose updates?
+  {
+    const race = runtime?.datasets.race;
+    charts.push({
+      id: "runtime-race",
+      group: "Watching it run",
+      question: "Did the race lose updates?",
+      hint: race ? `${race.lost_widened} lost (widened window), ${race.lost_natural} lost naturally.` : "No collected race trials — honest empty.",
+      icon: "activity",
+      spec: race
+        ? {
+            ...spec("stat", "Lost updates, measured", `Across ${race.widened_trials.length} widened runs: ${race.lost_widened} lost. Natural window: ${race.lost_natural}. A clean run never proves the race is gone.`),
+            data: [{ name: race.lost_natural === 0 ? "lost naturally (clean run — races are timing-dependent)" : "lost naturally", value: race.lost_natural }],
+            unit: "updates",
+            source: `runtime.json — ${race.tool}`,
+          }
+        : null,
+    });
+  }
+
+  // 19. How much did the threads overlap?
+  {
+    const conc = runtime?.datasets.concurrency;
+    charts.push({
+      id: "runtime-overlap",
+      group: "Watching it run",
+      question: "Did the threads actually run at the same time?",
+      hint: conc ? `${conc.observed_overlap}× overlap measured over ${conc.tasks} tasks.` : "No collected thread timeline — honest empty.",
+      icon: "timer",
+      spec: conc
+        ? {
+            ...spec("stat", "Measured thread overlap", `${conc.tasks} tasks on ${conc.workers} threads: ${conc.sum_of_task_ms} ms of task time in ${conc.makespan_ms} ms wall time.`),
+            data: [{ name: "tasks ran at once (overlap ×)", value: conc.observed_overlap }],
+            unit: "×",
+            source: `runtime.json — ${conc.tool}`,
           }
         : null,
     });

@@ -38,6 +38,10 @@ pub enum Ecosystem {
     Npm,
     Cargo,
     Go,
+    Maven,
+    Gradle,
+    Composer,
+    Nuget,
 }
 
 impl Ecosystem {
@@ -47,6 +51,10 @@ impl Ecosystem {
             Ecosystem::Npm => "npm",
             Ecosystem::Cargo => "cargo",
             Ecosystem::Go => "go",
+            Ecosystem::Maven => "maven",
+            Ecosystem::Gradle => "gradle",
+            Ecosystem::Composer => "composer",
+            Ecosystem::Nuget => "nuget",
         }
     }
 }
@@ -283,6 +291,182 @@ fn read_go_mod(rel: &str, src: &str, table: &mut DependencyTable) {
     }
 }
 
+/// `pom.xml` (Maven): `<dependency>` blocks → `groupId:artifactId`.
+/// Hand-rolled line reader — no XML tree, no namespace guessing; a pom we
+/// cannot follow is reported unparsed, never approximated.
+fn read_pom_xml(rel: &str, src: &str, table: &mut DependencyTable) -> Result<(), String> {
+    if !src.contains("<project") {
+        return Err(format!("{rel}: no <project> element found"));
+    }
+    // project-level licence (first <license><name> inside <licenses>)
+    let licence = src
+        .find("<licenses>")
+        .and_then(|start| src[start..].find("</licenses>").map(|end| &src[start..start + end]))
+        .and_then(|block| xml_text(&block, "name"));
+
+    let mut rest = src;
+    while let Some(pos) = rest.find("<dependency>") {
+        let Some(end) = rest[pos..].find("</dependency>") else { break };
+        let block = &rest[pos..pos + end];
+        let group = xml_text(block, "groupId").unwrap_or_default();
+        let artifact = xml_text(block, "artifactId").unwrap_or_default();
+        let version = xml_text(block, "version").unwrap_or_default();
+        let scope = match xml_text(block, "scope") {
+            Some(s) if s.eq_ignore_ascii_case("test") => "dev",
+            _ => "runtime",
+        };
+        if !group.is_empty() && !artifact.is_empty() {
+            push_dep(
+                table,
+                rel,
+                Ecosystem::Maven,
+                &format!("{group}:{artifact}"),
+                &version,
+                scope,
+                licence.clone(),
+            );
+        }
+        rest = &rest[pos + end + "</dependency>".len()..];
+    }
+    Ok(())
+}
+
+/// First `<tag>value</tag>` occurrence in `src` (trimmed, entities kept as
+/// written — values are never interpreted).
+fn xml_text(src: &str, tag: &str) -> Option<String> {
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let start = src.find(&open)? + open.len();
+    let end = src[start..].find(&close)? + start;
+    let v = src[start..end].trim();
+    if v.is_empty() {
+        None
+    } else {
+        Some(v.to_string())
+    }
+}
+
+/// `build.gradle` / `build.gradle.kts` (Gradle): quoted `group:artifact[:version]`
+/// coordinates after a configuration keyword (`implementation`, `api`,
+/// `testImplementation`, `classpath`, …). Project-local (`project(…)`) and
+/// file-list dependencies are skipped — they are not external packages.
+fn read_gradle(rel: &str, src: &str, table: &mut DependencyTable) {
+    const CONFIGS: &[&str] = &[
+        "implementation", "api", "compile", "runtimeOnly", "compileOnly", "kapt",
+        "ksp", "debugImplementation", "releaseImplementation", "testImplementation",
+        "androidTestImplementation", "testCompile", "classpath", "coreLibraryDesugaring",
+        "implementation platform", "testRuntimeOnly", "annotationProcessor",
+    ];
+    for line in src.lines() {
+        let t = line.trim();
+        if t.starts_with("//") || t.is_empty() {
+            continue;
+        }
+        // find the first quoted string containing ':'
+        let mut quote_hit: Option<(usize, usize)> = None; // (open, close)
+        let bytes = t.as_bytes();
+        let mut i = 0usize;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'"' | b'\'' => {
+                    let q = bytes[i];
+                    let mut j = i + 1;
+                    while j < bytes.len() && bytes[j] != q {
+                        j += 1;
+                    }
+                    if j < bytes.len() && t[i + 1..j].contains(':') {
+                        quote_hit = Some((i, j));
+                        break;
+                    }
+                    i = j + 1;
+                    continue;
+                }
+                _ => i += 1,
+            }
+        }
+        let Some((open, close)) = quote_hit else { continue };
+        if t[open + 1..close].contains("project(") || t[open + 1..close].starts_with(":") {
+            continue; // project-local coordinates are not external packages
+        }
+        let before = t[..open].to_ascii_lowercase();
+        let matched = CONFIGS.iter().any(|c| before.contains(c));
+        if !matched {
+            continue; // a quoted string alone is not a dependency claim
+        }
+        let coords = t[open + 1..close].trim();
+        let mut parts = coords.split(':');
+        let (Some(group), Some(artifact)) = (parts.next(), parts.next()) else { continue };
+        let version = parts.next().unwrap_or("");
+        let scope = if before.contains("test") || before.contains("androidtest") {
+            "dev"
+        } else {
+            "runtime"
+        };
+        push_dep(
+            table,
+            rel,
+            Ecosystem::Gradle,
+            &format!("{group}:{artifact}"),
+            version,
+            scope,
+            None,
+        );
+    }
+}
+
+/// `composer.json` (PHP): require / require-dev + license.
+fn read_composer_json(rel: &str, src: &str, table: &mut DependencyTable) -> Result<(), String> {
+    let v: serde_json::Value = serde_json::from_str(src).map_err(|e| format!("{rel}: {e}"))?;
+    let licence = match v.get("license") {
+        Some(serde_json::Value::String(s)) => Some(s.clone()),
+        Some(serde_json::Value::Array(a)) => {
+            a.first().and_then(|x| x.as_str()).map(|s| s.to_string())
+        }
+        _ => None,
+    };
+    for (scope, key) in [("runtime", "require"), ("dev", "require-dev")] {
+        if let Some(map) = v.get(key).and_then(|m| m.as_object()) {
+            for (name, ver) in map {
+                if name == "php" || name.starts_with("ext-") || name.starts_with("lib-") {
+                    continue; // platform requirements, not packages
+                }
+                push_dep(table, rel, Ecosystem::Composer, name, ver.as_str().unwrap_or(""), scope, licence.clone());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `*.csproj` (NuGet): `<PackageReference Include=... Version=... />`.
+fn read_csproj(rel: &str, src: &str, table: &mut DependencyTable) {
+    for line in src.lines() {
+        let t = line.trim();
+        if !t.contains("<PackageReference") {
+            continue;
+        }
+        let include = attr_value(t, "Include").unwrap_or_default();
+        if include.is_empty() {
+            continue;
+        }
+        let version = attr_value(t, "Version").unwrap_or_default();
+        push_dep(table, rel, Ecosystem::Nuget, &include, &version, "runtime", None);
+    }
+}
+
+/// Value of `Attr="…"` in an XML-ish tag (double or single quoted).
+fn attr_value(tag: &str, attr: &str) -> Option<String> {
+    for q in ['"', '\''] {
+        let pat = format!("{attr}={q}");
+        if let Some(pos) = tag.find(&pat) {
+            let rest = &tag[pos + pat.len()..];
+            if let Some(end) = rest.find(q) {
+                return Some(rest[..end].to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Walk `root` (depth-capped, common junk dirs skipped) and read every
 /// recognised manifest. Unknown *.toml/*.json at root are NOT guessed.
 pub fn scan_manifests(root: &Path) -> DependencyTable {
@@ -324,6 +508,26 @@ pub fn scan_manifests(root: &Path) -> DependencyTable {
                 "go.mod" => {
                     table.files_scanned += 1;
                     read_go_mod(&rel, &src, table);
+                }
+                "pom.xml" => {
+                    table.files_scanned += 1;
+                    if let Err(e) = read_pom_xml(&rel, &src, table) {
+                        table.unparsed.push(e);
+                    }
+                }
+                "build.gradle" | "build.gradle.kts" => {
+                    table.files_scanned += 1;
+                    read_gradle(&rel, &src, table);
+                }
+                "composer.json" => {
+                    table.files_scanned += 1;
+                    if let Err(e) = read_composer_json(&rel, &src, table) {
+                        table.unparsed.push(e);
+                    }
+                }
+                n if n.ends_with(".csproj") => {
+                    table.files_scanned += 1;
+                    read_csproj(&rel, &src, table);
                 }
                 _ => {}
             }
@@ -423,6 +627,33 @@ fn cargo_variants(name: &str) -> Vec<String> {
     vec![name.replace('-', "_"), name.to_string()]
 }
 
+/// `group:artifact` (Maven/Gradle) → import-root candidates: the groupId
+/// (`org.apache.commons`), the artifactId, and both joined.
+fn jvm_variants(name: &str) -> Vec<String> {
+    let mut out = vec![];
+    let mut parts = name.splitn(2, ':');
+    if let (Some(g), Some(a)) = (parts.next(), parts.next()) {
+        out.push(g.to_string());
+        out.push(a.to_string());
+        out.push(format!("{g}.{a}"));
+    }
+    out.push(name.to_string());
+    out
+}
+
+fn composer_variants(name: &str) -> Vec<String> {
+    // monolog/monolog → Monolog\… namespaces; keep both slash and backslash
+    vec![
+        name.to_string(),
+        name.replace('/', "\\"),
+        name.split('/').next().unwrap_or(name).to_string(),
+    ]
+}
+
+fn nuget_variants(name: &str) -> Vec<String> {
+    vec![name.to_string(), name.to_ascii_lowercase()]
+}
+
 /// Match one import module string against a package's variants.
 fn matches_import(eco: Ecosystem, variants: &[String], module: &str) -> bool {
     let m = module.trim();
@@ -442,6 +673,17 @@ fn matches_import(eco: Ecosystem, variants: &[String], module: &str) -> bool {
         Ecosystem::Go => variants
             .iter()
             .any(|v| m == v.as_str() || m.starts_with(&format!("{v}/"))),
+        Ecosystem::Maven | Ecosystem::Gradle => variants.iter().any(|v| {
+            m == v.as_str()
+                || m.starts_with(&format!("{v}."))
+                || m.starts_with(&format!("{v}/"))
+        }),
+        Ecosystem::Composer => variants
+            .iter()
+            .any(|v| m.eq_ignore_ascii_case(v) || m.to_ascii_lowercase().starts_with(&format!("{}\\", v.to_ascii_lowercase()))),
+        Ecosystem::Nuget => variants
+            .iter()
+            .any(|v| m.eq_ignore_ascii_case(v) || m.to_ascii_lowercase().starts_with(&format!("{}.", v.to_ascii_lowercase()))),
     }
 }
 
@@ -454,6 +696,9 @@ pub fn usage(table: &DependencyTable, imports: &BTreeMap<String, Vec<String>>) -
             Ecosystem::Npm => npm_variants(&d.name),
             Ecosystem::Cargo => cargo_variants(&d.name),
             Ecosystem::Go => go_variants(&d.name),
+            Ecosystem::Maven | Ecosystem::Gradle => jvm_variants(&d.name),
+            Ecosystem::Composer => composer_variants(&d.name),
+            Ecosystem::Nuget => nuget_variants(&d.name),
         };
         let mut imported_by: Vec<String> = Vec::new();
         for (file, mods) in imports {
@@ -471,15 +716,18 @@ pub fn usage(table: &DependencyTable, imports: &BTreeMap<String, Vec<String>>) -
                 true,
                 "usage evidence from adapter-recorded imports".to_string(),
             )
-        } else if d.ecosystem != Ecosystem::Pypi {
+        } else if matches!(
+            d.ecosystem,
+            Ecosystem::Pypi | Ecosystem::Npm | Ecosystem::Cargo | Ecosystem::Go | Ecosystem::Maven | Ecosystem::Gradle | Ecosystem::Composer | Ecosystem::Nuget
+        ) {
             (
                 false,
-                "no import facts exist for this adapter yet — usage here is unevidenced, not zero".to_string(),
+                "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused".to_string(),
             )
         } else {
             (
                 false,
-                "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused".to_string(),
+                "no import facts exist for this adapter yet — usage here is unevidenced, not zero".to_string(),
             )
         };
         out.push(PackageUsage {
@@ -636,9 +884,11 @@ mod tests {
         let unused = u.iter().find(|x| x.name == "unusedpkg").unwrap();
         assert!(!unused.resolved);
         assert!(unused.note.contains("NOT proof of being unused"));
-        // cargo has no import facts yet — named gap, not zero
+        // every adapter records imports now, so a cargo package with no
+        // matching import gets the honest "no import matched" note — never
+        // a fabricated zero, never a fake "no facts exist" claim
         let s = u.iter().find(|x| x.name == "serde").unwrap();
-        assert!(s.note.contains("unevidenced"));
+        assert!(s.note.contains("NOT proof of being unused"));
         let wi = upgrade_what_if(&t, &imports, "requests", "2.32.0").unwrap();
         assert_eq!(wi.consumers.len(), 2);
         assert_eq!(wi.compatibility, Compatibility::Unknown);

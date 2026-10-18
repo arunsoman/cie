@@ -7,8 +7,8 @@
       "label": "Project",
       "evidence": {
         "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "start": 0,
+        "end": 604
       },
       "claimId": "C-0000",
       "salience": {
@@ -17,13 +17,13 @@
           "CONFIDENCE"
         ],
         "weight": 0.6,
-        "whyShown": "Domain concept with 10 traced symbol(s), provenance rule"
+        "whyShown": "Domain concept with 56 traced symbol(s), provenance rule"
       },
       "fields": {
         "confidence": 0.6000000238418579,
         "coverage": 1.0,
         "provenance": "rule",
-        "symbols": 10
+        "symbols": 56
       }
     },
     {
@@ -33,8 +33,8 @@
       "label": "auth.py",
       "evidence": {
         "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "start": 0,
+        "end": 604
       },
       "claimId": "C-0001",
       "salience": {
@@ -43,13 +43,13 @@
           "CONFIDENCE"
         ],
         "weight": 0.6,
-        "whyShown": "Module concept with 4 traced symbol(s), provenance rule:package"
+        "whyShown": "Module concept with 5 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 0.6000000238418579,
         "coverage": 1.0,
         "provenance": "rule:package",
-        "symbols": 4
+        "symbols": 5
       },
       "parentId": "c0"
     },
@@ -57,11 +57,11 @@
       "id": "c2",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "payments.py",
+      "label": "db/migrations/001_init.sql",
       "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "file": "db/migrations/001_init.sql",
+        "start": 0,
+        "end": 658
       },
       "claimId": "C-0002",
       "salience": {
@@ -69,14 +69,14 @@
           "COVERAGE",
           "CONFIDENCE"
         ],
-        "weight": 0.6,
-        "whyShown": "Module concept with 6 traced symbol(s), provenance rule:package"
+        "weight": 1.0,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
       },
       "fields": {
-        "confidence": 0.6000000238418579,
+        "confidence": 1.0,
         "coverage": 1.0,
         "provenance": "rule:package",
-        "symbols": 6
+        "symbols": 3
       },
       "parentId": "c0"
     },
@@ -84,13 +84,148 @@
       "id": "c3",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "test_auth.py",
+      "label": "db/migrations/002_audit_indexes.sql",
       "evidence": {
-        "file": "test_auth.py",
-        "start": 28,
-        "end": 88
+        "file": "db/migrations/002_audit_indexes.sql",
+        "start": 0,
+        "end": 417
       },
       "claimId": "C-0003",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c4",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "db/schema.sql",
+      "evidence": {
+        "file": "db/schema.sql",
+        "start": 0,
+        "end": 1203
+      },
+      "claimId": "C-0004",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 5 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c5",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "deadlock_probe.py",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 0,
+        "end": 2086
+      },
+      "claimId": "C-0005",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 5 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c6",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "payments.py",
+      "evidence": {
+        "file": "payments.py",
+        "start": 0,
+        "end": 755
+      },
+      "claimId": "C-0006",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Module concept with 5 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c7",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "runtime_probes.py",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
+      },
+      "claimId": "C-0007",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Module concept with 15 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 15
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c8",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "scripts/collect.sh",
+      "evidence": {
+        "file": "scripts/collect.sh",
+        "start": 0,
+        "end": 413
+      },
+      "claimId": "C-0008",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -108,149 +243,14 @@
       "parentId": "c0"
     },
     {
-      "id": "c4",
+      "id": "c9",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "ui.py",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
-      },
-      "claimId": "C-0004",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.6,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 0.6000000238418579,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c5",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:print:prints",
+      "label": "scripts/collect_runtime.py",
       "evidence": {
         "file": "auth.py",
         "start": 95,
         "end": 223
-      },
-      "claimId": "C-0005",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 5 traced symbol(s), provenance fca:godin-v1"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 5
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c6",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:auth:authorization",
-      "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
-      },
-      "claimId": "C-0006",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c7",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:crypto:uses crypto",
-      "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
-      },
-      "claimId": "C-0007",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c8",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:auth+crypto:authorization & uses crypto",
-      "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
-      },
-      "claimId": "C-0008",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c9",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:db Write+mutation+print:writes data & mutations & prints",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
       },
       "claimId": "C-0009",
       "salience": {
@@ -259,25 +259,25 @@
           "CONFIDENCE"
         ],
         "weight": 0.8,
-        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+        "whyShown": "Module concept with 22 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 0.800000011920929,
         "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 2
+        "provenance": "rule:package",
+        "symbols": 22
       },
       "parentId": "c0"
     },
     {
       "id": "c10",
-      "elementKind": "usecase",
+      "elementKind": "module",
       "displayMode": "Inference",
-      "label": "Concept:money+print:money movement & prints",
+      "label": "scripts/lib/common.sh",
       "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
+        "file": "scripts/lib/common.sh",
+        "start": 0,
+        "end": 220
       },
       "claimId": "C-0010",
       "salience": {
@@ -285,26 +285,26 @@
           "COVERAGE",
           "CONFIDENCE"
         ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+        "weight": 1.0,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
       },
       "fields": {
-        "confidence": 0.800000011920929,
+        "confidence": 1.0,
         "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 2
+        "provenance": "rule:package",
+        "symbols": 3
       },
       "parentId": "c0"
     },
     {
       "id": "c11",
-      "elementKind": "rule",
+      "elementKind": "module",
       "displayMode": "Inference",
-      "label": "must authorize the user before returning",
+      "label": "scripts/setup.sh",
       "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "file": "scripts/setup.sh",
+        "start": 0,
+        "end": 581
       },
       "claimId": "C-0011",
       "salience": {
@@ -313,25 +313,25 @@
           "CONFIDENCE"
         ],
         "weight": 1.0,
-        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+        "whyShown": "Module concept with 1 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 1.0,
         "coverage": 1.0,
-        "provenance": "rule:contract",
+        "provenance": "rule:package",
         "symbols": 1
       },
-      "parentId": "c1"
+      "parentId": "c0"
     },
     {
       "id": "c12",
-      "elementKind": "rule",
+      "elementKind": "module",
       "displayMode": "Inference",
-      "label": "must verify credentials via the verification primitive",
+      "label": "test_auth.py",
       "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
+        "file": "test_auth.py",
+        "start": 0,
+        "end": 89
       },
       "claimId": "C-0012",
       "salience": {
@@ -340,25 +340,25 @@
           "CONFIDENCE"
         ],
         "weight": 1.0,
-        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 1.0,
         "coverage": 1.0,
-        "provenance": "rule:contract",
-        "symbols": 1
+        "provenance": "rule:package",
+        "symbols": 2
       },
-      "parentId": "c1"
+      "parentId": "c0"
     },
     {
       "id": "c13",
-      "elementKind": "rule",
+      "elementKind": "module",
       "displayMode": "Inference",
-      "label": "must verify credentials against the credential store",
+      "label": "ui.py",
       "evidence": {
-        "file": "auth.py",
-        "start": 379,
-        "end": 498
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
       },
       "claimId": "C-0013",
       "salience": {
@@ -366,22 +366,22 @@
           "COVERAGE",
           "CONFIDENCE"
         ],
-        "weight": 1.0,
-        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+        "weight": 0.6,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
       },
       "fields": {
-        "confidence": 1.0,
+        "confidence": 0.6000000238418579,
         "coverage": 1.0,
-        "provenance": "rule:contract",
-        "symbols": 1
+        "provenance": "rule:package",
+        "symbols": 3
       },
-      "parentId": "c1"
+      "parentId": "c0"
     },
     {
       "id": "c14",
-      "elementKind": "invariant",
+      "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "'authorize' must perform real authorization before returning success",
+      "label": "Concept:print:prints",
       "evidence": {
         "file": "auth.py",
         "start": 95,
@@ -393,6 +393,546 @@
           "COVERAGE",
           "CONFIDENCE"
         ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 14 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 14
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c15",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:sleep:sleep",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
+      },
+      "claimId": "C-0015",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 10 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 10
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c16",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:time:time",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      },
+      "claimId": "C-0016",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 6 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 6
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c17",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:read File:read File",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1144,
+        "end": 1274
+      },
+      "claimId": "C-0017",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 4 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 4
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c18",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:sleep+time:sleep & time",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      },
+      "claimId": "C-0018",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 4 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 4
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c19",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:auth:authorization",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      },
+      "claimId": "C-0019",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c20",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:crypto:uses crypto",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      },
+      "claimId": "C-0020",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c21",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:lock+sleep+time:lock & sleep & time",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      },
+      "claimId": "C-0021",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c22",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:print+read File+spawn:prints & read File & spawns processes",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 6498,
+        "end": 10094
+      },
+      "claimId": "C-0022",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c23",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:print+sleep:prints & sleep",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1732,
+        "end": 3435
+      },
+      "claimId": "C-0023",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c24",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:print+time:prints & time",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      },
+      "claimId": "C-0024",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c25",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:auth+crypto:authorization & uses crypto",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      },
+      "claimId": "C-0025",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c26",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:db Write+mutation+print:writes data & mutations & prints",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      },
+      "claimId": "C-0026",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c27",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:entrypoint+sleep+time:entrypoint & sleep & time",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      },
+      "claimId": "C-0027",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c28",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:lock+print+sleep+time:lock & prints & sleep & +1",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      },
+      "claimId": "C-0028",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c29",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:money+print:money movement & prints",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      },
+      "claimId": "C-0029",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c30",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:print+write File:prints & write File",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1507,
+        "end": 1652
+      },
+      "claimId": "C-0030",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c31",
+      "elementKind": "rule",
+      "displayMode": "Inference",
+      "label": "must authorize the user before returning",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      },
+      "claimId": "C-0031",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:contract",
+        "symbols": 1
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c32",
+      "elementKind": "rule",
+      "displayMode": "Inference",
+      "label": "must verify credentials via the verification primitive",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      },
+      "claimId": "C-0032",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:contract",
+        "symbols": 1
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c33",
+      "elementKind": "rule",
+      "displayMode": "Inference",
+      "label": "must verify credentials against the credential store",
+      "evidence": {
+        "file": "auth.py",
+        "start": 379,
+        "end": 498
+      },
+      "claimId": "C-0033",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Rule concept with 1 traced symbol(s), provenance rule:contract"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:contract",
+        "symbols": 1
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c34",
+      "elementKind": "invariant",
+      "displayMode": "Inference",
+      "label": "'authorize' must perform real authorization before returning success",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      },
+      "claimId": "C-0034",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
         "weight": 0.6,
         "whyShown": "Invariant concept with 1 traced symbol(s), provenance rule:contract"
       },
@@ -405,7 +945,7 @@
       "parentId": "c1"
     },
     {
-      "id": "c15",
+      "id": "c35",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'good_auth' must perform real authorization before returning success",
@@ -414,7 +954,7 @@
         "start": 225,
         "end": 377
       },
-      "claimId": "C-0015",
+      "claimId": "C-0035",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -432,7 +972,7 @@
       "parentId": "c1"
     },
     {
-      "id": "c16",
+      "id": "c36",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'verify_password' must perform real authorization before returning success",
@@ -441,7 +981,7 @@
         "start": 379,
         "end": 498
       },
-      "claimId": "C-0016",
+      "claimId": "C-0036",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -459,7 +999,7 @@
       "parentId": "c1"
     },
     {
-      "id": "c17",
+      "id": "c37",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'charge' must be preceded by established authorization",
@@ -468,7 +1008,7 @@
         "start": 24,
         "end": 239
       },
-      "claimId": "C-0017",
+      "claimId": "C-0037",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -483,10 +1023,10 @@
         "provenance": "rule:contract",
         "symbols": 1
       },
-      "parentId": "c2"
+      "parentId": "c6"
     },
     {
-      "id": "c18",
+      "id": "c38",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'refund' must be preceded by established authorization",
@@ -495,7 +1035,7 @@
         "start": 484,
         "end": 620
       },
-      "claimId": "C-0018",
+      "claimId": "C-0038",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -510,10 +1050,10 @@
         "provenance": "rule:contract",
         "symbols": 1
       },
-      "parentId": "c2"
+      "parentId": "c6"
     },
     {
-      "id": "c19",
+      "id": "c39",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'delete_account' must be preceded by established authorization",
@@ -522,7 +1062,7 @@
         "start": 29,
         "end": 185
       },
-      "claimId": "C-0019",
+      "claimId": "C-0039",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -537,7 +1077,7 @@
         "provenance": "rule:contract",
         "symbols": 1
       },
-      "parentId": "c4"
+      "parentId": "c13"
     }
   ],
   "edges": [
@@ -549,8 +1089,8 @@
       "displayMode": "Fact",
       "evidence": {
         "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "start": 0,
+        "end": 604
       }
     },
     {
@@ -560,9 +1100,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "file": "db/migrations/001_init.sql",
+        "start": 0,
+        "end": 658
       }
     },
     {
@@ -572,9 +1112,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "test_auth.py",
-        "start": 28,
-        "end": 88
+        "file": "db/migrations/002_audit_indexes.sql",
+        "start": 0,
+        "end": 417
       }
     },
     {
@@ -584,160 +1124,64 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
+        "file": "db/schema.sql",
+        "start": 0,
+        "end": 1203
       }
     },
     {
       "id": "h5",
       "source": "c0",
       "target": "c5",
-      "edgeKind": "fca_subsumption",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
-      }
-    },
-    {
-      "id": "x2-5",
-      "source": "c2",
-      "target": "c5",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "file": "deadlock_probe.py",
+        "start": 0,
+        "end": 2086
       }
     },
     {
       "id": "h6",
       "source": "c0",
       "target": "c6",
-      "edgeKind": "fca_subsumption",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
-      }
-    },
-    {
-      "id": "x1-6",
-      "source": "c1",
-      "target": "c6",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "auth.py",
-        "start": 95,
-        "end": 223
+        "file": "payments.py",
+        "start": 0,
+        "end": 755
       }
     },
     {
       "id": "h7",
       "source": "c0",
       "target": "c7",
-      "edgeKind": "fca_subsumption",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
-      }
-    },
-    {
-      "id": "x1-7",
-      "source": "c1",
-      "target": "c7",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
       }
     },
     {
       "id": "h8",
       "source": "c0",
       "target": "c8",
-      "edgeKind": "fca_subsumption",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
-      }
-    },
-    {
-      "id": "x1-8",
-      "source": "c1",
-      "target": "c8",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
+        "file": "scripts/collect.sh",
+        "start": 0,
+        "end": 413
       }
     },
     {
       "id": "h9",
       "source": "c0",
       "target": "c9",
-      "edgeKind": "fca_subsumption",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
-      }
-    },
-    {
-      "id": "x4-9",
-      "source": "c4",
-      "target": "c9",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
-      }
-    },
-    {
-      "id": "h10",
-      "source": "c0",
-      "target": "c10",
-      "edgeKind": "fca_subsumption",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
-      }
-    },
-    {
-      "id": "x2-10",
-      "source": "c2",
-      "target": "c10",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "payments.py",
-        "start": 24,
-        "end": 239
-      }
-    },
-    {
-      "id": "h11",
-      "source": "c1",
-      "target": "c11",
-      "edgeKind": "call_ownership",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
         "file": "auth.py",
@@ -746,35 +1190,71 @@
       }
     },
     {
-      "id": "h12",
-      "source": "c1",
-      "target": "c12",
-      "edgeKind": "call_ownership",
+      "id": "h10",
+      "source": "c0",
+      "target": "c10",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 225,
-        "end": 377
+        "file": "scripts/lib/common.sh",
+        "start": 0,
+        "end": 220
+      }
+    },
+    {
+      "id": "h11",
+      "source": "c0",
+      "target": "c11",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/setup.sh",
+        "start": 0,
+        "end": 581
+      }
+    },
+    {
+      "id": "h12",
+      "source": "c0",
+      "target": "c12",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "test_auth.py",
+        "start": 0,
+        "end": 89
       }
     },
     {
       "id": "h13",
-      "source": "c1",
+      "source": "c0",
       "target": "c13",
-      "edgeKind": "call_ownership",
+      "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "auth.py",
-        "start": 379,
-        "end": 498
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
       }
     },
     {
       "id": "h14",
-      "source": "c1",
+      "source": "c0",
       "target": "c14",
-      "edgeKind": "call_ownership",
+      "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      }
+    },
+    {
+      "id": "x9-14",
+      "source": "c9",
+      "target": "c14",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
       "evidence": {
         "file": "auth.py",
         "start": 95,
@@ -783,8 +1263,404 @@
     },
     {
       "id": "h15",
-      "source": "c1",
+      "source": "c0",
       "target": "c15",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
+      }
+    },
+    {
+      "id": "x7-15",
+      "source": "c7",
+      "target": "c15",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
+      }
+    },
+    {
+      "id": "h16",
+      "source": "c0",
+      "target": "c16",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "x9-16",
+      "source": "c9",
+      "target": "c16",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "h17",
+      "source": "c0",
+      "target": "c17",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1144,
+        "end": 1274
+      }
+    },
+    {
+      "id": "x9-17",
+      "source": "c9",
+      "target": "c17",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1144,
+        "end": 1274
+      }
+    },
+    {
+      "id": "h18",
+      "source": "c0",
+      "target": "c18",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "x9-18",
+      "source": "c9",
+      "target": "c18",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "h19",
+      "source": "c0",
+      "target": "c19",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      }
+    },
+    {
+      "id": "x1-19",
+      "source": "c1",
+      "target": "c19",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      }
+    },
+    {
+      "id": "h20",
+      "source": "c0",
+      "target": "c20",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "x1-20",
+      "source": "c1",
+      "target": "c20",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "h21",
+      "source": "c0",
+      "target": "c21",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "x9-21",
+      "source": "c9",
+      "target": "c21",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "h22",
+      "source": "c0",
+      "target": "c22",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 6498,
+        "end": 10094
+      }
+    },
+    {
+      "id": "x9-22",
+      "source": "c9",
+      "target": "c22",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 6498,
+        "end": 10094
+      }
+    },
+    {
+      "id": "h23",
+      "source": "c0",
+      "target": "c23",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1732,
+        "end": 3435
+      }
+    },
+    {
+      "id": "x9-23",
+      "source": "c9",
+      "target": "c23",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1732,
+        "end": 3435
+      }
+    },
+    {
+      "id": "h24",
+      "source": "c0",
+      "target": "c24",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "x9-24",
+      "source": "c9",
+      "target": "c24",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "h25",
+      "source": "c0",
+      "target": "c25",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "x1-25",
+      "source": "c1",
+      "target": "c25",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "h26",
+      "source": "c0",
+      "target": "c26",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      }
+    },
+    {
+      "id": "x13-26",
+      "source": "c13",
+      "target": "c26",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      }
+    },
+    {
+      "id": "h27",
+      "source": "c0",
+      "target": "c27",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      }
+    },
+    {
+      "id": "x9-27",
+      "source": "c9",
+      "target": "c27",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      }
+    },
+    {
+      "id": "h28",
+      "source": "c0",
+      "target": "c28",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "x9-28",
+      "source": "c9",
+      "target": "c28",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "h29",
+      "source": "c0",
+      "target": "c29",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      }
+    },
+    {
+      "id": "x6-29",
+      "source": "c6",
+      "target": "c29",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      }
+    },
+    {
+      "id": "h30",
+      "source": "c0",
+      "target": "c30",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1507,
+        "end": 1652
+      }
+    },
+    {
+      "id": "x9-30",
+      "source": "c9",
+      "target": "c30",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1507,
+        "end": 1652
+      }
+    },
+    {
+      "id": "h31",
+      "source": "c1",
+      "target": "c31",
+      "edgeKind": "call_ownership",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      }
+    },
+    {
+      "id": "h32",
+      "source": "c1",
+      "target": "c32",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -794,9 +1670,9 @@
       }
     },
     {
-      "id": "h16",
+      "id": "h33",
       "source": "c1",
-      "target": "c16",
+      "target": "c33",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -806,9 +1682,45 @@
       }
     },
     {
-      "id": "h17",
-      "source": "c2",
-      "target": "c17",
+      "id": "h34",
+      "source": "c1",
+      "target": "c34",
+      "edgeKind": "call_ownership",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 95,
+        "end": 223
+      }
+    },
+    {
+      "id": "h35",
+      "source": "c1",
+      "target": "c35",
+      "edgeKind": "call_ownership",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "h36",
+      "source": "c1",
+      "target": "c36",
+      "edgeKind": "call_ownership",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 379,
+        "end": 498
+      }
+    },
+    {
+      "id": "h37",
+      "source": "c6",
+      "target": "c37",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -818,9 +1730,9 @@
       }
     },
     {
-      "id": "h18",
-      "source": "c2",
-      "target": "c18",
+      "id": "h38",
+      "source": "c6",
+      "target": "c38",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -830,9 +1742,9 @@
       }
     },
     {
-      "id": "h19",
-      "source": "c4",
-      "target": "c19",
+      "id": "h39",
+      "source": "c13",
+      "target": "c39",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -842,9 +1754,9 @@
       }
     },
     {
-      "id": "k3-15",
-      "source": "c3",
-      "target": "c15",
+      "id": "k12-35",
+      "source": "c12",
+      "target": "c35",
       "edgeKind": "calls",
       "displayMode": "Fact",
       "evidence": {
@@ -854,9 +1766,177 @@
       }
     },
     {
-      "id": "k15-16",
+      "id": "k14-7",
+      "source": "c14",
+      "target": "c7",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 4702,
+        "end": 5453
+      }
+    },
+    {
+      "id": "k15-5",
       "source": "c15",
+      "target": "c5",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "deadlock_probe.py",
+        "start": 1277,
+        "end": 1573
+      }
+    },
+    {
+      "id": "k15-7",
+      "source": "c15",
+      "target": "c7",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1135,
+        "end": 1457
+      }
+    },
+    {
+      "id": "k22-9",
+      "source": "c22",
+      "target": "c9",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 6498,
+        "end": 10094
+      }
+    },
+    {
+      "id": "k23-15",
+      "source": "c23",
+      "target": "c15",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1732,
+        "end": 3435
+      }
+    },
+    {
+      "id": "k24-16",
+      "source": "c24",
       "target": "c16",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 10178,
+        "end": 11819
+      }
+    },
+    {
+      "id": "k27-15",
+      "source": "c27",
+      "target": "c15",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      }
+    },
+    {
+      "id": "k28-21",
+      "source": "c28",
+      "target": "c21",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "k30-9",
+      "source": "c30",
+      "target": "c9",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k30-14",
+      "source": "c30",
+      "target": "c14",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k30-22",
+      "source": "c30",
+      "target": "c22",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k30-23",
+      "source": "c30",
+      "target": "c23",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k30-24",
+      "source": "c30",
+      "target": "c24",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k30-28",
+      "source": "c30",
+      "target": "c28",
+      "edgeKind": "calls",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "k35-36",
+      "source": "c35",
+      "target": "c36",
       "edgeKind": "calls",
       "displayMode": "Fact",
       "evidence": {
@@ -866,9 +1946,9 @@
       }
     },
     {
-      "id": "k16-7",
-      "source": "c16",
-      "target": "c7",
+      "id": "k36-20",
+      "source": "c36",
+      "target": "c20",
       "edgeKind": "calls",
       "displayMode": "Fact",
       "evidence": {
@@ -878,9 +1958,9 @@
       }
     },
     {
-      "id": "k17-14",
-      "source": "c17",
-      "target": "c14",
+      "id": "k37-34",
+      "source": "c37",
+      "target": "c34",
       "edgeKind": "calls",
       "displayMode": "Fact",
       "evidence": {
@@ -892,7 +1972,7 @@
   ],
   "footer": {
     "facts": 0,
-    "inferences": 20,
+    "inferences": 40,
     "hypotheses": 0,
     "fog": 0,
     "stale": 0,
@@ -905,12 +1985,12 @@
     "environments": [],
     "coverage": {
       "analyzed": true,
-      "ratio": 0.71428573
+      "ratio": 0.64285713
     }
   },
   "layoutHint": {
-    "strategy": "dagre"
+    "strategy": "force"
   },
-  "semanticHash": "sha256:113645fd6379f00637420c272a360e1f4c0b29397963d774c7b8055caaf997d3",
-  "renderHash": "sha256:141d4667fd322c94c3123de841e12e9a0900160a225046c685e578281529cf3b"
+  "semanticHash": "sha256:39862653c37e22fb3f953870bf60373dc59f5961ad7f3ff9b5df2ea394f4c349",
+  "renderHash": "sha256:f2f9845f51b19f28e051a763911391dcba5fc4b72468bdf08408f38863c7aab8"
 }

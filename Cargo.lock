@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-c"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -294,7 +294,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-cpp"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-csharp"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-go"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-java"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -342,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-javascript"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-php"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-python"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapter-rust"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -390,8 +390,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "cie-adapter-shell"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
+name = "cie-adapter-sql"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+]
+
+[[package]]
 name = "cie-adapter-typescript"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-core",
@@ -403,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "cie-adapters"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
@@ -420,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "cie-analysis"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-claims",
@@ -443,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "cie-claims"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-core",
@@ -456,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "cie-cli"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-analysis",
@@ -481,7 +501,7 @@ dependencies = [
 
 [[package]]
 name = "cie-concepts"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-contract",
  "cie-core",
@@ -493,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "cie-contract"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
@@ -504,7 +524,7 @@ dependencies = [
 
 [[package]]
 name = "cie-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "rkyv",
@@ -516,7 +536,7 @@ dependencies = [
 
 [[package]]
 name = "cie-counterexample"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-contract",
  "cie-core",
@@ -528,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "cie-docs"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-claims",
  "cie-core",
@@ -540,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "cie-drift"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-analysis",
  "cie-claims",
@@ -557,7 +577,7 @@ dependencies = [
 
 [[package]]
 name = "cie-evidence"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
@@ -567,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "cie-fault"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-contract",
  "cie-core",
@@ -578,7 +598,7 @@ dependencies = [
 
 [[package]]
 name = "cie-incremental"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-concepts",
@@ -594,7 +614,7 @@ dependencies = [
 
 [[package]]
 name = "cie-ingest"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-adapter-c",
@@ -606,6 +626,8 @@ dependencies = [
  "cie-adapter-php",
  "cie-adapter-python",
  "cie-adapter-rust",
+ "cie-adapter-shell",
+ "cie-adapter-sql",
  "cie-adapter-typescript",
  "cie-adapters",
  "cie-analysis",
@@ -627,7 +649,7 @@ dependencies = [
 
 [[package]]
 name = "cie-llm"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-core",
@@ -640,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "cie-relations"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
@@ -651,7 +673,7 @@ dependencies = [
 
 [[package]]
 name = "cie-semantic"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-relations",
@@ -665,7 +687,7 @@ dependencies = [
 
 [[package]]
 name = "cie-server"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-core",
  "serde",
@@ -675,7 +697,7 @@ dependencies = [
 
 [[package]]
 name = "cie-store"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-core",
@@ -696,7 +718,7 @@ dependencies = [
 
 [[package]]
 name = "cie-stories"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-adapters",
  "cie-analysis",
@@ -724,7 +746,7 @@ dependencies = [
 
 [[package]]
 name = "cie-summary"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-core",
@@ -735,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "cie-viz"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cie-concepts",
  "cie-core",

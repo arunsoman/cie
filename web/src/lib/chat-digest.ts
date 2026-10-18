@@ -3,7 +3,7 @@
 // and capped so the payload stays small, and every technical term is
 // translated with the same plain-words policy as the rest of the UI.
 
-import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "./cie-types";
 import { findingTitle, obligationTitle, effectPlain, certaintyPlain } from "./plain-words";
 
 function cut(s: string, n: number): string {
@@ -15,7 +15,9 @@ export function buildDigest(
   report: CieReport | null,
   viewspec: CieViewSpec | null,
   concepts: ConceptTree | null,
-  label: string
+  label: string,
+  deps?: CieDeps | null,
+  runtime?: CieRuntime | null
 ): Record<string, unknown> | null {
   if (!report) return null;
 
@@ -111,6 +113,86 @@ export function buildDigest(
     }
   }
 
+  // Dependencies — what the manifests declare, as written (US-062).
+  let dependencies: Record<string, unknown> | null = null;
+  if (deps?.table && deps.table.files_scanned > 0) {
+    const byEco: Record<string, number> = {};
+    for (const d of deps.table.deps) byEco[d.ecosystem] = (byEco[d.ecosystem] ?? 0) + 1;
+    dependencies = {
+      manifests_read: deps.table.files_scanned,
+      declared_total: deps.table.deps.length,
+      per_ecosystem: byEco,
+      packages: deps.table.deps.slice(0, 40).map((d) => ({
+        name: d.name,
+        ecosystem: d.ecosystem,
+        version_as_written: cut(d.version_req || "*", 24),
+        scope: d.scope,
+        declared_in: cut(d.source, 60),
+      })),
+      unparsed_manifests: deps.table.unparsed?.map((u) => cut(u, 80)).slice(0, 4) ?? [],
+      honesty: "versions as written; CIE does not resolve transitive trees or judge compatibility",
+    };
+  }
+
+  // Runtime evidence — measured numbers only; absence is stated, never filled.
+  let runtime_evidence: Record<string, unknown> | null = null;
+  const ds = runtime?.datasets;
+  if (runtime && ds) {
+    runtime_evidence = {
+      project: cut(runtime.project, 80),
+      collected_at: runtime.collected_at,
+      honesty: cut(runtime.honesty, 220),
+      datasets_present: Object.keys(ds),
+      cpu_hotspots: ds.cpu?.top_functions.slice(0, 6).map((f) => ({
+        function: cut(f.function, 40),
+        cumulative_ms: Math.round(f.cum_ms),
+        measured_by: cut(ds.cpu!.tool, 40),
+      })),
+      test_coverage: ds.coverage
+        ? {
+            measured_total_percent: ds.coverage.totals.percent,
+            files: ds.coverage.files.slice(0, 10).map((f) => ({ file: f.file, percent: f.percent })),
+            measured_by: cut(ds.coverage.tool, 40),
+          }
+        : undefined,
+      deadlock: ds.deadlock
+        ? {
+            detected: ds.deadlock.detected,
+            cycle: ds.deadlock.cycle,
+            threads: ds.deadlock.threads.map((t) => ({
+              thread: t.thread,
+              holds: t.holds,
+              waits_for: t.wants,
+              blocked_at: t.blocked_at ? `${t.blocked_at.file}:${t.blocked_at.line}` : undefined,
+            })),
+            measured_by: cut(ds.deadlock.tool, 60),
+          }
+        : undefined,
+      race: ds.race
+        ? {
+            lost_updates_natural: ds.race.lost_natural,
+            lost_updates_widened: ds.race.lost_widened,
+            note: "widened window is disclosed (GIL yielded between read and write); a clean run never proves the race is gone",
+          }
+        : undefined,
+      concurrency: ds.concurrency
+        ? {
+            tasks: ds.concurrency.tasks,
+            workers: ds.concurrency.workers,
+            makespan_ms: ds.concurrency.makespan_ms,
+            observed_overlap: ds.concurrency.observed_overlap,
+          }
+        : undefined,
+      memory: ds.memory
+        ? {
+            live_bytes: ds.memory.allocated_bytes,
+            peak_bytes: ds.memory.peak_bytes,
+            top_sites: ds.memory.top_sites.slice(0, 6).map((s) => ({ where: s.where, bytes: s.bytes })),
+          }
+        : undefined,
+    };
+  }
+
   // Certainty vocabulary, so the model uses the same words as the UI.
   const words = {
     Fact: certaintyPlain("Fact").label,
@@ -136,6 +218,10 @@ export function buildDigest(
       "donut — one whole split into parts",
       "stat — one big number",
       "table — a few rows x columns",
+      ...(dependencies ? ["donut/table of the declared dependencies (from the dependencies facts below)"] : []),
+      ...(runtime_evidence
+        ? ["bars/stat/table of the measured runtime evidence below — always name the tool that measured it"]
+        : []),
     ],
     project: {
       files: report.files?.map((f) => f.split("/").pop() ?? f) ?? [],
@@ -152,5 +238,7 @@ export function buildDigest(
     coverage_and_trust: trust,
     map,
     what_it_does: whatItDoes,
+    ...(dependencies ? { dependencies } : {}),
+    ...(runtime_evidence ? { runtime_evidence } : { runtime_evidence: null }),
   };
 }

@@ -11,7 +11,7 @@
 // menu was just too small. This module widens the menu to "anything the
 // store can honestly support", instantly.
 
-import type { CieReport, CieViewSpec, ConceptTree, VizElement } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime } from "./cie-types";
 import {
   engineFor,
   layoutFor,
@@ -58,6 +58,15 @@ const DONUT_WORDS = /\b(donut|doughnut|pie|proportion|breakdown|percent|ratio|sp
 const BAR_WORDS = /\b(bar|compare|comparison|most|least|ranking|rank|per file|each file|worst)\b/i;
 const TABLE_WORDS = /\b(table|list|which files|show (me )?(all|every))\b/i;
 const STAT_WORDS = /\b(how many|how much|number of|count|total)\b/i;
+// Runtime-evidence vocabularies — answered only when the loaded project has
+// collected runtime data; otherwise they fall through to honest-no answers.
+const DEPS_WORDS = /\b(depend|dependencies|deps|package|pom|gradle|cargo|requirements|composer|nuget|manifest|librar(y|ies))\b/i;
+const COVERAGE_WORDS = /\b(coverage|tests? (cover|touch|reach)|which lines are tested|test coverage)\b/i;
+const CPU_WORDS = /\b(cpu|hotspot|profile|profiler|where.*(time|slow)|slowest)\b/i;
+const MEMORY_WORDS = /\b(memory|allocation|heap|bytes|tracemalloc)\b/i;
+const RACE_WORDS = /\b(race|lost updates?|data race|atomic)\b/i;
+const DEADLOCK_WORDS = /\bdeadlocks?\b/i;
+const CONCURRENCY_WORDS = /\b(concurren|threads? (ran|run|overlap)|overlap|parallel)\b/i;
 
 export interface DrawResult {
   answer: string;
@@ -73,7 +82,9 @@ export function tryDrawAnything(
   report: CieReport | null,
   viewspec: CieViewSpec | null,
   concepts: ConceptTree | null,
-  focus?: VizElement | null
+  focus?: VizElement | null,
+  deps?: CieDeps | null,
+  runtime?: CieRuntime | null
 ): DrawResult | null {
   if (!report) return null;
   const q = question.toLowerCase();
@@ -87,7 +98,14 @@ export function tryDrawAnything(
     !DONUT_WORDS.test(q) &&
     !BAR_WORDS.test(q) &&
     !TABLE_WORDS.test(q) &&
-    !STAT_WORDS.test(q)
+    !STAT_WORDS.test(q) &&
+    !DEPS_WORDS.test(q) &&
+    !COVERAGE_WORDS.test(q) &&
+    !CPU_WORDS.test(q) &&
+    !MEMORY_WORDS.test(q) &&
+    !RACE_WORDS.test(q) &&
+    !DEADLOCK_WORDS.test(q) &&
+    !CONCURRENCY_WORDS.test(q)
   ) {
     return null;
   }
@@ -100,9 +118,34 @@ export function tryDrawAnything(
     return {
       answer:
         `I can't draw that one honestly — the store doesn't hold ${what}. ` +
-        "Pictures I can draw from here: a UML-style map of the code, a who-calls-whom flow, bars, a donut, one big number, or a small table. Just ask for one.",
+        "Pictures I can draw from here: a UML-style map of the code, a who-calls-whom flow, bars, a donut, one big number, a small table, dependency charts, and measured runtime evidence (CPU, memory, coverage, races, deadlocks). Just ask for one.",
       chart: null,
     };
+  }
+
+  // ---- measured runtime evidence (only from collected data — never invented)
+  if (COVERAGE_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "coverage", q);
+  }
+  if (DEADLOCK_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "deadlock", q);
+  }
+  if (RACE_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "race", q);
+  }
+  if (CPU_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "cpu", q);
+  }
+  if (MEMORY_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "memory", q);
+  }
+  if (CONCURRENCY_WORDS.test(q)) {
+    return runtimeAnswer(runtime, "concurrency", q);
+  }
+
+  // ---- dependencies (manifest facts, as written)
+  if (DEPS_WORDS.test(q)) {
+    return depsAnswer(deps);
   }
 
   // Structure diagrams (UML-style) — the most asked-for shape.
@@ -334,6 +377,184 @@ function flowAnswer(built: ChatChartSpec): string {
     "Honest note: this shows only calls the report recorded. If code reaches something in a way CIE couldn't trace, that arrow won't be here. " +
     'Press "Show this chart big on the canvas" to zoom in.'
   );
+}
+
+// ---------- dependencies (manifest facts, as written) ----------
+
+export function buildDepsSpec(deps: CieDeps | null | undefined): ChatChartSpec | null {
+  const table = deps?.table;
+  if (!table || table.files_scanned === 0 || !table.deps.length) return null;
+  const byEco = new Map<string, number>();
+  for (const d of table.deps) byEco.set(d.ecosystem, (byEco.get(d.ecosystem) ?? 0) + 1);
+  const names: Record<string, string> = {
+    pypi: "Python (pip)", npm: "npm", cargo: "Rust", go: "Go",
+    maven: "Maven", gradle: "Gradle", composer: "PHP", nuget: ".NET",
+  };
+  const data = [...byEco.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([eco, v]) => ({ name: cut(names[eco] ?? eco, 22), value: v, color: eco === "pypi" ? "emerald" : "stone" }));
+  const s = spec("donut", "Declared packages per ecosystem", `Counted straight from ${table.files_scanned} manifest file(s), versions as written.`);
+  s.data = data;
+  s.center = "packages";
+  s.source = "deps.json (the cie deps export)";
+  return s;
+}
+
+function depsAnswer(deps: CieDeps | null | undefined): DrawResult {
+  const table = deps?.table;
+  if (!table || table.files_scanned === 0 || !table.deps.length) {
+    return {
+      answer:
+        "I can't show dependencies for this project yet — no manifest files were found (or none were loaded). " +
+        "CIE reads pom.xml, build.gradle(.kts), package.json, requirements.txt, pyproject.toml, Cargo.toml, go.mod, composer.json and *.csproj. " +
+        "When your project has one, connect it and ask again — I'll draw exactly what it declares, nothing resolved, nothing guessed.",
+      chart: null,
+    };
+  }
+  const built = buildDepsSpec(deps)!;
+  const unparsed = table.unparsed.length ? ` ${table.unparsed.length} manifest-looking file(s) could not be followed and are named in the Dependencies page.` : "";
+  return {
+    answer:
+      `Here is what the project declares it needs: ${table.deps.length} package(s) across ${table.files_scanned} manifest file(s). ` +
+      "Versions are exactly as written — CIE doesn't download packages, resolve transitive trees, or judge compatibility." + unparsed +
+      ' Press "Show this chart big on the canvas" to read it comfortably.',
+    chart: built,
+  };
+}
+
+// ---------- runtime evidence (measured, never invented) ----------
+
+function fmtBytes(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)} MB`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)} kB`;
+  return `${n} B`;
+}
+
+function runtimeAnswer(
+  runtime: CieRuntime | null | undefined,
+  which: "coverage" | "cpu" | "memory" | "deadlock" | "race" | "concurrency",
+  _q: string
+): DrawResult {
+  const noData = (what: string): DrawResult => ({
+    answer:
+      `I can't show ${what} for this project — there is no collected runtime evidence loaded. ` +
+      "CIE never invents runtime data, so this is an honest no. The sample project collects its own " +
+      "with scripts/collect_runtime.py (cProfile, tracemalloc, thread timestamps, faulthandler stacks, " +
+      "race trials and coverage.py); run a collector on your project and these charts come alive.",
+    chart: null,
+  });
+  const d = runtime?.datasets;
+  if (!d) return noData("that");
+
+  if (which === "coverage") {
+    const cov = d.coverage;
+    if (!cov?.files.length) return noData("test coverage");
+    const s = spec("hbar", "Test coverage by file (measured)", `Percent of lines the project's own tests touched — ${cov.tool}.`);
+    s.data = cov.files.map((f) => ({
+      name: cut(f.file, 20),
+      value: f.percent,
+      color: f.percent >= 70 ? "emerald" : f.percent > 0 ? "amber" : "rose",
+    }));
+    s.source = `runtime.json — ${cov.tool}`;
+    const zeros = cov.files.filter((f) => f.percent === 0).length;
+    return {
+      answer:
+        `Here is the measured test coverage (${cov.tool}): ${cov.totals.percent}% of the lines the run could see. ` +
+        (zeros ? `${zeros} file(s) sit at 0 because no test imports them — listed honestly, not faked. ` : "") +
+        ' Press "Show this chart big on the canvas" to read it.',
+      chart: s,
+    };
+  }
+
+  if (which === "cpu") {
+    const cpu = d.cpu;
+    if (!cpu?.top_functions.length) return noData("a CPU profile");
+    const s = spec("hbar", "CPU hotspots (measured)", `Cumulative milliseconds per function — ${cpu.tool}.`);
+    s.data = cpu.top_functions.slice(0, 8).map((f) => ({
+      name: cut(f.function, 22),
+      value: Math.round(f.cum_ms),
+      color: "amber",
+    }));
+    s.source = `runtime.json — ${cpu.tool}`;
+    const top = cpu.top_functions[0];
+    return {
+      answer:
+        `Here is where the time went, measured for real (${cpu.tool}): ${top.function} tops the list with ${Math.round(top.cum_ms)} ms cumulative. ` +
+        "Measured on the collecting machine — a rerun gives different numbers, and that is what honest measurement looks like.",
+      chart: s,
+    };
+  }
+
+  if (which === "memory") {
+    const mem = d.memory;
+    if (!mem?.top_sites.length) return noData("a memory profile");
+    const s = spec("hbar", "Memory top sites (measured)", `Bytes per allocation site — ${mem.tool}.`);
+    s.data = mem.top_sites.slice(0, 8).map((site) => ({ name: cut(site.where, 24), value: site.bytes, color: "stone" }));
+    s.source = `runtime.json — ${mem.tool}`;
+    return {
+      answer:
+        `Here is where the bytes went (${mem.tool}): live ${fmtBytes(mem.allocated_bytes)}, peak ${fmtBytes(mem.peak_bytes)}. ` +
+        "tracemalloc only sees what it traced — the note on the Runtime page says exactly that.",
+      chart: s,
+    };
+  }
+
+  if (which === "deadlock") {
+    const dead = d.deadlock;
+    if (!dead) return noData("a deadlock capture");
+    if (!dead.detected) {
+      return {
+        answer: "No deadlock was captured in this run — said honestly. It does not mean the code is deadlock-free; it means this particular capture saw none.",
+        chart: null,
+      };
+    }
+    const s = spec("table", "Captured deadlock — the waits-for cycle", `Each thread holds one lock and waits for the other — ${dead.tool}.`);
+    s.columns = ["Thread", "Holds", "Waits for", "Blocked at"];
+    s.rows = dead.threads.map((t) => [
+      t.thread,
+      t.holds ?? "?",
+      t.wants ?? "?",
+      t.blocked_at ? `${t.blocked_at.file}:${t.blocked_at.line}` : "stack missing",
+    ]);
+    s.source = `runtime.json — ${dead.tool}`;
+    return {
+      answer:
+        `Yes — a real deadlock was captured: ${dead.cycle.join(" ⇄ ")}. Both stacks were dumped while the threads ` +
+        "were blocked at the acquire lines, and the cycle was computed from the waits-for data they wrote — not declared by hand. One capture proves this run deadlocked; recurring deadlocks need production thread-dump monitoring.",
+      chart: s,
+    };
+  }
+
+  if (which === "race") {
+    const race = d.race;
+    if (!race) return noData("race trials");
+    const s = spec("stat", "Lost updates, measured", `${race.lost_widened} lost in the widened window, ${race.lost_natural} naturally — ${race.tool}.`);
+    s.data = [{ name: race.lost_natural === 0 ? "lost naturally (clean run — races are timing-dependent)" : "lost naturally", value: race.lost_natural }];
+    s.unit = "updates";
+    s.source = `runtime.json — ${race.tool}`;
+    return {
+      answer:
+        `Measured, not imagined: the unguarded counter lost ${race.lost_widened} updates across the widened trials ` +
+        `and ${race.lost_natural} naturally. The widened window (yielding the GIL between read and write) is fully disclosed — ` +
+        "it proves the read-add-write sequence is not atomic. A clean natural run would NOT prove the race is gone.",
+      chart: s,
+    };
+  }
+
+  // concurrency
+  const conc = d.concurrency;
+  if (!conc?.spans.length) return noData("a thread timeline");
+  const s = spec("stat", "Measured thread overlap", `${conc.tasks} tasks on ${conc.workers} threads — ${conc.tool}.`);
+  s.data = [{ name: "tasks ran at once (overlap ×)", value: conc.observed_overlap }];
+  s.unit = "×";
+  s.source = `runtime.json — ${conc.tool}`;
+  return {
+    answer:
+      `Measured from real timestamps: ${conc.tasks} tasks across ${conc.workers} threads finished in ${conc.makespan_ms} ms wall time, ` +
+      `while the tasks themselves sum to ${conc.sum_of_task_ms} ms — so threads genuinely ran ${conc.observed_overlap}× at once during this capture. ` +
+      "The full span-by-span timeline lives on the Runtime page.",
+    chart: s,
+  };
 }
 
 // ---------- LLM-path refill: the model picks the kind, the store fills it ----------

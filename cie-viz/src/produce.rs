@@ -66,14 +66,17 @@ impl<'a> SymbolIndex<'a> {
     /// Byte-span evidence for a concept's first resolvable symbol.
     fn evidence_for(&self, syms: &[SymbolId]) -> Option<EvidenceRef> {
         for id in syms {
-            if let Some(s) = self.by_id.get(&id.raw()) {
-                let path = self.files.get(s.loc.file.raw() as usize)?;
-                return Some(EvidenceRef {
-                    file: path.clone(),
-                    start: s.loc.start as u64,
-                    end: s.loc.end as u64,
-                });
-            }
+            // Try every symbol until one grounds the element — a symbol we
+            // cannot resolve (or whose file entry is missing) must not hide
+            // the whole node (SQL tables/views, for example, may interleave
+            // with function-like symbols the snapshot stores differently).
+            let Some(s) = self.by_id.get(&id.raw()) else { continue };
+            let Some(path) = self.files.get(s.loc.file.raw() as usize) else { continue };
+            return Some(EvidenceRef {
+                file: path.clone(),
+                start: s.loc.start as u64,
+                end: s.loc.end as u64,
+            });
         }
         None
     }

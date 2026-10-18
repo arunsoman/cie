@@ -8,16 +8,16 @@ import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CieReport, CieViewSpec, ConceptTree } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "./cie-types";
 import { scanRepoLanguages } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts";
-export type StepState = "pending" | "running" | "done" | "failed";
-export type JobState = "queued" | "running" | "done" | "failed";
+export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps";
+export type StepState = "pending" | "running" | "done" | "failed" | "skipped";
+export type JobState = "queued" | "running" | "awaiting_permission" | "done" | "failed";
 
 export interface JobStep {
   key: StepKey;
@@ -36,8 +36,20 @@ export interface AnalyzeJob {
   createdAt: number;
   steps: JobStep[];
   scan?: RepoScan; // language inventory taken during the run (may be absent)
+  // Ask-before-skipping: when the inventory finds files CIE can't read yet,
+  // the pipeline pauses here and the user decides whether to go on. The
+  // resolver is called with true (continue) or false (stop, nothing read).
+  consent?: { resolve: (proceed: boolean) => void };
   error?: { plain: string; technical: string };
-  result?: { report: CieReport; viewspec: CieViewSpec | null; concepts: ConceptTree | null; label: string; scan?: RepoScan | null };
+  result?: {
+    report: CieReport;
+    viewspec: CieViewSpec | null;
+    concepts: ConceptTree | null;
+    deps?: CieDeps | null;
+    runtime?: CieRuntime | null;
+    label: string;
+    scan?: RepoScan | null;
+  };
 }
 
 // ---------- constants ----------
@@ -54,6 +66,7 @@ export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "read", label: "Reading every file", hint: "CIE reads each file and takes notes on what it does. The busiest step." },
   { key: "map", label: "Drawing the map", hint: "Sketching how all the parts of your code connect." },
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
+  { key: "deps", label: "Listing the dependencies", hint: "Reading pom.xml, build.gradle, package.json, Cargo.toml and friends — names and versions as written." },
 ];
 
 const LOCAL_FIRST_STEP: { label: string; hint: string } = {
@@ -245,6 +258,33 @@ function markRunningStepFailed(job: AnalyzeJob, plain: string, technical: string
   job.error = { plain, technical };
 }
 
+/**
+ * Ask before skipping: when the inventory found files CIE can't read yet,
+ * the pipeline pauses and waits for the user's decision. True = continue
+ * (unread files stay honestly skipped); false = stop right here — nothing
+ * has been read yet beyond the inventory, and nothing will be.
+ */
+async function askPermission(job: AnalyzeJob, scan: RepoScan): Promise<boolean> {
+  job.state = "awaiting_permission";
+  const decision = await new Promise<boolean>((resolve) => {
+    job.consent = { resolve };
+  });
+  job.consent = undefined;
+  job.state = "running";
+  return decision;
+}
+
+/** The user answered the ask-before-skipping question. */
+export function resumeJob(id: string, proceed: boolean): AnalyzeJob | null {
+  const job = jobs.get(id);
+  if (!job || job.state !== "awaiting_permission" || !job.consent) return null;
+  // Optimistic state so the answerer's immediate status snapshot reflects the
+  // decision (the pipeline continuation confirms it a moment later).
+  if (proceed) job.state = "running";
+  job.consent.resolve(proceed);
+  return job;
+}
+
 export async function startJob(opts: {
   source: "url" | "local";
   url?: string;
@@ -334,6 +374,23 @@ async function runPipeline(job: AnalyzeJob) {
       setStep(job, "inventory", "done", "Couldn't take inventory — continuing anyway.", Date.now() - tInv);
     }
 
+    // 1.6. ask before skipping — if CIE can't read some files here, the user
+    //      decides whether to go on. Nothing has been read yet.
+    if (job.scan && job.scan.unsupported.length > 0) {
+      const proceed = await askPermission(job, job.scan);
+      if (!proceed) {
+        const cant = job.scan.unsupported.map((l) => `${l.name} (${l.files})`).join(", ");
+        markRunningStepFailed(
+          job,
+          `Stopped, just like you asked. Nothing was read — the inventory is all CIE took. The files waiting were: ${cant}. When CIE learns those languages, this check will cover them too.`,
+          "user declined consent after inventory (ask-before-skipping)"
+        );
+        return;
+      }
+      const skipped = job.scan.unsupported.map((l) => `${l.name} ${l.files}`).join(", ");
+      setStep(job, "inventory", "done", `You said go on — ${skipped} stay honestly skipped.`, undefined);
+    }
+
     // 2. read = ingest (two-pass contract: repo-before-recompute) + report
     setStep(job, "read", "running", "CIE is reading each file and taking notes…");
     const t1 = Date.now();
@@ -394,10 +451,49 @@ async function runPipeline(job: AnalyzeJob) {
     }
     setStep(job, "concepts", "done", concepts ? "List ready." : "Skipped — not every project has one.", Date.now() - t3);
 
+    // 5. dependencies (pom.xml, build.gradle, package.json, Cargo.toml, …)
+    //    Names and versions as written — never resolved, never guessed.
+    setStep(job, "deps", "running", "Reading the manifest files…");
+    const t4 = Date.now();
+    let deps: CieDeps | null = null;
+    const dep = await run(bin, ["deps", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+    if (!dep.timedOut && dep.code === 0) {
+      try {
+        const parsed = JSON.parse(dep.stdout) as CieDeps;
+        if (parsed?.table) deps = parsed;
+      } catch {
+        deps = null;
+      }
+    }
+    setStep(
+      job,
+      "deps",
+      deps && deps.table.files_scanned > 0 ? "done" : "skipped",
+      deps && deps.table.files_scanned > 0
+        ? `${deps.table.files_scanned} manifest file(s) read — ${deps.table.deps.length} dependencies declared as written.`
+        : "No manifest files found — nothing to list.",
+      Date.now() - t4
+    );
+
+    // 6. runtime evidence — only if the project ships its own collector
+    //    output (runtime-data/runtime.json). CIE never invents runtime data.
+    let runtime: CieRuntime | null = null;
+    try {
+      const rtPath = path.join(repoDir, "runtime-data", "runtime.json");
+      const st = await fs.stat(rtPath);
+      if (st.isFile() && st.size <= 4 * 1024 * 1024) {
+        runtime = JSON.parse(await fs.readFile(rtPath, "utf8")) as CieRuntime;
+      }
+    } catch {
+      runtime = null; // no runtime evidence — the dashboard says so honestly
+    }
+
     job.result = {
       report,
       viewspec,
       concepts,
+      deps,
+      runtime,
       label: isLocal
         ? `Your project: ${job.repoName} (from this computer)`
         : `Your project: ${job.repoName} (from ${hostOf(job.url)})`,
@@ -428,15 +524,28 @@ export interface JobStatus {
   scan?: RepoScan;
   steps: { key: StepKey; label: string; hint: string; state: StepState; detail?: string; ms?: number }[];
   error?: { plain: string; technical: string };
+  /** Set while state === "awaiting_permission": the plain-words question. */
+  permission?: { plain: string; unreadable: { name: string; files: number }[] } | null;
 }
 
 export function jobStatus(job: AnalyzeJob): JobStatus {
+  const permission =
+    job.state === "awaiting_permission" && job.scan && job.scan.unsupported.length > 0
+      ? {
+          plain:
+            `CIE can read: ${job.scan.languages.map((l) => `${l.name} (${l.files})`).join(", ") || "nothing here yet"}. ` +
+            `CIE can't read yet: ${job.scan.unsupported.map((l) => `${l.name} (${l.files})`).join(", ")}. ` +
+            "Go ahead with the ones CIE can read — the others stay honestly skipped?",
+          unreadable: job.scan.unsupported.map((l) => ({ name: l.name, files: l.files })),
+        }
+      : null;
   return {
     id: job.id,
     state: job.state,
     repoName: job.repoName,
     scan: job.scan,
     error: job.error,
+    permission,
     steps: STEP_ORDER.map((meta0) => {
       const meta = job.source === "local" && meta0.key === "clone" ? { ...meta0, ...LOCAL_FIRST_STEP } : meta0;
       const s = job.steps.find((x) => x.key === meta.key);
@@ -449,5 +558,5 @@ export function jobStatus(job: AnalyzeJob): JobStatus {
         ms: s?.ms,
       };
     }),
-  };
+  }
 }

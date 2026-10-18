@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
-import type { CieReport, CieViewSpec, ConceptTree } from "@/lib/cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "@/lib/cie-types";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
@@ -28,6 +28,7 @@ import {
   RotateCcw,
   ChevronDown,
   ShieldCheck,
+  HelpCircle,
 } from "lucide-react";
 
 // ---------- shared validation helpers (mirrors the server) ----------
@@ -58,11 +59,12 @@ interface StepView {
 }
 interface JobStatusView {
   id: string;
-  state: "queued" | "running" | "done" | "failed";
+  state: "queued" | "running" | "awaiting_permission" | "done" | "failed";
   repoName: string;
   scan?: RepoScan | null;
   steps: StepView[];
   error?: { plain: string; technical: string };
+  permission?: { plain: string; unreadable: { name: string; files: number }[] } | null;
 }
 
 // ---------- mode 1: connect a repo ----------
@@ -100,7 +102,7 @@ function ConnectRepo() {
     }
   }, []);
 
-  // Fetch the three JSON exports and load them into the dashboard.
+  // Fetch the JSON exports and load them into the dashboard.
   const showProject = async (id: string) => {
     setLoadingResult(true);
     try {
@@ -109,6 +111,8 @@ function ConnectRepo() {
         report?: CieReport;
         viewspec?: CieViewSpec | null;
         concepts?: ConceptTree | null;
+        deps?: CieDeps | null;
+        runtime?: CieRuntime | null;
         label?: string;
         scan?: RepoScan | null;
         error?: string;
@@ -119,7 +123,9 @@ function ConnectRepo() {
       }
       const viewspec = data.viewspec && isValidViewspec(data.viewspec) ? data.viewspec : null;
       const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
-      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null);
+      const deps = data.deps && data.deps.table ? data.deps : null;
+      const runtime = data.runtime && data.runtime.datasets ? data.runtime : null;
+      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null, deps, runtime);
       setJobId(null);
       setStatus(null);
       setUrl("");
@@ -149,10 +155,17 @@ function ConnectRepo() {
     };
   }, [jobId, status]);
 
-  // Poll while the job is alive.
+  // Poll while the job is alive — including while it waits for the
+  // ask-before-skipping answer, so the moment it resumes (or stops) the
+  // panel follows without a stale snapshot.
   useEffect(() => {
     stopPolling();
-    if (!jobId || !status || (status.state !== "queued" && status.state !== "running")) return;
+    if (
+      !jobId ||
+      !status ||
+      !(status.state === "queued" || status.state === "running" || status.state === "awaiting_permission")
+    )
+      return;
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/analyze/status?job=${encodeURIComponent(jobId)}`);
@@ -197,6 +210,28 @@ function ConnectRepo() {
     setStatus(null);
     setStartError("");
     setTechnicalOpen(false);
+  };
+
+  // Answer the ask-before-skipping question. Yes → the check continues
+  // (unread files stay honestly skipped). No → it stops; nothing was read.
+  const [deciding, setDeciding] = useState(false);
+  const answerPermission = async (proceed: boolean) => {
+    if (!status) return;
+    setDeciding(true);
+    try {
+      const res = await fetch("/api/analyze/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job: status.id, proceed }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { status?: JobStatusView; error?: string };
+      if (data.status) setStatus(data.status);
+      else if (data.error) toast({ title: "Hmm", description: data.error, variant: "destructive" });
+    } catch {
+      toast({ title: "Connection problem", description: "We couldn't send your answer. Please try again.", variant: "destructive" });
+    } finally {
+      setDeciding(false);
+    }
   };
 
   // Peek inside a local folder: languages used, which CIE can read, which it
@@ -247,6 +282,7 @@ function ConnectRepo() {
   }, [localPath, kind, peekInside]);
 
   const active = status && (status.state === "queued" || status.state === "running");
+  const asking = status?.state === "awaiting_permission";
   const finished = status?.state === "done";
   const failed = status?.state === "failed";
   const doneCount = status ? status.steps.filter((s) => s.state === "done").length : 0;
@@ -403,6 +439,35 @@ function ConnectRepo() {
               </li>
             ))}
           </ol>
+
+          {/* ask before skipping — the user decides, nothing read yet */}
+          {asking && status.permission && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3" role="alertdialog" aria-label="CIE can't read some files here">
+              <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+                <HelpCircle className="h-4 w-4" /> Before CIE reads anything — it can&apos;t read some of your files
+              </p>
+              <p className="text-sm text-amber-800 leading-relaxed">{status.permission.plain}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {status.permission.unreadable.map((l) => (
+                  <span key={l.name} className="inline-flex items-center rounded-full bg-white border border-amber-300 text-amber-900 px-2.5 py-1 text-xs font-medium">
+                    {l.name} · {l.files} file{l.files === 1 ? "" : "s"}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Nothing has been read yet. If you go ahead, those files stay out of every page — named, never guessed about.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                <Button onClick={() => void answerPermission(true)} disabled={deciding} className="bg-emerald-700 hover:bg-emerald-800 text-white h-9">
+                  {deciding ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                  Yes — read the rest
+                </Button>
+                <Button onClick={() => void answerPermission(false)} disabled={deciding} variant="outline" className="border-amber-400 text-amber-900 hover:bg-amber-100 h-9">
+                  No — stop here
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* failure card */}
           {failed && status.error && (

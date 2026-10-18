@@ -77,15 +77,15 @@ function Formatted({ text }: { text: string }) {
 export function ChatPanel() {
   const {
     report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
-    llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected,
+    llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The digest is recomputed whenever the loaded project changes.
   const digest = useMemo(
-    () => buildDigest(report, viewspec, concepts, label),
-    [report, viewspec, concepts, label]
+    () => buildDigest(report, viewspec, concepts, label, deps, runtime),
+    [report, viewspec, concepts, label, deps, runtime]
   );
 
   // Keep the newest message in view.
@@ -103,7 +103,7 @@ export function ChatPanel() {
 
     // ---- fast path: drawing requests are built locally from the loaded
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
-    const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected);
+    const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {
       pushChat({
         role: "assistant",

@@ -1,0 +1,90 @@
+{
+ "tool": "threading + time.monotonic (Python stdlib)",
+ "command": "runtime_probes.pipeline(tasks=12, workers=4) with per-span timestamps",
+ "collected_at": "2026-10-18T14:45:08+00:00",
+ "workers": 4,
+ "tasks": 12,
+ "makespan_ms": 104.58,
+ "sum_of_task_ms": 362.53,
+ "observed_overlap": 3.47,
+ "spans": [
+  {
+   "thread": "worker-0",
+   "task": 0,
+   "start_ms": 0.27,
+   "end_ms": 30.34
+  },
+  {
+   "thread": "worker-1",
+   "task": 1,
+   "start_ms": 0.4,
+   "end_ms": 30.47
+  },
+  {
+   "thread": "worker-2",
+   "task": 2,
+   "start_ms": 0.47,
+   "end_ms": 30.53
+  },
+  {
+   "thread": "worker-3",
+   "task": 3,
+   "start_ms": 0.54,
+   "end_ms": 30.73
+  },
+  {
+   "thread": "worker-0",
+   "task": 4,
+   "start_ms": 33.07,
+   "end_ms": 63.13
+  },
+  {
+   "thread": "worker-1",
+   "task": 5,
+   "start_ms": 33.16,
+   "end_ms": 63.24
+  },
+  {
+   "thread": "worker-2",
+   "task": 6,
+   "start_ms": 34.17,
+   "end_ms": 64.23
+  },
+  {
+   "thread": "worker-3",
+   "task": 7,
+   "start_ms": 37.25,
+   "end_ms": 67.31
+  },
+  {
+   "thread": "worker-0",
+   "task": 8,
+   "start_ms": 66.98,
+   "end_ms": 97.04
+  },
+  {
+   "thread": "worker-1",
+   "task": 9,
+   "start_ms": 67.04,
+   "end_ms": 97.12
+  },
+  {
+   "thread": "worker-2",
+   "task": 10,
+   "start_ms": 70.18,
+   "end_ms": 100.24
+  },
+  {
+   "thread": "worker-3",
+   "task": 11,
+   "start_ms": 73.17,
+   "end_ms": 104.85
+  }
+ ],
+ "honesty": "This is a measured timeline of one run, not a benchmark. overlap = sum of task time / wall time; >1 means threads genuinely ran at the same time on this run.",
+ "real_world_equivalents": [
+  "JFR thread events / async-profiler",
+  "eBPF run-queue traces",
+  "strace -f -e sched (crude but real)"
+ ]
+}
