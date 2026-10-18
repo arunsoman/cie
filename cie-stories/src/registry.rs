@@ -228,8 +228,11 @@ pub const REGISTRY: &[Entry] = &[
          The runtime overlay view and a live ingest feed are host layer."),
     entry!("US-076", Planned, [],
         "Recorded-request replay not shipped."),
-    entry!("US-077", Planned, [],
-        "Environment/flag comparison not shipped."),
+    entry!("US-077", Partial, ["cie-evidence::environment::compare_environments", "cie-evidence::environment::explore_flag_change"],
+        "Version/flag differences enumerated between two declared snapshots; \
+         explore_flag_change returns a new, clearly-labelled snapshot and never \
+         mutates the base or applies anywhere. Live configuration ingest and the \
+         environment-topology view are host layer."),
     entry!("US-078", Partial, ["cie-fault::ldfi"],
         "Lineage separates causal chains from co-occurrence within static scope; runtime timing evidence absent."),
     entry!("US-079", Partial, ["cie-adapters::effects"],

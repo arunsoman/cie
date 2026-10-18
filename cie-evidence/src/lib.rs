@@ -4,11 +4,13 @@
 //! (the §9 protocol needs them cycle-free); this crate re-exports them and
 //! adds the fact-dependent builders.
 
+pub mod environment;
 pub mod profile;
 pub mod readiness;
 pub mod runtime;
 pub mod workload;
 
+pub use environment::{compare_environments, explore_flag_change, EnvironmentComparison, EnvironmentSnapshot, FlagDifference};
 pub use runtime::{join_structure_with_runtime, JoinExactness, RuntimeObservation, StructureRuntimeJoin};
 
 pub use profile::{
