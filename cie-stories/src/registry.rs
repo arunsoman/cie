@@ -238,8 +238,10 @@ pub const REGISTRY: &[Entry] = &[
          imported Profile; dropped samples count only as missing, never a \
          guessed category. Hotspot attribution is US-047. The trace-waterfall \
          view and speculative-mechanism labelling UI are host layer."),
-    entry!("US-083", Planned, [],
-        "Profile comparison not shipped."),
+    entry!("US-083", Partial, ["cie-evidence::profile::compare_profiles"],
+        "Declared-equivalence duration comparison: a failed same_workload/same_build \
+         declaration or a missing measured duration rejects the comparison with named \
+         reasons instead of comparing anyway. The metric-table view is host layer."),
     entry!("US-084", Planned, [],
         "Performance regression comparison needs profiles; not shipped."),
     entry!("US-085", Partial, ["cie-adapters::effects", "cie-analysis::findings"],

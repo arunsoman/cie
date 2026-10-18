@@ -142,12 +142,91 @@ pub fn category_breakdown(profile: &Profile) -> CategoryBreakdown {
     }
 }
 
+/// Conditions two profiles must meet before "faster"/"slower" is allowed
+/// to be stated (US-083). A failed declaration rejects the comparison
+/// with named reasons rather than comparing anyway.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct EquivalenceDeclaration {
+    pub same_workload: bool,
+    pub same_build: bool,
+    pub notes: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ComparisonVerdict {
+    Faster { improvement: f64 },
+    Slower { regression: f64 },
+    /// No verdict can be stated — `reasons` says why.
+    Inconclusive,
+}
+
+/// The comparison result: a verdict with its reasons, so "faster" never
+/// travels without the conditions and limitations behind it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfileComparison {
+    pub verdict: ComparisonVerdict,
+    pub reasons: Vec<String>,
+    /// True when the population itself was rejected (equivalence failed
+    /// or one side has no comparable measurement) — distinct from an
+    /// accepted population that simply shows no difference.
+    pub rejected: bool,
+}
+
+/// Compare two imported profiles' measured duration under a declared
+/// equivalence (US-083). Failed runs are never excluded from either
+/// side's population before comparing — the caller passes the profile
+/// exactly as collected, error_count and all.
+pub fn compare_profiles(
+    baseline: &Profile,
+    candidate: &Profile,
+    equivalence: &EquivalenceDeclaration,
+) -> ProfileComparison {
+    if !equivalence.same_workload || !equivalence.same_build {
+        return ProfileComparison {
+            verdict: ComparisonVerdict::Inconclusive,
+            reasons: vec![format!("declared equivalence failed: {}", equivalence.notes)],
+            rejected: true,
+        };
+    }
+    let (Some(b_ns), Some(c_ns)) = (baseline.duration_ns, candidate.duration_ns) else {
+        return ProfileComparison {
+            verdict: ComparisonVerdict::Inconclusive,
+            reasons: vec!["at least one profile has no measured duration — not fabricated".into()],
+            rejected: true,
+        };
+    };
+    if b_ns == 0 {
+        return ProfileComparison {
+            verdict: ComparisonVerdict::Inconclusive,
+            reasons: vec!["baseline duration is zero — cannot compute a ratio".into()],
+            rejected: true,
+        };
+    }
+    let delta = (b_ns as f64 - c_ns as f64) / b_ns as f64;
+    let verdict = if delta > 0.0 {
+        ComparisonVerdict::Faster { improvement: delta }
+    } else if delta < 0.0 {
+        ComparisonVerdict::Slower { regression: -delta }
+    } else {
+        ComparisonVerdict::Inconclusive
+    };
+    let mut reasons = vec![format!("baseline {b_ns}ns vs candidate {c_ns}ns under declared-equivalent conditions")];
+    if delta == 0.0 {
+        reasons.push("no measured difference".into());
+    }
+    ProfileComparison { verdict, reasons, rejected: false }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn sample(sym: Option<&str>, cat: SampleCategory, w: u64) -> ProfileSample {
         ProfileSample { symbol: sym.map(str::to_string), category: cat, weight: w }
+    }
+
+    fn timed_profile(ns: u64) -> Profile {
+        Profile { duration_ns: Some(ns), ..Default::default() }
     }
 
     #[test]
@@ -236,5 +315,30 @@ mod tests {
         let b = category_breakdown(&p);
         assert_eq!(b.shares.len(), 1);
         assert!((b.missing_share - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn comparison_states_faster_with_reasons() {
+        let eq = EquivalenceDeclaration { same_workload: true, same_build: true, notes: String::new() };
+        let cmp = compare_profiles(&timed_profile(1000), &timed_profile(800), &eq);
+        assert!(matches!(cmp.verdict, ComparisonVerdict::Faster { .. }));
+        assert!(!cmp.rejected);
+        assert!(!cmp.reasons.is_empty());
+    }
+
+    #[test]
+    fn failed_equivalence_rejects_rather_than_comparing_anyway() {
+        let eq = EquivalenceDeclaration { same_workload: false, same_build: true, notes: "different dataset size".into() };
+        let cmp = compare_profiles(&timed_profile(1000), &timed_profile(800), &eq);
+        assert!(cmp.rejected);
+        assert!(matches!(cmp.verdict, ComparisonVerdict::Inconclusive));
+        assert!(cmp.reasons[0].contains("different dataset size"));
+    }
+
+    #[test]
+    fn missing_duration_on_either_side_is_inconclusive_not_fabricated() {
+        let eq = EquivalenceDeclaration { same_workload: true, same_build: true, notes: String::new() };
+        let cmp = compare_profiles(&Profile::default(), &timed_profile(800), &eq);
+        assert!(cmp.rejected);
     }
 }
