@@ -1,0 +1,2420 @@
+{
+  "rev": 1,
+  "files": [
+    "auth.py",
+    "payments.py",
+    "test_auth.py",
+    "ui.py"
+  ],
+  "symbols": [
+    {
+      "id": 0,
+      "kind": "Module",
+      "name": "auth",
+      "qual_name": "auth",
+      "loc": {
+        "file": 0,
+        "start": 0,
+        "end": 604
+      },
+      "lang": "Python",
+      "parent": null,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 1,
+      "kind": "Function",
+      "name": "authorize",
+      "qual_name": "auth.authorize",
+      "loc": {
+        "file": 0,
+        "start": 95,
+        "end": 223
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": "must authorize the user before returning"
+    },
+    {
+      "id": 2,
+      "kind": "Function",
+      "name": "good_auth",
+      "qual_name": "auth.good_auth",
+      "loc": {
+        "file": 0,
+        "start": 225,
+        "end": 377
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": "must verify credentials via the verification primitive"
+    },
+    {
+      "id": 3,
+      "kind": "Function",
+      "name": "verify_password",
+      "qual_name": "auth.verify_password",
+      "loc": {
+        "file": 0,
+        "start": 379,
+        "end": 498
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": "must verify credentials against the credential store"
+    },
+    {
+      "id": 4,
+      "kind": "Function",
+      "name": "hash_matches",
+      "qual_name": "auth.hash_matches",
+      "loc": {
+        "file": 0,
+        "start": 500,
+        "end": 603
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 5,
+      "kind": "Module",
+      "name": "payments",
+      "qual_name": "payments",
+      "loc": {
+        "file": 1,
+        "start": 0,
+        "end": 755
+      },
+      "lang": "Python",
+      "parent": null,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 6,
+      "kind": "Function",
+      "name": "charge",
+      "qual_name": "payments.charge",
+      "loc": {
+        "file": 1,
+        "start": 24,
+        "end": 239
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 7,
+      "kind": "Function",
+      "name": "list_purchases",
+      "qual_name": "payments.list_purchases",
+      "loc": {
+        "file": 1,
+        "start": 241,
+        "end": 440
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 8,
+      "kind": "Function",
+      "name": "refund",
+      "qual_name": "payments.refund",
+      "loc": {
+        "file": 1,
+        "start": 484,
+        "end": 620
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 9,
+      "kind": "Function",
+      "name": "notify_user",
+      "qual_name": "payments.notify_user",
+      "loc": {
+        "file": 1,
+        "start": 622,
+        "end": 754
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 10,
+      "kind": "Module",
+      "name": "test_auth",
+      "qual_name": "test_auth",
+      "loc": {
+        "file": 2,
+        "start": 0,
+        "end": 89
+      },
+      "lang": "Python",
+      "parent": null,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 11,
+      "kind": "Test",
+      "name": "test_good_auth",
+      "qual_name": "test_auth.test_good_auth",
+      "loc": {
+        "file": 2,
+        "start": 28,
+        "end": 88
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 12,
+      "kind": "Module",
+      "name": "ui",
+      "qual_name": "ui",
+      "loc": {
+        "file": 3,
+        "start": 0,
+        "end": 186
+      },
+      "lang": "Python",
+      "parent": null,
+      "rev": 0,
+      "doc": null
+    },
+    {
+      "id": 13,
+      "kind": "Function",
+      "name": "delete_account",
+      "qual_name": "ui.delete_account",
+      "loc": {
+        "file": 3,
+        "start": 29,
+        "end": 185
+      },
+      "lang": "Python",
+      "parent": 0,
+      "rev": 0,
+      "doc": null
+    }
+  ],
+  "summaries": [
+    {
+      "sym": 1,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Print"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [],
+      "returns_constants": [
+        "true"
+      ],
+      "all_returns_constant": true,
+      "has_failure_path": false,
+      "has_loops": false,
+      "tags": [
+        "auth"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 2,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Crypto"
+      ],
+      "exceptions": [],
+      "path_conditions": [
+        "verify_password(user)"
+      ],
+      "callees": [
+        3
+      ],
+      "unresolved_callees": [],
+      "returns_constants": [
+        "false",
+        "true"
+      ],
+      "all_returns_constant": true,
+      "has_failure_path": true,
+      "has_loops": false,
+      "tags": [
+        "auth"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 3,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Crypto"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [
+        4
+      ],
+      "unresolved_callees": [],
+      "returns_constants": [],
+      "all_returns_constant": false,
+      "has_failure_path": false,
+      "has_loops": false,
+      "tags": [
+        "auth"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 4,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Crypto"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [],
+      "returns_constants": [],
+      "all_returns_constant": false,
+      "has_failure_path": false,
+      "has_loops": false,
+      "tags": [],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 6,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [
+        "db"
+      ],
+      "effects": [
+        "DbWrite",
+        "Print"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [
+        1
+      ],
+      "unresolved_callees": [],
+      "returns_constants": [
+        "num"
+      ],
+      "all_returns_constant": true,
+      "has_failure_path": false,
+      "has_loops": false,
+      "tags": [
+        "money",
+        "mutation"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 7,
+      "inputs": [],
+      "outputs": [],
+      "reads": [
+        "db"
+      ],
+      "writes": [],
+      "effects": [
+        "DbRead"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [
+        "str (unresolved_name)"
+      ],
+      "returns_constants": [],
+      "all_returns_constant": false,
+      "has_failure_path": false,
+      "has_loops": true,
+      "tags": [
+        "query"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 8,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Print"
+      ],
+      "exceptions": [
+        ""
+      ],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [
+        "do_refund (unresolved_name)"
+      ],
+      "returns_constants": [
+        "true"
+      ],
+      "all_returns_constant": false,
+      "has_failure_path": true,
+      "has_loops": false,
+      "tags": [
+        "money"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 9,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Print"
+      ],
+      "exceptions": [
+        "Exception"
+      ],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [
+        "send_email (unresolved_name)"
+      ],
+      "returns_constants": [
+        "true"
+      ],
+      "all_returns_constant": true,
+      "has_failure_path": true,
+      "has_loops": false,
+      "tags": [],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 11,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [],
+      "effects": [
+        "Crypto"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [
+        2
+      ],
+      "unresolved_callees": [],
+      "returns_constants": [],
+      "all_returns_constant": false,
+      "has_failure_path": true,
+      "has_loops": false,
+      "tags": [
+        "auth",
+        "test"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    },
+    {
+      "sym": 13,
+      "inputs": [],
+      "outputs": [],
+      "reads": [],
+      "writes": [
+        "db"
+      ],
+      "effects": [
+        "DbWrite",
+        "Print"
+      ],
+      "exceptions": [],
+      "path_conditions": [],
+      "callees": [],
+      "unresolved_callees": [
+        "request.args.get (dynamic_attribute)"
+      ],
+      "returns_constants": [],
+      "all_returns_constant": false,
+      "has_failure_path": false,
+      "has_loops": false,
+      "tags": [
+        "destructive",
+        "mutation",
+        "reads_input"
+      ],
+      "rev": 1,
+      "compute_ns": 1792283958585369479,
+      "complete": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-1-0001",
+      "kind": "PrintOnlyAuthorization",
+      "severity": "Critical",
+      "symbol": 1,
+      "symbol_name": "auth.authorize",
+      "message": "'authorize' is named like an authorization check, has no verification call, prints/logs only, and returns success on every path",
+      "evidence_lines": [
+        6
+      ],
+      "remediation": "Call a real verification primitive (credential lookup, permission check) and propagate its result",
+      "authority": "InferredCandidate",
+      "rule": "conf/PR-001",
+      "tags": [
+        "security",
+        "authz"
+      ]
+    },
+    {
+      "id": "F-1-0002",
+      "kind": "IgnoredRejection",
+      "severity": "High",
+      "symbol": 6,
+      "symbol_name": "payments.charge",
+      "message": "result of authorization call 'authorize' (line 4) is bound to 'ok' but never branched on before a sensitive operation ('cursor.execute' @ 5, 'cursor.execute' @ 6)",
+      "evidence_lines": [
+        4,
+        5,
+        6
+      ],
+      "remediation": "Check the authorization result and abort the sensitive operation on rejection",
+      "authority": "InferredCandidate",
+      "rule": "conf/PR-003",
+      "tags": [
+        "security",
+        "authz"
+      ]
+    },
+    {
+      "id": "F-1-0004",
+      "kind": "SwallowedException",
+      "severity": "Medium",
+      "symbol": 9,
+      "symbol_name": "payments.notify_user",
+      "message": "broad exception handler in 'notify_user' (line 27) swallows the error (print/log only)",
+      "evidence_lines": [
+        27
+      ],
+      "remediation": "At minimum log with context and re-raise or convert to a typed error",
+      "authority": "InferredCandidate",
+      "rule": "conf/PR-004",
+      "tags": [
+        "robustness"
+      ]
+    },
+    {
+      "id": "F-1-0003",
+      "kind": "ExceptionToSuccess",
+      "severity": "High",
+      "symbol": 8,
+      "symbol_name": "payments.refund",
+      "message": "bare exception handler in 'refund' (line 20) returns a success value, converting failure into success",
+      "evidence_lines": [
+        20
+      ],
+      "remediation": "Propagate or wrap the error instead of returning success",
+      "authority": "InferredCandidate",
+      "rule": "conf/PR-005",
+      "tags": [
+        "robustness"
+      ]
+    },
+    {
+      "id": "F-1-0005",
+      "kind": "LayeringViolation",
+      "severity": "Medium",
+      "symbol": 13,
+      "symbol_name": "ui.delete_account",
+      "message": "UI/API-layer function 'ui.delete_account' touches the database directly (effects: [\"db_write\", \"print\"]); data access should live behind a data/repository module",
+      "evidence_lines": [
+        3
+      ],
+      "remediation": "Move the query into a data/repository module and call that from the UI layer",
+      "authority": "Explicit",
+      "rule": "arch/AR-001",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "F-1-S0002",
+      "kind": "SwallowedException",
+      "severity": "Medium",
+      "symbol": 8,
+      "symbol_name": "payments.refund",
+      "message": "bare except in 'refund' (line 20) has no re-raise — swallowed error has no recovery path",
+      "evidence_lines": [
+        20
+      ],
+      "remediation": "Catch typed errors and re-raise or convert; never swallow bare",
+      "authority": "InferredCandidate",
+      "rule": "sec/SEC-005",
+      "tags": [
+        "robustness",
+        "recovery"
+      ]
+    },
+    {
+      "id": "F-1-S0001",
+      "kind": "HardcodedSecret",
+      "severity": "Critical",
+      "symbol": 5,
+      "symbol_name": "payments",
+      "message": "possible hardcoded secret in string literal (line 15)",
+      "evidence_lines": [
+        15
+      ],
+      "remediation": "Move the secret to a secret manager / environment variable",
+      "authority": "InferredCandidate",
+      "rule": "sec/SEC-001",
+      "tags": [
+        "security",
+        "secrets"
+      ]
+    },
+    {
+      "id": "F-1-S0004",
+      "kind": "SqlInjection",
+      "severity": "Critical",
+      "symbol": 13,
+      "symbol_name": "ui.delete_account",
+      "message": "tainted input (user_id) reaches SQL execute sink 'cursor.execute' at line 5; no sanitizer observed on this path",
+      "evidence_lines": [
+        5
+      ],
+      "remediation": "Use parameterized queries / safe APIs; validate and encode the input",
+      "authority": "InferredCandidate",
+      "rule": "sec/SEC-002",
+      "tags": [
+        "security",
+        "taint"
+      ]
+    },
+    {
+      "id": "F-1-P0003",
+      "kind": "NPlusOneQuery",
+      "severity": "Medium",
+      "symbol": 7,
+      "symbol_name": "payments.list_purchases",
+      "message": "query call 'cursor.fetchall' inside a loop body (line 12) — N+1 pattern",
+      "evidence_lines": [
+        12
+      ],
+      "remediation": "Batch the query outside the loop or use a bulk API",
+      "authority": "InferredCandidate",
+      "rule": "perf/PF-001",
+      "tags": [
+        "performance"
+      ]
+    },
+    {
+      "id": "F-1-T0001",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 1,
+      "symbol_name": "auth.authorize",
+      "message": "'auth.authorize' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        6
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-T0002",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 6,
+      "symbol_name": "payments.charge",
+      "message": "'payments.charge' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        3
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-T0003",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 7,
+      "symbol_name": "payments.list_purchases",
+      "message": "'payments.list_purchases' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        9
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-T0004",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 8,
+      "symbol_name": "payments.refund",
+      "message": "'payments.refund' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        17
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-T0005",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 9,
+      "symbol_name": "payments.notify_user",
+      "message": "'payments.notify_user' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        24
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-T0006",
+      "kind": "CoverageGap",
+      "severity": "Low",
+      "symbol": 13,
+      "symbol_name": "ui.delete_account",
+      "message": "'ui.delete_account' is not reached by any test in the analyzed set",
+      "evidence_lines": [
+        3
+      ],
+      "remediation": "Add a test that exercises this function",
+      "authority": "Verified",
+      "rule": "test/TQ-001",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "F-1-D0016",
+      "kind": "DeadCode",
+      "severity": "Low",
+      "symbol": 6,
+      "symbol_name": "payments.charge",
+      "message": "'payments.charge' has no callers in the analyzed graph and is not an entry point",
+      "evidence_lines": [
+        3
+      ],
+      "remediation": "Remove it or expose it through an entry point/test",
+      "authority": "Verified",
+      "rule": "arch/AR-002",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "F-1-D0017",
+      "kind": "DeadCode",
+      "severity": "Low",
+      "symbol": 7,
+      "symbol_name": "payments.list_purchases",
+      "message": "'payments.list_purchases' has no callers in the analyzed graph and is not an entry point",
+      "evidence_lines": [
+        9
+      ],
+      "remediation": "Remove it or expose it through an entry point/test",
+      "authority": "Verified",
+      "rule": "arch/AR-002",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "F-1-D0018",
+      "kind": "DeadCode",
+      "severity": "Low",
+      "symbol": 8,
+      "symbol_name": "payments.refund",
+      "message": "'payments.refund' has no callers in the analyzed graph and is not an entry point",
+      "evidence_lines": [
+        17
+      ],
+      "remediation": "Remove it or expose it through an entry point/test",
+      "authority": "Verified",
+      "rule": "arch/AR-002",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "F-1-D0019",
+      "kind": "DeadCode",
+      "severity": "Low",
+      "symbol": 9,
+      "symbol_name": "payments.notify_user",
+      "message": "'payments.notify_user' has no callers in the analyzed graph and is not an entry point",
+      "evidence_lines": [
+        24
+      ],
+      "remediation": "Remove it or expose it through an entry point/test",
+      "authority": "Verified",
+      "rule": "arch/AR-002",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "F-1-D0020",
+      "kind": "DeadCode",
+      "severity": "Low",
+      "symbol": 13,
+      "symbol_name": "ui.delete_account",
+      "message": "'ui.delete_account' has no callers in the analyzed graph and is not an entry point",
+      "evidence_lines": [
+        3
+      ],
+      "remediation": "Remove it or expose it through an entry point/test",
+      "authority": "Verified",
+      "rule": "arch/AR-002",
+      "tags": [
+        "architecture"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": 0,
+      "obligation": "MustAuthorize",
+      "expr": "must authorize the user before returning",
+      "authority": "Explicit",
+      "symbols": [
+        1
+      ],
+      "source": "Docstring"
+    },
+    {
+      "id": 1,
+      "obligation": "MustNotLeakSecrets",
+      "expr": "must verify credentials via the verification primitive",
+      "authority": "Explicit",
+      "symbols": [
+        2
+      ],
+      "source": "Docstring"
+    },
+    {
+      "id": 2,
+      "obligation": "MustNotLeakSecrets",
+      "expr": "must verify credentials against the credential store",
+      "authority": "Explicit",
+      "symbols": [
+        3
+      ],
+      "source": "Docstring"
+    },
+    {
+      "id": 3,
+      "obligation": "MustAuthorize",
+      "expr": "'authorize' must perform real authorization before returning success",
+      "authority": "InferredCandidate",
+      "symbols": [
+        1
+      ],
+      "source": "NamingConvention"
+    },
+    {
+      "id": 4,
+      "obligation": "MustAuthorize",
+      "expr": "'good_auth' must perform real authorization before returning success",
+      "authority": "InferredCandidate",
+      "symbols": [
+        2
+      ],
+      "source": "NamingConvention"
+    },
+    {
+      "id": 5,
+      "obligation": "MustAuthorize",
+      "expr": "'verify_password' must perform real authorization before returning success",
+      "authority": "InferredCandidate",
+      "symbols": [
+        3
+      ],
+      "source": "NamingConvention"
+    },
+    {
+      "id": 6,
+      "obligation": "MustAuthorize",
+      "expr": "'charge' must be preceded by established authorization",
+      "authority": "InferredCandidate",
+      "symbols": [
+        6
+      ],
+      "source": "NamingConvention"
+    },
+    {
+      "id": 7,
+      "obligation": "MustAuthorize",
+      "expr": "'refund' must be preceded by established authorization",
+      "authority": "InferredCandidate",
+      "symbols": [
+        8
+      ],
+      "source": "NamingConvention"
+    },
+    {
+      "id": 8,
+      "obligation": "MustAuthorize",
+      "expr": "'delete_account' must be preceded by established authorization",
+      "authority": "InferredCandidate",
+      "symbols": [
+        13
+      ],
+      "source": "NamingConvention"
+    }
+  ],
+  "concepts": {
+    "nodes": [
+      {
+        "id": 0,
+        "label": "Project",
+        "kind": "Domain",
+        "parent": null,
+        "children": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "extra_edges": [],
+        "primary_edge": "PackageContainment",
+        "symbols": [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7,
+          8,
+          9,
+          11,
+          13
+        ],
+        "behaviors": [
+          {
+            "summary": 1,
+            "kind": "Authorize",
+            "confidence": 1.0
+          },
+          {
+            "summary": 2,
+            "kind": "Authorize Good Auth",
+            "confidence": 1.0
+          },
+          {
+            "summary": 3,
+            "kind": "Verify Password",
+            "confidence": 1.0
+          },
+          {
+            "summary": 4,
+            "kind": "Hash Matches",
+            "confidence": 1.0
+          },
+          {
+            "summary": 6,
+            "kind": "Move money via Charge",
+            "confidence": 1.0
+          },
+          {
+            "summary": 7,
+            "kind": "Query data via List Purchases",
+            "confidence": 1.0
+          },
+          {
+            "summary": 8,
+            "kind": "Move money via Refund",
+            "confidence": 1.0
+          },
+          {
+            "summary": 9,
+            "kind": "Notify User",
+            "confidence": 1.0
+          },
+          {
+            "summary": 11,
+            "kind": "Authorize Test Good Auth",
+            "confidence": 1.0
+          },
+          {
+            "summary": 13,
+            "kind": "Mutate data via Delete Account",
+            "confidence": 1.0
+          }
+        ],
+        "rules": [
+          {
+            "contract": 0,
+            "kind": "must_authorize",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 1,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 2,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 3,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 4,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 5,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 6,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 7,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 8,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 1,
+        "label": "auth.py",
+        "kind": "Module",
+        "parent": 0,
+        "children": [
+          6,
+          7,
+          8,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "extra_edges": [],
+        "primary_edge": "PackageContainment",
+        "symbols": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "behaviors": [
+          {
+            "summary": 1,
+            "kind": "Authorize",
+            "confidence": 1.0
+          },
+          {
+            "summary": 2,
+            "kind": "Authorize Good Auth",
+            "confidence": 1.0
+          },
+          {
+            "summary": 3,
+            "kind": "Verify Password",
+            "confidence": 1.0
+          },
+          {
+            "summary": 4,
+            "kind": "Hash Matches",
+            "confidence": 1.0
+          }
+        ],
+        "rules": [
+          {
+            "contract": 0,
+            "kind": "must_authorize",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 1,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 2,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          },
+          {
+            "contract": 3,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 4,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 5,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:package",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 2,
+        "label": "payments.py",
+        "kind": "Module",
+        "parent": 0,
+        "children": [
+          5,
+          10,
+          17,
+          18
+        ],
+        "extra_edges": [],
+        "primary_edge": "PackageContainment",
+        "symbols": [
+          1,
+          6,
+          7,
+          8,
+          9,
+          13
+        ],
+        "behaviors": [
+          {
+            "summary": 6,
+            "kind": "Move money via Charge",
+            "confidence": 1.0
+          },
+          {
+            "summary": 7,
+            "kind": "Query data via List Purchases",
+            "confidence": 1.0
+          },
+          {
+            "summary": 8,
+            "kind": "Move money via Refund",
+            "confidence": 1.0
+          },
+          {
+            "summary": 9,
+            "kind": "Notify User",
+            "confidence": 1.0
+          }
+        ],
+        "rules": [
+          {
+            "contract": 6,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          },
+          {
+            "contract": 7,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:package",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 3,
+        "label": "test_auth.py",
+        "kind": "Module",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "PackageContainment",
+        "symbols": [
+          11
+        ],
+        "behaviors": [
+          {
+            "summary": 11,
+            "kind": "Authorize Test Good Auth",
+            "confidence": 1.0
+          }
+        ],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 1.0,
+        "provenance": "rule:package",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 4,
+        "label": "ui.py",
+        "kind": "Module",
+        "parent": 0,
+        "children": [
+          9,
+          19
+        ],
+        "extra_edges": [],
+        "primary_edge": "PackageContainment",
+        "symbols": [
+          6,
+          13
+        ],
+        "behaviors": [
+          {
+            "summary": 13,
+            "kind": "Mutate data via Delete Account",
+            "confidence": 1.0
+          }
+        ],
+        "rules": [
+          {
+            "contract": 8,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:package",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 5,
+        "label": "Concept:print:prints",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            2,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          1,
+          6,
+          8,
+          9,
+          13
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "print"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 6,
+        "label": "Concept:auth:authorization",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            1,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          1,
+          2,
+          3
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "auth"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 7,
+        "label": "Concept:crypto:uses crypto",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            1,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          2,
+          3,
+          4
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "crypto"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 8,
+        "label": "Concept:auth+crypto:authorization & uses crypto",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            1,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          2,
+          3
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "auth",
+          "crypto"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 9,
+        "label": "Concept:db Write+mutation+print:writes data & mutations & prints",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            4,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          6,
+          13
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "db_write",
+          "mutation",
+          "print"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 10,
+        "label": "Concept:money+print:money movement & prints",
+        "kind": "UseCase",
+        "parent": 0,
+        "children": [],
+        "extra_edges": [
+          [
+            2,
+            "ClusterCohesion"
+          ]
+        ],
+        "primary_edge": "FcaSubsumption",
+        "symbols": [
+          6,
+          8
+        ],
+        "behaviors": [],
+        "rules": [],
+        "finding_ids": [],
+        "intent": [
+          "money",
+          "print"
+        ],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.8,
+        "provenance": "fca:godin-v1",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 11,
+        "label": "must authorize the user before returning",
+        "kind": "Rule",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          1
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 0,
+            "kind": "must_authorize",
+            "authority": "Explicit"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 1.0,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 12,
+        "label": "must verify credentials via the verification primitive",
+        "kind": "Rule",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          2
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 1,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 1.0,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 13,
+        "label": "must verify credentials against the credential store",
+        "kind": "Rule",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          3
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 2,
+            "kind": "must_not_leak_secrets",
+            "authority": "Explicit"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 1.0,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 14,
+        "label": "'authorize' must perform real authorization before returning success",
+        "kind": "Invariant",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          1
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 3,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 15,
+        "label": "'good_auth' must perform real authorization before returning success",
+        "kind": "Invariant",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          2
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 4,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 16,
+        "label": "'verify_password' must perform real authorization before returning success",
+        "kind": "Invariant",
+        "parent": 1,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          3
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 5,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 17,
+        "label": "'charge' must be preceded by established authorization",
+        "kind": "Invariant",
+        "parent": 2,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          6
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 6,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 18,
+        "label": "'refund' must be preceded by established authorization",
+        "kind": "Invariant",
+        "parent": 2,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          8
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 7,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      },
+      {
+        "id": 19,
+        "label": "'delete_account' must be preceded by established authorization",
+        "kind": "Invariant",
+        "parent": 4,
+        "children": [],
+        "extra_edges": [],
+        "primary_edge": "CallOwnership",
+        "symbols": [
+          13
+        ],
+        "behaviors": [],
+        "rules": [
+          {
+            "contract": 8,
+            "kind": "must_authorize",
+            "authority": "InferredCandidate"
+          }
+        ],
+        "finding_ids": [],
+        "intent": [],
+        "coverage_ratio": 1.0,
+        "coverage_complete": true,
+        "confidence": 0.6,
+        "provenance": "rule:contract",
+        "created_ns": 1792283958585365823,
+        "compute_ns": 0
+      }
+    ],
+    "unattached_behaviors": [],
+    "unattached_rules": [],
+    "dirty": []
+  },
+  "coverage": {
+    "files_total": 4,
+    "files_analyzed": 4,
+    "symbols_total": 14,
+    "symbols_analyzed": 10,
+    "complete": true,
+    "notes": [
+      "taint analysis is intra-procedural (no heap model — PRD §74)",
+      "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
+    ],
+    "wall_ns": 4946596
+  },
+  "evidence": {
+    "rev": 1,
+    "provenance": "cie-v1.1.0",
+    "assumptions": [
+      "naming-convention auth/money tags are hypotheses (InferredCandidate)",
+      "print/log effect classification is name-based"
+    ],
+    "unsupported": [],
+    "unresolved": [
+      "payments.list_purchases: str (unresolved_name)",
+      "payments.refund: do_refund (unresolved_name)",
+      "payments.notify_user: send_email (unresolved_name)",
+      "ui.delete_account: request.args.get (dynamic_attribute)"
+    ],
+    "generated_at_ns": 1792283958585365823
+  },
+  "warnings": [],
+  "ingest_wall_ns": 10132553,
+  "incremental": false,
+  "summary_cache": [
+    {
+      "path": "auth.py",
+      "file_hash": [
+        42,
+        96,
+        236,
+        139,
+        26,
+        1,
+        39,
+        141,
+        106,
+        35,
+        132,
+        240,
+        182,
+        220,
+        30,
+        209,
+        54,
+        158,
+        19,
+        230,
+        144,
+        164,
+        108,
+        127,
+        188,
+        218,
+        10,
+        85,
+        107,
+        122,
+        139,
+        246
+      ],
+      "deps_hash": [
+        251,
+        155,
+        110,
+        19,
+        51,
+        42,
+        23,
+        27,
+        190,
+        79,
+        230,
+        46,
+        11,
+        227,
+        245,
+        48,
+        37,
+        254,
+        190,
+        46,
+        247,
+        228,
+        74,
+        11,
+        112,
+        27,
+        160,
+        190,
+        46,
+        48,
+        165,
+        117
+      ],
+      "symbol_keys": {
+        "auth.authorize": [
+          30,
+          127,
+          114,
+          174,
+          151,
+          189,
+          248,
+          90,
+          121,
+          178,
+          2,
+          94,
+          51,
+          193,
+          91,
+          46,
+          64,
+          24,
+          24,
+          177,
+          222,
+          170,
+          254,
+          149,
+          176,
+          179,
+          188,
+          56,
+          169,
+          145,
+          17,
+          154
+        ],
+        "auth.good_auth": [
+          15,
+          10,
+          112,
+          154,
+          62,
+          220,
+          113,
+          183,
+          175,
+          82,
+          189,
+          197,
+          152,
+          33,
+          121,
+          47,
+          108,
+          115,
+          219,
+          248,
+          120,
+          39,
+          156,
+          150,
+          89,
+          251,
+          218,
+          65,
+          184,
+          141,
+          192,
+          7
+        ],
+        "auth.hash_matches": [
+          179,
+          164,
+          219,
+          229,
+          245,
+          92,
+          214,
+          87,
+          145,
+          129,
+          69,
+          135,
+          53,
+          175,
+          232,
+          239,
+          219,
+          66,
+          8,
+          169,
+          31,
+          154,
+          247,
+          43,
+          85,
+          64,
+          33,
+          179,
+          159,
+          144,
+          31,
+          169
+        ],
+        "auth.verify_password": [
+          109,
+          63,
+          91,
+          19,
+          203,
+          150,
+          85,
+          15,
+          83,
+          72,
+          217,
+          14,
+          57,
+          57,
+          230,
+          0,
+          200,
+          175,
+          41,
+          232,
+          130,
+          9,
+          134,
+          180,
+          109,
+          233,
+          234,
+          79,
+          187,
+          5,
+          239,
+          49
+        ]
+      }
+    },
+    {
+      "path": "payments.py",
+      "file_hash": [
+        30,
+        54,
+        74,
+        152,
+        95,
+        251,
+        13,
+        101,
+        13,
+        182,
+        202,
+        69,
+        97,
+        129,
+        12,
+        163,
+        54,
+        23,
+        178,
+        25,
+        250,
+        246,
+        39,
+        8,
+        166,
+        40,
+        215,
+        155,
+        7,
+        34,
+        240,
+        98
+      ],
+      "deps_hash": [
+        251,
+        155,
+        110,
+        19,
+        51,
+        42,
+        23,
+        27,
+        190,
+        79,
+        230,
+        46,
+        11,
+        227,
+        245,
+        48,
+        37,
+        254,
+        190,
+        46,
+        247,
+        228,
+        74,
+        11,
+        112,
+        27,
+        160,
+        190,
+        46,
+        48,
+        165,
+        117
+      ],
+      "symbol_keys": {
+        "payments.charge": [
+          111,
+          37,
+          171,
+          122,
+          109,
+          183,
+          252,
+          225,
+          28,
+          235,
+          142,
+          56,
+          188,
+          77,
+          68,
+          118,
+          180,
+          58,
+          99,
+          240,
+          187,
+          143,
+          159,
+          225,
+          167,
+          142,
+          132,
+          200,
+          168,
+          110,
+          235,
+          161
+        ],
+        "payments.list_purchases": [
+          23,
+          105,
+          182,
+          105,
+          231,
+          59,
+          223,
+          156,
+          179,
+          166,
+          3,
+          177,
+          206,
+          134,
+          190,
+          241,
+          75,
+          206,
+          234,
+          27,
+          39,
+          95,
+          206,
+          10,
+          238,
+          69,
+          165,
+          35,
+          130,
+          156,
+          186,
+          53
+        ],
+        "payments.notify_user": [
+          113,
+          140,
+          118,
+          95,
+          91,
+          169,
+          223,
+          15,
+          115,
+          253,
+          112,
+          131,
+          28,
+          178,
+          109,
+          76,
+          169,
+          11,
+          90,
+          245,
+          135,
+          9,
+          124,
+          70,
+          227,
+          115,
+          59,
+          168,
+          141,
+          229,
+          92,
+          134
+        ],
+        "payments.refund": [
+          167,
+          38,
+          119,
+          126,
+          27,
+          229,
+          41,
+          0,
+          235,
+          88,
+          237,
+          84,
+          140,
+          63,
+          215,
+          175,
+          202,
+          187,
+          199,
+          218,
+          248,
+          109,
+          87,
+          4,
+          156,
+          108,
+          149,
+          91,
+          72,
+          250,
+          225,
+          173
+        ]
+      }
+    },
+    {
+      "path": "test_auth.py",
+      "file_hash": [
+        16,
+        42,
+        51,
+        75,
+        70,
+        6,
+        65,
+        117,
+        224,
+        25,
+        148,
+        144,
+        26,
+        252,
+        122,
+        249,
+        40,
+        94,
+        28,
+        166,
+        122,
+        119,
+        61,
+        62,
+        157,
+        80,
+        179,
+        36,
+        111,
+        158,
+        245,
+        72
+      ],
+      "deps_hash": [
+        251,
+        155,
+        110,
+        19,
+        51,
+        42,
+        23,
+        27,
+        190,
+        79,
+        230,
+        46,
+        11,
+        227,
+        245,
+        48,
+        37,
+        254,
+        190,
+        46,
+        247,
+        228,
+        74,
+        11,
+        112,
+        27,
+        160,
+        190,
+        46,
+        48,
+        165,
+        117
+      ],
+      "symbol_keys": {
+        "test_auth.test_good_auth": [
+          247,
+          138,
+          48,
+          220,
+          254,
+          22,
+          228,
+          83,
+          135,
+          7,
+          74,
+          159,
+          178,
+          34,
+          112,
+          156,
+          164,
+          12,
+          84,
+          237,
+          216,
+          140,
+          138,
+          15,
+          71,
+          61,
+          133,
+          197,
+          155,
+          69,
+          223,
+          123
+        ]
+      }
+    },
+    {
+      "path": "ui.py",
+      "file_hash": [
+        211,
+        186,
+        47,
+        65,
+        196,
+        9,
+        23,
+        248,
+        87,
+        101,
+        223,
+        141,
+        83,
+        72,
+        208,
+        199,
+        132,
+        55,
+        140,
+        51,
+        242,
+        83,
+        64,
+        0,
+        86,
+        51,
+        68,
+        43,
+        26,
+        112,
+        153,
+        30
+      ],
+      "deps_hash": [
+        175,
+        19,
+        73,
+        185,
+        245,
+        249,
+        161,
+        166,
+        160,
+        64,
+        77,
+        234,
+        54,
+        220,
+        201,
+        73,
+        155,
+        203,
+        37,
+        201,
+        173,
+        193,
+        18,
+        183,
+        204,
+        154,
+        147,
+        202,
+        228,
+        31,
+        50,
+        98
+      ],
+      "symbol_keys": {
+        "ui.delete_account": [
+          155,
+          176,
+          174,
+          68,
+          189,
+          248,
+          52,
+          252,
+          177,
+          168,
+          46,
+          253,
+          25,
+          213,
+          130,
+          211,
+          230,
+          160,
+          70,
+          101,
+          82,
+          124,
+          90,
+          9,
+          18,
+          100,
+          195,
+          58,
+          60,
+          65,
+          231,
+          211
+        ]
+      }
+    }
+  ],
+  "summary_reuse": {
+    "reused_files": 0,
+    "recomputed_files": 0,
+    "reused_symbols": 0,
+    "recomputed_symbols": 10
+  }
+}
