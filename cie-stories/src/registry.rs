@@ -233,8 +233,11 @@ pub const REGISTRY: &[Entry] = &[
     entry!("US-081", Planned, [],
         "Distributed consistency hazard modelling not shipped."),
     // ---- Performance and technical health ---------------------------------
-    entry!("US-082", Planned, [],
-        "Trace/profile import not shipped; slowness stories would need fabricated data — refused."),
+    entry!("US-082", Partial, ["cie-evidence::profile::category_breakdown"],
+        "CPU/wait/data-work/external-call/missing shares distinguished over an \
+         imported Profile; dropped samples count only as missing, never a \
+         guessed category. Hotspot attribution is US-047. The trace-waterfall \
+         view and speculative-mechanism labelling UI are host layer."),
     entry!("US-083", Planned, [],
         "Profile comparison not shipped."),
     entry!("US-084", Planned, [],

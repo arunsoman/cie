@@ -112,6 +112,36 @@ pub fn attribute_hotspots(profile: &Profile) -> HotspotAttribution {
     }
 }
 
+/// Where a profiled window's time went, by category, plus what was never
+/// observed at all (US-082: CPU, waits, data work, external calls and
+/// missing observations distinguished — never collapsed into one "slow").
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CategoryBreakdown {
+    /// Category → share of the *whole* collection window (collected + dropped).
+    pub shares: BTreeMap<SampleCategory, f64>,
+    /// Share of the window the importer never collected at all.
+    pub missing_share: f64,
+}
+
+/// Break an imported profile down by category (US-082). Dropped samples
+/// count toward `missing_share`, never toward any category — a dropped
+/// sample has no known category, so guessing one would be a fabrication.
+pub fn category_breakdown(profile: &Profile) -> CategoryBreakdown {
+    let total = profile.total_weight();
+    let grand = total + profile.dropped_samples;
+    if grand == 0 {
+        return CategoryBreakdown::default();
+    }
+    let mut shares: BTreeMap<SampleCategory, f64> = BTreeMap::new();
+    for s in &profile.samples {
+        *shares.entry(s.category).or_insert(0.0) += s.weight as f64 / grand as f64;
+    }
+    CategoryBreakdown {
+        shares,
+        missing_share: profile.dropped_samples as f64 / grand as f64,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,5 +201,40 @@ mod tests {
         let p = Profile::default();
         let rep = attribute_hotspots(&p);
         assert!(rep.hotspots.is_empty());
+    }
+
+    #[test]
+    fn category_breakdown_distinguishes_cpu_wait_data_external_and_missing() {
+        let p = Profile {
+            source: "trace".into(),
+            samples: vec![
+                sample(Some("a"), SampleCategory::Cpu, 40),
+                sample(Some("b"), SampleCategory::Wait, 20),
+                sample(Some("c"), SampleCategory::DataWork, 20),
+                sample(Some("d"), SampleCategory::ExternalCall, 10),
+            ],
+            dropped_samples: 10,
+            duration_ns: None,
+            error_count: 0,
+        };
+        let b = category_breakdown(&p);
+        assert!((b.shares[&SampleCategory::Cpu] - 0.4).abs() < 1e-9);
+        assert!((b.missing_share - 0.1).abs() < 1e-9);
+        let sum: f64 = b.shares.values().sum::<f64>() + b.missing_share;
+        assert!((sum - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dropped_samples_never_get_a_guessed_category() {
+        let p = Profile {
+            source: "trace".into(),
+            samples: vec![sample(Some("a"), SampleCategory::Cpu, 50)],
+            dropped_samples: 50,
+            duration_ns: None,
+            error_count: 0,
+        };
+        let b = category_breakdown(&p);
+        assert_eq!(b.shares.len(), 1);
+        assert!((b.missing_share - 0.5).abs() < 1e-9);
     }
 }

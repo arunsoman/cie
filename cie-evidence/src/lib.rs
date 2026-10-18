@@ -8,7 +8,10 @@ pub mod profile;
 pub mod readiness;
 pub mod workload;
 
-pub use profile::{attribute_hotspots, Hotspot, HotspotAttribution, Profile, ProfileSample, SampleCategory};
+pub use profile::{
+    attribute_hotspots, category_breakdown, CategoryBreakdown, Hotspot, HotspotAttribution,
+    Profile, ProfileSample, SampleCategory,
+};
 
 pub use readiness::{
     capacity_outcome, external_verdicts, overall_tone, readiness_rollup, Calibration,
