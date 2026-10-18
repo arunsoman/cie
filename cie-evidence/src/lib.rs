@@ -6,7 +6,10 @@
 
 pub mod profile;
 pub mod readiness;
+pub mod runtime;
 pub mod workload;
+
+pub use runtime::{join_structure_with_runtime, JoinExactness, RuntimeObservation, StructureRuntimeJoin};
 
 pub use profile::{
     attribute_hotspots, category_breakdown, compare_profiles, regression_report,
