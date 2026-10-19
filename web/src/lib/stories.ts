@@ -25,6 +25,15 @@ function cell(v: unknown, n = 90): string {
   return s.length > n ? cut(s, n) : s;
 }
 
+/** Stat items arrive as display strings ("84", "1,234", "12.5%") — parse the
+ *  real collected number so the headline card shows the measured value, not
+ *  a fabricated 0. Non-numeric values ("yes", "n/a") fall back to 0 and the
+ *  table below the card still shows the original string verbatim. */
+function statNumber(v: string): number {
+  const n = Number(String(v).replace(/[,%\s]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 /** Build the chart spec for one story's demo payload. */
 export function storyChart(story: CieStory): ChatChartSpec | null {
   const d: StoryDemo = story.demo;
@@ -57,7 +66,7 @@ export function storyChart(story: CieStory): ChatChartSpec | null {
   if (d.shape === "stat" && d.items?.length) {
     return {
       ...base("stat", story.title, d.headline ?? "Measured on the sample project."),
-      data: d.items.map((i) => ({ name: i.label, value: 0 })),
+      data: d.items.map((i) => ({ name: i.label, value: statNumber(i.value) })),
       columns: ["Measure", "Value"],
       rows: d.items.map((i) => [i.label, cell(i.value), i.note ?? ""]),
     };
