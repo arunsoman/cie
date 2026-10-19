@@ -658,7 +658,13 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
                 onFocus={() => setHover(b.node.id)}
                 onBlur={() => setHover(null)}
                 onClick={() => {
-                  onSelectElement?.({ kind: "node", id: b.node.id, label: b.node.title, loc: b.node.loc });
+                  // When a host (the atlas) passes onSelectElement it OWNS the
+                  // click — the default ask-chat fallback would fire a chat
+                  // question on loc-less boxes, which is wrong for scoping.
+                  if (onSelectElement) {
+                    onSelectElement({ kind: "node", id: b.node.id, label: b.node.title, loc: b.node.loc });
+                    return;
+                  }
                   ask(spec, { name: b.node.title, loc: b.node.loc });
                 }}
                 className="outline-none cursor-pointer"
@@ -968,7 +974,11 @@ function SequenceSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectE
             key={`m-${m.label}-${i}`}
             className={m.loc?.file ? "cursor-pointer" : ""}
             onClick={() => {
-              onSelectElement?.({ kind: "msg", id: m.label, label: m.label, loc: m.loc, from: m.from, to: m.to });
+              if (onSelectElement) {
+                onSelectElement({ kind: "msg", id: m.label, label: m.label, loc: m.loc, from: m.from, to: m.to });
+                if (m.loc) ask(spec, { name: m.label.replace(/\(\)$/, ""), loc: m.loc }); // arrows always open the real code
+                return;
+              }
               if (m.loc) ask(spec, { name: m.label.replace(/\(\)$/, ""), loc: m.loc });
             }}
           >

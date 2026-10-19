@@ -105,20 +105,25 @@ export function symbolsOfModule(report: CieReport, file: string): SymbolInfo[] {
 const MAX_MODULE_BOXES = 12;
 const MAX_SYMBOL_LINES = 4;
 
-/** One zoom level: boxes for the modules (files) of `container` (null =
- *  whole system), arrows for calls that cross module boundaries. Click a
- *  box → the view re-scopes to that module's symbols (same builder, level 2). */
+/** Components view, two zoom levels off one builder:
+ *  - `module` (a real file path) set → that file's symbols + internal calls.
+ *  - else → module boxes across the system, scoped to `container` (a
+ *    top-level folder name, or "(project root)") when given.
+ *  Returns null only when there is genuinely nothing to draw — said plainly
+ *  by the caller, never papered over with an invented picture. */
 export function buildComponentSpec(
   report: CieReport,
   container: string | null,
-  title?: string
+  title?: string,
+  module?: string | null
 ): ChatChartSpec | null {
   if (!report?.files?.length) return null;
   const g = graphOf(report);
 
   // level 2 — one module zoomed: its symbols + calls between them
-  if (container) {
-    const syms = symbolsOfModule(report, container);
+  if (module && report.files.includes(module)) {
+    const containerArg = module;
+    const syms = symbolsOfModule(report, containerArg);
     if (!syms.length) return null;
     const MAX_SYMBOL_BOXES = 10;
     const shown = syms.slice(0, MAX_SYMBOL_BOXES);
@@ -137,7 +142,7 @@ export function buildComponentSpec(
         kind: s.kind === "Class" ? "class" : "function",
         lines,
         certainty: "Fact" as const,
-        loc: { file: container, byteStart: s.loc.start, byteEnd: s.loc.end },
+        loc: { file: module, byteStart: s.loc.start, byteEnd: s.loc.end },
       };
     });
     if (more > 0) {
@@ -160,7 +165,7 @@ export function buildComponentSpec(
         links.push({ from: s.qual_name || s.name, to, label: "calls", certainty: "Fact" });
       }
     }
-    const s2 = specOf("uml", title ?? `Inside ${container.split("/").pop() ?? container} — its named things and their calls`);
+    const s2 = specOf("uml", title ?? `Inside ${containerArg.split("/").pop() ?? containerArg} — its named things and their calls`);
     s2.nodes = nodes;
     s2.links = links;
     s2.source = "report.json — this file's own symbols and recorded calls";
@@ -168,7 +173,8 @@ export function buildComponentSpec(
   }
 
   // level 1 — modules across the (scoped) system
-  const files = report.files;
+  const inContainer = (f: string): boolean => (container ? containerOfPath(f) === container : true);
+  const files = report.files.filter(inContainer);
   const symCount = new Map<string, number>();
   const firstSym = new Map<string, SymbolInfo>();
   const byModule = new Map<string, SymbolInfo[]>();
@@ -183,6 +189,7 @@ export function buildComponentSpec(
   const ordered = modules
     .slice()
     .sort((a, b) => (symCount.get(b) ?? 0) - (symCount.get(a) ?? 0) || a.localeCompare(b));
+  if (!ordered.length) return null; // nothing indexed in this scope — the caller says so honestly
   const shown = ordered.slice(0, MAX_MODULE_BOXES);
   const rest = ordered.length - shown.length;
 

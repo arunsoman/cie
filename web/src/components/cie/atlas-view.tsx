@@ -41,7 +41,7 @@ import {
 } from "@/lib/atlas";
 import { buildC4Spec, computeTopFlows, traceFlow, buildSequenceSpec, type MasteryRow } from "@/lib/mastery";
 import { ChatChart, type DiagramSelection } from "@/components/cie/chat-chart";
-import type { ChatChartSpec } from "@/lib/chat-chart";
+import type { ChatChartSpec, ElementLoc } from "@/lib/chat-chart";
 import type { SymbolInfo } from "@/lib/cie-types";
 
 /** The report once loaded — the type every atlas view reads from. */
@@ -84,9 +84,9 @@ export function AtlasView() {
       return buildC4Spec(report, "Containers — how the repo itself is laid out");
     }
     if (atlasView === "components") {
-      // scoped to a container when one is selected; zoomed into a module's
-      // symbols when the selection is a module
-      return buildComponentSpec(report, moduleRef ? moduleRef.id : containerRef ? containerRef.id : null);
+      // zoomed into a module's symbols when one is selected; otherwise the
+      // module boxes, scoped to the selected container when there is one
+      return buildComponentSpec(report, containerRef ? containerRef.id : null, undefined, moduleRef ? moduleRef.id : null);
     }
     if (atlasView === "dataflow") {
       return buildDataFlowSpec(report, containerRef ? containerRef.id : null);
@@ -124,7 +124,13 @@ export function AtlasView() {
     return inContainer.slice(0, 3);
   }, [report, containerRef]);
 
-  // ---- click routing: one handler, view-aware, into the Selection Context ----
+  // ---- click routing: one handler, view-aware, into the Selection Context.
+  // The atlas OWNS diagram clicks when this handler is passed (the chat
+  // fallback is suppressed), so it also does what the PRD's editor column
+  // promises: a symbol or module click opens the exact code alongside. ----
+  const openCodeFor = (loc: ElementLoc | undefined | null, label: string) => {
+    if (loc?.file) openSourceViewer({ file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, elName: label, chartTitle: "Atlas" });
+  };
   const onSelectElement = (sel: DiagramSelection) => {
     if (!report) return;
     if (atlasView === "containers" && sel.kind === "node") {
@@ -135,11 +141,14 @@ export function AtlasView() {
     if (atlasView === "components" && sel.kind === "node") {
       if (sel.id.startsWith("…")) return;
       const isFile = report.files.includes(sel.id);
-      if (isFile) setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
-      else {
+      if (isFile) {
+        setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
+        openCodeFor(sel.loc, sel.label); // editor opens the module's own file
+      } else {
         // a symbol box (module zoom) — select the symbol, sequence follows
         const sym = symbolByQualName(report, sel.id);
         setAtlasSelection({ kind: "symbol", id: sel.id, label: sel.label, loc: sel.loc ?? locOfSym(report, sym) });
+        openCodeFor(sel.loc ?? locOfSym(report, sym), sel.label); // editor at the exact symbol
       }
       return;
     }
@@ -150,6 +159,7 @@ export function AtlasView() {
       }
       if (report.files.includes(sel.id)) {
         setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
+        openCodeFor(sel.loc, sel.label);
         return;
       }
       return; // the unresolved bucket is evidence, not a scope
@@ -191,12 +201,12 @@ export function AtlasView() {
             </button>
           </span>
         ))}
+        <span className="flex-1" />
         {primary && (
           <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-stone-500" onClick={drillUp}>
             up one level
           </Button>
         )}
-        <span className="flex-1" />
         {primary && (
           <button
             type="button"
@@ -252,13 +262,13 @@ export function AtlasView() {
             onPick={(entryId, label) => setPickedFlow({ entryId, label })}
             onClearPick={() => setPickedFlow(null)}
             hasEntry={!!(symbolRef || pickedFlow)}
+            onSelectElement={onSelectElement}
           />
         ) : shownSpec ? (
           <Card className="border-stone-200 shadow-sm w-full">
             <CardContent className="p-4 sm:p-5">
-              <h2 className="text-sm font-semibold text-stone-800">{shownSpec.title}</h2>
-              {shownSpec.tell && <p className="text-xs text-stone-500 mt-0.5">{shownSpec.tell}</p>}
-              <div className="mt-3">
+              {/* ChatChart renders its own title/tell/footnote — no second header here */}
+              <div className="mt-1">
                 <ChatChart spec={shownSpec} onSelectElement={onSelectElement} />
               </div>
             </CardContent>
@@ -591,6 +601,7 @@ function SequencePane({
   onPick,
   onClearPick,
   hasEntry,
+  onSelectElement,
 }: {
   seqSpec: ChatChartSpec | null;
   flows: MasteryRow[];
@@ -599,34 +610,26 @@ function SequencePane({
   onPick: (entryId: number, label: string) => void;
   onClearPick: () => void;
   hasEntry: boolean;
+  onSelectElement: (sel: DiagramSelection) => void;
 }) {
   return (
     <div className="space-y-3">
       {hasEntry && seqSpec && (
         <Card className="border-stone-200 shadow-sm w-full">
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h2 className="text-sm font-semibold text-stone-800">{seqSpec.title}</h2>
-              <div className="flex items-center gap-2">
-                {traceInfo && (
-                  <Badge variant="outline" className="text-[10px] text-stone-500 border-stone-300">
-                    {traceInfo.steps} step{traceInfo.steps === 1 ? "" : "s"} drawn
-                    {traceInfo.truncated > 0 ? ` · ${traceInfo.truncated} reached but capped — counted, never hidden` : ""}
-                  </Badge>
-                )}
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={onClearPick}>
-                  clear
-                </Button>
-              </div>
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {traceInfo && (
+                <Badge variant="outline" className="text-[10px] text-stone-500 border-stone-300">
+                  {traceInfo.steps} step{traceInfo.steps === 1 ? "" : "s"} drawn
+                  {traceInfo.truncated > 0 ? ` · ${traceInfo.truncated} reached but capped — counted, never hidden` : ""}
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={onClearPick}>
+                clear
+              </Button>
             </div>
-            {seqSpec.tell && <p className="text-xs text-stone-500 mt-0.5">{seqSpec.tell}</p>}
-            {traceInfo && traceInfo.effects.length > 0 && (
-              <p className="text-[11px] text-stone-500 mt-1">
-                Effects this walk touches, as recorded: {traceInfo.effects.join(", ")}
-              </p>
-            )}
-            <div className="mt-3">
-              <ChatChart spec={seqSpec} />
+            <div className="mt-1">
+              <ChatChart spec={seqSpec} onSelectElement={onSelectElement} />
             </div>
           </CardContent>
         </Card>
