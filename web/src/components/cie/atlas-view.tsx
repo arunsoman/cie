@@ -23,21 +23,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, Home, Layers, Route, Share2, Boxes, MousePointerClick, ListTree } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ChevronRight, Home, Layers, Route, Share2, Boxes, MousePointerClick, ListTree, ExternalLink, PanelRightClose, PanelRightOpen, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import {
   breadcrumbOf,
   buildComponentSpec,
   buildDataFlowSpec,
+  calleesOfSym,
+  callersOf,
   containerOfPath,
   symbolsOfModule,
   symbolByQualName,
+  testsReaching,
   type AtlasRef,
+  type RelativeSymbol,
 } from "@/lib/atlas";
 import { buildC4Spec, computeTopFlows, traceFlow, buildSequenceSpec, type MasteryRow } from "@/lib/mastery";
 import { ChatChart, type DiagramSelection } from "@/components/cie/chat-chart";
 import type { ChatChartSpec } from "@/lib/chat-chart";
 import type { SymbolInfo } from "@/lib/cie-types";
+
+/** The report once loaded — the type every atlas view reads from. */
+type LoadedReport = NonNullable<ReturnType<typeof useCie.getState>["report"]>;
 
 const VIEWS = [
   { id: "containers", label: "Containers", icon: Boxes },
@@ -59,8 +67,9 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, concepts, atlasSelection, atlasView, atlasFactsOnly, setAtlasSelection, setAtlasView, setAtlasFactsOnly, drillUp, resetAtlas } = useCie();
+  const { report, concepts, atlasSelection, atlasView, atlasFactsOnly, setAtlasSelection, setAtlasView, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string } | null>(null);
+  const [railOpen, setRailOpen] = useState(true);
 
   const primary = atlasSelection.primary;
   const containerRef = primary?.kind === "container" ? primary : null;
@@ -165,7 +174,8 @@ export function AtlasView() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex h-full w-full">
+      <div className="flex flex-col flex-1 min-w-0">
       {/* breadcrumb + filter bar (PRD §7) */}
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-2 border-b border-stone-200/80 bg-white/70">
         <Home className="h-3.5 w-3.5 text-stone-400" aria-hidden />
@@ -187,7 +197,18 @@ export function AtlasView() {
           </Button>
         )}
         <span className="flex-1" />
-        <label className="flex items-center gap-1.5 text-[11px] text-stone-500 cursor-pointer select-none">
+        {primary && (
+          <button
+            type="button"
+            onClick={() => setRailOpen((o) => !o)}
+            className="h-6 px-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1 text-[11px]"
+            aria-label={railOpen ? "Hide the selection panel" : "Show the selection panel"}
+          >
+            {railOpen ? <PanelRightClose className="h-3.5 w-3.5" aria-hidden /> : <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />}
+            {railOpen ? "hide panel" : "details"}
+          </button>
+        )}
+        <label className="flex items-center gap-1.5 text-[11px] text-stone-500 cursor-pointer select-none pr-1">
           <Switch checked={atlasFactsOnly} onCheckedChange={setAtlasFactsOnly} aria-label="Facts only" className="scale-90" />
           Facts only
         </label>
@@ -265,13 +286,270 @@ export function AtlasView() {
           </Card>
         )}
       </div>
+      </div>
+
+      {/* the detail rail (PRD §5.6): evidence, callers, callees, tests, IDE links */}
+      {primary && railOpen && (
+        <div className="hidden md:block w-80 shrink-0 border-l border-stone-200 bg-stone-50/60">
+          <ScrollArea className="h-full">
+            <DetailRail
+              primary={primary}
+              onPickRef={(ref) => setAtlasSelection(ref)}
+              onOpenCode={(loc, label) =>
+                openSourceViewer({ file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, elName: label, chartTitle: "Atlas detail panel" })
+              }
+              sourceRoot={sourceRoot}
+            />
+          </ScrollArea>
+        </div>
+      )}
     </div>
   );
 }
 
-function locOfSym(report: NonNullable<ReturnType<typeof useCie.getState>["report"]>, sym: SymbolInfo | null) {
+function locOfSym(report: LoadedReport, sym: SymbolInfo | null) {
   if (!sym) return undefined;
   return { file: report.files[sym.loc.file] ?? "", byteStart: sym.loc.start, byteEnd: sym.loc.end };
+}
+
+// ---------------------------------------------------------------------------
+// Detail rail (PRD §5.6 + §9): Evidence & Provenance, Callers, Callees,
+// Tests that reach here, and honest IDE deep links.
+// ---------------------------------------------------------------------------
+
+function DetailRail({
+  primary,
+  onPickRef,
+  onOpenCode,
+  sourceRoot,
+}: {
+  primary: AtlasRef;
+  onPickRef: (ref: AtlasRef) => void;
+  onOpenCode: (loc: { file: string; byteStart?: number; byteEnd?: number }, label: string) => void;
+  sourceRoot: string | null;
+}) {
+  const report = useCie((s) => s.report);
+  const [ideFor, setIdeFor] = useState<"vscode" | "cursor" | "jetbrains">("vscode");
+  if (!report) return null;
+
+  const sym = primary.kind === "symbol" ? symbolByQualName(report, primary.id) : null;
+  const file = primary.kind === "module" ? primary.id : primary.kind === "symbol" ? sym?.loc.file != null ? report.files[sym.loc.file] : undefined : primary.loc?.file;
+  // IDE deep link (PRD §9): vscode://file/<abs> etc. Only for local-folder
+  // projects — uploads and URL clones have no path on this machine, and the
+  // rail says so instead of linking to nothing. Byte offsets are resolved to
+  // a line only inside the source panel, where the real content is present.
+  const ideHref = sourceRoot && file ? `${ideFor === "vscode" ? "vscode://file/" : ideFor === "cursor" ? "cursor://file/" : "jetbrains://idea/open?file="}${sourceRoot}/${file}` : null;
+
+  return (
+    <div className="p-3 space-y-3 text-xs">
+      <div>
+        <p className="text-[10px] uppercase tracking-wide text-stone-400 font-semibold">Selected</p>
+        <p className="text-[13px] font-semibold text-stone-800 break-words">{primary.label}</p>
+        <p className="text-[11px] text-stone-500">
+          {primary.kind === "symbol" ? "a named thing (function/class)" : primary.kind === "module" ? "a module — one file" : primary.kind === "container" ? "a container — one top-level folder" : primary.kind === "store" ? "a data store" : "an element"}
+          {file ? ` · ${file}` : ""}
+        </p>
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {file && (
+            <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => onOpenCode({ file, byteStart: primary.loc?.byteStart, byteEnd: primary.loc?.byteEnd }, primary.label)}>
+              <FileCode className="h-3 w-3 mr-1" aria-hidden /> Open the code
+            </Button>
+          )}
+          {file && sourceRoot && ideHref && (
+            <a href={ideHref} title="Open this file in your IDE" className="h-6 px-2 inline-flex items-center rounded-md border border-stone-300 bg-white text-[11px] text-stone-600 hover:bg-stone-100">
+              <ExternalLink className="h-3 w-3 mr-1" aria-hidden /> {ideFor}
+            </a>
+          )}
+        </div>
+        {file && sourceRoot && (
+          <p className="mt-1 flex gap-2 text-[10px] text-stone-400">
+            {(["vscode", "cursor", "jetbrains"] as const).map((i) => (
+              <button key={i} type="button" onClick={() => setIdeFor(i)} className={ideFor === i ? "underline text-stone-600" : "hover:text-stone-600"}>
+                {i}
+              </button>
+            ))}
+            <span>· deep link only for local folders — uploads/URL clones have no path on this machine</span>
+          </p>
+        )}
+        {file && !sourceRoot && (
+          <p className="mt-1 text-[10px] text-stone-400">IDE deep links need a local folder — this project has no readable path here, so the panel serves the code instead.</p>
+        )}
+      </div>
+
+      {sym && <SymbolRelatives report={report} sym={sym} onPickRef={onPickRef} onOpenCode={onOpenCode} />}
+
+      {primary.kind === "module" && (
+        <RailSection title="What the engine recorded">
+          <ul className="space-y-1">
+            {symbolsOfModule(report, primary.id).slice(0, 8).map((s) => (
+              <li key={s.id}>
+                <button type="button" className="text-left text-emerald-800 hover:underline" onClick={() => onPickRef({ kind: "symbol", id: s.qual_name || s.name, label: s.name, loc: { file: primary.id, byteStart: s.loc.start, byteEnd: s.loc.end } })}>
+                  {s.name}()
+                </button>
+              </li>
+            ))}
+          </ul>
+        </RailSection>
+      )}
+
+      {primary.kind === "container" && <ContainerEvidence report={report} container={primary.id} />}
+
+      {primary.kind === "store" && (
+        <RailSection title="Why this store is here">
+          <p className="text-[11px] text-stone-500">
+            {primary.id.startsWith("store:")
+              ? "The code's own records name it in reads/writes — it is drawn because real symbols touch it, not because a doc said so."
+              : "A schema file in the repo — the store the code itself declares."}
+          </p>
+        </RailSection>
+      )}
+
+      <Separator />
+      <EvidenceNote report={report} />
+    </div>
+  );
+}
+
+function RailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wide text-stone-400 font-semibold">{title}</p>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+/** Callers / callees / tests that reach here — straight from the shared call
+ *  graph; each row carries its Fact/Inference status and opens the code. */
+function SymbolRelatives({
+  report,
+  sym,
+  onPickRef,
+  onOpenCode,
+}: {
+  report: LoadedReport;
+  sym: SymbolInfo;
+  onPickRef: (ref: AtlasRef) => void;
+  onOpenCode: (loc: { file: string; byteStart?: number; byteEnd?: number }, label: string) => void;
+}) {
+  const id = Number(sym.id);
+  const callers = callersOf(report, id);
+  const callees = calleesOfSym(report, id);
+  const tests = testsReaching(report, id);
+  const fileOfRel = (r: RelativeSymbol) => r.file;
+
+  const pick = (r: RelativeSymbol): AtlasRef => ({ kind: "symbol", id: r.qualName, label: r.qualName, loc: { file: r.file, byteStart: r.byteStart, byteEnd: r.byteEnd } });
+
+  return (
+    <>
+      <RailSection title={`Callers (${callers.length})`}>
+        {callers.length ? (
+          <ul className="space-y-1">
+            {callers.slice(0, 6).map((c) => (
+              <li key={c.id} className="flex items-baseline justify-between gap-1">
+                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
+                  {c.qualName}
+                </button>
+                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open ${c.qualName} in the source panel`} onClick={() => onOpenCode({ file: fileOfRel(c), byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
+                  <FileCode className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-stone-500">No recorded caller — reached from outside the indexed calls, or an entry point.</p>
+        )}
+      </RailSection>
+      <RailSection title={`Callees (${callees.length})`}>
+        {callees.length ? (
+          <ul className="space-y-1">
+            {callees.slice(0, 6).map((c) => (
+              <li key={c.id} className="flex items-baseline justify-between gap-1">
+                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
+                  {c.qualName}
+                </button>
+                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open ${c.qualName} in the source panel`} onClick={() => onOpenCode({ file: c.file, byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
+                  <FileCode className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-stone-500">No resolved callee recorded.</p>
+        )}
+      </RailSection>
+      <RailSection title={`Tests that reach here (${tests.length})`}>
+        {tests.length ? (
+          <ul className="space-y-1">
+            {tests.slice(0, 4).map((c) => (
+              <li key={c.id} className="flex items-baseline justify-between gap-1">
+                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
+                  {c.qualName}
+                </button>
+                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open the test ${c.qualName}`} onClick={() => onOpenCode({ file: c.file, byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
+                  <FlaskConical className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-stone-500">No test file reaches this symbol through recorded calls — a gap worth knowing, stated plainly.</p>
+        )}
+      </RailSection>
+      <SummaryEvidence report={report} symId={id} />
+    </>
+  );
+}
+
+/** Per-symbol evidence: the engine's own summary record, never paraphrased
+ *  into more certainty than it carries. */
+function SummaryEvidence({ report, symId }: { report: LoadedReport; symId: number }) {
+  const sum = report.summaries.find((s) => Number(s.sym) === symId);
+  return (
+    <RailSection title="Evidence & provenance">
+      {sum ? (
+        <ul className="space-y-0.5 text-[11px] text-stone-600">
+          <li className="flex items-center gap-1.5">
+            <ShieldCheck className={`h-3 w-3 ${sum.complete ? "text-emerald-600" : "text-amber-500"}`} aria-hidden />
+            {sum.complete ? "complete — the engine fully read this symbol" : "incomplete — the engine says this summary is partial"}
+          </li>
+          {sum.reads.length > 0 && <li>reads: {sum.reads.slice(0, 3).join(", ")}</li>}
+          {sum.writes.length > 0 && <li>writes: {sum.writes.slice(0, 3).join(", ")}</li>}
+          {sum.effects.length > 0 && <li>effects: {sum.effects.slice(0, 3).join(", ")}</li>}
+          {sum.unresolved_callees.length > 0 && <li className="text-amber-700">names it reaches for that the engine could not resolve: {sum.unresolved_callees.slice(0, 2).join(", ")}</li>}
+        </ul>
+      ) : (
+        <p className="text-[11px] text-stone-500">No summary record for this symbol — shown as inferred everywhere, never as fact.</p>
+      )}
+    </RailSection>
+  );
+}
+
+function ContainerEvidence({ report, container }: { report: LoadedReport; container: string }) {
+  const files = report.files.filter((f) => containerOfPath(f) === container);
+  const syms = files.length ? report.symbols.filter((s) => files.includes(report.files[s.loc.file])) : [];
+  return (
+    <RailSection title="What lives here">
+      <ul className="space-y-0.5 text-[11px] text-stone-600">
+        <li>{files.length} file(s), {syms.length} named thing(s) — counted, not guessed.</li>
+        <li>The Components view zooms into exactly these files.</li>
+      </ul>
+    </RailSection>
+  );
+}
+
+/** Project-level provenance: where every picture on this page comes from. */
+function EvidenceNote({ report }: { report: LoadedReport }) {
+  const ev = report.evidence;
+  return (
+    <RailSection title="Provenance for this whole page">
+      <ul className="space-y-0.5 text-[11px] text-stone-600">
+        <li>Every box and arrow is built from report.json — the engine's own export — through the same chart engines the chat uses.</li>
+        <li>Unresolved calls recorded: {ev.unresolved.length}. Unsupported constructs: {ev.unsupported.length}. Both stay named, never dropped.</li>
+        <li>Assumptions on record: {ev.assumptions.length ? ev.assumptions.length : "none"}. Provenance: {ev.provenance}.</li>
+      </ul>
+    </RailSection>
+  );
 }
 
 /** The PRD's interaction model, said out loud: each click names what the
