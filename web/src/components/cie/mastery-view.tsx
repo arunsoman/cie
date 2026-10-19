@@ -89,7 +89,18 @@ function StackParagraph({ stack, hasReport, noProject }: { stack: TechStack | nu
     });
     parts.push({ text: " Read as written; CIE doesn't build or run containers." });
   }
-  const cfg = stack.config[0];
+  // one repo, several complete apps — say so plainly when detection saw it
+  const apps = stack.apps ?? [];
+  if (apps.length > 1) {
+    parts.push({
+      text: ` ${apps.length} applications detected — each a complete app in its own directory: ${apps
+        .slice(0, 5)
+        .map((a) => `${a.dir || "the repo root"} (${a.framework})`)
+        .join(", ")}${apps.length > 5 ? ", …" : ""}.`,
+    });
+  }
+
+  const cfg = (stack.config ?? []).find((c) => c.port);
   if (cfg?.port) {
     parts.push({ text: ` The code says it listens on port ${cfg.port}`, evidence: { rel: cfg.rel } });
     parts.push({ text: "." });
@@ -165,26 +176,31 @@ function MainsGraph({ stack, hasReport }: { stack: TechStack | null; hasReport: 
     );
   }
 
-  if (mains.length > 0 && jvm) {
+  if (mains.length > 0) {
     const items: { label: string; sub: string; rel?: string; line?: number }[] = [];
-    const cfg = stack?.config[0];
+    const cfg = (stack?.config ?? []).find((c) => c.port);
     if (cfg?.port) {
       items.push({ label: `listens on :${cfg.port}`, sub: cfg.rel.split("/").pop() ?? "", rel: cfg.rel });
     }
-    if (jvm.scheduledIn.length > 0) {
-      items.push({ label: `${jvm.scheduledIn.length} scheduled job(s)`, sub: jvm.scheduledIn.slice(0, 3).map((s) => `${s.cls}.${s.method}`).join(", ") + (jvm.scheduledIn.length > 3 ? ", …" : ""), rel: jvm.scheduledIn[0].rel, line: jvm.scheduledIn[0].line });
+    const flows = stack?.flows ?? [];
+    if (flows.length > 0) {
+      items.push({ label: `${stack?.routes.length ?? 0} HTTP route(s)`, sub: flows.map((f) => f.name).slice(0, 4).join(", "), rel: flows[0]?.rel });
     }
-    if (jvm.listeners.length > 0) {
-      items.push({ label: `${jvm.listeners.length} listener(s)`, sub: jvm.listeners.slice(0, 3).map((s) => `${s.cls}.${s.method}${s.target ? ` → ${s.target}` : ""}`).join(", ") + (jvm.listeners.length > 3 ? ", …" : ""), rel: jvm.listeners[0].rel, line: jvm.listeners[0].line });
+    if (jvm) {
+      if (jvm.scheduledIn.length > 0) {
+        items.push({ label: `${jvm.scheduledIn.length} scheduled job(s)`, sub: jvm.scheduledIn.slice(0, 3).map((s) => `${s.cls}.${s.method}`).join(", ") + (jvm.scheduledIn.length > 3 ? ", …" : ""), rel: jvm.scheduledIn[0].rel, line: jvm.scheduledIn[0].line });
+      }
+      if (jvm.listeners.length > 0) {
+        items.push({ label: `${jvm.listeners.length} listener(s)`, sub: jvm.listeners.slice(0, 3).map((s) => `${s.cls}.${s.method}${s.target ? ` → ${s.target}` : ""}`).join(", ") + (jvm.listeners.length > 3 ? ", …" : ""), rel: jvm.listeners[0].rel, line: jvm.listeners[0].line });
+      }
+      items.push({
+        label: `${jvm.services.length} service(s) → ${jvm.repositories.length} repo(s)`,
+        sub: jvm.entities.slice(0, 3).map((e) => e.name + (e.table ? ` (${e.table})` : "")).join(", ") || "—",
+        rel: jvm.services[0]?.rel,
+        line: jvm.services[0]?.line,
+      });
     }
-    items.push({ label: `${stack?.routes.length ?? 0} HTTP route(s)`, sub: jvm.flows.map((f) => f.name).slice(0, 4).join(", "), rel: jvm.flows[0]?.rel });
-    items.push({
-      label: `${jvm.services.length} service(s) → ${jvm.repositories.length} repo(s)`,
-      sub: jvm.entities.slice(0, 3).map((e) => e.name + (e.table ? ` (${e.table})` : "")).join(", ") || "—",
-      rel: jvm.services[0]?.rel,
-      line: jvm.services[0]?.line,
-    });
-    return <MainsTree mains={mains} items={items} langNote={jvm.javaFiles > 0 && jvm.kotlinFiles > 0 ? "one runtime, two syntaxes" : undefined} />;
+    return <MainsTree mains={mains} items={items} langNote={jvm && jvm.javaFiles > 0 && jvm.kotlinFiles > 0 ? "one runtime, two syntaxes" : undefined} />;
   }
 
   return <EngineFallbackGraph hasReport={hasReport} />;
@@ -213,7 +229,7 @@ function MainsTree({
           ))}
         </div>
         {mains.length > 1 && (
-          <p className="text-[10.5px] text-stone-400 mb-1">{mains.length} application class(es) parsed — the facts below are repo-wide; per-service归属 not inferred.</p>
+          <p className="text-[10.5px] text-stone-400 mb-1">{mains.length} application class(es) parsed — the facts below are repo-wide; per-service ownership not inferred.</p>
         )}
         {/* everything the boot point(s) switch on */}
         <div className="grid sm:grid-cols-2 gap-2 w-full max-w-xl">
@@ -233,6 +249,17 @@ function MainsTree({
   );
 }
 
+function BOOT_LABEL(kind: string): string {
+  switch (kind) {
+    case "spring-boot": return "@SpringBootApplication";
+    case "express-listen": return "app.listen()";
+    case "axum-serve": return "axum::serve";
+    case "flask-run": return "app.run()";
+    case "fastapi-serve": return "uvicorn.run()";
+    default: return kind;
+  }
+}
+
 function MainPill({ main }: { main: TechStack["mains"][number] }) {
   const openSourceViewer = useCie((s) => s.openSourceViewer);
   return (
@@ -244,7 +271,7 @@ function MainPill({ main }: { main: TechStack["mains"][number] }) {
     >
       <span className="block text-[13px] font-bold">{main.name}</span>
       <span className="block text-[10px] opacity-80 font-mono">
-        {main.rel.split("/").pop()}:{main.line} · @SpringBootApplication
+        {main.rel.split("/").pop()}:{main.line} · {BOOT_LABEL(main.kind)}
       </span>
     </button>
   );
@@ -308,7 +335,8 @@ function ControllersTable({ stack }: { stack: TechStack | null }) {
       </div>
     );
   }
-  // group the flat routes by owner class, in first-seen order
+  // group the flat routes by owner class, in first-seen order;
+  // multi-app repos say WHICH app (the service) each controller serves
   const byOwner = new Map<string, TechStack["routes"]>();
   const order: string[] = [];
   for (const r of routes) {
@@ -318,6 +346,7 @@ function ControllersTable({ stack }: { stack: TechStack | null }) {
     }
     byOwner.get(r.owner)!.push(r);
   }
+  const services = new Set(routes.map((r) => r.service).filter(Boolean) as string[]);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
@@ -335,7 +364,14 @@ function ControllersTable({ stack }: { stack: TechStack | null }) {
             const first = rs[0];
             return (
               <tr key={owner} className="border-b border-stone-50 hover:bg-emerald-50/40 align-top">
-                <td className="py-2 px-3 font-mono text-[12px] font-semibold">{owner}</td>
+                <td className="py-2 px-3 font-mono text-[12px] font-semibold">
+                  {owner}
+                  {services.size > 1 && (
+                    <span className="ml-1.5 rounded bg-emerald-50 border border-emerald-200 px-1 py-0 text-[9px] text-emerald-800 align-middle">
+                      {(first.service ?? "shared").split("/").pop()}
+                    </span>
+                  )}
+                </td>
                 <td className="py-2 px-3">
                   <span className="rounded-full bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10.5px] font-bold text-stone-700">{rs.length}</span>
                 </td>
@@ -364,7 +400,7 @@ function ControllersTable({ stack }: { stack: TechStack | null }) {
         </tbody>
       </table>
       <p className="px-3 pb-2.5 pt-1.5 text-[10.5px] text-stone-400">
-        {order.length} controller(s), {routes.length} route(s) — read from the annotations as written; each endpoint chip opens the exact code.
+        {order.length} controller(s), {routes.length} route(s){services.size > 1 ? `, ${services.size} service(s) — one repo, several apps` : ""} — read from the code (annotations, decorators, router macros) as written; each endpoint chip opens the exact file/line.
       </p>
     </div>
   );
@@ -634,7 +670,7 @@ export function MasteryView() {
   }, [source, label, loadMastery]);
 
   const noProject = !report;
-  const controllers = stack?.jvm?.flows ?? [];
+  const controllers = stack?.flows ?? [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-5" aria-label="Master this codebase">
@@ -705,9 +741,7 @@ function FlowsGallery({
       <div className="p-3">
         <p className="text-[12px] text-stone-600">
           {stack
-            ? stack.jvm
-              ? "No handler flows were parsed — the routes table above is where every claim stops, with its evidence."
-              : "No data-flow parser for this stack yet — the sections above carry the honest read instead. Connect a Spring/java project (the “Use your own” dialog) and every route gets a diagram here."
+            ? "No handler flows were parsed — the routes table above is where every claim stops, with its evidence."
             : "Connect the project (or load the sample) to get the flows."}
         </p>
       </div>

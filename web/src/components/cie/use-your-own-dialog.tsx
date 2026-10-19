@@ -981,7 +981,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
 // ---------- mode 2: upload files (the `cie` CLI exports) ----------
 
 function UploadFiles({ onClosed }: { onClosed: (open: boolean) => void }) {
-  const { setCustom, reset, loadSpringDemo } = useCie();
+  const { setCustom, loadSpringDemo, loadPolyglotDemo, loadDemo } = useCie();
   const { toast } = useToast();
   const reportRef = useRef<HTMLInputElement>(null);
   const vizRef = useRef<HTMLInputElement>(null);
@@ -1061,7 +1061,7 @@ function UploadFiles({ onClosed }: { onClosed: (open: boolean) => void }) {
         <Button onClick={apply} className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white">
           Show my project
         </Button>
-        <Button variant="outline" onClick={() => { reset(); toast({ title: "Back to the sample project" }); }}>
+        <Button variant="outline" onClick={() => { void loadDemo("polyglot"); onClosed(false); toast({ title: "Loaded: the five-service polyglot sample (Java, Kotlin, Rust, TypeScript, Python)" }); }}>
           Use sample
         </Button>
         <DropdownMenu>
@@ -1080,6 +1080,26 @@ function UploadFiles({ onClosed }: { onClosed: (open: boolean) => void }) {
             >
               <span className="h-2 w-2 rounded-full bg-emerald-600 mr-1" aria-hidden />
               Spring Boot service — Java + Kotlin, the full four sections
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                void loadPolyglotDemo();
+                onClosed(false);
+                toast({ title: "Loaded: the five-service polyglot sample (Java, Kotlin, Rust, TypeScript, Python)" });
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-sky-600 mr-1" aria-hidden />
+              Five-service harbor system — the polyglot one (default)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                void loadDemo("banking");
+                onClosed(false);
+                toast({ title: "Loaded: the small banking sample (Python)" });
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-amber-600 mr-1" aria-hidden />
+              Small banking app — the original honest-stub one
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

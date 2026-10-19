@@ -1,0 +1,161 @@
+{
+ "table": {
+  "deps": [
+   {
+    "ecosystem": "cargo",
+    "licence": null,
+    "name": "axum",
+    "scope": "runtime",
+    "source": "tide-alerts/Cargo.toml",
+    "version_req": "0.7"
+   },
+   {
+    "ecosystem": "cargo",
+    "licence": null,
+    "name": "serde",
+    "scope": "runtime",
+    "source": "tide-alerts/Cargo.toml",
+    "version_req": "1"
+   },
+   {
+    "ecosystem": "cargo",
+    "licence": null,
+    "name": "serde_json",
+    "scope": "runtime",
+    "source": "tide-alerts/Cargo.toml",
+    "version_req": "1"
+   },
+   {
+    "ecosystem": "cargo",
+    "licence": null,
+    "name": "tokio",
+    "scope": "runtime",
+    "source": "tide-alerts/Cargo.toml",
+    "version_req": "1"
+   },
+   {
+    "ecosystem": "gradle",
+    "licence": null,
+    "name": "com.fasterxml.jackson.module:jackson-module-kotlin",
+    "scope": "runtime",
+    "source": "billing/build.gradle.kts",
+    "version_req": ""
+   },
+   {
+    "ecosystem": "gradle",
+    "licence": null,
+    "name": "org.springframework.boot:spring-boot-starter-web",
+    "scope": "runtime",
+    "source": "billing/build.gradle.kts",
+    "version_req": ""
+   },
+   {
+    "ecosystem": "maven",
+    "licence": null,
+    "name": "org.springframework.boot:spring-boot-starter-data-jpa",
+    "scope": "runtime",
+    "source": "berth-booking/pom.xml",
+    "version_req": ""
+   },
+   {
+    "ecosystem": "maven",
+    "licence": null,
+    "name": "org.springframework.boot:spring-boot-starter-web",
+    "scope": "runtime",
+    "source": "berth-booking/pom.xml",
+    "version_req": ""
+   },
+   {
+    "ecosystem": "npm",
+    "licence": null,
+    "name": "express",
+    "scope": "runtime",
+    "source": "search/package.json",
+    "version_req": "4.19.2"
+   },
+   {
+    "ecosystem": "pypi",
+    "licence": null,
+    "name": "flask",
+    "scope": "runtime",
+    "source": "webhooks/requirements.txt",
+    "version_req": "==3.0.3"
+   }
+  ],
+  "files_scanned": 5,
+  "unparsed": []
+ },
+ "usage": [
+  {
+   "ecosystem": "cargo",
+   "imported_by": [],
+   "name": "axum",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "cargo",
+   "imported_by": [],
+   "name": "serde",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "cargo",
+   "imported_by": [],
+   "name": "serde_json",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "cargo",
+   "imported_by": [],
+   "name": "tokio",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "gradle",
+   "imported_by": [],
+   "name": "com.fasterxml.jackson.module:jackson-module-kotlin",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "gradle",
+   "imported_by": [],
+   "name": "org.springframework.boot:spring-boot-starter-web",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "maven",
+   "imported_by": [],
+   "name": "org.springframework.boot:spring-boot-starter-data-jpa",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "maven",
+   "imported_by": [],
+   "name": "org.springframework.boot:spring-boot-starter-web",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "npm",
+   "imported_by": [],
+   "name": "express",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "pypi",
+   "imported_by": [],
+   "name": "flask",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  }
+ ],
+ "what_if": null
+}

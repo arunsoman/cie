@@ -24,6 +24,10 @@ export interface TechStack {
   routes: RouteSite[];
   /** every stack's mains (spring-boot class, rust fn main, …) */
   mains: MainSite[];
+  /** branch-capable per-route data flows — one per handler file, ALL stacks */
+  flows: ControllerFlow[];
+  /** detected applications (one per manifest found, any depth) */
+  apps: AppSite[];
   /** app config file facts (port, profiles, datasource) — as written */
   config: StackConfigEntry[];
   /** plain notes: what the build files didn't say, plus honest caps */
@@ -75,7 +79,19 @@ export interface StackConfigEntry {
   port?: number;
   profiles?: string;
   datasource?: string; // url AS WRITTEN (may name an env var — that's fine, quoted as written)
+  /** the app directory this config belongs to (multi-app repos) */
+  service?: string;
   note: string;
+}
+
+/** one detected application — a manifest at any depth starts an app */
+export interface AppSite {
+  /** the directory the build file lives in ("" = the repo root) */
+  dir: string;
+  name: string;
+  build: string;
+  framework: string;
+  evidence: string;
 }
 
 // ---- generic per-stack routes + mains (every parser fills these) ----
@@ -92,6 +108,8 @@ export interface RouteSite {
   returns: string;
   /** the annotation/route text that grounded the claim */
   evidence: string;
+  /** the app directory this route serves (multi-app repos); "" = root */
+  service?: string;
 }
 
 export interface MainSite {
@@ -116,8 +134,6 @@ export interface JvmStack {
   listeners: JvmListener[];
   /** outbound messaging/http the code itself names */
   outbound: JvmOutbound[];
-  /** branch-capable per-controller data flows */
-  flows: ControllerFlow[];
   /** .java + .kt files scanned (NOT counting src/test) */
   scanned: number;
   javaFiles: number;
@@ -242,6 +258,11 @@ export function stackDetail(s: TechStack): string {
   const jvm = s.jvm;
   if (jvm) {
     parts.push(`${s.routes.length} route(s), ${jvm.services.length} service(s), ${jvm.repositories.length} repository(ies), ${jvm.entities.length} entity/entities, ${jvm.scheduledIn.length} scheduled, ${jvm.listeners.length} listener(s)`);
+  }
+  if (s.apps && s.apps.length > 1) {
+    parts.push(
+      `${s.apps.length} application(s) detected: ${s.apps.slice(0, 5).map((a) => `${a.dir || "root"} (${a.framework})`).join(", ")}`
+    );
   }
   if (s.docker.present) {
     const dports = s.docker.dockerfiles.flatMap((d) => d.exposedPorts);

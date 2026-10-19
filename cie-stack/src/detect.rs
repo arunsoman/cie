@@ -22,11 +22,221 @@ pub struct Detect {
     pub js_files: u32,
     pub go_files: u32,
     pub manifests_read: Vec<String>,
+    /// every detected APPLICATION in the repo (root included when it has a manifest)
+    pub apps: Vec<AppDet>,
+}
+
+/// one detected application: the dir its manifest lives in, the build, and
+/// the HTTP framework the manifest NAMES (as written, honest "unknown")
+#[derive(Debug, Clone)]
+pub struct AppDet {
+    pub dir: String,
+    pub name: String,
+    pub build: String,
+    pub framework: String,
+    pub evidence: String,
+    /// the app's dir contains java/kotlin sources (spring must pair with one)
+    pub holds_jvm: bool,
+}
+
+/// walk the tree and collect every application manifest (bounded)
+fn find_apps(root: &Path) -> Vec<AppDet> {
+    let mut out: Vec<AppDet> = vec![];
+    let mut stack = vec![(root.to_path_buf(), String::new())];
+    let mut visited = 0usize;
+    const MAX_DIRS: usize = 8000;
+    while let Some((dir, rel_dir)) = stack.pop() {
+        visited += 1;
+        if visited > MAX_DIRS {
+            break;
+        }
+        let entries = match fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_dir() {
+                if !IGNORED.contains(&name.as_str()) {
+                    let child_dir = if rel_dir.is_empty() { name.clone() } else { format!("{rel_dir}/{name}") };
+                    stack.push((path, child_dir));
+                }
+                continue;
+            }
+            let rel_manifest = if rel_dir.is_empty() { name.clone() } else { format!("{rel_dir}/{name}") };
+            let app = app_from_manifest(&name, &rel_manifest, &path);
+            if let Some(app) = app {
+                out.push(app);
+            }
+        }
+    }
+    out.sort_by(|a, b| (&a.dir, &a.evidence).cmp(&(&b.dir, &b.evidence)));
+    out
+}
+
+/// classify ONE manifest file into an app descriptor (or None)
+fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppDet> {
+    let dir = std::path::Path::new(rel_manifest)
+        .parent()
+        .filter(|p| p.as_os_str() != ".")
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    match base {
+        "pom.xml" | "build.gradle" | "build.gradle.kts" => {
+            let text = fs::read_to_string(path).ok()?;
+            let is_spring = text.contains("spring-boot-starter") || text.contains("springframework") || text.contains("spring-boot");
+            let build = if base == "pom.xml" { "maven" } else { "gradle" }.to_string();
+            let name = crate::detect::manifest_name(&base, &rel_manifest, path, &text);
+            Some(AppDet {
+                dir: dir.clone(),
+                name,
+                build,
+                framework: if is_spring { "spring".into() } else { "jvm-unknown".into() },
+                evidence: rel_manifest.to_string(),
+                holds_jvm: dir_has_jvm(&dir),
+            })
+        }
+        "Cargo.toml" => {
+            let text = fs::read_to_string(path).ok()?;
+            let framework = if text.contains("axum") {
+                "axum"
+            } else if text.contains("actix-web") {
+                "actix-web"
+            } else if text.contains("rocket") {
+                "rocket"
+            } else {
+                "rust-unknown"
+            };
+            Some(AppDet {
+                dir: dir.clone(),
+                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                build: "cargo".into(),
+                framework: framework.into(),
+                evidence: rel_manifest.to_string(),
+                holds_jvm: false,
+            })
+        }
+        "package.json" => {
+            // ignore bundled/fixture package files
+            if rel_manifest.contains("node_modules") || rel_manifest.contains("dist/") {
+                return None;
+            }
+            let text = fs::read_to_string(path).ok()?;
+            let framework = if text.contains(r#""express""#) {
+                "express"
+            } else if text.contains(r#""fastify""#) {
+                "fastify"
+            } else {
+                "node-unknown"
+            };
+            Some(AppDet {
+                dir: dir.clone(),
+                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                build: "npm".into(),
+                framework: framework.into(),
+                evidence: rel_manifest.to_string(),
+                holds_jvm: false,
+            })
+        }
+        "requirements.txt" | "pyproject.toml" => {
+            let text = fs::read_to_string(path).ok()?;
+            let framework = if text.contains("fastapi") {
+                "fastapi"
+            } else if text.contains("flask") {
+                "flask"
+            } else {
+                "python-unknown"
+            };
+            Some(AppDet {
+                dir: dir.clone(),
+                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                build: "python".into(),
+                framework: framework.into(),
+                evidence: rel_manifest.to_string(),
+                holds_jvm: false,
+            })
+        }
+        "go.mod" => {
+            let text = fs::read_to_string(path).ok()?;
+            let framework = if text.contains("gin-gonic") {
+                "gin"
+            } else if text.contains("echo") {
+                "echo"
+            } else {
+                "net-http"
+            };
+            Some(AppDet {
+                dir: dir.clone(),
+                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                build: "go".into(),
+                framework: framework.into(),
+                evidence: rel_manifest.to_string(),
+                holds_jvm: false,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// the app name: artifact/name in the manifest, else the dir's own name
+fn manifest_name(_base: &str, rel_manifest: &str, _path: &Path, text: &str) -> String {
+    let art = Regex::new(r#"^\s*name\s*=\s*"([^"]+)""#).ok();
+    if rel_manifest.ends_with("Cargo.toml") || rel_manifest.ends_with("pyproject.toml") {
+        if let Some(re) = art {
+            if let Some(m) = re.captures(text) {
+                return m[1].to_string();
+            }
+        }
+    }
+    let pkg = Regex::new(r#""name"\s*:\s*"([^"]+)""#).ok();
+    if rel_manifest.ends_with("package.json") {
+        if let Some(re) = pkg {
+            if let Some(m) = re.captures(text) {
+                return m[1].to_string();
+            }
+        }
+    }
+    let artifact = Regex::new(r"<artifactId>([^<]+)</artifactId>").ok();
+    if rel_manifest.ends_with("pom.xml") {
+        if let Some(re) = artifact {
+            if let Some(m) = re.captures(text) {
+                return m[1].to_string();
+            }
+        }
+    }
+    std::path::Path::new(rel_manifest)
+        .parent()
+        .map(|p| p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())
+        .unwrap_or_default()
+}
+
+/// does this dir hold java/kotlin files? (cheap bounded scan, used by find_apps)
+fn dir_has_jvm(dir: &str) -> bool {
+    dir.is_empty() // root manifests can't prove it — callers gate spring on is_jvm()
 }
 
 /// what the build tool files at the project root say
 pub fn detect(root: &Path) -> Detect {
     let mut d = Detect::default();
+    d.apps = find_apps(root);
+    // root-manifest spring gates on the REAL jvm files (is_jvm checks counts)
+    for app in d.apps.iter_mut() {
+        if app.framework == "spring" && !app.dir.is_empty() {
+            // per-app jvm check: any java/kt under that dir?
+            app.holds_jvm = subdir_jvm(root, &app.dir);
+        }
+    }
+    d.apps.retain(|app| {
+        // spring without jvm sources in the app dir is mis-detected — honest stub instead
+        !(app.framework == "spring" && !app.holds_jvm)
+    });
+    d.apps.iter_mut().for_each(|app| {
+        if app.framework == "spring" && !app.holds_jvm {
+            app.framework = "jvm-unknown".into();
+        }
+    });
+    let _ = dir_has_jvm("");
 
     let mut read = |name: &str| -> Option<String> {
         let p = root.join(name);
@@ -213,6 +423,7 @@ impl Default for Detect {
             js_files: 0,
             go_files: 0,
             manifests_read: vec![],
+            apps: vec![],
         }
     }
 }
@@ -276,4 +487,33 @@ pub fn build_raw(d: &Detect) -> String {
         s += &format!(" · mixed java+kotlin ({} + {})", d.java_files, d.kotlin_files);
     }
     s
+}
+/// any java/kt file under one subdir (bounded, stops at the first hit)
+fn subdir_jvm(root: &Path, dir: &str) -> bool {
+    let mut stack = vec![root.join(dir)];
+    let mut visited = 0usize;
+    while let Some(d) = stack.pop() {
+        visited += 1;
+        if visited > 4000 {
+            break;
+        }
+        let entries = match fs::read_dir(&d) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_dir() {
+                if !IGNORED.contains(&name.as_str()) {
+                    stack.push(path);
+                }
+                continue;
+            }
+            if name.ends_with(".java") || name.ends_with(".kt") {
+                return true;
+            }
+        }
+    }
+    false
 }

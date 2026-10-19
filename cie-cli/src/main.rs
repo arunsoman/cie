@@ -349,7 +349,7 @@ fn run(cli: Cli) -> i32 {
                     jvm.scheduled_in.len(),
                     jvm.listeners.len()
                 );
-                for f in &jvm.flows {
+                for f in &report.flows {
                     println!("  controller · {} ({})", f.name, f.rel);
                 }
             }

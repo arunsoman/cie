@@ -122,9 +122,10 @@ interface CieState {
   sourceRoot: string | null; // absolute root of a consented local-folder project (URL clones are deleted after analysis — null there, honestly)
   sourceCache: Record<string, string>; // fetched file contents, by repo-relative path
 
-  demoKind: "banking" | "spring"; // which bundled sample is loaded
-  loadDemo: (kind?: "banking" | "spring") => Promise<void>;
+  demoKind: "banking" | "spring" | "polyglot"; // which bundled sample is loaded
+  loadDemo: (kind?: "banking" | "spring" | "polyglot") => Promise<void>;
   loadSpringDemo: () => Promise<void>; // the second bundled sample — the Spring/Java+Kotlin stand-in
+  loadPolyglotDemo: () => Promise<void>; // the polyglot five-service sample — the default one
   setCustom: (
     report: CieReport | null,
     viewspec: CieViewSpec | null,
@@ -186,7 +187,7 @@ export const useCie = create<CieState>((set, get) => ({
   overlap: null,
   drift: null,
   stack: null,
-  demoKind: "banking",
+  demoKind: "polyglot",
   source: null,
   label: "",
   loading: true,
@@ -211,8 +212,8 @@ export const useCie = create<CieState>((set, get) => ({
   atlasFactsOnly: false,
 
   loadDemo: async (kind) => {
-    const demoKind = kind ?? get().demoKind ?? "banking";
-    const dir = demoKind === "spring" ? "/data/spring" : "/data";
+    const demoKind = kind ?? get().demoKind ?? "polyglot";
+    const dir = demoKind === "spring" ? "/data/spring" : demoKind === "polyglot" ? "/data/polyglot" : "/data";
     set({ loading: true, loadError: "" });
     try {
       // deps.json + runtime.json + stories.json are optional extras: a project
@@ -250,7 +251,9 @@ export const useCie = create<CieState>((set, get) => ({
         label:
           demoKind === "spring"
             ? "Sample project: a Spring Boot service (13 files — Java + Kotlin, Docker, PostgreSQL)"
-            : "Sample project: a small banking app (13 files — Python, SQL and shell)",
+            : demoKind === "polyglot"
+              ? "Sample project: a five-service harbor system (37 files — Java, Kotlin, Rust, TypeScript and Python, one compose file)"
+              : "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
         chat: [],
         chatBusy: false,
@@ -319,6 +322,10 @@ export const useCie = create<CieState>((set, get) => ({
 
   loadSpringDemo: async () => {
     await useCie.getState().loadDemo("spring");
+  },
+
+  loadPolyglotDemo: async () => {
+    await useCie.getState().loadDemo("polyglot");
   },
 
   pushChat: (m) => set((s) => ({ chat: [...s.chat, m] })),

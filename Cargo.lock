@@ -734,7 +734,11 @@ dependencies = [
  "serde_json",
  "tree-sitter",
  "tree-sitter-java",
+ "tree-sitter-javascript",
  "tree-sitter-kotlin-ng",
+ "tree-sitter-python",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
 ]
 
 [[package]]

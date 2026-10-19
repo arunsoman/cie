@@ -8,6 +8,10 @@
 //! code execution. Every claim names its file.
 
 pub mod detect;
+pub mod node;
+pub mod python;
+pub mod rust;
+pub mod flow;
 pub mod docker;
 pub mod factory;
 pub mod spring;
@@ -24,7 +28,7 @@ pub const MAX_FILES: usize = 8000;
 fn wants(rel: &str) -> bool {
     let p = rel.replace('\\', "/");
     let ext = p.rsplit('.').next().unwrap_or("");
-    matches!(ext, "java" | "kt") && !skip_path(&p)
+    matches!(ext, "java" | "kt" | "js" | "mjs" | "ts" | "tsx" | "rs" | "py") && !skip_path(&p)
 }
 
 fn skip_path(p: &str) -> bool {
@@ -126,6 +130,8 @@ pub fn stack_report(root: &Path) -> types::StackReport {
         jvm: None,
         routes: vec![],
         mains: vec![],
+        flows: vec![],
+        apps: vec![],
         config: vec![],
         notes: vec![],
         coverage: types::Coverage {
@@ -143,27 +149,40 @@ pub fn stack_report(root: &Path) -> types::StackReport {
     parser.parse(&sources, &mut report);
 
     // ---- 4. frameworks + docker + config (facts independent of the parser) ----
-    let mut framework_mods: Vec<String> = Vec::new();
-    let mut spring_framework = |report: &mut types::StackReport| {
-        if det.spring {
-            framework_mods = det.spring_starters.clone();
-            report.frameworks.push(types::StackFramework {
-                id: "spring-boot".into(),
-                name: format!(
-                    "Spring Boot {}",
-                    det.spring_version.clone().unwrap_or_else(|| "(version not stated)".into())
-                ),
-                evidence: report
-                    .coverage
-                    .manifests_read
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "pom.xml".into()),
-                modules: framework_mods.clone(),
-            });
+    // the ROOT manifest's spring claim (single-app repos keep the old shape)
+    if det.spring {
+        report.frameworks.push(types::StackFramework {
+            id: "spring-boot".into(),
+            name: format!(
+                "Spring Boot {}",
+                det.spring_version.clone().unwrap_or_else(|| "(version not stated)".into())
+            ),
+            evidence: report
+                .coverage
+                .manifests_read
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "pom.xml".into()),
+            modules: det.spring_starters.clone(),
+        });
+    }
+    // one framework entry per detected app (the polyglot view)
+    for app in &det.apps {
+        if app.framework != "spring" || det.spring && app.dir.is_empty() && report.frameworks.iter().any(|f| f.id == "spring-boot") {
+            if app.framework == "spring" && report.frameworks.iter().any(|f| f.id == "spring-boot") {
+                continue; // the root entry already covers this one
+            }
         }
-    };
-    spring_framework(&mut report);
+        if app.dir.is_empty() && det.spring && std::ptr::eq(app, det.apps.first().unwrap_or(&det_apps_empty())) {
+            continue;
+        }
+        report.frameworks.push(types::StackFramework {
+            id: app.framework.clone(),
+            name: framework_pretty(&app.framework),
+            evidence: app.evidence.clone(),
+            modules: vec![],
+        });
+    }
 
     // docker
     let rels: Vec<String> = sources.keys().cloned().collect();
@@ -189,6 +208,19 @@ pub fn stack_report(root: &Path) -> types::StackReport {
             report.config.push(parse_app_config(rel, src));
         }
     }
+
+    // the per-app paragraph facts
+    report.apps = det
+        .apps
+        .iter()
+        .map(|a| types::AppSite {
+            dir: a.dir.clone(),
+            name: a.name.clone(),
+            build: a.build.clone(),
+            framework: a.framework.clone(),
+            evidence: a.evidence.clone(),
+        })
+        .collect();
 
     // jvm counts live in the deep stack for the "one family" framing
     if let Some(jvm) = &mut report.jvm {
@@ -219,6 +251,33 @@ pub fn stack_report(root: &Path) -> types::StackReport {
     }
 
     report
+}
+
+fn det_apps_empty() -> detect::AppDet {
+    detect::AppDet {
+        dir: String::new(),
+        name: String::new(),
+        build: String::new(),
+        framework: String::new(),
+        evidence: String::new(),
+        holds_jvm: false,
+    }
+}
+
+fn framework_pretty(id: &str) -> String {
+    match id {
+        "spring" => "Spring Boot".into(),
+        "express" => "express".into(),
+        "fastify" => "fastify".into(),
+        "axum" => "axum".into(),
+        "actix-web" => "actix-web".into(),
+        "rocket" => "rocket".into(),
+        "flask" => "Flask".into(),
+        "fastapi" => "FastAPI".into(),
+        "gin" => "gin".into(),
+        "net-http" => "net/http (Go stdlib)".into(),
+        other => other.into(),
+    }
 }
 
 /// application.properties / application.yml — the few things that matter,
@@ -264,6 +323,7 @@ fn parse_app_config(rel: &str, src: &str) -> types::ConfigEntry {
     };
     types::ConfigEntry {
         rel: rel.to_string(),
+        service: String::new(),
         port,
         profiles,
         datasource,

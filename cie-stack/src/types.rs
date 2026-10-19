@@ -18,6 +18,11 @@ pub struct StackReport {
     pub routes: Vec<RouteSite>,
     /// every stack's mains (spring-boot class, rust fn main, …)
     pub mains: Vec<MainSite>,
+    /// the per-controller data flows across ALL services/languages,
+    /// branch-capable (name = "dir/Owner" when a service dir exists)
+    pub flows: Vec<ControllerFlow>,
+    /// one entry per detected APPLICATION (service module) in the repo
+    pub apps: Vec<AppSite>,
     /// application.properties / application.yml style entries, as written
     pub config: Vec<ConfigEntry>,
     pub notes: Vec<String>,
@@ -87,6 +92,8 @@ pub struct ComposeService {
 #[serde(rename_all = "camelCase")]
 pub struct ConfigEntry {
     pub rel: String,
+    /// the service (app module) the config belongs to — top-level dir, "" at root
+    pub service: String,
     pub port: Option<u32>,
     pub profiles: Option<String>,
     pub datasource: Option<String>,
@@ -117,8 +124,6 @@ pub struct JvmStack {
     pub listeners: Vec<JvmListener>,
     /// outbound http the code itself names (@FeignClient/RestTemplate/WebClient)
     pub outbound: Vec<JvmOutbound>,
-    /// the per-controller data flows, branch-capable
-    pub flows: Vec<ControllerFlow>,
     /// .java + .kt files scanned (NOT counting src/test|test)
     pub scanned: u32,
     /// java/kotlin file counts feeding the "one runtime, two syntaxes" note
@@ -263,6 +268,8 @@ pub struct RouteSite {
     pub path: String,
     pub owner: String, // class/module the handler lives in
     pub method: String,
+    /// the service (app module) this route belongs to — top-level dir, "" at root
+    pub service: String,
     pub rel: String,
     pub line: u32,
     pub params: Vec<String>,
@@ -279,4 +286,23 @@ pub struct MainSite {
     pub line: u32,
     pub kind: String,  // "spring-boot" | "spring-app" | "main-fn"
     pub lang: String,
+}
+
+// ---- the per-APPLICATION roll-up (one service, one paragraph line each) ----
+
+/// one detected application: its dir, the language as detected from its OWN
+/// manifest, and the HTTP framework named in that manifest
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSite {
+    /// dir of the app module, "" when the manifest sits at the root
+    pub dir: String,
+    /// the app's own name (artifact/dir name as written in its manifest)
+    pub name: String,
+    /// "maven" | "gradle" | "cargo" | "npm" | "python" | "go" | "unknown"
+    pub build: String,
+    /// "spring" | "express" | "axum" | "flask" | "fastapi" | "unknown" …
+    pub framework: String,
+    /// the manifest file that named it
+    pub evidence: String,
 }

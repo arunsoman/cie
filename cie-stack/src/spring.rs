@@ -864,6 +864,7 @@ pub struct Assembled {
     pub jvm: JvmStack,
     pub routes: Vec<RouteSite>,
     pub mains: Vec<MainSite>,
+    pub flows: Vec<ControllerFlow>,
 }
 
 fn layer_of_class(c: &ClassNode) -> &'static str {
@@ -876,6 +877,10 @@ fn layer_of_class(c: &ClassNode) -> &'static str {
         "repository"
     } else if names.contains(&"Entity") {
         "entity"
+    } else if c.is_interface && c.name.ends_with("Repository") {
+        // a DDD PORT: the interface the domain speaks, infrastructure satisfyies
+        // (billing's InvoiceRepository is the shape) — honest name-based read
+        "repository"
     } else {
         "other"
     }
@@ -952,7 +957,7 @@ fn join_path(base: &str, path: &str) -> String {
 
 /// assemble the whole JVM stack from per-file classes, cross-referencing
 /// the class registry (which types are services/repos/entities)
-pub fn assemble(all: Vec<ClassNode>) -> Assembled {
+pub fn assemble(all: Vec<ClassNode>, dir: &str) -> Assembled {
     let mut layers: BTreeMap<String, &'static str> = BTreeMap::new();
     for c in &all {
         layers.insert(c.name.clone(), layer_of_class(c));
@@ -975,13 +980,13 @@ pub fn assemble(all: Vec<ClassNode>) -> Assembled {
         scheduled_in: vec![],
         listeners: vec![],
         outbound: vec![],
-        flows: vec![],
         scanned: 0,
         java_files: 0,
         kotlin_files: 0,
     };
     let mut routes: Vec<RouteSite> = Vec::new();
     let mut mains: Vec<MainSite> = Vec::new();
+    let mut all_flows: Vec<ControllerFlow> = Vec::new();
 
     let registry: BTreeMap<String, ClassNode> = all
         .iter()
@@ -1039,6 +1044,7 @@ pub fn assemble(all: Vec<ClassNode>) -> Assembled {
                     path: full.clone(),
                     owner: c.name.clone(),
                     method: m.name.clone(),
+                    service: dir.to_string(),
                     rel: c.rel.clone(),
                     line: m.line,
                     params: m.params.clone(),
@@ -1089,8 +1095,8 @@ pub fn assemble(all: Vec<ClassNode>) -> Assembled {
                 });
             }
             if !flows.is_empty() {
-                jvm.flows.push(ControllerFlow {
-                    name: c.name.clone(),
+                all_flows.push(ControllerFlow {
+                    name: if dir.is_empty() { c.name.clone() } else { format!("{dir}/{}", c.name) },
                     rel: c.rel.clone(),
                     base_path: if base_path.is_empty() { "/".into() } else { base_path },
                     flows,
@@ -1107,7 +1113,10 @@ pub fn assemble(all: Vec<ClassNode>) -> Assembled {
                 lang: c.lang.clone(),
                 injections: c.injections.clone(),
             });
-        } else if names.contains(&"Repository") || c.repo_extends.is_some() {
+        } else if names.contains(&"Repository")
+            || c.repo_extends.is_some()
+            || (c.is_interface && c.name.ends_with("Repository"))
+        {
             jvm.repositories.push(JvmRepository {
                 name: c.name.clone(),
                 rel: c.rel.clone(),
@@ -1225,7 +1234,7 @@ QUOTED_RE.captures(&a.args)
     }
 
     jvm.scanned = jvm.java_files + jvm.kotlin_files;
-    Assembled { jvm, routes, mains }
+    Assembled { jvm, routes, mains, flows: all_flows }
 }
 
 // ============ the flow builder (Stmt → FlowNode) ============

@@ -1,0 +1,209 @@
+{
+ "rev": 1,
+ "docs": [
+  "/home/arun/2cie/cie/samples/polyglot/README.md"
+ ],
+ "claims": [],
+ "mappings": [],
+ "verifications": [],
+ "reverse_drift": [
+  {
+   "symbol": 2,
+   "qual_name": "Berth.isAvailable",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 3,
+   "qual_name": "Berth.getId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 9,
+   "qual_name": "BerthController.BerthController",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 10,
+   "qual_name": "BerthController.book",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 11,
+   "qual_name": "BerthController.status",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 14,
+   "qual_name": "BerthRepository.findByBerthCode",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 17,
+   "qual_name": "BookingService.BookingService",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 18,
+   "qual_name": "BookingService.occupy",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 25,
+   "qual_name": "BillingService.addLine",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 26,
+   "qual_name": "BillingService.get",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 27,
+   "qual_name": "BillingService.settle",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 30,
+   "qual_name": "Invoice.addLine",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 31,
+   "qual_name": "Invoice.total",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 32,
+   "qual_name": "Invoice.settle",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 35,
+   "qual_name": "InvoiceRepository.save",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 36,
+   "qual_name": "InvoiceRepository.byId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 39,
+   "qual_name": "Money.plus",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 42,
+   "qual_name": "BillingController.addLine",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 43,
+   "qual_name": "BillingController.settle",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 44,
+   "qual_name": "BillingController.get",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 47,
+   "qual_name": "PostgresInvoiceRepository.save",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 48,
+   "qual_name": "PostgresInvoiceRepository.byId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 50,
+   "qual_name": "search.catalog.searchBerths",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 51,
+   "qual_name": "search.catalog.bookByCode",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 55,
+   "qual_name": "search.store.query",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 56,
+   "qual_name": "search.store.save",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 59,
+   "qual_name": "tide-alerts.alert.level_for",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 60,
+   "qual_name": "tide-alerts.alert.current_alert",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 61,
+   "qual_name": "tide-alerts.alert.check",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 64,
+   "qual_name": "tide-alerts.main.health",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 68,
+   "qual_name": "tide-alerts.store.pool",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 69,
+   "qual_name": "tide-alerts.store.save",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 70,
+   "qual_name": "tide-alerts.store.find",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 73,
+   "qual_name": "webhooks.app.events.deliver",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 74,
+   "qual_name": "webhooks.app.events.delivery_status",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 76,
+   "qual_name": "webhooks.app.store.record",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 77,
+   "qual_name": "webhooks.app.store.status",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 79,
+   "qual_name": "webhooks.app.webhook.deliver",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 80,
+   "qual_name": "webhooks.app.webhook.delivery_status",
+   "reason": "no document claim maps to this symbol"
+  }
+ ],
+ "aggregate": {},
+ "complete": true,
+ "generated_ns": 1792427982654807000
+}

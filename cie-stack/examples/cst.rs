@@ -24,6 +24,10 @@ fn main() {
     match lang.as_str() {
         "java" => p.set_language(&tree_sitter_java::LANGUAGE.into()).unwrap(),
         "kt" => p.set_language(&tree_sitter_kotlin_ng::LANGUAGE.into()).unwrap(),
+        "rs" => p.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap(),
+        "py" => p.set_language(&tree_sitter_python::LANGUAGE.into()).unwrap(),
+        "js" => p.set_language(&tree_sitter_javascript::LANGUAGE.into()).unwrap(),
+        "ts" => p.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()).unwrap(),
         l => panic!("lang {l}"),
     };
     let tree = p.parse(&src, None).unwrap();

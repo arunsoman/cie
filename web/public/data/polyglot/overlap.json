@@ -1,0 +1,138 @@
+{
+ "min_shared": 2,
+ "pairs": [
+  {
+   "a": "Concept:entrypoint:entrypoint",
+   "b": "tide-alerts/src/main.rs",
+   "only_a": [],
+   "only_b": [
+    "tide-alerts.main",
+    "tide-alerts.main.Health",
+    "tide-alerts.main.health"
+   ],
+   "shared": [
+    "BerthBookingApplication.main",
+    ".main",
+    "tide-alerts.main.main"
+   ],
+   "similarity": 0.5
+  },
+  {
+   "a": "Concept:lock:lock",
+   "b": "tide-alerts/src/store.rs",
+   "only_a": [],
+   "only_b": [
+    "tide-alerts.store",
+    "tide-alerts.store.Reading",
+    "tide-alerts.store.pool"
+   ],
+   "shared": [
+    "search.catalog.bookByCode",
+    "tide-alerts.store.save",
+    "tide-alerts.store.find"
+   ],
+   "similarity": 0.5
+  },
+  {
+   "a": "Concept:reads Input:reads Input",
+   "b": "webhooks/app/webhook.py",
+   "only_a": [],
+   "only_b": [
+    "webhooks.app.webhook"
+   ],
+   "shared": [
+    "webhooks.app.webhook.deliver",
+    "webhooks.app.webhook.delivery_status"
+   ],
+   "similarity": 0.6666666666666666
+  },
+  {
+   "a": "Concept:write File:write File",
+   "b": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+   "only_a": [],
+   "only_b": [
+    "berth-booking.src.main.java.com.harbor.booking.Berth",
+    "Berth",
+    "Berth.isAvailable",
+    "Berth.getId",
+    "BerthBookingApplication.main",
+    "BerthController.BerthController",
+    "BerthController.book",
+    "BerthController.status",
+    "BerthRepository.findByBerthCode",
+    "BookingService.BookingService",
+    "BookingService.occupy",
+    "BillingService.get",
+    "Invoice.addLine",
+    "Invoice.total",
+    "Invoice.settle",
+    "InvoiceRepository.save",
+    "InvoiceRepository.byId",
+    "Money.plus",
+    "BillingController.addLine",
+    "BillingController.settle",
+    "BillingController.get",
+    "PostgresInvoiceRepository.save",
+    "PostgresInvoiceRepository.byId"
+   ],
+   "shared": [
+    "BillingService.addLine",
+    "BillingService.settle"
+   ],
+   "similarity": 0.08
+  },
+  {
+   "a": "Concept:write File:write File",
+   "b": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+   "only_a": [],
+   "only_b": [
+    "billing.src.main.kotlin.com.harbor.billing.application.BillingService",
+    "BillingService"
+   ],
+   "shared": [
+    "BillingService.addLine",
+    "BillingService.settle"
+   ],
+   "similarity": 0.5
+  },
+  {
+   "a": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+   "b": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+   "only_a": [
+    "berth-booking.src.main.java.com.harbor.booking.Berth",
+    "Berth",
+    "Berth.isAvailable",
+    "Berth.getId",
+    "BerthBookingApplication.main",
+    "BerthController.BerthController",
+    "BerthController.book",
+    "BerthController.status",
+    "BerthRepository.findByBerthCode",
+    "BookingService.BookingService",
+    "BookingService.occupy",
+    "BillingService.get",
+    "Invoice.addLine",
+    "Invoice.total",
+    "Invoice.settle",
+    "InvoiceRepository.save",
+    "InvoiceRepository.byId",
+    "Money.plus",
+    "BillingController.addLine",
+    "BillingController.settle",
+    "BillingController.get",
+    "PostgresInvoiceRepository.save",
+    "PostgresInvoiceRepository.byId"
+   ],
+   "only_b": [
+    "billing.src.main.kotlin.com.harbor.billing.application.BillingService",
+    "BillingService"
+   ],
+   "shared": [
+    "BillingService.addLine",
+    "BillingService.settle"
+   ],
+   "similarity": 0.07407407407407407
+  }
+ ],
+ "unmapped": []
+}

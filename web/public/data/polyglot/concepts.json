@@ -1,0 +1,1810 @@
+{
+ "nodes": [
+  {
+   "id": 0,
+   "label": "Project",
+   "kind": "Domain",
+   "parent": null,
+   "children": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    41,
+    42,
+    43,
+    44
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "IsAvailable",
+     "confidence": 1
+    },
+    {
+     "summary": 3,
+     "kind": "GetId",
+     "confidence": 1
+    },
+    {
+     "summary": 6,
+     "kind": "Main",
+     "confidence": 1
+    },
+    {
+     "summary": 9,
+     "kind": "BerthController",
+     "confidence": 1
+    },
+    {
+     "summary": 10,
+     "kind": "Book",
+     "confidence": 1
+    },
+    {
+     "summary": 11,
+     "kind": "Status",
+     "confidence": 1
+    },
+    {
+     "summary": 14,
+     "kind": "FindByBerthCode",
+     "confidence": 1
+    },
+    {
+     "summary": 17,
+     "kind": "BookingService",
+     "confidence": 1
+    },
+    {
+     "summary": 18,
+     "kind": "Occupy",
+     "confidence": 1
+    },
+    {
+     "summary": 25,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 26,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 27,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 30,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 31,
+     "kind": "Total",
+     "confidence": 1
+    },
+    {
+     "summary": 32,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 35,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 36,
+     "kind": "ById",
+     "confidence": 1
+    },
+    {
+     "summary": 39,
+     "kind": "Plus",
+     "confidence": 1
+    },
+    {
+     "summary": 42,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 43,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 44,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 47,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 48,
+     "kind": "ById",
+     "confidence": 1
+    },
+    {
+     "summary": 22,
+     "kind": "Main",
+     "confidence": 1
+    },
+    {
+     "summary": 50,
+     "kind": "SearchBerths",
+     "confidence": 1
+    },
+    {
+     "summary": 51,
+     "kind": "BookByCode",
+     "confidence": 1
+    },
+    {
+     "summary": 55,
+     "kind": "Query",
+     "confidence": 1
+    },
+    {
+     "summary": 56,
+     "kind": "Query data via Save",
+     "confidence": 1
+    },
+    {
+     "summary": 59,
+     "kind": "Level For",
+     "confidence": 1
+    },
+    {
+     "summary": 60,
+     "kind": "Current Alert",
+     "confidence": 1
+    },
+    {
+     "summary": 61,
+     "kind": "Check",
+     "confidence": 1
+    },
+    {
+     "summary": 64,
+     "kind": "Health",
+     "confidence": 1
+    },
+    {
+     "summary": 65,
+     "kind": "Main",
+     "confidence": 1
+    },
+    {
+     "summary": 68,
+     "kind": "Pool",
+     "confidence": 1
+    },
+    {
+     "summary": 69,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 70,
+     "kind": "Find",
+     "confidence": 1
+    },
+    {
+     "summary": 73,
+     "kind": "Deliver",
+     "confidence": 1
+    },
+    {
+     "summary": 74,
+     "kind": "Delivery Status",
+     "confidence": 1
+    },
+    {
+     "summary": 76,
+     "kind": "Record",
+     "confidence": 1
+    },
+    {
+     "summary": 77,
+     "kind": "Status",
+     "confidence": 1
+    },
+    {
+     "summary": 79,
+     "kind": "Deliver",
+     "confidence": 1
+    },
+    {
+     "summary": 80,
+     "kind": "Delivery Status",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "rule",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 1,
+   "label": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    25
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    0,
+    1,
+    2,
+    3,
+    6,
+    9,
+    10,
+    11,
+    14,
+    17,
+    18,
+    25,
+    26,
+    27,
+    30,
+    31,
+    32,
+    35,
+    36,
+    39,
+    42,
+    43,
+    44,
+    47,
+    48
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "IsAvailable",
+     "confidence": 1
+    },
+    {
+     "summary": 3,
+     "kind": "GetId",
+     "confidence": 1
+    },
+    {
+     "summary": 6,
+     "kind": "Main",
+     "confidence": 1
+    },
+    {
+     "summary": 9,
+     "kind": "BerthController",
+     "confidence": 1
+    },
+    {
+     "summary": 10,
+     "kind": "Book",
+     "confidence": 1
+    },
+    {
+     "summary": 11,
+     "kind": "Status",
+     "confidence": 1
+    },
+    {
+     "summary": 14,
+     "kind": "FindByBerthCode",
+     "confidence": 1
+    },
+    {
+     "summary": 17,
+     "kind": "BookingService",
+     "confidence": 1
+    },
+    {
+     "summary": 18,
+     "kind": "Occupy",
+     "confidence": 1
+    },
+    {
+     "summary": 25,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 26,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 27,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 30,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 31,
+     "kind": "Total",
+     "confidence": 1
+    },
+    {
+     "summary": 32,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 35,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 36,
+     "kind": "ById",
+     "confidence": 1
+    },
+    {
+     "summary": 39,
+     "kind": "Plus",
+     "confidence": 1
+    },
+    {
+     "summary": 42,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 43,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 44,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 47,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 48,
+     "kind": "ById",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 2,
+   "label": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    26
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    4,
+    5
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 3,
+   "label": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    27
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    7,
+    8
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 4,
+   "label": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    28
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    12,
+    13
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 5,
+   "label": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    29
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    15,
+    16
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 6,
+   "label": "billing/build.gradle.kts",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    19
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 7,
+   "label": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    30
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    20,
+    21,
+    22
+   ],
+   "behaviors": [
+    {
+     "summary": 22,
+     "kind": "Main",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 8,
+   "label": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    31,
+    44
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    23,
+    24,
+    25,
+    27
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 9,
+   "label": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    32
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    28,
+    29
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 10,
+   "label": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    33
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    33,
+    34
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 11,
+   "label": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    34
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    37,
+    38
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 12,
+   "label": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    35
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    40,
+    41
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 13,
+   "label": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    36
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    45,
+    46
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 14,
+   "label": "search/src/catalog.ts",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    49,
+    50,
+    51
+   ],
+   "behaviors": [
+    {
+     "summary": 50,
+     "kind": "SearchBerths",
+     "confidence": 1
+    },
+    {
+     "summary": 51,
+     "kind": "BookByCode",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 15,
+   "label": "search/src/search.ts",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    52
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 16,
+   "label": "search/src/store.ts",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    37,
+    38
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    53,
+    54,
+    55,
+    56,
+    57
+   ],
+   "behaviors": [
+    {
+     "summary": 55,
+     "kind": "Query",
+     "confidence": 1
+    },
+    {
+     "summary": 56,
+     "kind": "Query data via Save",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 17,
+   "label": "tide-alerts/src/alert.rs",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    58,
+    59,
+    60,
+    61
+   ],
+   "behaviors": [
+    {
+     "summary": 59,
+     "kind": "Level For",
+     "confidence": 1
+    },
+    {
+     "summary": 60,
+     "kind": "Current Alert",
+     "confidence": 1
+    },
+    {
+     "summary": 61,
+     "kind": "Check",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 18,
+   "label": "tide-alerts/src/main.rs",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    39,
+    41
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    6,
+    22,
+    62,
+    63,
+    64,
+    65
+   ],
+   "behaviors": [
+    {
+     "summary": 64,
+     "kind": "Health",
+     "confidence": 1
+    },
+    {
+     "summary": 65,
+     "kind": "Main",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 19,
+   "label": "tide-alerts/src/store.rs",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    40,
+    42
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    51,
+    66,
+    67,
+    68,
+    69,
+    70
+   ],
+   "behaviors": [
+    {
+     "summary": 68,
+     "kind": "Pool",
+     "confidence": 1
+    },
+    {
+     "summary": 69,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 70,
+     "kind": "Find",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 20,
+   "label": "webhooks/app/__init__.py",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    71
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 21,
+   "label": "webhooks/app/events.py",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    72,
+    73,
+    74
+   ],
+   "behaviors": [
+    {
+     "summary": 73,
+     "kind": "Deliver",
+     "confidence": 1
+    },
+    {
+     "summary": 74,
+     "kind": "Delivery Status",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 22,
+   "label": "webhooks/app/store.py",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    75,
+    76,
+    77
+   ],
+   "behaviors": [
+    {
+     "summary": 76,
+     "kind": "Record",
+     "confidence": 1
+    },
+    {
+     "summary": 77,
+     "kind": "Status",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 23,
+   "label": "webhooks/app/webhook.py",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    43
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    78,
+    79,
+    80
+   ],
+   "behaviors": [
+    {
+     "summary": 79,
+     "kind": "Deliver",
+     "confidence": 1
+    },
+    {
+     "summary": 80,
+     "kind": "Delivery Status",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 24,
+   "label": "webhooks/main.py",
+   "kind": "Module",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    81
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:package",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 25,
+   "label": "Berth",
+   "kind": "Entity",
+   "parent": 1,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    1,
+    2,
+    3,
+    6,
+    9,
+    10,
+    11,
+    14,
+    17,
+    18,
+    25,
+    26,
+    27,
+    30,
+    31,
+    32,
+    35,
+    36,
+    39,
+    42,
+    43,
+    44,
+    47,
+    48
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "IsAvailable",
+     "confidence": 1
+    },
+    {
+     "summary": 3,
+     "kind": "GetId",
+     "confidence": 1
+    },
+    {
+     "summary": 6,
+     "kind": "Main",
+     "confidence": 1
+    },
+    {
+     "summary": 9,
+     "kind": "BerthController",
+     "confidence": 1
+    },
+    {
+     "summary": 10,
+     "kind": "Book",
+     "confidence": 1
+    },
+    {
+     "summary": 11,
+     "kind": "Status",
+     "confidence": 1
+    },
+    {
+     "summary": 14,
+     "kind": "FindByBerthCode",
+     "confidence": 1
+    },
+    {
+     "summary": 17,
+     "kind": "BookingService",
+     "confidence": 1
+    },
+    {
+     "summary": 18,
+     "kind": "Occupy",
+     "confidence": 1
+    },
+    {
+     "summary": 25,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 26,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 27,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 30,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 31,
+     "kind": "Total",
+     "confidence": 1
+    },
+    {
+     "summary": 32,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 35,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 36,
+     "kind": "ById",
+     "confidence": 1
+    },
+    {
+     "summary": 39,
+     "kind": "Plus",
+     "confidence": 1
+    },
+    {
+     "summary": 42,
+     "kind": "AddLine",
+     "confidence": 1
+    },
+    {
+     "summary": 43,
+     "kind": "Settle",
+     "confidence": 1
+    },
+    {
+     "summary": 44,
+     "kind": "Get",
+     "confidence": 1
+    },
+    {
+     "summary": 47,
+     "kind": "Save",
+     "confidence": 1
+    },
+    {
+     "summary": 48,
+     "kind": "ById",
+     "confidence": 1
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 26,
+   "label": "BerthBookingApplication",
+   "kind": "Value",
+   "parent": 2,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    5
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 27,
+   "label": "BerthController",
+   "kind": "Value",
+   "parent": 3,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    8
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 28,
+   "label": "BerthRepository",
+   "kind": "Value",
+   "parent": 4,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    13
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 29,
+   "label": "BookingService",
+   "kind": "Value",
+   "parent": 5,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    16
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 30,
+   "label": "BillingApplication",
+   "kind": "Value",
+   "parent": 7,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    21
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 31,
+   "label": "BillingService",
+   "kind": "Value",
+   "parent": 8,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    24
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 32,
+   "label": "Invoice",
+   "kind": "Value",
+   "parent": 9,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    29
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 33,
+   "label": "InvoiceRepository",
+   "kind": "Value",
+   "parent": 10,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    34
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 34,
+   "label": "Money",
+   "kind": "Value",
+   "parent": 11,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    38
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 35,
+   "label": "BillingController",
+   "kind": "Value",
+   "parent": 12,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    41
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 36,
+   "label": "PostgresInvoiceRepository",
+   "kind": "Value",
+   "parent": 13,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    46
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 37,
+   "label": "Berth",
+   "kind": "Value",
+   "parent": 16,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    54
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 38,
+   "label": "Berth",
+   "kind": "Value",
+   "parent": 16,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    57
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 39,
+   "label": "Health",
+   "kind": "Value",
+   "parent": 18,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    63
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 40,
+   "label": "Reading",
+   "kind": "Value",
+   "parent": 19,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    67
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 1,
+   "provenance": "rule:structure",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 41,
+   "label": "Concept:entrypoint:entrypoint",
+   "kind": "UseCase",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [
+    [
+     18,
+     "ClusterCohesion"
+    ]
+   ],
+   "primary_edge": "FcaSubsumption",
+   "symbols": [
+    6,
+    22,
+    65
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [
+    "entrypoint"
+   ],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "fca:godin-v1",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 42,
+   "label": "Concept:lock:lock",
+   "kind": "UseCase",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [
+    [
+     19,
+     "ClusterCohesion"
+    ]
+   ],
+   "primary_edge": "FcaSubsumption",
+   "symbols": [
+    51,
+    69,
+    70
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [
+    "lock"
+   ],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "fca:godin-v1",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 43,
+   "label": "Concept:reads Input:reads Input",
+   "kind": "UseCase",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [
+    [
+     23,
+     "ClusterCohesion"
+    ]
+   ],
+   "primary_edge": "FcaSubsumption",
+   "symbols": [
+    79,
+    80
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [
+    "reads_input"
+   ],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "fca:godin-v1",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  },
+  {
+   "id": 44,
+   "label": "Concept:write File:write File",
+   "kind": "UseCase",
+   "parent": 0,
+   "children": [],
+   "extra_edges": [
+    [
+     8,
+     "ClusterCohesion"
+    ]
+   ],
+   "primary_edge": "FcaSubsumption",
+   "symbols": [
+    25,
+    27
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [
+    "write_file"
+   ],
+   "coverage_ratio": 1,
+   "coverage_complete": true,
+   "confidence": 0.8,
+   "provenance": "fca:godin-v1",
+   "created_ns": 1792427982169679600,
+   "compute_ns": 0
+  }
+ ],
+ "unattached_behaviors": [],
+ "unattached_rules": [],
+ "dirty": []
+}

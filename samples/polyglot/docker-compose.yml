@@ -1,0 +1,16 @@
+services:
+  berth-booking:
+    build: ./berth-booking
+    ports: ["8081:8081"]
+  billing:
+    build: ./billing
+    ports: ["8082:8083"]
+  tide-alerts:
+    build: ./tide-alerts
+    ports: ["8083:8080"]
+  search:
+    build: ./search
+    ports: ["8084:3000"]
+  webhooks:
+    build: ./webhooks
+    ports: ["8085:5000"]
