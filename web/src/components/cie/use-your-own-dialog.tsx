@@ -115,6 +115,7 @@ function ConnectRepo() {
         runtime?: CieRuntime | null;
         label?: string;
         scan?: RepoScan | null;
+        sourceRoot?: string | null;
         error?: string;
       };
       if (!res.ok || !isValidReport(data.report ?? null)) {
@@ -125,7 +126,7 @@ function ConnectRepo() {
       const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
       const deps = data.deps && data.deps.table ? data.deps : null;
       const runtime = data.runtime && data.runtime.datasets ? data.runtime : null;
-      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null, deps, runtime);
+      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null, deps, runtime, null, null, data.sourceRoot ?? null);
       setJobId(null);
       setStatus(null);
       setUrl("");

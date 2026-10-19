@@ -29,16 +29,32 @@ const HEX: Record<string, string> = {
 const hex = (c?: string) => HEX[c ?? ""] ?? "#78716c";
 
 /**
- * Click-to-chat: tapping a chart element starts a conversation about it.
- * The question carries the chart title + the element's name and value — and,
- * when the element knows where it lives in the code, the exact file and line
- * — so the local quality/story answerers (or the AI, as fallback) can ground
- * the reply in the collected data. Nothing is invented by the chart itself.
+ * Click-to-chat + click-to-source: tapping a chart element with a known
+ * source location opens the source panel (the code, right there, with an
+ * "Ask CIE about this" button inside). Elements without a location —
+ * aggregates, per-day sums, story records — keep the original behavior:
+ * they hand a grounded question straight to the chat. Nothing is invented
+ * by the chart itself.
  */
 function useAsk() {
   const setPendingAsk = useCie((s) => s.setPendingAsk);
-  return (spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) =>
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  return (spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) => {
+    if (el.loc?.file) {
+      openSourceViewer({
+        file: el.loc.file,
+        line: el.loc.line,
+        endLine: el.loc.endLine,
+        byteStart: el.loc.byteStart,
+        byteEnd: el.loc.byteEnd,
+        elName: el.name,
+        elValue: el.value,
+        chartTitle: spec.title,
+      });
+      return;
+    }
     setPendingAsk(askAboutChartElement(spec.title, el));
+  };
 }
 
 const ASK_HINT = "tap any element to ask CIE about it";

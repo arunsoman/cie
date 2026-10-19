@@ -51,6 +51,23 @@ export interface ChatMessage {
   instant?: boolean;
 }
 
+/**
+ * "Show me the code" — a chart element with a known source location opened
+ * the source panel. Carries everything the panel needs: where to look, which
+ * byte offsets/line to highlight, and which chart element asked (so the
+ * panel's "Ask CIE about this" button can hand a grounded question to chat).
+ */
+export interface SourceViewerRequest {
+  file: string; // repo-relative path, exactly as the exports name it
+  line?: number; // flat real line number when the export carried one
+  endLine?: number;
+  byteStart?: number; // report.json symbols[].loc — resolved to a line
+  byteEnd?: number; // only when the file's content is available
+  elName?: string;
+  elValue?: number | string;
+  chartTitle?: string;
+}
+
 interface CieState {
   report: CieReport | null;
   viewspec: CieViewSpec | null;
@@ -76,6 +93,11 @@ interface CieState {
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
   pendingAsk: string | null; // click-to-chat: a question any chart/card handed to the chat
 
+  // source panel — click a chart element with a location, see the code
+  sourceViewer: SourceViewerRequest | null;
+  sourceRoot: string | null; // absolute root of a consented local-folder project (URL clones are deleted after analysis — null there, honestly)
+  sourceCache: Record<string, string>; // fetched file contents, by repo-relative path
+
   loadDemo: () => Promise<void>;
   setCustom: (
     report: CieReport | null,
@@ -86,7 +108,8 @@ interface CieState {
     deps?: CieDeps | null,
     runtime?: CieRuntime | null,
     stories?: CieStories | null,
-    quality?: CieQuality | null
+    quality?: CieQuality | null,
+    sourceRoot?: string | null
   ) => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
@@ -101,6 +124,9 @@ interface CieState {
   setLlm: (cfg: LlmConfig) => void;
   hydrateLlm: () => void;
   setLlmSettingsOpen: (open: boolean) => void;
+  openSourceViewer: (req: SourceViewerRequest) => void;
+  closeSourceViewer: () => void;
+  cacheSource: (path: string, content: string) => void;
 }
 
 export const useCie = create<CieState>((set, get) => ({
@@ -125,6 +151,9 @@ export const useCie = create<CieState>((set, get) => ({
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
   pendingAsk: null,
+  sourceViewer: null,
+  sourceRoot: null,
+  sourceCache: {},
 
   loadDemo: async () => {
     set({ loading: true, loadError: "" });
@@ -163,7 +192,7 @@ export const useCie = create<CieState>((set, get) => ({
     }
   },
 
-  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories, quality) =>
+  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories, quality, sourceRoot) =>
     set({
       report,
       viewspec,
@@ -181,6 +210,12 @@ export const useCie = create<CieState>((set, get) => ({
       // The scan only exists for connect-a-repo flows; switching to the
       // sample or to uploaded files honestly drops it.
       repoScan: repoScan ?? null,
+      // Only local-folder projects keep a readable root on this machine.
+      // URL clones are deleted after analysis and uploads never touched
+      // disk — the source panel says so honestly for those.
+      sourceRoot: sourceRoot ?? null,
+      sourceCache: {},
+      sourceViewer: null,
       // A new project starts on its own front page, not on an old chart.
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
@@ -214,4 +249,8 @@ export const useCie = create<CieState>((set, get) => ({
   hydrateLlm: () => set({ llm: loadLlmConfig() }),
 
   setLlmSettingsOpen: (open) => set({ llmSettingsOpen: open }),
+
+  openSourceViewer: (req) => set({ sourceViewer: req }),
+  closeSourceViewer: () => set({ sourceViewer: null }),
+  cacheSource: (path, content) => set((s) => ({ sourceCache: { ...s.sourceCache, [path]: content } })),
 }));

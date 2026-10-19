@@ -25,6 +25,7 @@ import { useCie } from "@/lib/cie-store";
 import { Topbar } from "@/components/cie/topbar";
 import { Stage } from "@/components/cie/stage";
 import { ChatPanel } from "@/components/cie/chat-panel";
+import { SourcePanel } from "@/components/cie/source-panel";
 
 export default function Home() {
   const { loading, loadError, loadDemo, hydrateLlm } = useCie();
@@ -62,6 +63,9 @@ export default function Home() {
           </aside>
         </div>
       )}
+
+      {/* click-a-chart-element → the code it came from (overlay panel) */}
+      <SourcePanel />
     </div>
   );
 }

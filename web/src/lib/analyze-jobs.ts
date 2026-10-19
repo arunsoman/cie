@@ -49,6 +49,11 @@ export interface AnalyzeJob {
     runtime?: CieRuntime | null;
     label: string;
     scan?: RepoScan | null;
+    // The absolute root the source panel may read from — set ONLY for
+    // local-folder jobs (the folder the user themselves pointed at, read
+    // in place). URL clones are deleted after analysis; uploads never
+    // touched disk. Null there, and the panel says so honestly.
+    sourceRoot?: string | null;
   };
 }
 
@@ -498,6 +503,7 @@ async function runPipeline(job: AnalyzeJob) {
         ? `Your project: ${job.repoName} (from this computer)`
         : `Your project: ${job.repoName} (from ${hostOf(job.url)})`,
       scan: job.scan ?? null,
+      sourceRoot: isLocal ? repoDir : null,
     };
     job.state = "done";
   } finally {
