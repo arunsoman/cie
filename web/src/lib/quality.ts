@@ -79,6 +79,167 @@ export function buildCoverageHeatmapSpec(quality: CieQuality | null): ChatChartS
 }
 
 // ---------------------------------------------------------------------------
+// Shared spec builders — ONE builder per collected dataset, used by both the
+// one-tap menu and the chat answers, so a metric question and its menu card
+// always draw the exact same picture from the exact same export.
+// ---------------------------------------------------------------------------
+
+/** Most complex functions, worst first (real AST walk). */
+export function buildComplexitySpec(q: CieQuality): ChatChartSpec | null {
+  const fns = (q.complexity.functions ?? []).slice(0, 8);
+  if (!fns.length) return null;
+  const data = fns.map((f) => ({
+    name: cut(f.function, 20),
+    value: f.cc,
+    color: f.cc >= q.complexity.totals.max_cc ? "rose" : f.cc >= 4 ? "amber" : "stone",
+  }));
+  return {
+    ...spec("hbar", "Most complex functions (measured)", q.complexity.formula),
+    data,
+    source: `quality.json — ${q.complexity.tool}`,
+  };
+}
+
+/** Churn per day, hosting repository (real git numstat, as written by git). */
+export function buildDailyChurnSpec(q: CieQuality): ChatChartSpec | null {
+  const daily = q.churn.hosting_repo.daily ?? [];
+  if (!daily.length) return null;
+  return {
+    ...spec("hbar", "Churn per day (hosting repository)", q.churn.tool + " — " + q.churn.formula),
+    data: daily.slice(-8).map((dd) => ({ name: dd.day.slice(5), value: dd.churn, color: "amber" as const })),
+    source: "quality.json — churn (hosting repo, labelled)",
+  };
+}
+
+/** Churn per file in the sample project — which files moved the most. */
+export function buildPerFileChurnSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.churn.sample.per_file ?? []).slice(0, 8);
+  if (!rows.length) return null;
+  return {
+    ...spec("hbar", "Churn per file (sample project)", `${q.churn.tool} over the sample's own files — added + deleted lines per file.`),
+    data: rows.map((r) => ({ name: cut(r.file, 22), value: r.churn, color: "amber" as const })),
+    source: "quality.json — churn (sample, per file)",
+  };
+}
+
+/**
+ * The fix-commit events behind the defect metrics (density, MTBF, arrival
+ * rate), grouped by the day each commit landed — exactly as recorded by
+ * `git log -i --grep`. Discloses how many of the total are drawn.
+ */
+export function buildFixCommitsSpec(q: CieQuality, title: string, tell: string): ChatChartSpec | null {
+  const fc = q.defects.fix_commits;
+  const recent = fc.recent ?? [];
+  if (!recent.length) return null;
+  const byDay = new Map<string, number>();
+  for (const c of recent) byDay.set(c.date, (byDay.get(c.date) ?? 0) + 1);
+  const data = [...byDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([day, n]) => ({ name: day.slice(5), value: n, color: "rose" as const }));
+  const scope = recent.length < fc.count ? ` Showing the ${recent.length} most recent of ${fc.count}.` : "";
+  return {
+    ...spec("hbar", title, tell + scope),
+    data,
+    source: "quality.json — fix commits (git log, real history)",
+  };
+}
+
+/** The measured crashes behind the crash rate. */
+export function buildCrashTableSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.crash_probe.crashes_detail ?? [])
+    .filter((c) => c.crashed)
+    .slice(0, 8)
+    .map((c) => [`${c.module}.${c.function}`, cut(c.session, 24), cut(c.reason || "timeout", 40)]);
+  if (!rows.length) return null;
+  return {
+    ...spec("table", "The crashes behind the rate", q.crash_probe.definition),
+    columns: ["Entry point", "Input", "What happened"],
+    rows,
+    source: "quality.json — crash probe",
+  };
+}
+
+/** The timed fail→fix→recheck loops behind MTTR. */
+export function buildRepairTableSpec(q: CieQuality): ChatChartSpec | null {
+  const iters = q.repair_probe.iterations ?? [];
+  if (!iters.length) return null;
+  return {
+    ...spec("table", "The repair loops behind MTTR", q.repair_probe.tool),
+    columns: ["Bug", "Detect (s)", "Repair (s)", "Recheck (s)", "Total (s)"],
+    rows: iters.map((i) => [cut(i.bug, 30), String(i.detect_s), String(i.repair_s), String(i.recheck_s), String(i.total_s)]),
+    source: "quality.json — repair probe",
+  };
+}
+
+/** Hot spots as bars (risk 0–100 per file) — the ranked list, drawn. */
+export function buildHotspotSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.hotspots.rows ?? []).slice(0, 8);
+  if (!rows.length) return null;
+  return {
+    ...spec("hbar", "Hot spots, ranked", q.hotspots.formula),
+    data: rows.map((r) => ({
+      name: cut(r.file, 22),
+      value: Math.round(r.risk),
+      color: r.risk >= 50 ? "rose" : r.risk >= 25 ? "amber" : "stone",
+    })),
+    source: "quality.json — hotspots",
+  };
+}
+
+/** Duplicated blocks as a table. */
+export function buildDuplicationSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.duplication.pairs ?? []).slice(0, 8).map((p) => [
+    `${p.a_file}:${p.a_line}`,
+    `${p.b_file}:${p.b_line}`,
+    String(p.lines),
+    cut(p.preview || "(same block)", 34),
+  ]);
+  if (!rows.length) return null;
+  return {
+    ...spec("table", "Duplicated blocks (measured)", "Blocks of the same normalized lines appearing in two different files."),
+    columns: ["Here", "And again", "Lines", "Starts with"],
+    rows,
+    source: `quality.json — ${q.duplication.tool}`,
+  };
+}
+
+/** Code drift vs tests, as a table. */
+export function buildCodeDriftSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.drift.code ?? []).slice(0, 8).map((c) => [
+    cut(c.file, 20),
+    c.last_change ?? "—",
+    c.tests_last_change ?? "no test file",
+    c.test_lag_days != null ? String(c.test_lag_days) : "—",
+    cut(c.note, 30),
+  ]);
+  if (!rows.length) return null;
+  return {
+    ...spec("table", "Code drift vs tests", "Lag = days since the file changed minus days since its tests did. “No test file” is the loudest entry."),
+    columns: ["File", "Code last changed", "Tests last changed", "Lag (days)", "Note"],
+    rows,
+    source: "quality.json — drift (git dates)",
+  };
+}
+
+/** Document drift, as a table. */
+export function buildDocumentDriftSpec(q: CieQuality): ChatChartSpec | null {
+  const rows = (q.drift.document ?? []).slice(0, 8).map((d) => [
+    cut(d.doc, 20),
+    cut(d.describes, 34),
+    `${d.doc_age_days}d ago`,
+    d.drift_days > 0 ? `${d.drift_days}d behind` : "fresh",
+    cut(d.note, 30),
+  ]);
+  if (!rows.length) return null;
+  return {
+    ...spec("table", "Document drift", "A doc can be old and still correct — this says which ones moved apart and by how many days."),
+    columns: ["Doc", "Describes", "Doc age", "Drift", "Note"],
+    rows,
+    source: "quality.json — drift (git dates)",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // All the health + metric charts, for the one-tap menu
 // ---------------------------------------------------------------------------
 
@@ -147,42 +308,25 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
   // 4. code duplications
   {
     const dup = q.duplication;
-    const rows = (dup.pairs ?? []).slice(0, 8).map((p) => [
-      `${p.a_file}:${p.a_line}`,
-      `${p.b_file}:${p.b_line}`,
-      String(p.lines),
-      cut(p.preview || "(same block)", 34),
-    ]);
     charts.push({
       id: "duplications",
       group: "Health",
       question: "Where is the same code written twice?",
       hint: (dup.blocks_found ?? 0) > 0 ? `${dup.blocks_found} repeated block(s), ${dup.duplicated_lines} lines — real matches.` : "No repeated blocks found.",
       icon: "list",
-      spec: rows.length
-        ? { ...spec("table", "Duplicated blocks (measured)", "Blocks of the same normalized lines appearing in two different files."), columns: ["Here", "And again", "Lines", "Starts with"], rows, source: `quality.json — ${dup.tool}` }
-        : null,
+      spec: buildDuplicationSpec(q),
     });
   }
 
   // 5. hot spots
   {
-    const rows = (q.hotspots.rows ?? []).slice(0, 8).map((r) => [
-      cut(r.file, 24),
-      String(r.risk),
-      String(r.churn),
-      String(r.max_cc),
-      String(r.urgent_findings),
-    ]);
     charts.push({
       id: "hotspots",
       group: "Health",
       question: "Which parts are the hot spots?",
       hint: "Churn × complexity × urgent findings — the formula is disclosed.",
       icon: "activity",
-      spec: rows.length
-        ? { ...spec("table", "Hot spots, ranked", q.hotspots.formula), columns: ["File", "Risk 0–100", "Churn lines", "Max complexity", "Urgent findings"], rows, source: "quality.json — hotspots" }
-        : null,
+      spec: buildHotspotSpec(q),
     });
   }
 
@@ -201,63 +345,38 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
 
   // 7. code drift (code vs its tests)
   {
-    const rows = (q.drift.code ?? []).slice(0, 8).map((c) => [
-      cut(c.file, 20),
-      c.last_change ?? "—",
-      c.tests_last_change ?? "no test file",
-      c.test_lag_days != null ? String(c.test_lag_days) : "—",
-      cut(c.note, 30),
-    ]);
     charts.push({
       id: "code-drift",
       group: "Health",
       question: "Which code moved ahead of its tests?",
       hint: "Last change of each file vs its tests' last change (real git dates).",
       icon: "timer",
-      spec: rows.length
-        ? { ...spec("table", "Code drift vs tests", "Lag = days since the file changed minus days since its tests did. “No test file” is the loudest entry."), columns: ["File", "Code last changed", "Tests last changed", "Lag (days)", "Note"], rows, source: "quality.json — drift (git dates)" }
-        : null,
+      spec: buildCodeDriftSpec(q),
     });
   }
 
   // 8. document drift
   {
-    const rows = (q.drift.document ?? []).slice(0, 8).map((d) => [
-      cut(d.doc, 20),
-      cut(d.describes, 34),
-      `${d.doc_age_days}d ago`,
-      d.drift_days > 0 ? `${d.drift_days}d behind` : "fresh",
-      cut(d.note, 30),
-    ]);
     charts.push({
       id: "document-drift",
       group: "Health",
       question: "Which words fell behind the code?",
       hint: "Docs' last change vs the code they describe.",
       icon: "timer",
-      spec: rows.length
-        ? { ...spec("table", "Document drift", "A doc can be old and still correct — this says which ones moved apart and by how many days."), columns: ["Doc", "Describes", "Doc age", "Drift", "Note"], rows, source: "quality.json — drift (git dates)" }
-        : null,
+      spec: buildDocumentDriftSpec(q),
     });
   }
 
   // 9. most complex parts
   {
-    const fns = (q.complexity.functions ?? []).slice(0, 8);
-    const data = fns.map((f) => ({
-      name: cut(f.function, 20),
-      value: f.cc,
-      color: f.cc >= q.complexity.totals.max_cc ? "rose" : f.cc >= 4 ? "amber" : "stone",
-    }));
+    const s = buildComplexitySpec(q);
     charts.push({
       id: "most-complex",
       group: "Health",
       question: "Where is the most twisted logic?",
-      hint: data.length ? `Cyclomatic complexity, worst first — avg ${q.complexity.totals.avg_cc}, max ${q.complexity.totals.max_cc}.` : "No functions parsed — honest empty.",
+      hint: s ? `Cyclomatic complexity, worst first — avg ${q.complexity.totals.avg_cc}, max ${q.complexity.totals.max_cc}.` : "No functions parsed — honest empty.",
       icon: "shapes",
-      spec: data.length
-        ? { ...spec("hbar", "Most complex functions (measured)", q.complexity.formula), data, source: `quality.json — ${q.complexity.tool}` }
-        : null,
+      spec: s,
     });
   }
 
@@ -282,7 +401,8 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
           source: `${m.source} · scope: ${m.scope}`,
         }
       : null;
-    return { id: chartId, group: "Quality metrics", question, hint, icon, spec: s ?? extra?.spec ?? null };
+    // prefer the real data chart; the stat (hero number) is the fallback
+    return { id: chartId, group: "Quality metrics", question, hint, icon, spec: extra?.spec ?? s };
   };
 
   const d = q.defects;
@@ -290,64 +410,43 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
     metricChart("defect-density", "metric-defect-density",
       "What is the defect density?",
       (d.derived.defect_density_per_kloc ?? 0) + " fix-commits per KLOC — the tracker is empty, commit mining is the disclosed proxy.",
-      "gauge"),
+      "gauge",
+      { spec: buildFixCommitsSpec(q, "The fix commits behind the density", "Each bar counts real fix commits landing that day — the events the density is computed from.") }),
     metricChart("mttf-mtbf", "metric-mtbf",
       "What is the mean time between failures?",
       d.derived.mtbf_hours + " h between real fix-commit timestamps.",
-      "timer"),
+      "timer",
+      { spec: buildFixCommitsSpec(q, "When the fix commits landed (behind MTBF)", "MTBF is the mean gap between real fix-commit timestamps; this day-level view shows when those commits actually landed.") }),
     metricChart("test-coverage", "metric-coverage",
       "How much do the tests cover?",
       "Measured by coverage.py on the sample's own test run.",
-      "shield"),
+      "shield",
+      { spec: buildCoverageHeatmapSpec(quality) }),
     metricChart("cyclomatic", "metric-cyclomatic",
       "How complex is the control flow?",
       `Avg ${q.complexity.totals.avg_cc}, max ${q.complexity.totals.max_cc} — real AST walk.`,
-      "shapes"),
+      "shapes",
+      { spec: buildComplexitySpec(q) }),
     metricChart("arrival-rate", "metric-arrival",
       "How fast are defects arriving?",
       d.derived.arrival_rate_per_day + " fix-commits per day over the real history.",
-      "gauge"),
+      "gauge",
+      { spec: buildFixCommitsSpec(q, "Fix commits per day — the arrivals behind the rate", "The arrival rate counts real fix commits per day of history; these are those commits, grouped by day.") }),
     metricChart("code-churn", "metric-churn",
       "How much is the code churning?",
       "Lines added+deleted, real git numstat.",
       "activity",
-      {
-        spec: (q.churn.hosting_repo.daily?.length ?? 0) > 0
-          ? {
-              ...spec("hbar", "Churn per day (hosting repository)", q.churn.tool + " — " + q.churn.formula),
-              data: q.churn.hosting_repo.daily.slice(-8).map((dd) => ({ name: dd.day.slice(5), value: dd.churn, color: "amber" })),
-              source: "quality.json — churn (hosting repo, labelled)",
-            }
-          : null,
-      }),
+      { spec: buildDailyChurnSpec(q) ?? buildPerFileChurnSpec(q) }),
     metricChart("crash-rate", "metric-crash",
       "What share of sessions crashes?",
       `${q.crash_probe.crashes} of ${q.crash_probe.sessions} seeded sessions — run live during collection.`,
       "activity",
-      {
-        spec: (q.crash_probe.crashes_detail?.length ?? 0) > 0
-          ? {
-              ...spec("table", "The crashes behind the rate", q.crash_probe.definition),
-              columns: ["Entry point", "Input", "What happened"],
-              rows: q.crash_probe.crashes_detail.slice(0, 8).map((c) => [`${c.module}.${c.function}`, cut(c.session, 24), cut(c.reason || "timeout", 40)]),
-              source: "quality.json — crash probe",
-            }
-          : null,
-      }),
+      { spec: buildCrashTableSpec(q) }),
     metricChart("mttr", "metric-mttr",
       "How fast does a repair land?",
       "Mean of really executed fail→fix→recheck loops, timed.",
       "timer",
-      {
-        spec: (q.repair_probe.iterations?.length ?? 0) > 0
-          ? {
-              ...spec("table", "The repair loops behind MTTR", q.repair_probe.tool),
-              columns: ["Bug", "Detect (s)", "Repair (s)", "Recheck (s)", "Total (s)"],
-              rows: q.repair_probe.iterations.map((i) => [cut(i.bug, 30), String(i.detect_s), String(i.repair_s), String(i.recheck_s), String(i.total_s)]),
-              source: "quality.json — repair probe",
-            }
-          : null,
-      }),
+      { spec: buildRepairTableSpec(q) }),
   );
 
   return charts;
@@ -448,7 +547,20 @@ function functionFacts(q: CieQuality, needle: string): QualityAnswer | null {
     cov ? `Test coverage of ${fn.file}: ${cov.percent}%.` : "",
     `Measured by ${q.complexity.tool}. On production projects: ${q.complexity.real_world_equivalents?.join(", ") ?? "radon, lizard, SonarQube"}.`,
   ].filter(Boolean).join("\n\n");
-  return { answer, chart: null };
+  // companion: the tapped function shown among its file-mates, worst first
+  const mates = q.complexity.functions.filter((f) => f.file === fn.file).sort((a, b) => b.cc - a.cc).slice(0, 8);
+  const chart: ChatChartSpec | null = mates.length
+    ? {
+        ...spec("hbar", `Complexity in ${fn.file}`, `${q.complexity.formula} — the function you tapped is marked.`),
+        data: mates.map((f) => ({
+          name: cut(f.function, 20),
+          value: f.cc,
+          color: f.function === fn.function ? "rose" : f.cc >= 4 ? "amber" : "stone",
+        })),
+        source: `quality.json — ${q.complexity.tool}`,
+      }
+    : null;
+  return { answer, chart };
 }
 
 function metricFacts(q: CieQuality, needle: string): QualityAnswer | null {
@@ -471,7 +583,36 @@ function metricFacts(q: CieQuality, needle: string): QualityAnswer | null {
     `**Source:** ${m.source} · **Scope:** ${m.scope}.`,
     q.defects.derived.proxy_note && (m.id === "defect-density" || m.id === "mttf-mtbf" || m.id === "arrival-rate") ? `**Proxy disclosure:** ${q.defects.derived.proxy_note}` : "",
   ].filter(Boolean).join("\n\n");
-  return { answer, chart: null };
+  // Every metric answer carries the chart of the REAL data behind the
+  // number — same builder the one-tap menu uses, so answer and card agree.
+  let chart: ChatChartSpec | null = null;
+  switch (m.id) {
+    case "test-coverage":
+      chart = buildCoverageHeatmapSpec(q);
+      break;
+    case "code-churn":
+      chart = buildDailyChurnSpec(q) ?? buildPerFileChurnSpec(q);
+      break;
+    case "cyclomatic":
+      chart = buildComplexitySpec(q);
+      break;
+    case "crash-rate":
+      chart = buildCrashTableSpec(q);
+      break;
+    case "mttr":
+      chart = buildRepairTableSpec(q);
+      break;
+    case "defect-density":
+      chart = buildFixCommitsSpec(q, "The fix commits behind the density", `Each bar counts real fix commits landing that day. Density = ${q.defects.fix_commits.count} fix commits ÷ ${q.defects.derived.kloc_measured ?? "?"} KLOC = ${q.defects.derived.defect_density_per_kloc ?? "?"}/KLOC.`);
+      break;
+    case "mttf-mtbf":
+      chart = buildFixCommitsSpec(q, "When the fix commits landed (behind MTBF)", "MTBF is the mean gap between real fix-commit timestamps; this day-level view shows when those commits actually landed.");
+      break;
+    case "arrival-rate":
+      chart = buildFixCommitsSpec(q, "Fix commits per day — the arrivals behind the rate", "The arrival rate counts real fix commits per day of history; these are those commits, grouped by day.");
+      break;
+  }
+  return { answer, chart };
 }
 
 export function tryAnswerQuality(question: string, quality: CieQuality | null, concepts: ConceptTree | null): QualityAnswer | null {
@@ -494,7 +635,7 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
     if (row) {
       return {
         answer: `**Churn on ${row.day}** — ${row.added} lines added, ${row.deleted} deleted (${row.churn} total), from ${q.churn.tool} over the hosting repository's real history. The biggest day of this sprint is the day the sample playground landed.`,
-        chart: null,
+        chart: buildDailyChurnSpec(q),
       };
     }
   }
@@ -524,12 +665,12 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
       answer: rows.length
         ? `**${dup.blocks_found} duplicated block(s), ${dup.duplicated_lines} lines** — matched by ${dup.tool}:\n${rows.join("\n")}\n\nHere the duplicated blocks are the CREATE TABLE definitions shared between the migrations and the schema dump — a classic sample of schema defined twice.`
         : `No repeated blocks found by ${dup.tool} — recorded as found.`,
-      chart: null,
+      chart: buildDuplicationSpec(q),
     };
   }
   if (wants(["hot spot", "hotspot", "hot spot"])) {
     const rows = (q.hotspots.rows ?? []).slice(0, 5).map((r) => `- ${r.file} — risk ${r.risk}/100 (churn ${r.churn}, max CC ${r.max_cc}, urgent findings ${r.urgent_findings})`);
-    return { answer: `**Hot spots, ranked** by the disclosed formula: ${q.hotspots.formula}.\n${rows.join("\n")}\n\nOn production projects: ${q.hotspots.real_world_equivalents?.join(", ") ?? "CodeScene, SonarQube"}.`, chart: null };
+    return { answer: `**Hot spots, ranked** by the disclosed formula: ${q.hotspots.formula}.\n${rows.join("\n")}\n\nOn production projects: ${q.hotspots.real_world_equivalents?.join(", ") ?? "CodeScene, SonarQube"}.`, chart: buildHotspotSpec(q) };
   }
   if (wants(["heatmap", "heat map", "coverage map"]) || (wants(["coverage"]) && wants(["every", "file by file", "grid"]))) {
     const s = buildCoverageHeatmapSpec(q);
@@ -537,17 +678,85 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
   }
   if (wants(["code drift", "ahead of its tests", "test lag"])) {
     const rows = (q.drift.code ?? []).slice(0, 6).map((c) => `- ${c.file} — code ${c.last_change}, tests ${c.tests_last_change ?? "none"}${c.test_lag_days != null ? ` (lag ${c.test_lag_days}d)` : ""}`);
-    return { answer: `**Code drift vs tests** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: null };
+    return { answer: `**Code drift vs tests** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: buildCodeDriftSpec(q) };
   }
   if (wants(["document drift", "docs behind", "words fell"])) {
     const rows = (q.drift.document ?? []).slice(0, 6).map((d) => `- ${d.doc} — ${d.note}${d.drift_days > 0 ? ` (${d.drift_days}d behind)` : ""}`);
-    return { answer: `**Document drift** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: null };
+    return { answer: `**Document drift** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: buildDocumentDriftSpec(q) };
   }
 
   // metric answers
   const mAns = metricFacts(q, question);
   if (mAns) return mAns;
 
+  return null;
+}
+
+/**
+ * The de-facto companion chart: when ANY answer comes back without a chart,
+ * this picks the most relevant real chart from the loaded data — so every
+ * reply explains itself with a picture drawn from the collected exports.
+ * Ranked keyword match, then an honest fallback order. Never invents: every
+ * spec comes from the same builders the menu uses, or renders an honest empty.
+ */
+export function buildCompanionChart(question: string, quality: CieQuality | null, concepts: ConceptTree | null): ChatChartSpec | null {
+  const n = question.toLowerCase();
+  const wants = (w: string[]) => w.some((k) => n.includes(k));
+  if (quality) {
+    const q = quality;
+    if (wants(["coverage", "test", "tests"])) {
+      const s = buildCoverageHeatmapSpec(q);
+      if (s) return s;
+    }
+    if (wants(["churn", "change", "unstable"])) {
+      const s = buildDailyChurnSpec(q) ?? buildPerFileChurnSpec(q);
+      if (s) return s;
+    }
+    if (wants(["defect", "bug", "density", "mtbf", "mttf", "arrival", "failure"])) {
+      const s = buildFixCommitsSpec(q, "The fix commits behind the answer", "Each bar counts real fix commits landing that day — the events the defect metrics are computed from.");
+      if (s) return s;
+    }
+    if (wants(["complex", "cyclomatic", "twisted", "control flow"])) {
+      const s = buildComplexitySpec(q);
+      if (s) return s;
+    }
+    if (wants(["security", "secret", "credential", "vulnerab", "weakness", "insecure"])) {
+      const data = Object.entries(q.security.by_category ?? {}).map(([k, v]) => ({ name: cut(k, 24), value: v, color: "amber" as const }));
+      if (data.length) return { ...spec("hbar", "Security issues by kind", "Counts per finding kind, from the disclosed rule set."), data, source: "quality.json — security scan" };
+    }
+    if (wants(["duplicate", "copy-paste", "copy paste", "twice"])) {
+      const s = buildDuplicationSpec(q);
+      if (s) return s;
+    }
+    if (wants(["hot spot", "hotspot", "fix first", "priority", "risk", "worst"])) {
+      const s = buildHotspotSpec(q);
+      if (s) return s;
+    }
+    if (wants(["drift", "stale", "behind"])) {
+      const s = buildCodeDriftSpec(q) ?? buildDocumentDriftSpec(q);
+      if (s) return s;
+    }
+    if (wants(["crash", "hang"])) {
+      const s = buildCrashTableSpec(q);
+      if (s) return s;
+    }
+    if (wants(["repair", "mttr", "resolve"])) {
+      const s = buildRepairTableSpec(q);
+      if (s) return s;
+    }
+  }
+  // universal default: what the project is made of — the picture that gives
+  // any answer its context. Falls through the real exports in order.
+  const tree = buildConceptTreeSpec(concepts);
+  if (tree) return tree;
+  if (quality) {
+    return (
+      buildHotspotSpec(quality) ??
+      buildComplexitySpec(quality) ??
+      buildDailyChurnSpec(quality) ??
+      buildCoverageHeatmapSpec(quality)
+    );
+  }
   return null;
 }
 

@@ -18,10 +18,10 @@ import { Button } from "@/components/ui/button";
 import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, Maximize2, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
-import { parseChartReply, isDiagramKind } from "@/lib/chat-chart";
+import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
-import { tryAnswerQuality } from "@/lib/quality";
+import { tryAnswerQuality, buildCompanionChart } from "@/lib/quality";
 import { ChatChart } from "@/components/cie/chat-chart";
 import { providerLabel } from "@/lib/llm-config";
 
@@ -114,6 +114,13 @@ export function ChatPanel() {
     pushChat({ role: "user", content: question });
     if (inputRef.current) inputRef.current.value = "";
 
+    // De-facto companion chart: EVERY answer carries a chart drawn from the
+    // loaded exports. If the answerer found none, the companion picker picks
+    // the most relevant real chart for the question (never invented — see
+    // buildCompanionChart). Error bubbles stay chart-less on purpose.
+    const withChart = (c: ChatChartSpec | null | undefined) =>
+      c ?? buildCompanionChart(question, quality, concepts) ?? undefined;
+
     // ---- fast path 1: story questions are answered locally from the
     // collected stories.json — instant, honest, nothing invented. Runs
     // before the general drawer so "map of who knows which part" reaches
@@ -123,7 +130,7 @@ export function ChatPanel() {
       pushChat({
         role: "assistant",
         content: storyAns.answer,
-        chart: storyAns.chart ?? undefined,
+        chart: withChart(storyAns.chart),
         instant: true,
       });
       return;
@@ -138,7 +145,7 @@ export function ChatPanel() {
       pushChat({
         role: "assistant",
         content: qualityAns.answer,
-        chart: qualityAns.chart ?? undefined,
+        chart: withChart(qualityAns.chart),
         instant: true,
       });
       return;
@@ -151,7 +158,7 @@ export function ChatPanel() {
       pushChat({
         role: "assistant",
         content: local.answer,
-        chart: local.chart ?? undefined,
+        chart: withChart(local.chart),
         instant: true,
       });
       return;
@@ -194,7 +201,8 @@ export function ChatPanel() {
         });
       } else {
         // The model answers with JSON { answer, chart? }; the tolerant parser
-        // falls back to plain text if it doesn't cooperate.
+        // falls back to plain text if it doesn't cooperate. A text-only reply
+        // still gets its companion chart — every answer draws something real.
         const parsed = parseChartReply(data.reply);
         // Diagrams: the model only picks the KIND. Boxes and arrows are
         // filled from the loaded store, so nothing can be invented.
@@ -202,7 +210,7 @@ export function ChatPanel() {
         if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length && !chart.tree?.length && !chart.tiles?.length) {
           chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality) ?? chart;
         }
-        pushChat({ role: "assistant", content: parsed.answer, chart });
+        pushChat({ role: "assistant", content: parsed.answer, chart: withChart(chart) });
       }
     } catch {
       pushChat({
