@@ -1,21 +1,24 @@
 "use client";
 
-// components/cie/atlas-view.tsx — the multi-view dashboard ("Atlas").
+// components/cie/atlas-view.tsx — the dashboard ("Atlas") — ONE screen, a
+// grid of charts, one Selection Context.
 //
-// One Selection Context (lib/atlas.ts, kept in cie-store), four synchronized
-// views, an always-honest evidence story:
+// Every picture lives on the same screen at once, laid out as a grid:
 //
-//   Containers  — C4 L2: the repo's own top-level grouping, calls across
+//   Containers  — C4 L2: the repo's own top-level grouping (the input panel)
 //   Components  — C4 L3: modules of the scoped container, then its symbols
 //   Sequence    — time-ordered calls for the selected flow or symbol
 //   Data flow   — recorded reads/writes against stores the code names
+//   Coverage / Complexity / Churn / Hot spots — measured quality panels
 //
-// Every picture is built from the loaded engine exports through the same
-// ChatChart engines the chat uses (DiagramSVG / SequenceSVG) — no second
-// rendering stack, no invented geometry. A click anywhere lands in the
-// Selection Context; the other views re-derive from it. Elements the engine
-// could not pin down stay visible but marked (dashed / "inferred"), and the
-// Facts-only switch filters the whole dashboard at once.
+// Click a container in the Containers graph and every other panel re-derives
+// from that container alone — components, flows, stores, coverage tiles,
+// complexity, churn and hot-spot rankings all scope at once; the clicked box
+// gets a ring so the filter is visible, not implied. Click again (or a
+// breadcrumb) to release. Each panel can be expanded to fill the grid alone.
+// Elements the engine could not pin down stay visible but marked
+// (dashed / "inferred"), and the Facts-only switch filters the whole
+// dashboard at once.
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ChevronRight, Home, Layers, Route, Share2, Boxes, MousePointerClick, ListTree, ExternalLink, PanelRightClose, PanelRightOpen, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck } from "lucide-react";
+import { ChevronRight, Home, Layers, Route, Share2, Boxes, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import {
   breadcrumbOf,
@@ -40,6 +43,7 @@ import {
   type RelativeSymbol,
 } from "@/lib/atlas";
 import { buildC4Spec, computeTopFlows, traceFlow, buildSequenceSpec, type MasteryRow } from "@/lib/mastery";
+import { buildComplexitySpec, buildCoverageHeatmapSpec, buildHotspotSpec, buildPerFileChurnSpec } from "@/lib/quality";
 import { ChatChart, type DiagramSelection } from "@/components/cie/chat-chart";
 import type { ChatChartSpec, ElementLoc } from "@/lib/chat-chart";
 import type { SymbolInfo } from "@/lib/cie-types";
@@ -47,14 +51,14 @@ import type { SymbolInfo } from "@/lib/cie-types";
 /** The report once loaded — the type every atlas view reads from. */
 type LoadedReport = NonNullable<ReturnType<typeof useCie.getState>["report"]>;
 
-const VIEWS = [
+const PANELS = [
   { id: "containers", label: "Containers", icon: Boxes },
   { id: "components", label: "Components", icon: Layers },
   { id: "sequence", label: "Sequence", icon: Route },
   { id: "dataflow", label: "Data flow", icon: Share2 },
 ] as const;
 
-type AtlasViewId = (typeof VIEWS)[number]["id"];
+type PanelId = (typeof PANELS)[number]["id"];
 
 /** Facts-only: drop every element the engine marked as a guess. Store-built
  *  specs carry Fact/Inference/Hypothesis on each node and link — the filter
@@ -67,113 +71,148 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, concepts, atlasSelection, atlasView, atlasFactsOnly, setAtlasSelection, setAtlasView, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
-  const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string } | null>(null);
+  const { report, quality, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
+  const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
+  const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
 
   const primary = atlasSelection.primary;
   const containerRef = primary?.kind === "container" ? primary : null;
   const moduleRef = primary?.kind === "module" ? primary : null;
   const symbolRef = primary?.kind === "symbol" ? primary : null;
-  const storeRef = primary?.kind === "store" ? primary : null;
+  const scopeId = containerRef?.id ?? null; // every panel reads this one filter
 
-  // ---- the four view specs, re-derived from the Selection Context ----
-  const spec = useMemo<ChatChartSpec | null>(() => {
+  // A flow pick is stamped with the scope it was made under — when the scope
+  // moves the pick no longer matches and is ignored (released), so the panel
+  // can never keep showing the old container's walk. No effect needed: the
+  // staleness is derived, not synced.
+  const picked = pickedFlow && pickedFlow.scope === scopeId ? pickedFlow : null;
+
+  // ---- flow candidates first: the engine's own entry points, scoped when a
+  // container is — the sequence panel auto-traces the top one (below). ----
+  const flows: MasteryRow[] = useMemo(() => {
+    if (!report) return [];
+    const { rows } = computeTopFlows(report);
+    const inContainer = scopeId
+      ? rows.filter((r) => {
+          const sym = symbolByQualName(report, r.title);
+          const f = sym ? report.files[sym.loc.file] : r.file;
+          return f && containerOfPath(f) === scopeId;
+        })
+      : rows;
+    return inContainer.slice(0, 3);
+  }, [report, scopeId]);
+
+  // ---- the panel specs, re-derived from the Selection Context ----
+  const c4Spec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
-    if (atlasView === "containers") {
-      return buildC4Spec(report, "Containers — how the repo itself is laid out");
+    const s = buildC4Spec(report, "Containers — how the repo itself is laid out");
+    if (s && containerRef) {
+      s.nodes = s.nodes?.map((n) => (n.id === containerRef.id ? { ...n, selected: true } : n));
     }
-    if (atlasView === "components") {
-      // zoomed into a module's symbols when one is selected; otherwise the
-      // module boxes, scoped to the selected container when there is one
-      return buildComponentSpec(report, containerRef ? containerRef.id : null, undefined, moduleRef ? moduleRef.id : null);
-    }
-    if (atlasView === "dataflow") {
-      return buildDataFlowSpec(report, containerRef ? containerRef.id : null);
-    }
-    return null; // sequence is built below (needs its own entry choice)
-  }, [report, atlasView, containerRef, moduleRef]);
+    return s;
+  }, [report, containerRef]);
 
-  // ---- sequence: symbol-centred trace, or the flow picker ----
+  const compSpec = useMemo<ChatChartSpec | null>(() => {
+    if (!report) return null;
+    // zoomed into a module's symbols when one is selected; otherwise the
+    // module boxes, scoped to the selected container when there is one
+    return buildComponentSpec(report, scopeId, undefined, moduleRef ? moduleRef.id : null);
+  }, [report, scopeId, moduleRef]);
+
+  const dataflowSpec = useMemo<ChatChartSpec | null>(() => {
+    if (!report) return null;
+    return buildDataFlowSpec(report, scopeId);
+  }, [report, scopeId]);
+
+  // ---- sequence: symbol-centred trace, or the top flow of the scope ----
+  const autoFlow = useMemo(() => {
+    if (symbolRef || picked || !scopeId) return null;
+    if (!flows.length || flows[0].entryId == null) return null;
+    return { entryId: Number(flows[0].entryId), label: flows[0].title };
+  }, [symbolRef, picked, scopeId, flows]);
   const seqTrace = useMemo(() => {
     if (!report) return null;
-    const qual = symbolRef?.id ?? pickedFlow?.label;
-    const entryId = qual ? (symbolByQualName(report, qual)?.id ?? pickedFlow?.entryId) : pickedFlow?.entryId;
+    const qual = symbolRef?.id ?? picked?.label ?? autoFlow?.label;
+    const entryId = qual ? (symbolByQualName(report, qual)?.id ?? picked?.entryId ?? autoFlow?.entryId) : autoFlow?.entryId;
     if (entryId == null) return null;
     const res = traceFlow(report, Number(entryId));
     if (!res) return null;
-    return { res, entryLabel: qual ?? pickedFlow?.label ?? "", entryId: Number(entryId) };
-  }, [report, symbolRef, pickedFlow]);
+    return { res, entryLabel: qual ?? autoFlow?.label ?? "", entryId: Number(entryId) };
+  }, [report, symbolRef, picked, autoFlow]);
 
   const seqSpec = useMemo(() => {
     if (!seqTrace || !report) return null;
     return buildSequenceSpec(`Sequence — ${seqTrace.entryLabel}()`, seqTrace.res.steps, new Set<number>());
   }, [seqTrace, report]);
 
-  // flow candidates: the engine's own entry points, scoped when a container is
-  const flows: MasteryRow[] = useMemo(() => {
-    if (!report) return [];
-    const { rows } = computeTopFlows(report);
-    const inContainer = containerRef
-      ? rows.filter((r) => {
-          const sym = symbolByQualName(report, r.title);
-          const f = sym ? report.files[sym.loc.file] : r.file;
-          return f && containerOfPath(f) === containerRef.id;
-        })
-      : rows;
-    return inContainer.slice(0, 3);
-  }, [report, containerRef]);
+  // ---- measured quality panels — scoped when a container is. The raw
+  // dataset is checked first so a scope with no rows can say so honestly
+  // instead of the panel quietly vanishing. ----
+  const hasCov = !!quality?.coverage_heatmap?.files?.length;
+  const hasCplx = !!quality?.complexity?.functions?.length;
+  const hasChurn = !!quality?.churn?.sample?.per_file?.length;
+  const hasHot = !!quality?.hotspots?.rows?.length;
+  const covSpec = useMemo(() => (hasCov ? buildCoverageHeatmapSpec(quality, scopeId) : null), [quality, scopeId, hasCov]);
+  const cplxSpec = useMemo(() => (hasCplx ? buildComplexitySpec(quality!, scopeId) : null), [quality, scopeId, hasCplx]);
+  const churnSpec = useMemo(() => (hasChurn ? buildPerFileChurnSpec(quality!, scopeId) : null), [quality, scopeId, hasChurn]);
+  const hotSpec = useMemo(() => (hasHot ? buildHotspotSpec(quality!, scopeId) : null), [quality, scopeId, hasHot]);
 
-  // ---- click routing: one handler, view-aware, into the Selection Context.
-  // The atlas OWNS diagram clicks when this handler is passed (the chat
-  // fallback is suppressed), so it also does what the PRD's editor column
-  // promises: a symbol or module click opens the exact code alongside. ----
+  // ---- click routing: one handler per panel (each ChatChart gets its own),
+  // all landing in the same Selection Context. The atlas OWNS diagram clicks
+  // when a handler is passed (the chat fallback is suppressed), so a symbol
+  // or module click also opens the exact code alongside. ----
   const openCodeFor = (loc: ElementLoc | undefined | null, label: string) => {
     if (loc?.file) openSourceViewer({ file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, elName: label, chartTitle: "Atlas" });
   };
-  const onSelectElement = (sel: DiagramSelection) => {
+  const onContainersClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "node") return;
+    if (sel.id.startsWith("…")) return; // the grouped-out box is not a scope
+    setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
+  };
+  const onComponentsClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "node") return;
+    if (sel.id.startsWith("…")) return;
     if (!report) return;
-    if (atlasView === "containers" && sel.kind === "node") {
-      if (sel.id.startsWith("…")) return; // the grouped-out box is not a scope
-      setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
+    const isFile = report.files.includes(sel.id);
+    if (isFile) {
+      setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
+      openCodeFor(sel.loc, sel.label); // editor opens the module's own file
+    } else {
+      // a symbol box (module zoom) — select the symbol, sequence follows
+      const sym = symbolByQualName(report, sel.id);
+      setAtlasSelection({ kind: "symbol", id: sel.id, label: sel.label, loc: sel.loc ?? locOfSym(report, sym) });
+      openCodeFor(sel.loc ?? locOfSym(report, sym), sel.label); // editor at the exact symbol
+    }
+  };
+  const onDataflowClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "node") return;
+    if (!report) return;
+    if (sel.id.startsWith("store:")) {
+      setAtlasSelection({ kind: "store", id: sel.id, label: sel.label });
       return;
     }
-    if (atlasView === "components" && sel.kind === "node") {
-      if (sel.id.startsWith("…")) return;
-      const isFile = report.files.includes(sel.id);
-      if (isFile) {
-        setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
-        openCodeFor(sel.loc, sel.label); // editor opens the module's own file
-      } else {
-        // a symbol box (module zoom) — select the symbol, sequence follows
-        const sym = symbolByQualName(report, sel.id);
-        setAtlasSelection({ kind: "symbol", id: sel.id, label: sel.label, loc: sel.loc ?? locOfSym(report, sym) });
-        openCodeFor(sel.loc ?? locOfSym(report, sym), sel.label); // editor at the exact symbol
-      }
+    if (report.files.includes(sel.id)) {
+      setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
+      openCodeFor(sel.loc, sel.label);
       return;
     }
-    if (atlasView === "dataflow" && sel.kind === "node") {
-      if (sel.id.startsWith("store:")) {
-        setAtlasSelection({ kind: "store", id: sel.id, label: sel.label });
-        return;
-      }
-      if (report.files.includes(sel.id)) {
-        setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
-        openCodeFor(sel.loc, sel.label);
-        return;
-      }
-      return; // the unresolved bucket is evidence, not a scope
-    }
-    if (atlasView === "sequence" && sel.kind === "msg") {
-      // arrow click: also select the callee so the other views re-centre
-      const qual = sel.id.replace(/\(\)$/, "");
-      if (symbolByQualName(report, qual)) setAtlasSelection({ kind: "symbol", id: qual, label: qual, loc: sel.loc });
-    }
+    return; // the unresolved bucket is evidence, not a scope
+  };
+  const onSequenceClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "msg") return;
+    if (!report) return;
+    // arrow click: also select the callee so the other panels re-centre
+    const qual = sel.id.replace(/\(\)$/, "");
+    if (symbolByQualName(report, qual)) setAtlasSelection({ kind: "symbol", id: qual, label: qual, loc: sel.loc });
   };
 
   const crumbs = breadcrumbOf(atlasSelection);
-  const shownSpec = atlasFactsOnly && spec ? filterFacts(spec) : spec;
-  const shownSeq = atlasFactsOnly && seqSpec ? filterFacts(seqSpec) : seqSpec;
+  const shown = (s: ChatChartSpec | null): ChatChartSpec | null => (atlasFactsOnly && s ? filterFacts(s) : s);
+  const shownC4 = shown(c4Spec);
+  const shownComp = shown(compSpec);
+  const shownFlow = shown(dataflowSpec);
+  const shownSeq = shown(seqSpec);
 
   if (!report) {
     return (
@@ -183,119 +222,129 @@ export function AtlasView() {
     );
   }
 
+  const expandedPanel = PANELS.find((p) => p.id === expanded);
+  const body = (id: PanelId): React.ReactNode => {
+    if (id === "containers")
+      return shownC4 ? <ChatChart spec={shownC4} onSelectElement={onContainersClick} /> : <HonestEmpty scope={null} what="top-level groups to draw" />;
+    if (id === "components")
+      return shownComp ? <ChatChart spec={shownComp} onSelectElement={onComponentsClick} /> : (
+        <HonestEmpty scope={scopeId} what="modules with named things" />
+      );
+    if (id === "dataflow")
+      return shownFlow ? <ChatChart spec={shownFlow} onSelectElement={onDataflowClick} /> : (
+        <HonestEmpty scope={scopeId} what="recorded reads and writes" />
+      );
+    return (
+      <SequencePanel
+        seqSpec={shownSeq}
+        flows={flows}
+        picked={picked}
+        auto={autoFlow}
+        scope={scopeId}
+        traceInfo={seqTrace ? { steps: seqTrace.res.steps.length, truncated: seqTrace.res.truncated, effects: seqTrace.res.effectsSeen } : null}
+        onPick={(entryId, label) => setPickedFlow({ entryId, label, scope: scopeId })}
+        onClearPick={() => setPickedFlow(null)}
+        hasEntry={!!(symbolRef || picked || autoFlow)}
+        onSelectElement={onSequenceClick}
+      />
+    );
+  };
+
   return (
     <div className="flex h-full w-full">
       <div className="flex flex-col flex-1 min-w-0">
-      {/* breadcrumb + filter bar (PRD §7) */}
-      <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-2 border-b border-stone-200/80 bg-white/70">
-        <Home className="h-3.5 w-3.5 text-stone-400" aria-hidden />
-        {crumbs.map((c, i) => (
-          <span key={`${c.scope}-${i}`} className="flex items-center gap-1.5">
-            {i > 0 && <ChevronRight className="h-3 w-3 text-stone-300" aria-hidden />}
+        {/* breadcrumb + filter bar (PRD §7) */}
+        <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-2 border-b border-stone-200/80 bg-white/70">
+          <Home className="h-3.5 w-3.5 text-stone-400" aria-hidden />
+          {crumbs.map((c, i) => (
+            <span key={`${c.scope}-${i}`} className="flex items-center gap-1.5">
+              {i > 0 && <ChevronRight className="h-3 w-3 text-stone-300" aria-hidden />}
+              <button
+                type="button"
+                onClick={() => (c.ref ? setAtlasSelection(c.ref) : resetAtlas())}
+                className={`rounded-md px-1.5 py-0.5 text-xs ${i === crumbs.length - 1 ? "font-semibold text-emerald-800 bg-emerald-50" : "text-stone-500 hover:bg-stone-100"}`}
+              >
+                {c.ref ? c.ref.label : "System"}
+              </button>
+            </span>
+          ))}
+          <span className="flex-1" />
+          {scopeId && (
+            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800" data-testid="atlas-scope-note">
+              every other panel shows {scopeId} only
+            </span>
+          )}
+          {primary && (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-stone-500" onClick={drillUp}>
+              up one level
+            </Button>
+          )}
+          {primary && (
             <button
               type="button"
-              onClick={() => (c.ref ? setAtlasSelection(c.ref) : resetAtlas())}
-              className={`rounded-md px-1.5 py-0.5 text-xs ${i === crumbs.length - 1 ? "font-semibold text-emerald-800 bg-emerald-50" : "text-stone-500 hover:bg-stone-100"}`}
+              onClick={() => setRailOpen((o) => !o)}
+              className="h-6 px-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1 text-[11px]"
+              aria-label={railOpen ? "Hide the selection panel" : "Show the selection panel"}
             >
-              {c.ref ? c.ref.label : "System"}
+              {railOpen ? <PanelRightClose className="h-3.5 w-3.5" aria-hidden /> : <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />}
+              {railOpen ? "hide panel" : "details"}
             </button>
-          </span>
-        ))}
-        <span className="flex-1" />
-        {primary && (
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-stone-500" onClick={drillUp}>
-            up one level
-          </Button>
-        )}
-        {primary && (
-          <button
-            type="button"
-            onClick={() => setRailOpen((o) => !o)}
-            className="h-6 px-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1 text-[11px]"
-            aria-label={railOpen ? "Hide the selection panel" : "Show the selection panel"}
-          >
-            {railOpen ? <PanelRightClose className="h-3.5 w-3.5" aria-hidden /> : <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />}
-            {railOpen ? "hide panel" : "details"}
-          </button>
-        )}
-        <label className="flex items-center gap-1.5 text-[11px] text-stone-500 cursor-pointer select-none pr-1">
-          <Switch checked={atlasFactsOnly} onCheckedChange={setAtlasFactsOnly} aria-label="Facts only" className="scale-90" />
-          Facts only
-        </label>
-      </div>
+          )}
+          <label className="flex items-center gap-1.5 text-[11px] text-stone-500 cursor-pointer select-none pr-1">
+            <Switch checked={atlasFactsOnly} onCheckedChange={setAtlasFactsOnly} aria-label="Facts only" className="scale-90" />
+            Facts only
+          </label>
+        </div>
 
-      {/* view tabs */}
-      <div className="flex items-center gap-1 px-3 pt-2 pb-1 border-b border-stone-200/80 overflow-x-auto">
-        {VIEWS.map((v) => {
-          const Icon = v.icon;
-          const active = atlasView === v.id;
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => setAtlasView(v.id)}
-              className={`h-8 rounded-lg px-3 text-[13px] font-medium inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${
-                active ? "bg-emerald-50 text-emerald-900" : "text-stone-500 hover:text-stone-800 hover:bg-stone-100"
-              }`}
-              aria-pressed={active}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {v.label}
-            </button>
-          );
-        })}
-        <span className="flex-1" />
-        <span className="pr-2 text-[10px] text-stone-400 hidden sm:flex items-center gap-1">
-          <MousePointerClick className="h-3 w-3" aria-hidden />
-          one click re-orients every view
-        </span>
-      </div>
-
-      {/* the active view */}
-      <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-4">
-        {atlasView === "sequence" ? (
-          <SequencePane
-            seqSpec={shownSeq}
-            flows={flows}
-            picked={pickedFlow}
-            traceInfo={seqTrace ? { steps: seqTrace.res.steps.length, truncated: seqTrace.res.truncated, effects: seqTrace.res.effectsSeen } : null}
-            onPick={(entryId, label) => setPickedFlow({ entryId, label })}
-            onClearPick={() => setPickedFlow(null)}
-            hasEntry={!!(symbolRef || pickedFlow)}
-            onSelectElement={onSelectElement}
-          />
-        ) : shownSpec ? (
-          <Card className="border-stone-200 shadow-sm w-full">
-            <CardContent className="p-4 sm:p-5">
-              {/* ChatChart renders its own title/tell/footnote — no second header here */}
-              <div className="mt-1">
-                <ChatChart spec={shownSpec} onSelectElement={onSelectElement} />
+        {/* THE GRID — every chart on one screen. Clicking a container in the
+            first panel scopes all the others; a second click releases it. */}
+        <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-4" data-testid="atlas-grid">
+          {expandedPanel ? (
+            <div className="grid grid-cols-1 gap-3">
+              <Panel
+                id={expandedPanel.id}
+                icon={expandedPanel.icon}
+                label={expandedPanel.label}
+                scopedTo={expandedPanel.id === "containers" ? null : scopeId}
+                expanded
+                onToggle={() => setExpanded(null)}
+              >
+                {body(expandedPanel.id)}
+              </Panel>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="lg:col-span-2">
+                <Panel id="containers" icon={Boxes} label="Containers" scopedTo={null} onToggle={() => setExpanded("containers")}>
+                  {body("containers")}
+                </Panel>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-sm text-stone-500">
-              {atlasView === "components" && containerRef
-                ? `Nothing to draw for “${containerRef.label}” — the engine indexed no named things there. Said plainly instead of drawn anyway.`
-                : "Nothing to draw here yet — this view is built from records the engine exports, and there are none for this scope."}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* what the current selection means for the other views (PRD §6) */}
-        {primary && (
-          <Card className="border-stone-200 shadow-sm w-full mt-3">
-            <CardContent className="p-4 text-xs text-stone-600 space-y-1">
-              <p className="font-semibold text-stone-800 text-[13px] flex items-center gap-1.5">
-                <ListTree className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                Because you selected {primary.label}
-              </p>
-              <SelectionConsequences primary={primary} moduleSymbols={moduleRef ? symbolsOfModule(report, moduleRef.id).length : null} storeRef={storeRef} />
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              <Panel id="components" icon={Layers} label="Components" scopedTo={scopeId} onToggle={() => setExpanded("components")}>
+                {body("components")}
+              </Panel>
+              <Panel id="dataflow" icon={Share2} label="Data flow" scopedTo={scopeId} onToggle={() => setExpanded("dataflow")}>
+                {body("dataflow")}
+              </Panel>
+              <div className="lg:col-span-2">
+                <Panel id="sequence" icon={Route} label="Sequence" scopedTo={scopeId} onToggle={() => setExpanded("sequence")}>
+                  {body("sequence")}
+                </Panel>
+              </div>
+              {hasCov && (
+                <QualityPanel icon={ShieldCheck} label="Test coverage" scopedTo={scopeId} spec={covSpec} scopeWhat="measured coverage rows" />
+              )}
+              {hasCplx && <QualityPanel icon={Gauge} label="Complexity" scopedTo={scopeId} spec={cplxSpec} scopeWhat="measured functions" />}
+              {hasChurn && <QualityPanel icon={GitCommitHorizontal} label="Churn per file" scopedTo={scopeId} spec={churnSpec} scopeWhat="files with churn" />}
+              {hasHot && <QualityPanel icon={Flame} label="Hot spots" scopedTo={scopeId} spec={hotSpec} scopeWhat="ranked files" />}
+            </div>
+          )}
+          {!expandedPanel && (
+            <p className="mt-3 flex items-center gap-1.5 text-[10.5px] text-stone-400">
+              <MousePointerClick className="h-3 w-3" aria-hidden />
+              click a container above — every other panel shows only that container; click it again to release · expand any panel with the ⤢ button
+            </p>
+          )}
+        </div>
       </div>
 
       {/* the detail rail (PRD §5.6): evidence, callers, callees, tests, IDE links */}
@@ -314,6 +363,94 @@ export function AtlasView() {
         </div>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Panel chrome — one chart card in the grid, with its scope said out loud
+// ---------------------------------------------------------------------------
+
+function Panel({
+  id,
+  icon: Icon,
+  label,
+  scopedTo,
+  expanded,
+  onToggle,
+  children,
+  noExpand,
+  testId,
+}: {
+  id: PanelId | "quality";
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  scopedTo: string | null;
+  expanded?: boolean;
+  onToggle?: () => void;
+  children: React.ReactNode;
+  noExpand?: boolean; // quality panels keep their place in the grid — no fill-the-grid mode
+  testId?: string;
+}) {
+  return (
+    <Card className={`border-stone-200 shadow-sm ${expanded ? "" : "max-h-[520px] overflow-hidden flex flex-col"}`} data-testid={`atlas-panel-${testId ?? id}`}>
+      <div className="flex items-center gap-1.5 px-4 pt-3 pb-1 shrink-0">
+        <Icon className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+        <span className="text-[13px] font-semibold text-stone-800">{label}</span>
+        {scopedTo ? (
+          <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50" data-testid={`atlas-scope-${testId ?? id}`}>
+            scoped: {scopedTo}
+          </Badge>
+        ) : (
+          <span className="text-[10px] text-stone-400">{id === "containers" ? "click one to filter everything" : "all containers"}</span>
+        )}
+        <span className="flex-1" />
+        {!noExpand && onToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="h-6 w-6 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 inline-flex items-center justify-center"
+            aria-label={expanded ? `Show all panels` : `Expand ${label} to fill the grid`}
+            title={expanded ? "Show all panels" : `Expand ${label}`}
+          >
+            {expanded ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+          </button>
+        )}
+      </div>
+      <CardContent className={`px-4 pb-4 pt-0 ${expanded ? "" : "overflow-auto min-h-0"}`}>
+        <div className="mt-1">{children}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** A measured quality panel: the chart when the scope has rows, an honest
+ *  note when the selected container has none of what this panel measures. */
+function QualityPanel({
+  icon: Icon,
+  label,
+  scopedTo,
+  spec,
+  scopeWhat,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  scopedTo: string | null;
+  spec: ChatChartSpec | null;
+  scopeWhat: string;
+}) {
+  const slug = label.toLowerCase().replace(/[^a-z]+/g, "-");
+  return (
+    <Panel id="quality" icon={Icon} label={label} scopedTo={scopedTo} noExpand testId={slug}>
+      {spec ? <ChatChart spec={spec} /> : <HonestEmpty scope={scopedTo} what={scopeWhat} />}
+    </Panel>
+  );
+}
+
+function HonestEmpty({ scope, what }: { scope: string | null; what: string }) {
+  return (
+    <p className="text-xs text-stone-500 py-6 text-center">
+      {scope ? `The engine recorded no ${what} in ${scope} — nothing is drawn rather than something invented.` : `Nothing to draw here yet — this panel is built from records the engine exports, and there are none for this scope.`}
+    </p>
   );
 }
 
@@ -562,41 +699,16 @@ function EvidenceNote({ report }: { report: LoadedReport }) {
   );
 }
 
-/** The PRD's interaction model, said out loud: each click names what the
- *  other views are now showing — no hidden re-orientation. */
-function SelectionConsequences({ primary, moduleSymbols, storeRef }: { primary: AtlasRef; moduleSymbols: number | null; storeRef: AtlasRef | null }) {
-  const rows: string[] = [];
-  if (primary.kind === "container") {
-    rows.push("Components zooms into this container's own modules.");
-    rows.push("Sequence offers the top entry-point flows that start here.");
-    rows.push("Data flow keeps only the reads and writes this container performs.");
-  } else if (primary.kind === "module") {
-    rows.push(`Components shows this file's ${moduleSymbols ?? "—"} named thing(s) and their calls.`);
-    rows.push("Sequence can trace any of them call by call.");
-    rows.push("Data flow highlights this module's reads and writes.");
-  } else if (primary.kind === "store") {
-    rows.push("Data flow centres on this store — every recorded writer and reader.");
-    rows.push("Components scopes to the modules that touch it.");
-  } else if (primary.kind === "symbol") {
-    rows.push("Sequence becomes the call walk that starts at this function.");
-    rows.push("Components highlights it inside its module.");
-    rows.push("Clicking the arrow again in Sequence opens the exact code.");
-  }
-  if (storeRef) rows.push("The store's schema file opens in the source panel from Data flow.");
-  return (
-    <>
-      {rows.map((r, i) => (
-        <p key={i} className="leading-snug">{r}</p>
-      ))}
-    </>
-  );
-}
-
-/** Sequence pane: honest picker until something is selected. */
-function SequencePane({
+/** The sequence panel, grid-native: when a container is scoped and nothing
+ *  else is picked, the top flow of that scope is auto-traced (said out loud),
+ *  and the other in-scope flows sit one chip away. With no scope the honest
+ *  picker stands in — nothing is traced until something is chosen. */
+function SequencePanel({
   seqSpec,
   flows,
   picked,
+  auto,
+  scope,
   traceInfo,
   onPick,
   onClearPick,
@@ -606,72 +718,94 @@ function SequencePane({
   seqSpec: ChatChartSpec | null;
   flows: MasteryRow[];
   picked: { entryId: number; label: string } | null;
+  auto: { entryId: number; label: string } | null;
+  scope: string | null;
   traceInfo: { steps: number; truncated: number; effects: string[] } | null;
   onPick: (entryId: number, label: string) => void;
   onClearPick: () => void;
   hasEntry: boolean;
   onSelectElement: (sel: DiagramSelection) => void;
 }) {
+  const activeLabel = picked?.label ?? auto?.label ?? null;
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {hasEntry && seqSpec && (
-        <Card className="border-stone-200 shadow-sm w-full">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-end gap-2 flex-wrap">
-              {traceInfo && (
-                <Badge variant="outline" className="text-[10px] text-stone-500 border-stone-300">
-                  {traceInfo.steps} step{traceInfo.steps === 1 ? "" : "s"} drawn
-                  {traceInfo.truncated > 0 ? ` · ${traceInfo.truncated} reached but capped — counted, never hidden` : ""}
-                </Badge>
-              )}
+        <>
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            {auto && !picked && scope && (
+              <Badge variant="outline" className="text-[10px] border-emerald-300 bg-emerald-50 text-emerald-800" data-testid="atlas-seq-auto">
+                auto-traced the top flow starting in {scope}
+              </Badge>
+            )}
+            {traceInfo && (
+              <Badge variant="outline" className="text-[10px] text-stone-500 border-stone-300">
+                {traceInfo.steps} step{traceInfo.steps === 1 ? "" : "s"} drawn
+                {traceInfo.truncated > 0 ? ` · ${traceInfo.truncated} reached but capped — counted, never hidden` : ""}
+              </Badge>
+            )}
+            {picked && (
               <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={onClearPick}>
-                clear
+                clear pick
               </Button>
+            )}
+          </div>
+          <ChatChart spec={seqSpec} onSelectElement={onSelectElement} />
+          {flows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] text-stone-400">flows in scope:</span>
+              {flows.map((f) => (
+                <button
+                  key={f.title}
+                  type="button"
+                  onClick={() => f.entryId != null && onPick(f.entryId, f.title)}
+                  className={`rounded-md border px-1.5 py-0.5 text-[10.5px] transition-colors ${
+                    activeLabel === f.title
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                      : "border-stone-200 text-stone-500 hover:border-emerald-300 hover:bg-emerald-50/40"
+                  }`}
+                >
+                  {f.title}
+                </button>
+              ))}
             </div>
-            <div className="mt-1">
-              <ChatChart spec={seqSpec} onSelectElement={onSelectElement} />
-            </div>
-          </CardContent>
-        </Card>
+          )}
+        </>
       )}
       {!hasEntry && (
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold text-stone-800">Pick a flow to walk through</h2>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Candidates ranked by how much code each start point can reach — a structural guess about importance, not a measured truth. Selecting a
-              symbol anywhere in the atlas also centres this view on it.
+        <div>
+          <h2 className="text-sm font-semibold text-stone-800">Pick a flow to walk through</h2>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Candidates ranked by how much code each start point can reach — a structural guess about importance, not a measured truth. Selecting a symbol
+            anywhere on this dashboard also centres this panel on it.
+          </p>
+          {flows.length ? (
+            <ul className="mt-3 space-y-1.5">
+              {flows.map((f) => (
+                <li key={f.title}>
+                  <button
+                    type="button"
+                    onClick={() => f.entryId != null && onPick(f.entryId, f.title)}
+                    className="w-full text-left rounded-lg border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/40 px-3 py-2 transition-colors"
+                  >
+                    <span className="text-[13px] font-medium text-stone-800">{f.title}</span>
+                    {f.detail && <span className="block text-[11px] text-stone-500">{f.detail}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-stone-500">
+              The report doesn't record who-calls-whom{scope ? ` for ${scope}` : " for this project"}, so there are no flow candidates to rank — said
+              honestly rather than invented.
             </p>
-            {flows.length ? (
-              <ul className="mt-3 space-y-1.5">
-                {flows.map((f) => (
-                  <li key={f.title}>
-                    <button
-                      type="button"
-                      onClick={() => f.entryId != null && onPick(f.entryId, f.title)}
-                      className="w-full text-left rounded-lg border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/40 px-3 py-2 transition-colors"
-                    >
-                      <span className="text-[13px] font-medium text-stone-800">{f.title}</span>
-                      {f.detail && <span className="block text-[11px] text-stone-500">{f.detail}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-xs text-stone-500">
-                The report doesn't record who-calls-whom for this project, so there are no flow candidates to rank — said honestly rather than invented.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
       {hasEntry && !seqSpec && (
-        <Card>
-          <CardContent className="p-5 text-xs text-stone-500">
-            The engine recorded no call walk for this selection — it may be a leaf, or its calls weren't resolved. Nothing is drawn rather than something
-            invented.
-          </CardContent>
-        </Card>
+        <p className="text-xs text-stone-500 py-6 text-center">
+          The engine recorded no call walk for this selection — it may be a leaf, or its calls weren't resolved. Nothing is drawn rather than something
+          invented.
+        </p>
       )}
     </div>
   );
