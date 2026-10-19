@@ -221,3 +221,22 @@ Work Log:
 
 Stage Summary:
 - The atlas IS the grid dashboard now: every chart on one screen, one click in the container graph filters all the others to that container alone, released by a second click or breadcrumb. Built entirely on existing infra — same Selection Context (cie-store), same mastery.ts/atlas.ts builders, same ChatChart engines, same quality.ts builders with an added scope parameter. Three commits, each pushed with the PAT.
+
+---
+Task ID: 15
+Agent: main (pi)
+Task: User's addition to the atlas — "add a flow chart also into the mix: the flow chart will show the flow at the component level if the chart's current selection is a component, and the moment it drills down to a function it will show a flowchart of that function, and it will keep on adapting to the level." Push per commit with the PAT.
+
+Work Log:
+- Commit 1 (1af8e25) lib/atlas.ts — buildFlowSpec(report, atlasSelection): one builder, four levels, all from the engine's existing records (the shared mastery.ts call graph + behaviour summaries; no second call graph, no invented geometry):
+  * system   → containers as a flow (recorded cross-container calls, entries marked "nothing in the index calls into this"); honest fallback level for store/edge selections with the reason in the tell.
+  * container→ that container's components as a flow, entry components on top, "…and n more" announced.
+  * module   → the component's functions as a flow: entries (fanIn 0) marked, what flows in from / out to other components drawn as its own boxes ("called from other components" / "calls into other components") so the boundary stays visible.
+  * symbol   → the function step by step: start → reads → each recorded callee in recorded order (capped at 6, overflow counted as "…and n more call(s)") → writes & effects → end; failure path branch when the summary records one (has_failure_path/exceptions), loops marker (has_loops) as a dashed side note; unresolved callee names drawn dashed as "names not resolved"; a symbol with no summary still draws honestly as start → end ("no behaviour summary was recorded").
+  * The tell says plainly: the order is the RECORDED order, not a traced run — the engine has no line-by-line CFG, so the flow never pretends otherwise. Every box carries its loc and opens the exact code.
+- Commit 2 (1ea0cce) atlas-view.tsx — the Flow panel joins the grid (full-width, between Data flow and Sequence): derives from the same Selection Context, so any click anywhere re-levels it; click routing re-levels the DASHBOARD in return (function box → symbol selection everywhere, component box → module, container box → container; fl-* marker boxes only open code without moving the selection). Panel badge names the current level ("level: inside payments.py" / "level: payments.charge() step by step"); Facts-only filters it like every panel; expand-to-fill works; honest HonestEmpty when a scope has no records to flow from.
+- Smoke test on the real demo report (scripts/flow-smoke.ts): all four levels build, zero dangling link endpoints, store fallback honest, no-summary symbol honest.
+- Browser E2E on the banking demo: system flow (3 containers, cross-call) → click `db` → "level: components of db" (3 sql files) → click `001_init.sql` → "level: inside 001_init.sql" (3 functions) → click `db.migrations.001_init()` → 2-box honest start→end → select `payments.charge()` → start → authorize() (touches: Print) → writes & effects (writes db, DbWrite, Print) → end, all Fact-solid "then" arrows → click the authorize() STEP → "level: auth.authorize() step by step" (kept adapting). Zero console/page errors. Screenshot: download/flow-panel-charge.png.
+
+Stage Summary:
+- The atlas now has a fifth panel that answers "what is the flow here?" at whatever depth the user is looking at — the same click that filters the other panels re-levels the flow, and drilling from component to function to step just keeps adapting. Built entirely on existing infra: same Selection Context, same call-graph builder as mastery/journey, same DiagramSVG flow engine, same loc→source-panel path. Two commits, each pushed with the PAT.
