@@ -183,6 +183,12 @@ pub enum Command {
         as_of_rev: Option<u64>,
         #[arg(long)]
         json: bool,
+        /// Write the JSON to a file instead of stdout. Large real repos
+        /// produce reports far past any sane pipe buffer, and a stdout
+        /// consumer with a byte cap silently truncates mid-JSON (issue #12).
+        /// Same bytes, one file — the caller reads it back whole.
+        #[arg(long)]
+        out: Option<PathBuf>,
     },
     /// Ingest multiple repositories and merge concepts (FR-46)
     IngestOrg {
@@ -926,6 +932,7 @@ fn run(cli: Cli) -> i32 {
             path,
             as_of_rev,
             json,
+            out,
         } => {
             let store = match cie_store::Store::open(&path) {
                 Ok(s) => s,
@@ -938,10 +945,32 @@ fn run(cli: Cli) -> i32 {
             match store.load_snapshot(rev) {
                 Ok(Some(snap)) => {
                     if json {
-                        println!(
-                            "{}",
-                            serde_json::to_string_pretty(&snap).unwrap_or_default()
-                        );
+                        // Serialize once; a failed serialization is an error,
+                        // not an empty line that looks like valid-but-blank
+                        // output downstream.
+                        let payload = match serde_json::to_string_pretty(&snap) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("error: snapshot could not be serialized: {e}");
+                                return 1;
+                            }
+                        };
+                        match out {
+                            Some(f) => {
+                                if let Err(e) = std::fs::write(&f, payload + "\n") {
+                                    eprintln!("error writing {f:?}: {e}");
+                                    return 1;
+                                }
+                                println!(
+                                    "wrote {}: {} files, {} symbols, {} findings",
+                                    f.display(),
+                                    snap.files.len(),
+                                    snap.symbols.len(),
+                                    snap.findings.len()
+                                );
+                            }
+                            None => println!("{payload}"),
+                        }
                     } else {
                         println!(
                             "report for rev {rev} (time travel: {})",
