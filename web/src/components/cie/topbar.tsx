@@ -20,13 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   BrainCog,
   ChevronDown,
   Compass,
@@ -46,7 +39,7 @@ import {
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
 import { providerLabel } from "@/lib/llm-config";
-import { UseYourOwnDialog } from "@/components/cie/use-your-own-dialog";
+import { UseYourOwnProjectDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
 const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
@@ -289,26 +282,17 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* the two dialogs the topbar owns */}
+      {/* the connection-settings dialog the topbar owns */}
       <LlmSettingsDialog
         open={llmSettingsOpen}
         onOpenChange={setLlmSettingsOpen}
         config={llm}
         onSave={setLlm}
       />
-      <Dialog open={ownOpen} onOpenChange={setOwnOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] supports-[height:1dvh]:max-h-[85dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>See your own project here</DialogTitle>
-            <DialogDescription>
-              Connect a public repo, browse this computer, or upload the files the{" "}
-              <span className="font-mono text-xs bg-stone-100 rounded px-1">cie</span> command creates. Either way,
-              every view switches to your code — and the chat knows it too.
-            </DialogDescription>
-          </DialogHeader>
-          <UseYourOwnDialog />
-        </DialogContent>
-      </Dialog>
+
+      {/* "Use your own" — a self-contained dialog: source choice, branch
+          picker, job progress all live in use-your-own-dialog.tsx */}
+      <UseYourOwnProjectDialog open={ownOpen} onOpenChange={setOwnOpen} />
     </header>
   );
 }

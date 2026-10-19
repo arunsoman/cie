@@ -1,10 +1,15 @@
 "use client";
 
-// "Use your own" dialog — two ways to bring your project in:
-//   1. Connect a repo: paste a public git link; the server clones it and runs
-//      the CIE engine in the background while this panel shows every state.
-//   2. Upload files: drop in the three JSON files the `cie` CLI exports.
-// All words are plain-English on purpose.
+// "Use your own" dialog — three ways to bring your project in, one clean
+// switch, every way supports picking the branch to read:
+//   1. A Git repo link — public, on the web; any branch (remote heads are
+//      listed live via /api/repo/branches).
+//   2. This computer — the folder is read in place, exactly as it is; or, if
+//      another branch is picked, as a temporary read-only git snapshot
+//      (the folder and its .git are never written to).
+//   3. Upload files — the three JSON files the `cie` CLI exports.
+// All words are plain-English on purpose; every state says exactly what
+// happened and what happens next.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +19,22 @@ import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCocha
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Check,
   CheckCircle2,
   Circle,
   CircleAlert,
@@ -25,10 +46,11 @@ import {
   Link2,
   Loader2,
   PartyPopper,
+  PencilLine,
   RotateCcw,
-  ChevronDown,
   ShieldCheck,
   HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 
 // ---------- shared validation helpers (mirrors the server) ----------
@@ -61,13 +83,308 @@ interface JobStatusView {
   id: string;
   state: "queued" | "running" | "awaiting_permission" | "done" | "failed";
   repoName: string;
+  /** short display branch the job reads, when one was picked */
+  branch?: string | null;
+  /** true when a local job reads a read-only branch snapshot (not the disk copy) */
+  viaSnapshot?: boolean;
   scan?: RepoScan | null;
   steps: StepView[];
   error?: { plain: string; technical: string };
   permission?: { plain: string; unreadable: { name: string; files: number }[] } | null;
 }
 
-// ---------- mode 1: connect a repo ----------
+// ---------- the branch list shape (matches /api/repo/branches) ----------
+
+interface BranchList {
+  source: "local" | "url";
+  /** local: does this folder hold a git repo at all? */
+  git?: boolean;
+  /** local: branch checked out right now (null when detached). */
+  current?: string | null;
+  /** local: short hash checked out right now, when detached. */
+  detachedSha?: string | null;
+  /** local: this checkout's own branches ("main", "dev"). */
+  local?: string[];
+  /** local: remote-tracking branches ("origin/dev"). */
+  remote?: string[];
+  /** url: branch names on the remote repo. */
+  heads?: string[];
+  /** plain-words note when the list could not be fully read. */
+  note?: string | null;
+}
+
+/** refs/remotes/origin/dev → "origin/dev"; refs/heads/dev → "dev". */
+function shortBranch(ref: string): string {
+  return ref.replace(/^refs\/(heads|tags)\//, "").replace(/^refs\/remotes\//, "");
+}
+
+// ---------- the branch picker ----------
+//
+// One dropdown for both sources. Empty value = the honest default:
+//   web   → the repo's default branch (what the link opens with)
+//   local → the folder exactly as it sits on disk (uncommitted edits included)
+// A non-empty value is a plain branch name (web) or the exact ref the list
+// offered (local: refs/heads/… or refs/remotes/…). A failed listing never
+// blocks starting — a name can always be typed by hand.
+
+function BranchPicker({
+  kind,
+  target,
+  value,
+  onChange,
+  onList,
+  disabled,
+}: {
+  kind: "web" | "local";
+  target: string;
+  value: string;
+  onChange: (next: string) => void;
+  /** tells the parent what the listing found (or null while resetting) */
+  onList?: (list: BranchList | null) => void;
+  disabled?: boolean;
+}) {
+  const [list, setList] = useState<BranchList | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [typing, setTyping] = useState(false);
+  const [typed, setTyped] = useState("");
+  const req = useRef(0);
+  const lastTarget = useRef(target);
+
+  const targetOk = kind === "web" ? /^https?:\/\/\S+/i.test(target) : target.length > 0;
+
+  // A different source means the old pick no longer applies.
+  useEffect(() => {
+    if (lastTarget.current !== target) {
+      lastTarget.current = target;
+      if (value) onChange("");
+    }
+  }, [target, value, onChange]);
+
+  // Read the branch list whenever the source settles (debounced).
+  useEffect(() => {
+    setList(null);
+    setNote(null);
+    setBusy(false);
+    setTyping(false);
+    setTyped("");
+    onList?.(null);
+    if (!targetOk) return;
+    const mine = ++req.current;
+    setBusy(true);
+    const t = setTimeout(
+      () => {
+        void (async () => {
+          try {
+            const res = await fetch("/api/repo/branches", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(kind === "web" ? { repoUrl: target } : { localPath: target }),
+            });
+            const data = (await res.json().catch(() => ({}))) as BranchList & { error?: string };
+            if (mine !== req.current) return; // a newer source superseded this one
+            if (!res.ok) {
+              setList(null);
+              setNote(data.error ?? "We couldn't read the branch list — you can still type a name by hand.");
+              onList?.(null);
+            } else {
+              setList(data);
+              setNote(data.note ?? null);
+              onList?.(data);
+            }
+          } catch {
+            if (mine === req.current) setNote("We couldn't reach the server to read the branch list.");
+          } finally {
+            if (mine === req.current) setBusy(false);
+          }
+        })();
+      },
+      kind === "web" ? 700 : 400
+    );
+    return () => clearTimeout(t);
+  }, [target, targetOk, kind, onList]);
+
+  const pick = (next: string) => {
+    onChange(next);
+    setTyping(false);
+    setTyped("");
+  };
+
+  const triggerLabel = busy
+    ? "Reading branches…"
+    : value
+      ? shortBranch(value)
+      : kind === "web"
+        ? "Default branch"
+        : list?.current
+          ? `On disk right now (${list.current})`
+          : list?.detachedSha
+            ? `On disk right now (detached @ ${list.detachedSha})`
+            : "On disk right now";
+
+  // What a non-default pick means, said plainly.
+  const pickNote = value
+    ? kind === "web"
+      ? "Only that branch's newest commit is copied — read-only, and the copy is deleted when the check ends."
+      : (() => {
+          const localBranch = value.startsWith("refs/heads/") ? value.slice("refs/heads/".length) : value;
+          if (list?.current && !value.startsWith("refs/remotes/") && localBranch === list.current)
+            return "That branch is what's on disk right now — CIE reads the folder itself, uncommitted edits included.";
+          return "CIE reads a temporary read-only copy of that branch (a git snapshot) — nothing in your folder is touched. The copy is deleted after the check, so the source panel can't open its files.";
+        })()
+    : kind === "local"
+      ? "Reads the folder exactly as it is on disk — uncommitted edits included."
+      : "";
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-stone-800 shrink-0 w-14">Branch</p>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={disabled}>
+            <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              className={`min-w-0 flex-1 h-10 rounded-xl border bg-white px-3 inline-flex items-center gap-2 text-sm transition-colors ${
+                disabled ? "opacity-60 cursor-not-allowed" : "hover:border-emerald-300"
+              } ${value ? "border-emerald-300 text-emerald-900" : "border-stone-200 text-stone-700"}`}
+            >
+              <GitBranch className="h-4 w-4 text-stone-400 shrink-0" aria-hidden />
+              <span className="truncate">{triggerLabel}</span>
+              <ChevronDown className="ml-auto h-3.5 w-3.5 text-stone-400 shrink-0" aria-hidden />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" sideOffset={4} className="w-[300px] max-h-72 overflow-y-auto">
+            {busy && (
+              <p className="flex items-center gap-2 px-2 py-3 text-sm text-stone-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading the branch list…
+              </p>
+            )}
+            {!busy && (
+              <>
+                {note && (
+                  <p className="px-2 py-2 text-xs text-amber-800 bg-amber-50 leading-relaxed rounded-md">
+                    {note}
+                  </p>
+                )}
+                {list?.source === "local" && list.git === false && (
+                  <p className="px-2 py-2.5 text-xs text-stone-500 leading-relaxed">
+                    This folder isn&apos;t a git repo, so there are no branches to pick — CIE reads these files
+                    exactly as they are.
+                  </p>
+                )}
+                {/* the honest default */}
+                <DropdownMenuItem onClick={() => pick("")} className={value === "" ? "bg-emerald-50" : ""}>
+                  <span className="min-w-0 flex-1 truncate">
+                    {kind === "web"
+                      ? "Default branch — what the repo opens with"
+                      : `On disk right now${list?.current ? ` (${list.current})` : list?.detachedSha ? ` (detached @ ${list.detachedSha})` : ""}`}
+                  </span>
+                  {value === "" && <Check className="ml-auto h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+                </DropdownMenuItem>
+
+                {/* web: branches on the remote repo */}
+                {kind === "web" && list?.heads && list.heads.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Branches on that repo</DropdownMenuLabel>
+                    {list.heads.map((b) => (
+                      <DropdownMenuItem key={b} onClick={() => pick(b)} className={value === b ? "bg-emerald-50" : ""}>
+                        <span className="min-w-0 flex-1 truncate font-mono text-xs">{b}</span>
+                        {value === b && <Check className="ml-auto h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+                      </DropdownMenuItem>
+                    ))}
+                    {list.heads.length >= 200 && <p className="px-2 py-1 text-xs text-stone-400">Showing the first 200 — you can still type any branch by hand.</p>}
+                  </>
+                )}
+
+                {/* local: this checkout's own branches + remote-tracking ones */}
+                {kind === "local" && (list?.local?.length || list?.remote?.length ? true : false) && (
+                  <>
+                    {list?.local && list.local.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Branches in this copy</DropdownMenuLabel>
+                        {list.local.map((b) => {
+                          const v = `refs/heads/${b}`;
+                          const inUse = list.current === b;
+                          return (
+                            <DropdownMenuItem key={v} onClick={() => pick(v)} className={value === v ? "bg-emerald-50" : ""}>
+                              <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                                {b}
+                                {inUse && <span className="font-sans text-stone-400"> — checked out</span>}
+                              </span>
+                              {value === v && <Check className="ml-auto h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </>
+                    )}
+                    {list?.remote && list.remote.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Remote-tracking branches</DropdownMenuLabel>
+                        {list.remote.map((b) => {
+                          const v = `refs/remotes/${b}`;
+                          return (
+                            <DropdownMenuItem key={v} onClick={() => pick(v)} className={value === v ? "bg-emerald-50" : ""}>
+                              <span className="min-w-0 flex-1 truncate font-mono text-xs">{b}</span>
+                              {value === v && <Check className="ml-auto h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* typing always possible — a listing must never block a start */}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTyping(true)}>
+                  <PencilLine className="h-3.5 w-3.5 text-stone-400" /> Type a branch name instead…
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* manual entry — for private repos, huge repos, or any listing failure */}
+      {typing && (
+        <div className="flex gap-1.5 sm:pl-16">
+          <input
+            autoFocus
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={kind === "web" ? "e.g. main, dev, v1.2" : "e.g. dev or origin/dev"}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && typed.trim()) pick(typed.trim());
+              if (e.key === "Escape") setTyping(false);
+            }}
+            className="flex-1 h-9 rounded-lg border border-stone-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-300"
+          />
+          <Button
+            type="button"
+            size="sm"
+            disabled={!typed.trim()}
+            onClick={() => typed.trim() && pick(typed.trim())}
+            className="h-9 bg-emerald-700 hover:bg-emerald-800 text-white px-3"
+          >
+            Use
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setTyping(false)} className="h-9 text-stone-500">
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {pickNote && <p className="text-xs text-stone-500 leading-relaxed sm:pl-16">{pickNote}</p>}
+    </div>
+  );
+}
+
+// ---------- mode 1: connect a repo (web or local) ----------
 
 function StepIcon({ state }: { state: StepState }) {
   if (state === "done") return <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />;
@@ -105,12 +422,17 @@ function failWhereItStood(prev: JobStatusView, err: { plain: string; technical: 
   };
 }
 
-function ConnectRepo() {
+function ConnectRepo({ kind }: { kind: "web" | "local" }) {
   const { setCustom, jobId, setJobId } = useCie();
   const { toast } = useToast();
-  const [kind, setKind] = useState<"web" | "local">("web");
   const [url, setUrl] = useState("");
   const [localPath, setLocalPath] = useState("");
+  /** "" = the honest default; else a branch name (web) / ref (local) */
+  const [branch, setBranch] = useState("");
+  /** what the branch picker last found (local mode) — powers the
+   *  preview-vs-branch caption under the scan card */
+  const [branchList, setBranchList] = useState<BranchList | null>(null);
+  const rememberBranchList = useCallback((l: BranchList | null) => setBranchList(l), []);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [status, setStatus] = useState<JobStatusView | null>(null);
@@ -124,6 +446,14 @@ function ConnectRepo() {
   const scanReq = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollMisses = useRef(0);
+
+  // switching sources invalidates any picked branch
+  useEffect(() => {
+    setBranch("");
+    setBranchList(null);
+    setStartError("");
+    setTechnicalOpen(false);
+  }, [kind]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -171,6 +501,7 @@ function ConnectRepo() {
       setJobId(null);
       setStatus(null);
       setUrl("");
+      setBranch("");
       toast({ title: "Your project is ready", description: "Every page below now shows your code — and Ask CIE knows it too." });
     } catch {
       toast({ title: "Connection problem", description: "We couldn't fetch your results. Please try again.", variant: "destructive" });
@@ -250,7 +581,7 @@ function ConnectRepo() {
     setStartError("");
     setStarting(true);
     try {
-      const payload = kind === "web" ? { repoUrl: url } : { localPath };
+      const payload = kind === "web" ? { repoUrl: url, branch: branch || undefined } : { localPath, branch: branch || undefined };
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -360,117 +691,140 @@ function ConnectRepo() {
     <div className="space-y-4">
       {/* input form — hidden once a job is in flight */}
       {!status && (
-        <>
-          {/* where does the code live? */}
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="tablist" aria-label="Where is your code?">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={kind === "web"}
-              onClick={() => setKind("web")}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${kind === "web" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
-            >
-              <Globe className="h-3.5 w-3.5" /> On the web
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={kind === "local"}
-              onClick={() => setKind("local")}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${kind === "local" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
-            >
-              <HardDrive className="h-3.5 w-3.5" /> On this computer
-            </button>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void start();
+          }}
+          className="space-y-3"
+        >
+          {/* the source row */}
+          <label htmlFor="repo-source" className="text-sm font-medium text-stone-800 flex items-center gap-2">
+            {kind === "web" ? (
+              <><Link2 className="h-4 w-4 text-emerald-700" /> Paste a link to your public repo</>
+            ) : (
+              <><HardDrive className="h-4 w-4 text-emerald-700" /> Point CIE at your project&apos;s folder</>
+            )}
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              id="repo-source"
+              type={kind === "web" ? "url" : "text"}
+              value={kind === "web" ? url : localPath}
+              onChange={(e) => (kind === "web" ? setUrl(e.target.value) : setLocalPath(e.target.value))}
+              placeholder={kind === "web" ? "https://github.com/you/your-repo" : "/home/you/my-project"}
+              disabled={starting}
+              className="flex-1 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-300 disabled:opacity-60"
+            />
+            {kind === "local" && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={starting}
+                onClick={() => setBrowsing((o) => !o)}
+                className="h-11 rounded-xl px-4 border-stone-300 text-stone-700 hover:bg-stone-50"
+                aria-expanded={browsing}
+              >
+                <FolderOpen className="h-4 w-4 mr-1.5 text-emerald-700" /> Browse folders…
+              </Button>
+            )}
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void start();
-            }}
-            className="space-y-2"
+          {/* the branch that gets read — remote heads (web) or this repo's refs (local) */}
+          <BranchPicker
+            kind={kind}
+            target={kind === "web" ? url : localPath}
+            value={branch}
+            onChange={setBranch}
+            onList={rememberBranchList}
+            disabled={starting}
+          />
+
+          <Button
+            type="submit"
+            disabled={starting || (kind === "web" ? !url.trim() : !localPath.trim())}
+            className="w-full h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl"
           >
-            <label htmlFor="repo-url" className="text-sm font-medium text-stone-800 flex items-center gap-2">
-              {kind === "web" ? (
-                <><Link2 className="h-4 w-4 text-emerald-700" /> Paste a link to your repo</>
-              ) : (
-                <><HardDrive className="h-4 w-4 text-emerald-700" /> Pick your project&apos;s folder</>
-              )}
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                id="repo-url"
-                type={kind === "web" ? "url" : "text"}
-                value={kind === "web" ? url : localPath}
-                onChange={(e) => (kind === "web" ? setUrl(e.target.value) : setLocalPath(e.target.value))}
-                placeholder={kind === "web" ? "https://github.com/you/your-repo" : "/home/you/my-project"}
-                disabled={starting}
-                className="flex-1 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-300 disabled:opacity-60"
-              />
-              {kind === "local" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={starting}
-                  onClick={() => setBrowsing((o) => !o)}
-                  className="h-11 rounded-xl px-4 border-stone-300 text-stone-700 hover:bg-stone-50"
-                  aria-expanded={browsing}
-                >
-                  <FolderOpen className="h-4 w-4 mr-1.5 text-emerald-700" /> Browse folders…
-                </Button>
-              )}
-              <Button
-                type="submit"
-                disabled={starting || (kind === "web" ? !url.trim() : !localPath.trim())}
-                className="h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-5"
-              >
-                {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <GitBranch className="h-4 w-4 mr-1.5" />}
-                {starting ? "Starting…" : "Check my project"}
-              </Button>
-            </div>
-            {startError && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{startError}</p>}
-          </form>
+            {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <GitBranch className="h-4 w-4 mr-1.5" />}
+            {starting ? "Starting…" : branch ? `Check ${kind === "web" ? "that repo's" : "the folder's"} branch: ${shortBranch(branch)}` : "Check my project"}
+          </Button>
 
-          {/* folder browser (local mode only) */}
-          {kind === "local" && browsing && (
-            <FolderBrowser
-              onPick={(p) => {
-                setLocalPath(p);
-                setBrowsing(false);
-                void peekInside(p);
-              }}
-              onClose={() => setBrowsing(false)}
-            />
-          )}
+          {startError && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{startError}</p>}
+        </form>
+      )}
 
-          {/* the honest "what's in this folder" peek (local mode only) */}
-          {kind === "local" && (scan || scanBusy || scanError) && (
-            <ScanCard scan={scan} busy={scanBusy} error={scanError} />
+      {/* folder browser (local mode only) */}
+      {kind === "local" && !status && browsing && (
+        <FolderBrowser
+          onPick={(p) => {
+            setLocalPath(p);
+            setBrowsing(false);
+            void peekInside(p);
+          }}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+
+      {/* the honest "what's in this folder" peek (local mode only) */}
+      {kind === "local" && !status && (scan || scanBusy || scanError) && (
+        <>
+          <ScanCard scan={scan} busy={scanBusy} error={scanError} />
+          {/* the preview walks the working tree; a picked branch doesn't have to
+              be it — say so, so "Python 1 here" never reads as a contradiction */}
+          {scan && branch && branchList?.current && !branch.startsWith("refs/remotes/") && shortBranch(branch) !== branchList.current && (
+            <p className="text-xs text-stone-500 leading-relaxed -mt-2">
+              This preview is the folder as it sits on disk (checked out: <span className="font-medium">{branchList.current}</span>). The check itself reads branch <span className="font-medium">{shortBranch(branch)}</span>&apos;s own copy, and re-inventories it during the run.
+            </p>
           )}
-          <ul className="text-xs text-stone-500 space-y-1.5">
-            {kind === "web" ? (
-              <>
-                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Works with public GitHub, GitLab and Bitbucket links.</span></li>
-                <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">We only ever <span className="font-medium">read</span> your code — nothing is changed, and your repo is deleted from our disk right after.</span></li>
-                <li className="flex items-start gap-2"><FileUp className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Private repo? Use the <span className="font-medium">Upload files</span> option instead — it never leaves your machine.</span></li>
-              </>
-            ) : (
-              <>
-                <li className="flex items-start gap-2"><FolderOpen className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Tap <span className="font-medium">Browse folders…</span> to find your project — or type the full path, e.g. <span className="font-mono">/home/you/my-project</span>. Git repos work best.</span></li>
-                <li className="flex items-start gap-2"><ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Nothing is copied or uploaded — CIE reads the folder <span className="font-medium">right where it lives</span>, read-only.</span></li>
-                <li className="flex items-start gap-2"><Globe className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="flex-1 text-left">Before checking, CIE peeks inside and tells you which languages it can read here — and which it can&apos;t yet.</span></li>
-              </>
-            )}
-          </ul>
         </>
+      )}
+
+      {/* privacy lines — short, honest */}
+      {!status && (
+        <ul className="text-xs text-stone-500 space-y-1.5 border-t border-stone-100 pt-3">
+          {kind === "web" ? (
+            <>
+              <li className="flex items-start gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-700" />
+                <span className="flex-1 text-left">Read-only: your repo is copied, checked, and the copy is deleted straight after — nothing of yours is changed.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <FileUp className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="flex-1 text-left">Private repo? The <span className="font-medium">Upload files</span> tab never sends a byte.</span>
+              </li>
+            </>
+          ) : (
+            <>
+              <li className="flex items-start gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-700" />
+                <span className="flex-1 text-left">Nothing leaves this computer — CIE reads the folder where it lives, read-only.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <FolderOpen className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="flex-1 text-left">Tap <span className="font-medium">Browse folders…</span> or type the full path, e.g. <span className="font-mono">/home/you/my-project</span>.</span>
+              </li>
+            </>
+          )}
+        </ul>
       )}
 
       {/* live status panel */}
       {status && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-stone-900 flex items-center gap-2">
-              <GitBranch className="h-4 w-4 text-emerald-700" /> {status.repoName}
+            <p className="text-sm font-semibold text-stone-900 flex items-center gap-2 min-w-0">
+              <GitBranch className="h-4 w-4 text-emerald-700 shrink-0" />
+              <span className="truncate">{status.repoName}</span>
+              {status.branch && (
+                <span className="inline-flex items-center rounded-full bg-stone-100 border border-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700 shrink-0">
+                  {status.branch}
+                </span>
+              )}
+              {status.viaSnapshot && (
+                <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-900 shrink-0">
+                  read-only copy
+                </span>
+              )}
             </p>
             {!active && (
               <Button variant="ghost" size="sm" onClick={resetJob} className="text-stone-500 h-8">
@@ -478,6 +832,9 @@ function ConnectRepo() {
               </Button>
             )}
           </div>
+          {active && status.viaSnapshot && (
+            <p className="text-xs text-stone-500">CIE is reading a read-only copy of branch {status.branch} — the folder on disk stays exactly as it is.</p>
+          )}
 
           {/* progress bar */}
           <div className="h-2.5 rounded-full bg-stone-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
@@ -579,6 +936,10 @@ function ConnectRepo() {
               <p className="text-sm font-semibold text-emerald-900 flex items-center gap-2">
                 <PartyPopper className="h-4 w-4" /> All done — your project is ready
               </p>
+              <p className="text-xs text-emerald-800">
+                Branch: <span className="font-mono">{status.branch ?? (kind === "web" ? "default" : "as on disk")}</span>
+                {status.viaSnapshot ? " (read-only copy — the source panel can't open these files)" : ""}
+              </p>
               <Button onClick={() => void showProject(status.id)} disabled={loadingResult} className="bg-emerald-700 hover:bg-emerald-800 text-white h-10 w-full sm:w-auto">
                 {loadingResult ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
                 {loadingResult ? "Opening your project…" : "Show my project"}
@@ -591,7 +952,7 @@ function ConnectRepo() {
   );
 }
 
-// ---------- mode 2: upload files (the original flow) ----------
+// ---------- mode 2: upload files (the `cie` CLI exports) ----------
 
 function UploadFiles() {
   const { setCustom, reset } = useCie();
@@ -644,7 +1005,7 @@ function UploadFiles() {
     <button
       type="button"
       onClick={() => ref.current?.click()}
-      className={`w-full text-left rounded-lg border p-4 flex items-center gap-3 transition-colors ${filled ? "border-emerald-300 bg-emerald-50" : "border-stone-200 bg-white hover:border-stone-300"}`}
+      className={`w-full text-left rounded-lg border p-3.5 flex items-center gap-3 transition-colors ${filled ? "border-emerald-300 bg-emerald-50" : "border-stone-200 bg-white hover:border-stone-300"}`}
     >
       {filled ? <CheckCircle2 className="h-5 w-5 text-emerald-700 shrink-0" /> : <FileUp className="h-5 w-5 text-stone-400 shrink-0" />}
       <span className="flex-1">
@@ -660,15 +1021,16 @@ function UploadFiles() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-stone-600 leading-relaxed">
-        Run these two commands in your project folder, then add the files they create:
+        Run these commands inside the branch you want CIE to see, then add the files they create:
         <span className="block mt-2 rounded-md bg-stone-900 text-stone-100 font-mono text-xs px-3 py-2 leading-relaxed">
           cie report . --json &gt; report.json<br />
-          cie viz . --out viewspec.json
+          cie viz . --out viewspec.json<br />
+          cie concepts . --format json &gt; concepts.json
         </span>
       </p>
       {slot("1. The health report", true, got.report, reportRef, "report")}
       {slot("2. The picture/map file", false, got.viewspec, vizRef, "viewspec")}
-      {slot("3. The 'what it does' list", false, got.concepts, conceptsRef, "concepts")}
+      {slot("3. The &lsquo;what it does&rsquo; list", false, got.concepts, conceptsRef, "concepts")}
       <div className="flex gap-2 pt-1">
         <Button onClick={apply} className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white">
           Show my project
@@ -681,36 +1043,69 @@ function UploadFiles() {
   );
 }
 
-// ---------- the dialog ----------
+// ---------- the dialog shell ----------
+//
+// One three-way switch at the top (a Git repo link / this computer / upload
+// files) replaces the old nested tabs, and once a connect job is in flight
+// the switch steps aside so the progress panel owns the dialog.
 
-export function UseYourOwnDialog() {
-  const [mode, setMode] = useState<"connect" | "upload">("connect");
+type SourceKind = "web" | "local" | "upload";
+
+function SourceCards({ kind, setKind }: { kind: SourceKind; setKind: (k: SourceKind) => void }) {
+  const cards: { id: SourceKind; icon: React.ReactNode; title: string; sub: string }[] = [
+    { id: "web", icon: <Globe className="h-4 w-4" />, title: "A Git repo link", sub: "Public, on the web — any branch" },
+    { id: "local", icon: <HardDrive className="h-4 w-4" />, title: "This computer", sub: "Read in place — any branch" },
+    { id: "upload", icon: <FileUp className="h-4 w-4" />, title: "Upload files", sub: "From the cie command" },
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="tablist" aria-label="Where is your project?">
+      {cards.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          role="tab"
+          aria-selected={kind === c.id}
+          onClick={() => setKind(c.id)}
+          className={`rounded-xl border p-3 text-left transition-colors ${
+            kind === c.id
+              ? "border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200"
+              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
+          }`}
+        >
+          <span className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${kind === c.id ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-500"}`}>
+            {c.icon}
+          </span>
+          <span className="mt-2 block text-sm font-semibold text-stone-900">{c.title}</span>
+          <span className="mt-0.5 block text-xs text-stone-500 leading-snug">{c.sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function UseYourOwnProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { jobId } = useCie();
+  const [kind, setKind] = useState<SourceKind>("web");
+  // A connect job in flight (or resuming) owns the dialog until it's
+  // finished or the user starts over — the source switch steps aside.
+  const inFlight = jobId !== null;
 
   return (
-    <div className="space-y-4">
-      {/* mode switch */}
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="tablist" aria-label="Ways to add your project">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "connect"}
-          onClick={() => setMode("connect")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "connect" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
-        >
-          <GitBranch className="h-4 w-4" /> Connect a repo
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "upload"}
-          onClick={() => setMode("upload")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "upload" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
-        >
-          <FileUp className="h-4 w-4" /> Upload files
-        </button>
-      </div>
-
-      {mode === "connect" ? <ConnectRepo /> : <UploadFiles />}
-    </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl max-h-[85vh] supports-[height:1dvh]:max-h-[85dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>See your own project here</DialogTitle>
+          <DialogDescription>
+            Point CIE at your code — a public repo link, a folder on this computer, or the files the{" "}
+            <span className="font-mono text-xs bg-stone-100 rounded px-1">cie</span> command makes. Every view switches to
+            your project — and the chat knows it too.
+          </DialogDescription>
+        </DialogHeader>
+        {!inFlight && <SourceCards kind={kind} setKind={setKind} />}
+        <div className="pt-1">
+          {kind === "upload" && !inFlight ? <UploadFiles /> : <ConnectRepo kind={kind === "upload" ? "web" : kind} />}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
