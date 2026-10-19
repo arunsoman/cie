@@ -8,10 +8,31 @@
 
 export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap";
 
+/**
+ * Where a chart element lives in the source code — the link that used to be
+ * thrown away between the engine's exports and the chart. Two honest forms:
+ *  - `line` (± `endLine`): a real line number, when the export carried one
+ *    flat (quality.json findings, complexity, evidence_lines).
+ *  - `byteStart`/`byteEnd`: byte offsets from report.json's symbols[].loc —
+ *    resolved to a line only when the file's content is actually available
+ *    (bundled demo sources or a consented local folder). Until then the
+ *    panel shows the file; it never guesses a line number.
+ * Optional everywhere: charts built from aggregates (counts, per-day sums)
+ * genuinely have no location and must stay honest about that.
+ */
+export interface ElementLoc {
+  file: string;
+  line?: number;
+  endLine?: number;
+  byteStart?: number;
+  byteEnd?: number;
+}
+
 export interface ChatChartDataPoint {
   name: string;
   value: number;
   color?: string; // rose | amber | emerald | stone (never colour alone: labels always present)
+  loc?: ElementLoc; // where this bar/point lives in the source (optional, honest)
 }
 
 // One box in a diagram (UML-style or call flow). Diagram geometry is NEVER
@@ -25,6 +46,7 @@ export interface UmlNode {
   lines?: string[]; // compartment lines (what it does / its members)
   more?: number; // "…and n more" when lines were capped
   certainty?: "Fact" | "Inference" | "Hypothesis";
+  loc?: ElementLoc; // the file (and offsets) this box was built from
 }
 
 export interface UmlLink {
@@ -52,6 +74,7 @@ export interface HeatTile {
   name: string;
   value: number; // 0..100 — always shown as text too (never colour alone)
   label?: string; // extra line under the tile, e.g. "9 of 12 lines"
+  loc?: ElementLoc; // the file this tile measures
 }
 
 export interface ChatChartSpec {
@@ -65,6 +88,7 @@ export interface ChatChartSpec {
   data?: ChatChartDataPoint[];
   columns?: string[];
   rows?: (string | number)[][];
+  rowLoc?: (ElementLoc | null)[]; // per-row source location, aligned with rows (tables)
   center?: string; // donut centre caption
   unit?: string;
   nodes?: UmlNode[]; // diagrams only — filled from the store, never from the model

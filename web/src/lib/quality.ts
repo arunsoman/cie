@@ -14,7 +14,7 @@
 
 import type { CannedChart } from "./canned-charts";
 import type { CieQuality, ConceptTree } from "./cie-types";
-import { engineFor, layoutFor, type ChatChartSpec, type TreeNode, type HeatTile } from "./chat-chart";
+import { engineFor, layoutFor, type ChatChartSpec, type ElementLoc, type TreeNode, type HeatTile } from "./chat-chart";
 
 function cut(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
@@ -65,6 +65,7 @@ export function buildCoverageHeatmapSpec(quality: CieQuality | null): ChatChartS
     name: cut(f.file, 22),
     value: Math.round(f.percent),
     label: f.covered != null && f.statements != null ? `${f.covered} of ${f.statements} lines` : "never even imported",
+    loc: { file: f.file },
   }));
   const pct = cov.totals?.percent;
   return {
@@ -92,6 +93,7 @@ export function buildComplexitySpec(q: CieQuality): ChatChartSpec | null {
     name: cut(f.function, 20),
     value: f.cc,
     color: f.cc >= q.complexity.totals.max_cc ? "rose" : f.cc >= 4 ? "amber" : "stone",
+    loc: { file: f.file, line: f.line } as ElementLoc,
   }));
   return {
     ...spec("hbar", "Most complex functions (measured)", q.complexity.formula),
@@ -117,7 +119,7 @@ export function buildPerFileChurnSpec(q: CieQuality): ChatChartSpec | null {
   if (!rows.length) return null;
   return {
     ...spec("hbar", "Churn per file (sample project)", `${q.churn.tool} over the sample's own files — added + deleted lines per file.`),
-    data: rows.map((r) => ({ name: cut(r.file, 22), value: r.churn, color: "amber" as const })),
+    data: rows.map((r) => ({ name: cut(r.file, 22), value: r.churn, color: "amber" as const, loc: { file: r.file } as ElementLoc })),
     source: "quality.json — churn (sample, per file)",
   };
 }
@@ -181,6 +183,7 @@ export function buildHotspotSpec(q: CieQuality): ChatChartSpec | null {
       name: cut(r.file, 22),
       value: Math.round(r.risk),
       color: r.risk >= 50 ? "rose" : r.risk >= 25 ? "amber" : "stone",
+      loc: { file: r.file } as ElementLoc,
     })),
     source: "quality.json — hotspots",
   };
@@ -188,7 +191,8 @@ export function buildHotspotSpec(q: CieQuality): ChatChartSpec | null {
 
 /** Duplicated blocks as a table. */
 export function buildDuplicationSpec(q: CieQuality): ChatChartSpec | null {
-  const rows = (q.duplication.pairs ?? []).slice(0, 8).map((p) => [
+  const pairs = (q.duplication.pairs ?? []).slice(0, 8);
+  const rows = pairs.map((p) => [
     `${p.a_file}:${p.a_line}`,
     `${p.b_file}:${p.b_line}`,
     String(p.lines),
@@ -199,13 +203,15 @@ export function buildDuplicationSpec(q: CieQuality): ChatChartSpec | null {
     ...spec("table", "Duplicated blocks (measured)", "Blocks of the same normalized lines appearing in two different files."),
     columns: ["Here", "And again", "Lines", "Starts with"],
     rows,
+    rowLoc: pairs.map((p) => ({ file: p.a_file, line: p.a_line } as ElementLoc)),
     source: `quality.json — ${q.duplication.tool}`,
   };
 }
 
 /** Code drift vs tests, as a table. */
 export function buildCodeDriftSpec(q: CieQuality): ChatChartSpec | null {
-  const rows = (q.drift.code ?? []).slice(0, 8).map((c) => [
+  const entries = (q.drift.code ?? []).slice(0, 8);
+  const rows = entries.map((c) => [
     cut(c.file, 20),
     c.last_change ?? "—",
     c.tests_last_change ?? "no test file",
@@ -217,13 +223,15 @@ export function buildCodeDriftSpec(q: CieQuality): ChatChartSpec | null {
     ...spec("table", "Code drift vs tests", "Lag = days since the file changed minus days since its tests did. “No test file” is the loudest entry."),
     columns: ["File", "Code last changed", "Tests last changed", "Lag (days)", "Note"],
     rows,
+    rowLoc: entries.map((c) => ({ file: c.file } as ElementLoc)),
     source: "quality.json — drift (git dates)",
   };
 }
 
 /** Document drift, as a table. */
 export function buildDocumentDriftSpec(q: CieQuality): ChatChartSpec | null {
-  const rows = (q.drift.document ?? []).slice(0, 8).map((d) => [
+  const entries = (q.drift.document ?? []).slice(0, 8);
+  const rows = entries.map((d) => [
     cut(d.doc, 20),
     cut(d.describes, 34),
     `${d.doc_age_days}d ago`,
@@ -235,6 +243,7 @@ export function buildDocumentDriftSpec(q: CieQuality): ChatChartSpec | null {
     ...spec("table", "Document drift", "A doc can be old and still correct — this says which ones moved apart and by how many days."),
     columns: ["Doc", "Describes", "Doc age", "Drift", "Note"],
     rows,
+    rowLoc: entries.map((d) => ({ file: d.doc } as ElementLoc)),
     source: "quality.json — drift (git dates)",
   };
 }
@@ -287,7 +296,8 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
 
   // 3. vulnerabilities — the CWE-mapped table
   {
-    const rows = q.security.issues.slice(0, 8).map((it) => [
+    const issues = q.security.issues.slice(0, 8);
+    const rows = issues.map((it) => [
       `${it.file}:${it.line}`,
       cut(it.name, 30),
       it.cwe,
@@ -300,7 +310,7 @@ export function buildQualityCharts(quality: CieQuality | null, concepts: Concept
       hint: rows.length ? "CWE = the common catalogue of software weaknesses." : "No CWE-mapped findings.",
       icon: "shield",
       spec: rows.length
-        ? { ...spec("table", "Weaknesses with a CWE number", "Each row is a real finding: where it lives, what kind, its catalogue id."), columns: ["Where", "Weakness", "CWE", "Urgency"], rows, source: "quality.json — security scan" }
+        ? { ...spec("table", "Weaknesses with a CWE number", "Each row is a real finding: where it lives, what kind, its catalogue id."), columns: ["Where", "Weakness", "CWE", "Urgency"], rows, rowLoc: issues.map((it) => ({ file: it.file, line: it.line } as ElementLoc)), source: "quality.json — security scan" }
         : null,
     });
   }
@@ -556,6 +566,7 @@ function functionFacts(q: CieQuality, needle: string): QualityAnswer | null {
           name: cut(f.function, 20),
           value: f.cc,
           color: f.function === fn.function ? "rose" : f.cc >= 4 ? "amber" : "stone",
+          loc: { file: f.file, line: f.line } as ElementLoc,
         })),
         source: `quality.json — ${q.complexity.tool}`,
       }
@@ -760,8 +771,21 @@ export function buildCompanionChart(question: string, quality: CieQuality | null
   return null;
 }
 
-/** The question a chart element hands to the chat when tapped. */
-export function askAboutChartElement(chartTitle: string | undefined, el: { name: string; value?: number | string }): string {
+/**
+ * The question a chart element hands to the chat when tapped. When the
+ * element carries a source location, the question names the exact file and
+ * line — so the answerer (and the AI fallback) ground the reply in the very
+ * code the user is looking at.
+ */
+export function askAboutChartElement(
+  chartTitle: string | undefined,
+  el: { name: string; value?: number | string; loc?: ElementLoc }
+): string {
   const v = el.value !== undefined ? ` (value ${el.value})` : "";
-  return `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}. What does the collected data say about it, and how was it collected?`;
+  const where = el.loc?.file
+    ? el.loc.line != null
+      ? ` in ${el.loc.file} at line ${el.loc.line}`
+      : ` in ${el.loc.file}`
+    : "";
+  return `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}${where}. What does the collected data say about it, and how was it collected?`;
 }

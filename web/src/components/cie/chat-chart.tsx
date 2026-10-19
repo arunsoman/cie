@@ -16,7 +16,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
-import type { ChatChartSpec, UmlNode } from "@/lib/chat-chart";
+import type { ChatChartSpec, UmlNode, ElementLoc } from "@/lib/chat-chart";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
 
@@ -30,13 +30,14 @@ const hex = (c?: string) => HEX[c ?? ""] ?? "#78716c";
 
 /**
  * Click-to-chat: tapping a chart element starts a conversation about it.
- * The question carries the chart title + the element's name and value, so
- * the local quality/story answerers (or the AI, as fallback) can ground the
- * reply in the collected data. Nothing is invented by the chart itself.
+ * The question carries the chart title + the element's name and value — and,
+ * when the element knows where it lives in the code, the exact file and line
+ * — so the local quality/story answerers (or the AI, as fallback) can ground
+ * the reply in the collected data. Nothing is invented by the chart itself.
  */
 function useAsk() {
   const setPendingAsk = useCie((s) => s.setPendingAsk);
-  return (spec: ChatChartSpec, el: { name: string; value?: number | string }) =>
+  return (spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) =>
     setPendingAsk(askAboutChartElement(spec.title, el));
 }
 
@@ -186,7 +187,7 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
           return (
             <g
               key={i}
-              onClick={() => ask(spec, { name: r.name, value: r.value })}
+              onClick={() => ask(spec, { name: r.name, value: r.value, loc: r.loc })}
               className="cursor-pointer"
             >
               <title>{`${r.name}: ${r.value} — ${ASK_HINT}`}</title>
@@ -246,7 +247,7 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
             <PieChart>
               <Pie data={rows} dataKey="value" nameKey="name" innerRadius={36} outerRadius={55} paddingAngle={2} strokeWidth={2} stroke="#fff">
                 {rows.map((d, i) => (
-                  <Cell key={i} fill={d.color} className="cursor-pointer" onClick={() => ask(spec, { name: d.name, value: d.value })} />
+                  <Cell key={i} fill={d.color} className="cursor-pointer" onClick={() => ask(spec, { name: d.name, value: d.value, loc: d.loc })} />
                 ))}
               </Pie>
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number | string, name) => [`${value}`, String(name)]} />
@@ -262,7 +263,7 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
             <li
               key={d.name}
               className="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 hover:bg-stone-100"
-              onClick={() => ask(spec, { name: d.name, value: d.value })}
+              onClick={() => ask(spec, { name: d.name, value: d.value, loc: d.loc })}
               title={`${d.name}: ${d.value} — ${ASK_HINT}`}
             >
               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} aria-hidden />
@@ -290,7 +291,7 @@ function ChatStat({ spec }: { spec: ChatChartSpec }) {
       {spec.title && <p className="text-sm font-semibold text-stone-900 mb-1">{spec.title}</p>}
       <button
         type="button"
-        onClick={() => ask(spec, { name: d.name, value: d.value })}
+        onClick={() => ask(spec, { name: d.name, value: d.value, loc: d.loc })}
         title={`${d.name} — ${ASK_HINT}`}
         className="w-full text-left rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-emerald-100/70 transition-colors"
       >
@@ -330,7 +331,7 @@ function ChatTable({ spec }: { spec: ChatChartSpec }) {
               <tr
                 key={i}
                 className={`${i % 2 ? "bg-stone-50/50" : ""} cursor-pointer hover:bg-emerald-50/60`}
-                onClick={() => ask(spec, { name: String(r[0]) })}
+                onClick={() => ask(spec, { name: String(r[0]), loc: spec.rowLoc?.[i] ?? undefined })}
                 title={`${r[0]} — ${ASK_HINT}`}
               >
                 {r.map((cell, j) => (
@@ -631,7 +632,7 @@ function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
                 onPointerLeave={() => setHover(null)}
                 onFocus={() => setHover(b.node.id)}
                 onBlur={() => setHover(null)}
-                onClick={() => ask(spec, { name: b.node.title })}
+                onClick={() => ask(spec, { name: b.node.title, loc: b.node.loc })}
                 className="outline-none cursor-pointer"
               >
                 <title>{label}</title>
@@ -847,7 +848,7 @@ function Heatmap({ spec }: { spec: ChatChartSpec }) {
           const x = GAP + (i % perRow) * (TW + GAP);
           const y = GAP + Math.floor(i / perRow) * (TH + GAP);
           return (
-            <g key={`${t.name}-${i}`} onClick={() => ask(spec, { name: t.name, value: `${t.value}%` })} className="cursor-pointer">
+            <g key={`${t.name}-${i}`} onClick={() => ask(spec, { name: t.name, value: `${t.value}%`, loc: t.loc })} className="cursor-pointer">
               <title>{`${t.name}: ${t.value}% (${t.label ?? ""}) — ${ASK_HINT}`}</title>
               <rect x={x} y={y} width={TW} height={TH} rx={8} fill={tileColor(t.value)} stroke={tileStroke(t.value)} strokeWidth={1.2} />
               <text x={x + 10} y={y + 20} fontSize={11} fontWeight={600} fill="#1c1917">
