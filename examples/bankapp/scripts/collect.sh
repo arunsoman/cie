@@ -9,4 +9,6 @@ log "collecting runtime evidence (cpu, memory, concurrency, deadlock, race, cove
 python3 "$(dirname "$0")/collect_runtime.py"
 log "collecting the 33 story demos (measured + recorded, nothing invented)"
 python3 "$(dirname "$0")/collect_stories.py"
-log "done — see runtime-data/runtime.json and runtime-data/stories.json"
+log "collecting quality/health measures (complexity, duplication, security, churn, hotspots, drift, defects, crash+MTTR probes)"
+python3 "$(dirname "$0")/collect_quality.py"
+log "done — see runtime-data/runtime.json, runtime-data/stories.json and runtime-data/quality.json"

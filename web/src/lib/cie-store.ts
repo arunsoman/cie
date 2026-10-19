@@ -12,7 +12,7 @@
 // offers as a referent).
 
 import { create } from "zustand";
-import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality } from "./cie-types";
 import type { ChatChartSpec } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
@@ -32,6 +32,7 @@ export type StageView =
   | "trust"
   | "deps"
   | "runtime"
+  | "quality"
   | "chart";
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
@@ -57,6 +58,7 @@ interface CieState {
   deps: CieDeps | null; // dependency manifests (cie deps export) — null when none
   runtime: CieRuntime | null; // collected runtime evidence — null when the project has none
   stories: CieStories | null; // the 33 story demos with real data — null when the project has none
+  quality: CieQuality | null; // health/quality ETL export — null when the project has none
   source: DataSource;
   label: string;
   loading: boolean;
@@ -83,7 +85,8 @@ interface CieState {
     repoScan?: RepoScan | null,
     deps?: CieDeps | null,
     runtime?: CieRuntime | null,
-    stories?: CieStories | null
+    stories?: CieStories | null,
+    quality?: CieQuality | null
   ) => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
@@ -107,6 +110,7 @@ export const useCie = create<CieState>((set, get) => ({
   deps: null,
   runtime: null,
   stories: null,
+  quality: null,
   source: null,
   label: "",
   loading: true,
@@ -127,13 +131,14 @@ export const useCie = create<CieState>((set, get) => ({
     try {
       // deps.json + runtime.json + stories.json are optional extras: a project
       // without them still loads, and those views show honest empty states.
-      const [report, viewspec, concepts, deps, runtime, stories] = await Promise.all([
+      const [report, viewspec, concepts, deps, runtime, stories, quality] = await Promise.all([
         fetch("/data/report.json").then((r) => r.json()),
         fetch("/data/viewspec.json").then((r) => r.json()),
         fetch("/data/concepts.json").then((r) => r.json()),
         fetch("/data/deps.json").then((r) => r.json()).catch(() => null),
         fetch("/data/runtime.json").then((r) => r.json()).catch(() => null),
         fetch("/data/stories.json").then((r) => r.json()).catch(() => null),
+        fetch("/data/quality.json").then((r) => r.json()).catch(() => null),
       ]);
       set({
         report,
@@ -142,6 +147,7 @@ export const useCie = create<CieState>((set, get) => ({
         deps,
         runtime,
         stories,
+        quality,
         source: "demo",
         label: "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
@@ -157,7 +163,7 @@ export const useCie = create<CieState>((set, get) => ({
     }
   },
 
-  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories) =>
+  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories, quality) =>
     set({
       report,
       viewspec,
@@ -165,6 +171,7 @@ export const useCie = create<CieState>((set, get) => ({
       deps: deps ?? null,
       runtime: runtime ?? null,
       stories: stories ?? null,
+      quality: quality ?? null,
       source: "custom",
       label,
       loading: false,

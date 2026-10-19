@@ -6,7 +6,7 @@
 // modelled on US-023: magnify locally, never mutate the base chart, state
 // the source.
 
-export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow";
+export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap";
 
 export interface ChatChartDataPoint {
   name: string;
@@ -35,6 +35,25 @@ export interface UmlLink {
   dashed?: boolean; // soft relations (guesses, loose coupling)
 }
 
+// One node of a concept-hierarchy tree (kind "tree"). Levels mirror the
+// engine's concept tree (Domain → Module → UseCase/Rule); built locally from
+// concepts.json — the model never invents hierarchy nodes.
+export interface TreeNode {
+  id: string;
+  label: string;
+  kind: string; // Domain | Module | UseCase | Rule ...
+  parent: string | null;
+  note?: string; // one plain-words line, e.g. behaviour count
+  certainty?: "Fact" | "Inference" | "Hypothesis";
+}
+
+// One tile of a heatmap (kind "heatmap") — e.g. per-file test coverage.
+export interface HeatTile {
+  name: string;
+  value: number; // 0..100 — always shown as text too (never colour alone)
+  label?: string; // extra line under the tile, e.g. "9 of 12 lines"
+}
+
 export interface ChatChartSpec {
   kind: ChatChartKind;
   catalog?: string; // e.g. "G5" — the catalog family the choice is based on
@@ -50,6 +69,8 @@ export interface ChatChartSpec {
   unit?: string;
   nodes?: UmlNode[]; // diagrams only — filled from the store, never from the model
   links?: UmlLink[];
+  tree?: TreeNode[]; // kind "tree" — built from concepts.json
+  tiles?: HeatTile[]; // kind "heatmap" — per-file measured values
   source?: string; // honesty note: which export the diagram was built from
 }
 
@@ -58,7 +79,7 @@ export interface ParsedReply {
   chart?: ChatChartSpec;
 }
 
-const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow"];
+const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow", "tree", "heatmap"];
 const COLORS = new Set(["rose", "amber", "emerald", "stone"]);
 
 /** Engine + layout per kind — deterministic, so a hallucinated pair gets corrected. */
@@ -70,6 +91,8 @@ export function engineFor(kind: ChatChartKind): string {
     case "table": return "grid";
     case "uml": return "custom-svg";
     case "flow": return "custom-svg";
+    case "tree": return "custom-svg";
+    case "heatmap": return "custom-svg";
   }
 }
 export function layoutFor(kind: ChatChartKind): string {
@@ -80,6 +103,8 @@ export function layoutFor(kind: ChatChartKind): string {
     case "table": return "scroll-rows";
     case "uml": return "uml-boxes";
     case "flow": return "call-flow";
+    case "tree": return "concept-tree";
+    case "heatmap": return "coverage-grid";
   }
 }
 
@@ -113,10 +138,11 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
     return spec;
   }
 
-  // Diagrams: the model gets NO say over boxes or arrows. Whatever it sends
-  // is dropped here; the caller refills nodes/links from the loaded store
-  // (src/lib/draw-anything.ts). Only title + tell survive.
-  if (kind === "uml" || kind === "flow") {
+  // Diagrams, trees and heatmaps: the model gets NO say over boxes, arrows,
+  // hierarchy nodes or tiles. Whatever it sends is dropped here; the caller
+  // refills them from the loaded store (src/lib/draw-anything.ts,
+  // src/lib/quality.ts). Only title + tell survive.
+  if (kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap") {
     return spec;
   }
 
@@ -143,7 +169,7 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
 
 /** True for the kinds whose boxes/arrows are built from the store. */
 export function isDiagramKind(kind: ChatChartKind): boolean {
-  return kind === "uml" || kind === "flow";
+  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap";
 }
 
 /**

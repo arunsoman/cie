@@ -351,3 +351,198 @@ export interface CieStories {
   stories: Record<string, CieStory>;
   how_to_collect_on_your_project: { story: string; extract: string; on_real_projects: string }[];
 }
+
+// ---------------------------------------------------------------------------
+// Quality / health — the ETL export produced by
+// examples/bankapp/scripts/collect_quality.py (runtime-data/quality.json):
+// real extracted sources (the sample's files, the hosting repo's git history,
+// the GitHub issues API recorded as found, a measured coverage export) and
+// two live probes (seeded fuzz for crash rate, timed fail→fix→recheck loops
+// for MTTR). Every number traces back to the collector; absence is stated.
+// ---------------------------------------------------------------------------
+
+export interface QualityComplexityFn {
+  file: string;
+  function: string;
+  cc: number;
+  loc: number;
+  line: number;
+}
+
+export interface QualityComplexity {
+  tool: string;
+  formula: string;
+  totals: { files: number; functions: number; loc: number; avg_cc: number; max_cc: number };
+  functions: QualityComplexityFn[];
+  files: { file: string; loc: number; functions: number; avg_cc: number; max_cc: number }[];
+  real_world_equivalents?: string[];
+}
+
+export interface QualityDupPair {
+  a_file: string;
+  a_line: number;
+  b_file: string;
+  b_line: number;
+  lines: number;
+  preview: string;
+}
+
+export interface QualitySecurityIssue {
+  id: string;
+  rule: string;
+  cwe: string;
+  name: string;
+  severity: "Critical" | "High" | "Medium" | "Low" | string;
+  file: string;
+  line: number;
+  snippet: string;
+  why: string;
+}
+
+export interface QualityChurnFile {
+  file: string;
+  added: number;
+  deleted: number;
+  churn: number;
+  commits: number;
+  last_change: string | null;
+}
+
+export interface QualityHotspotRow {
+  file: string;
+  churn: number;
+  max_cc: number;
+  urgent_findings: number;
+  coverage_percent: number | null;
+  risk: number;
+}
+
+export interface QualityDriftDoc {
+  doc: string;
+  describes: string;
+  doc_last_change: string | null;
+  code_last_change: string | null;
+  doc_age_days: number;
+  code_newest_age_days: number;
+  drift_days: number;
+  note: string;
+}
+
+export interface QualityDriftCode {
+  file: string;
+  last_change: string | null;
+  tests_last_change: string | null;
+  test_lag_days: number | null;
+  note: string;
+}
+
+export interface QualityMetricRow {
+  id: string;
+  name: string;
+  what_it_measures: string;
+  typical_calculation: string;
+  value: number | null;
+  unit: string;
+  value_text: string;
+  how_computed_here: string;
+  source: string;
+  scope: string;
+}
+
+export interface CieQuality {
+  project: string;
+  collected_at: string;
+  honesty: string;
+  scopes: { sample: string; hosting_repo: string };
+  complexity: QualityComplexity;
+  duplication: {
+    tool: string;
+    min_block: number;
+    blocks_found: number;
+    duplicated_lines: number;
+    pairs: QualityDupPair[];
+    real_world_equivalents?: string[];
+  };
+  security: {
+    tool: string;
+    honesty: string;
+    rules: { id: string; cwe: string; name: string; severity: string; why: string }[];
+    issues: QualitySecurityIssue[];
+    by_category: Record<string, number>;
+    by_severity: Record<string, number>;
+    real_world_equivalents?: string[];
+  };
+  coverage_heatmap: {
+    tool: string | null;
+    command?: string;
+    collected_at?: string;
+    files: { file: string; statements: number | null; covered: number | null; percent: number; note?: string }[];
+    totals: { percent?: number; statements?: number; covered_lines?: number; note?: string } | null;
+    honesty: string;
+  };
+  churn: {
+    tool: string;
+    formula: string;
+    sample: { per_file: QualityChurnFile[]; commits_touching_sample: number };
+    hosting_repo: { commits_total: number; daily: { day: string; added: number; deleted: number; churn: number }[] };
+    honesty: string;
+  };
+  hotspots: {
+    formula: string;
+    rows: QualityHotspotRow[];
+    real_world_equivalents?: string[];
+  };
+  drift: {
+    tool: string;
+    document: QualityDriftDoc[];
+    code: QualityDriftCode[];
+    honesty: string;
+  };
+  defects: {
+    tracker: {
+      service: string;
+      repo: string;
+      api_ok: boolean;
+      http_status: number;
+      auth: string;
+      rate_limit_remaining: number | null;
+      issues_total: number | null;
+      bugs: { number: number; title: string; state: string; created_at: string; closed_at: string | null; labels: string[]; is_bug: boolean }[];
+      note: string;
+      fetched_at: string;
+    };
+    fix_commits: {
+      source: string;
+      count: number;
+      first: string | null;
+      last: string | null;
+      recent: { date: string; sha: string; title: string }[];
+    };
+    derived: {
+      defect_density_per_kloc?: number;
+      kloc_measured?: number;
+      arrival_rate_per_day?: number;
+      mtbf_hours?: number;
+      proxy_note?: string;
+    };
+    real_world_equivalents?: string[];
+  };
+  crash_probe: {
+    tool: string;
+    definition: string;
+    sessions: number;
+    crashes: number;
+    crash_rate: number | null;
+    crashes_detail: { module: string; function: string; session: string; crashed: boolean; reason: string; timed_out: boolean }[];
+    honesty: string;
+  };
+  repair_probe: {
+    tool: string;
+    iterations: { bug: string; test: string; detected: boolean; detect_s: number; repair_s: number; recheck_s: number; total_s: number; recheck_passed: boolean }[];
+    mttr_s: number | null;
+    mttr_text: string;
+    honesty: string;
+  };
+  metrics: QualityMetricRow[];
+  how_to_collect_on_your_project: { dataset: string; this_demo: string; on_real_projects: string }[];
+}

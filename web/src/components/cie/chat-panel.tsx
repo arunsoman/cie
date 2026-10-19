@@ -21,6 +21,7 @@ import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
+import { tryAnswerQuality } from "@/lib/quality";
 import { ChatChart } from "@/components/cie/chat-chart";
 import { providerLabel } from "@/lib/llm-config";
 
@@ -79,15 +80,15 @@ export function ChatPanel() {
   const {
     report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
-    stories, pendingAsk, setPendingAsk,
+    stories, quality, pendingAsk, setPendingAsk,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The digest is recomputed whenever the loaded project changes.
   const digest = useMemo(
-    () => buildDigest(report, viewspec, concepts, label, deps, runtime),
-    [report, viewspec, concepts, label, deps, runtime]
+    () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality),
+    [report, viewspec, concepts, label, deps, runtime, quality]
   );
 
   // Keep the newest message in view.
@@ -123,6 +124,21 @@ export function ChatPanel() {
         role: "assistant",
         content: storyAns.answer,
         chart: storyAns.chart ?? undefined,
+        instant: true,
+      });
+      return;
+    }
+
+    // ---- fast path 1b: quality/health questions (and every chart-element
+    // tap) are answered locally from the collected quality.json — the eight
+    // metrics, security findings, duplication, hot spots, drift, coverage.
+    // Instant, nothing invented; unmatched questions fall through. ----
+    const qualityAns = tryAnswerQuality(question, quality, concepts);
+    if (qualityAns) {
+      pushChat({
+        role: "assistant",
+        content: qualityAns.answer,
+        chart: qualityAns.chart ?? undefined,
         instant: true,
       });
       return;
@@ -183,8 +199,8 @@ export function ChatPanel() {
         // Diagrams: the model only picks the KIND. Boxes and arrows are
         // filled from the loaded store, so nothing can be invented.
         let chart = parsed.chart;
-        if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length) {
-          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell) ?? chart;
+        if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length && !chart.tree?.length && !chart.tiles?.length) {
+          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality) ?? chart;
         }
         pushChat({ role: "assistant", content: parsed.answer, chart });
       }

@@ -5,9 +5,10 @@
 // fisheye lens (US-023), keyboard parity (US-140) and never-colour-alone
 // labels (US-142) all carry over unchanged.
 
-import type { CieReport, CieViewSpec, ConceptTree, Finding, CieDeps, CieRuntime } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, Finding, CieDeps, CieRuntime, CieQuality } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartKind, type ChatChartSpec } from "./chat-chart";
 import { buildUmlSpec, buildFlowSpec } from "./draw-anything";
+import { buildQualityCharts } from "./quality";
 import {
   findingTitle,
   obligationTitle,
@@ -20,7 +21,7 @@ import {
 
 export interface CannedChart {
   id: string;
-  group: "Problems" | "Promises" | "The map" | "What the code does" | "Dependencies" | "Watching it run";
+  group: "Problems" | "Promises" | "The map" | "What the code does" | "Dependencies" | "Watching it run" | "Health" | "Quality metrics";
   question: string;
   hint: string; // one line shown under the question chip
   icon: "list" | "gauge" | "shapes" | "shield" | "map" | "activity" | "package" | "timer";
@@ -45,7 +46,8 @@ export function buildCannedCharts(
   viewspec: CieViewSpec | null,
   concepts: ConceptTree | null,
   deps?: CieDeps | null,
-  runtime?: CieRuntime | null
+  runtime?: CieRuntime | null,
+  quality?: CieQuality | null
 ): CannedChart[] {
   if (!report) return [];
   const charts: CannedChart[] = [];
@@ -547,6 +549,14 @@ export function buildCannedCharts(
         : null,
     });
   }
+
+  // ---------- Health + Quality metrics (the ETL export: quality.json) ----------
+  // Real collected health charts — security, duplication, hot spots, drift,
+  // the coverage heat map, the concept hierarchy — and the eight classic
+  // quality measures, each with its formula stated. Built by
+  // src/lib/quality.ts from the same loaded store; an absent export simply
+  // contributes no charts (honest empty, never a guess).
+  charts.push(...buildQualityCharts(quality ?? null, concepts));
 
   return charts;
 }

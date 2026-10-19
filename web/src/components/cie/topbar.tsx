@@ -42,6 +42,7 @@ import {
   Upload,
   Wand2,
   LayoutGrid,
+  Gauge,
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
 import { providerLabel } from "@/lib/llm-config";
@@ -49,7 +50,7 @@ import { UseYourOwnDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
 const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
-const CHART_VIEWS: StageView[] = ["numbers", "menu", "chart"];
+const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -162,9 +163,13 @@ export function Topbar() {
               <DropdownMenuItem onClick={go("menu")} className={view === "menu" ? "bg-emerald-50" : ""}>
                 <LayoutGrid className="h-4 w-4 text-stone-400" /> One-tap chart menu
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={go("quality")} className={view === "quality" ? "bg-emerald-50" : ""}>
+                <Gauge className="h-4 w-4 text-stone-400" /> Quality metrics (the eight classics)
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <p className="px-2 py-1.5 text-xs text-stone-500 leading-relaxed">
-                Charts the chat draws can go big on the canvas — use the button on any answer.
+                Charts the chat draws can go big on the canvas — use the button on any answer. Tap any chart element
+                to ask CIE about it.
               </p>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -236,6 +241,7 @@ export function Topbar() {
               <DropdownMenuLabel>Charts</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("numbers")} className={view === "numbers" ? "bg-emerald-50" : ""}>In pictures</DropdownMenuItem>
               <DropdownMenuItem onClick={go("menu")} className={view === "menu" ? "bg-emerald-50" : ""}>One-tap menu</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("quality")} className={view === "quality" ? "bg-emerald-50" : ""}>Quality metrics</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={go("trust")} className={view === "trust" ? "bg-emerald-50" : ""}>Can I trust this?</DropdownMenuItem>
               <DropdownMenuSeparator />

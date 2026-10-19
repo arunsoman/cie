@@ -15,8 +15,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { BarChart3, MoveVertical } from "lucide-react";
+import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
 import type { ChatChartSpec, UmlNode } from "@/lib/chat-chart";
+import { useCie } from "@/lib/cie-store";
+import { askAboutChartElement } from "@/lib/quality";
 
 const HEX: Record<string, string> = {
   rose: "#e11d48",
@@ -25,6 +27,20 @@ const HEX: Record<string, string> = {
   stone: "#78716c",
 };
 const hex = (c?: string) => HEX[c ?? ""] ?? "#78716c";
+
+/**
+ * Click-to-chat: tapping a chart element starts a conversation about it.
+ * The question carries the chart title + the element's name and value, so
+ * the local quality/story answerers (or the AI, as fallback) can ground the
+ * reply in the collected data. Nothing is invented by the chart itself.
+ */
+function useAsk() {
+  const setPendingAsk = useCie((s) => s.setPendingAsk);
+  return (spec: ChatChartSpec, el: { name: string; value?: number | string }) =>
+    setPendingAsk(askAboutChartElement(spec.title, el));
+}
+
+const ASK_HINT = "tap any element to ask CIE about it";
 
 const TOOLTIP_STYLE = {
   borderRadius: 10,
@@ -74,6 +90,7 @@ function fisheyeMagnifications(centres: number[], focusY: number | null): number
 
 function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
   const rows = (spec.data ?? []).map((d) => ({ ...d, color: hex(d.color) }));
+  const ask = useAsk();
   const W = 460;
   const H = Math.max(150, rows.length * 34 + 10);
   const labelW = 150;
@@ -146,7 +163,16 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
         tabIndex={0}
         onPointerMove={pointerMove}
         onPointerLeave={pointerLeave}
-        onKeyDown={keyDown}
+        onKeyDown={(e) => {
+          keyDown(e);
+          if (e.key === "Enter" || e.key === " ") {
+            const idx = focusY == null ? -1 : Math.min(rows.length - 1, Math.max(0, Math.floor(focusY / rowH)));
+            if (idx >= 0) {
+              e.preventDefault();
+              ask(spec, { name: rows[idx].name, value: rows[idx].value });
+            }
+          }
+        }}
         className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40"
       >
         {/* rows — order and value axis never change; only local magnification.
@@ -158,7 +184,12 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
           // US-142: label + value always visible; the lens only changes size.
           const labelSize = 11 + 2.5 * (mags[i] - 1);
           return (
-            <g key={i}>
+            <g
+              key={i}
+              onClick={() => ask(spec, { name: r.name, value: r.value })}
+              className="cursor-pointer"
+            >
+              <title>{`${r.name}: ${r.value} — ${ASK_HINT}`}</title>
               <text
                 x={labelW}
                 y={cy + labelSize * 0.35}
@@ -191,6 +222,9 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
           <MoveVertical className="h-3 w-3" /> hover a row — or use ↑ ↓ keys — to magnify that neighbourhood
         </p>
       )}
+      <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-0.5">
+        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT}
+      </p>
     </div>
   );
 }
@@ -199,6 +233,7 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
 
 function ChatDonut({ spec }: { spec: ChatChartSpec }) {
   const rows = (spec.data ?? []).map((d) => ({ ...d, color: hex(d.color) }));
+  const ask = useAsk();
   const total = rows.reduce((a, d) => a + d.value, 0);
   if (!total) return null;
   return (
@@ -211,7 +246,7 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
             <PieChart>
               <Pie data={rows} dataKey="value" nameKey="name" innerRadius={36} outerRadius={55} paddingAngle={2} strokeWidth={2} stroke="#fff">
                 {rows.map((d, i) => (
-                  <Cell key={i} fill={d.color} />
+                  <Cell key={i} fill={d.color} className="cursor-pointer" onClick={() => ask(spec, { name: d.name, value: d.value })} />
                 ))}
               </Pie>
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number | string, name) => [`${value}`, String(name)]} />
@@ -224,7 +259,12 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
         </div>
         <ul className="space-y-1 text-xs min-w-0">
           {rows.map((d) => (
-            <li key={d.name} className="flex items-center gap-1.5">
+            <li
+              key={d.name}
+              className="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 hover:bg-stone-100"
+              onClick={() => ask(spec, { name: d.name, value: d.value })}
+              title={`${d.name}: ${d.value} — ${ASK_HINT}`}
+            >
               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} aria-hidden />
               <span className="text-stone-700 flex-1 min-w-0 truncate">{d.name}</span>
               <span className="font-semibold text-stone-900 tabular-nums">{d.value}</span>
@@ -232,6 +272,9 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
           ))}
         </ul>
       </div>
+      <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
+        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT}
+      </p>
     </div>
   );
 }
@@ -240,17 +283,23 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
 
 function ChatStat({ spec }: { spec: ChatChartSpec }) {
   const d = spec.data?.[0];
+  const ask = useAsk();
   if (!d) return null;
   return (
     <div className="mt-2">
       {spec.title && <p className="text-sm font-semibold text-stone-900 mb-1">{spec.title}</p>}
-      <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => ask(spec, { name: d.name, value: d.value })}
+        title={`${d.name} — ${ASK_HINT}`}
+        className="w-full text-left rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-emerald-100/70 transition-colors"
+      >
         <span className="text-3xl font-bold text-emerald-800 tabular-nums">
           {d.value}
           {spec.unit && <span className="text-base font-semibold text-emerald-700 ml-0.5">{spec.unit}</span>}
         </span>
         <span className="text-sm text-emerald-900 leading-snug">{d.name}</span>
-      </div>
+      </button>
       {spec.tell && <p className="text-xs text-stone-500 mt-1.5">{spec.tell}</p>}
     </div>
   );
@@ -259,6 +308,7 @@ function ChatStat({ spec }: { spec: ChatChartSpec }) {
 // ---------- table (scroll rows) ----------
 
 function ChatTable({ spec }: { spec: ChatChartSpec }) {
+  const ask = useAsk();
   if (!spec.columns?.length || !spec.rows?.length) return null;
   return (
     <div className="mt-2">
@@ -277,7 +327,12 @@ function ChatTable({ spec }: { spec: ChatChartSpec }) {
           </thead>
           <tbody>
             {spec.rows.map((r, i) => (
-              <tr key={i} className={i % 2 ? "bg-stone-50/50" : ""}>
+              <tr
+                key={i}
+                className={`${i % 2 ? "bg-stone-50/50" : ""} cursor-pointer hover:bg-emerald-50/60`}
+                onClick={() => ask(spec, { name: String(r[0]) })}
+                title={`${r[0]} — ${ASK_HINT}`}
+              >
                 {r.map((cell, j) => (
                   <td key={j} className={`px-2.5 py-1.5 text-stone-700 ${j === 0 ? "font-medium text-stone-900" : "tabular-nums"} border-b border-stone-100`}>
                     {cell}
@@ -288,6 +343,9 @@ function ChatTable({ spec }: { spec: ChatChartSpec }) {
           </tbody>
         </table>
       </div>
+      <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
+        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT}
+      </p>
     </div>
   );
 }
@@ -360,6 +418,7 @@ const ROW_GAP = 34;
 function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
   const uid = useId().replace(/[:]/g, "");
   const [hover, setHover] = useState<string | null>(null);
+  const ask = useAsk();
   const nodes = spec.nodes ?? [];
   const links = spec.links ?? [];
 
@@ -572,7 +631,8 @@ function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
                 onPointerLeave={() => setHover(null)}
                 onFocus={() => setHover(b.node.id)}
                 onBlur={() => setHover(null)}
-                className="outline-none cursor-default"
+                onClick={() => ask(spec, { name: b.node.title })}
+                className="outline-none cursor-pointer"
               >
                 <title>{label}</title>
                 <rect
@@ -627,6 +687,191 @@ function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
   );
 }
 
+// ---------- concept hierarchy tree (custom-svg, indented levels) ----------
+//
+// Nodes come from concepts.json via quality.ts — the model never invents
+// hierarchy nodes. Layout: an indented tree (Domain → Module → …) with elbow
+// connectors; every node answers to a click (click-to-chat), like the map.
+
+function TreeSVG({ spec }: { spec: ChatChartSpec }) {
+  const ask = useAsk();
+  const nodes = spec.tree ?? [];
+  if (!nodes.length) return null;
+
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const childrenOf = new Map<string | null, typeof nodes>();
+  for (const n of nodes) {
+    const p = n.parent && byId.has(n.parent) ? n.parent : null;
+    childrenOf.set(p, [...(childrenOf.get(p) ?? []), n]);
+  }
+  // depth per node (cycle-guarded)
+  const depth = new Map<string, number>();
+  const walk = (n: (typeof nodes)[number], d: number, seen: Set<string>) => {
+    if (seen.has(n.id) || seen.size > nodes.length + 2) return;
+    seen.add(n.id);
+    depth.set(n.id, d);
+    for (const c of childrenOf.get(n.id) ?? []) walk(c, d + 1, seen);
+  };
+  for (const r of childrenOf.get(null) ?? []) walk(r, 0, new Set());
+  for (const n of nodes) if (!depth.has(n.id)) depth.set(n.id, 0); // orphans surface at top level
+
+  const COL_W = 200;
+  const ROW_H = 40;
+  const maxDepth = Math.max(0, ...[...depth.values()]);
+  const W = Math.max(460, (maxDepth + 1) * COL_W + 40);
+  const H = nodes.length * ROW_H + 16;
+
+  // ordered list: parents before children, depth-first in given order
+  const ordered: { n: (typeof nodes)[number]; d: number; y: number }[] = [];
+  let y = 12;
+  const emit = (id: string | null, seen: Set<string>) => {
+    for (const c of childrenOf.get(id) ?? []) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      const d = depth.get(c.id) ?? 0;
+      ordered.push({ n: c, d, y: y + ROW_H / 2 });
+      y += ROW_H;
+      emit(c.id, seen);
+    }
+  };
+  emit(null, new Set());
+
+  const BOX_H = 28;
+  const KIND_STYLE: Record<string, { fill: string; stroke: string; text: string }> = {
+    Domain: { fill: "#ecfdf5", stroke: "#059669", text: "#065f46" },
+    Module: { fill: "#f5f5f4", stroke: "#78716c", text: "#44403c" },
+    UseCase: { fill: "#fffbeb", stroke: "#d97706", text: "#78350f" },
+    Rule: { fill: "#fef2f2", stroke: "#e11d48", text: "#881337" },
+  };
+  const style = (k: string) => KIND_STYLE[k] ?? { fill: "#f5f5f4", stroke: "#a8a29e", text: "#44403c" };
+
+  const posById = new Map(ordered.map((o) => [o.n.id, o]));
+
+  return (
+    <div className="mt-2">
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={`Concept hierarchy, ${nodes.length} nodes`}>
+          {/* elbow connectors: parent right edge → child left edge */}
+          {ordered.map(({ n, d, y: ny }) => {
+            if (!n.parent) return null;
+            const p = posById.get(n.parent);
+            if (!p) return null;
+            const x1 = 24 + p.d * COL_W + 176;
+            const x2 = 24 + d * COL_W;
+            const my = (p.y + ny) / 2;
+            return (
+              <path
+                key={`e-${n.id}`}
+                d={`M ${x1} ${p.y} C ${x1 + 14} ${p.y}, ${x1 + 14} ${my}, ${x2 - 6} ${my} L ${x2 - 6} ${ny}`}
+                fill="none"
+                stroke="#d6d3d1"
+                strokeWidth={1.2}
+              />
+            );
+          })}
+          {ordered.map(({ n, d, y: ny }) => {
+            const st = style(n.kind);
+            const label = `${KIND_PLAIN[n.kind] ?? n.kind}: ${n.label}${n.note ? ` — ${n.note}` : ""}`;
+            return (
+              <g
+                key={n.id}
+                onClick={() => ask(spec, { name: n.label })}
+                className="cursor-pointer"
+                tabIndex={0}
+                role="button"
+                aria-label={`${label} — ${ASK_HINT}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    ask(spec, { name: n.label });
+                  }
+                }}
+              >
+                <title>{`${label} — ${ASK_HINT}`}</title>
+                <rect
+                  x={24 + d * COL_W}
+                  y={ny - BOX_H / 2}
+                  width={176}
+                  height={BOX_H}
+                  rx={7}
+                  fill={st.fill}
+                  stroke={st.stroke}
+                  strokeWidth={1.2}
+                />
+                <text x={24 + d * COL_W + 10} y={ny - 6} fontSize={9} fill={st.text} fontWeight={700}>
+                  {(KIND_PLAIN[n.kind] ?? n.kind).toUpperCase()}
+                </text>
+                <text x={24 + d * COL_W + 10} y={ny + 8} fontSize={11} fill="#1c1917" fontWeight={500}>
+                  {n.label.length > 22 ? n.label.slice(0, 21) + "…" : n.label}
+                  {n.note && <tspan dx={6} fontSize={9} fill="#78716c">{n.note}</tspan>}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
+        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} · scroll sideways if the tree is wider than this box
+      </p>
+    </div>
+  );
+}
+
+// ---------- heatmap (custom-svg grid — e.g. test coverage per file) ----------
+//
+// Tiles come from the measured export (quality.json) — never from the model.
+// Never colour alone: every tile carries its percentage as text.
+
+function Heatmap({ spec }: { spec: ChatChartSpec }) {
+  const ask = useAsk();
+  const tiles = spec.tiles ?? [];
+  if (!tiles.length) return null;
+  const tileColor = (v: number) => (v >= 70 ? "#d1fae5" : v >= 40 ? "#fef3c7" : v > 0 ? "#fee2e2" : "#ffe4e6");
+  const tileStroke = (v: number) => (v >= 70 ? "#059669" : v >= 40 ? "#d97706" : "#e11d48");
+  const TW = 148;
+  const TH = 64;
+  const GAP = 8;
+  const perRow = Math.max(2, Math.min(4, Math.floor(480 / (TW + GAP))));
+  const rows = Math.ceil(tiles.length / perRow);
+  const W = perRow * (TW + GAP) + GAP;
+  const H = rows * (TH + GAP) + GAP;
+
+  return (
+    <div className="mt-2">
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Heat map of ${tiles.length} files: ${tiles.map((t) => `${t.name} ${t.value}%`).join(", ")}`}>
+        {tiles.map((t, i) => {
+          const x = GAP + (i % perRow) * (TW + GAP);
+          const y = GAP + Math.floor(i / perRow) * (TH + GAP);
+          return (
+            <g key={`${t.name}-${i}`} onClick={() => ask(spec, { name: t.name, value: `${t.value}%` })} className="cursor-pointer">
+              <title>{`${t.name}: ${t.value}% (${t.label ?? ""}) — ${ASK_HINT}`}</title>
+              <rect x={x} y={y} width={TW} height={TH} rx={8} fill={tileColor(t.value)} stroke={tileStroke(t.value)} strokeWidth={1.2} />
+              <text x={x + 10} y={y + 20} fontSize={11} fontWeight={600} fill="#1c1917">
+                {t.name.length > 18 ? t.name.slice(0, 17) + "…" : t.name}
+              </text>
+              <text x={x + 10} y={y + 38} fontSize={15} fontWeight={700} fill={tileStroke(t.value)}>
+                {t.value}%
+              </text>
+              {t.label && (
+                <text x={x + 10} y={y + 53} fontSize={8.5} fill="#78716c">
+                  {t.label.length > 22 ? t.label.slice(0, 21) + "…" : t.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
+        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} — green well covered · amber partial · rose never imported (percentages always shown)
+      </p>
+    </div>
+  );
+}
+
 // ---------- dispatcher ----------
 
 export function ChatChart({ spec }: { spec: ChatChartSpec }) {
@@ -634,5 +879,7 @@ export function ChatChart({ spec }: { spec: ChatChartSpec }) {
   if (spec.kind === "donut") return <div className="mt-1"><ChatDonut spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "stat") return <div className="mt-1"><ChatStat spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "tree") return <div className="mt-1"><TreeSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "heatmap") return <div className="mt-1"><Heatmap spec={spec} /><ChartFootnote spec={spec} /></div>;
   return <div className="mt-1"><FisheyeHBar spec={spec} /><ChartFootnote spec={spec} /></div>;
 }

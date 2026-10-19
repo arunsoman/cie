@@ -3,7 +3,7 @@
 // and capped so the payload stays small, and every technical term is
 // translated with the same plain-words policy as the rest of the UI.
 
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieQuality } from "./cie-types";
 import { findingTitle, obligationTitle, effectPlain, certaintyPlain } from "./plain-words";
 
 function cut(s: string, n: number): string {
@@ -17,7 +17,8 @@ export function buildDigest(
   concepts: ConceptTree | null,
   label: string,
   deps?: CieDeps | null,
-  runtime?: CieRuntime | null
+  runtime?: CieRuntime | null,
+  quality?: CieQuality | null
 ): Record<string, unknown> | null {
   if (!report) return null;
 
@@ -193,6 +194,55 @@ export function buildDigest(
     };
   }
 
+  // Quality / health — the ETL export (quality.json): the eight classic
+  // measures plus the security/duplication/drift findings, all collected.
+  let quality_facts: Record<string, unknown> | null = null;
+  if (quality) {
+    quality_facts = {
+      collected_at: quality.collected_at,
+      honesty: cut(quality.honesty, 240),
+      metrics: quality.metrics.map((m) => ({
+        name: m.name,
+        value: m.value_text,
+        what_it_measures: cut(m.what_it_measures, 90),
+        typical_calculation: cut(m.typical_calculation, 90),
+        scope: cut(m.scope, 80),
+      })),
+      security: {
+        scanner: cut(quality.security.tool, 90),
+        total: quality.security.issues.length,
+        findings: quality.security.issues.slice(0, 12).map((it) => ({
+          where: `${it.file}:${it.line}`,
+          kind: it.name,
+          cwe: it.cwe,
+          urgency: it.severity,
+        })),
+      },
+      duplication: {
+        blocks: quality.duplication.blocks_found,
+        lines: quality.duplication.duplicated_lines,
+        pairs: quality.duplication.pairs.slice(0, 6).map((p) => `${p.a_file}:${p.a_line} <-> ${p.b_file}:${p.b_line} (${p.lines} lines)`),
+      },
+      most_complex: quality.complexity.functions.slice(0, 6).map((f) => ({
+        where: `${f.file}:${f.line}`,
+        function: f.function,
+        cyclomatic: f.cc,
+      })),
+      hotspots: quality.hotspots.rows.slice(0, 5).map((r) => ({ file: r.file, risk: r.risk })),
+      code_drift: quality.drift.code.slice(0, 6).map((c) => ({ file: c.file, note: cut(c.note, 60) })),
+      document_drift: quality.drift.document.slice(0, 4).map((d) => ({ doc: d.doc, note: cut(d.note, 60) })),
+      defect_tracker: {
+        service: quality.defects.tracker.service,
+        repo: quality.defects.tracker.repo,
+        issues_total: quality.defects.tracker.issues_total,
+        recorded_as_found: true,
+        proxy: cut(quality.defects.derived.proxy_note ?? "", 220),
+      },
+      crash_probe: { sessions: quality.crash_probe.sessions, crashes: quality.crash_probe.crashes },
+      repair_probe: { mttr: quality.repair_probe.mttr_text },
+    };
+  }
+
   // Certainty vocabulary, so the model uses the same words as the UI.
   const words = {
     Fact: certaintyPlain("Fact").label,
@@ -222,6 +272,9 @@ export function buildDigest(
       ...(runtime_evidence
         ? ["bars/stat/table of the measured runtime evidence below — always name the tool that measured it"]
         : []),
+      ...(quality_facts
+        ? ["bars/stat/table/tree/heatmap of the collected quality data below — metrics, security findings, duplication, hot spots, drift, coverage heatmap, concept hierarchy — always state the source"]
+        : []),
     ],
     project: {
       files: report.files?.map((f) => f.split("/").pop() ?? f) ?? [],
@@ -240,5 +293,6 @@ export function buildDigest(
     what_it_does: whatItDoes,
     ...(dependencies ? { dependencies } : {}),
     ...(runtime_evidence ? { runtime_evidence } : { runtime_evidence: null }),
+    ...(quality_facts ? { quality_facts } : { quality_facts: null }),
   };
 }

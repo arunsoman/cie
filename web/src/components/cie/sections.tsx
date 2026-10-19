@@ -17,6 +17,8 @@ import MapView from "@/components/cie/map-view";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, Finding } from "@/lib/cie-types";
 import { KNOWN_UNSUPPORTED } from "@/lib/language-profiles";
+import { buildCoverageHeatmapSpec } from "@/lib/quality";
+import { ChatChart } from "@/components/cie/chat-chart";
 import {
   severityPlain,
   findingTitle,
@@ -39,6 +41,8 @@ import {
   FileCode2,
   ListChecks,
   Languages,
+  HeartPulse,
+  Gauge,
 } from "lucide-react";
 
 // ---------- small shared pieces ----------
@@ -118,7 +122,7 @@ export function LoadingView() {
 // ---------- Tab: Start here ----------
 
 export function StartView() {
-  const { report } = useCie();
+  const { report, quality, setPendingAsk, setView } = useCie();
   if (!report) return null;
   const criticals = report.findings.filter((f) => f.severity === "Critical").length;
   const pct = report.coverage.symbols_total
@@ -181,6 +185,104 @@ export function StartView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* health snapshot — real collected numbers from the quality ETL export;
+          every tile answers to a tap (click-to-chat), the button opens the
+          full health charts */}
+      {quality && (
+        <Card className="border-stone-200">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-base flex items-center gap-2">
+              <HeartPulse className="h-4 w-4 text-emerald-700" /> Health snapshot
+              <span className="text-xs font-normal text-stone-400">— collected {quality.collected_at.slice(0, 10)}, every tile answers to a tap</span>
+            </CardTitle>
+            <CardDescription>
+              The basic health of the system, from the extract → transform → load collector. Formulas live on the
+              Quality metrics page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {(() => {
+              const tiles = [
+                {
+                  label: "Security findings",
+                  value: String(quality.security.issues.length),
+                  sub: `${quality.security.issues.filter((i) => i.severity === "Critical").length} critical — rules disclosed`,
+                  ask: "What are the security findings and where are they?",
+                },
+                {
+                  label: "Duplicated code",
+                  value: `${quality.duplication.duplicated_lines} lines`,
+                  sub: `${quality.duplication.blocks_found} repeated block(s) across files`,
+                  ask: "Where is the same code written twice?",
+                },
+                {
+                  label: "Test coverage",
+                  value: `${quality.coverage_heatmap.totals?.percent ?? 0}%`,
+                  sub: "measured statements touched by the tests",
+                  ask: "Show me a heat map of test coverage",
+                },
+                {
+                  label: "Most twisted logic",
+                  value: `CC ${quality.complexity.totals.max_cc}`,
+                  sub: `avg ${quality.complexity.totals.avg_cc} over ${quality.complexity.totals.functions} functions`,
+                  ask: "Where is the most twisted logic?",
+                },
+                {
+                  label: "Crash rate (probed)",
+                  value: `${quality.crash_probe.crash_rate != null ? Math.round(quality.crash_probe.crash_rate * 100) : 0}%`,
+                  sub: `${quality.crash_probe.crashes} of ${quality.crash_probe.sessions} seeded sessions crashed`,
+                  ask: "What share of sessions crashes?",
+                },
+              ];
+              return tiles.map((t) => (
+                <button
+                  key={t.label}
+                  type="button"
+                  onClick={() => setPendingAsk(t.ask)}
+                  title={`${t.label} — tap to ask CIE about this`}
+                  className="text-left rounded-lg border border-stone-200 bg-white p-3 hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors"
+                >
+                  <p className="text-xl font-bold text-stone-900">{t.value}</p>
+                  <p className="text-xs font-semibold text-stone-700 mt-0.5">{t.label}</p>
+                  <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">{t.sub}</p>
+                </button>
+              ));
+            })()}
+          </CardContent>
+          <CardContent className="flex flex-wrap items-center gap-2 pt-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+              onClick={() => setView("quality")}
+            >
+              <Gauge className="h-3.5 w-3.5" /> The eight quality metrics
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+              onClick={() => setView("menu")}
+            >
+              <HeartPulse className="h-3.5 w-3.5" /> All the health charts
+            </Button>
+            {(() => {
+              const heat = buildCoverageHeatmapSpec(quality);
+              return heat ? (
+                <details className="w-full mt-1">
+                  <summary className="text-xs text-stone-500 hover:text-stone-800 cursor-pointer select-none">
+                    Peek at the coverage heat map right here
+                  </summary>
+                  <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3">
+                    <ChatChart spec={heat} />
+                  </div>
+                </details>
+              ) : null;
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
       {/* dictionary */}
       <Card className="border-stone-200 bg-stone-50/60">

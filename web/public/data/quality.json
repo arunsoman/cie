@@ -1,0 +1,1142 @@
+{
+ "project": "bankapp (sample project inside the CIE repository)",
+ "collected_at": "2026-10-19T02:21:13.548396+00:00",
+ "honesty": "Every number here was extracted, transformed and loaded by this collector from real sources: the sample's own files, the hosting repository's real git history, the GitHub issues API (recorded as found \u2014 it is empty), a measured coverage export, and two live probes. Nothing is invented; limits are named next to the numbers.",
+ "scopes": {
+  "sample": "examples/bankapp \u2014 the project the dashboard loads",
+  "hosting_repo": "the repository that hosts the sample (139 real commits) \u2014 used for history-based measures, always labelled"
+ },
+ "complexity": {
+  "tool": "python3 ast walk (cie-rule CC-1)",
+  "formula": "1 + count(if/elif, for, while, except, and/or, ternary, comprehension-if, assert, match-case)",
+  "totals": {
+   "files": 6,
+   "functions": 23,
+   "loc": 301,
+   "avg_cc": 2.04,
+   "max_cc": 7
+  },
+  "functions": [
+   {
+    "file": "runtime_probes.py",
+    "function": "pipeline",
+    "cc": 7,
+    "loc": 40,
+    "line": 49
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "racing_counter",
+    "cc": 6,
+    "loc": 49,
+    "line": 123
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "allocate_blocks",
+    "cc": 4,
+    "loc": 30,
+    "line": 91
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "worker",
+    "cc": 3,
+    "loc": 8,
+    "line": 142
+   },
+   {
+    "file": "auth.py",
+    "function": "good_auth",
+    "cc": 2,
+    "loc": 5,
+    "line": 11
+   },
+   {
+    "file": "payments.py",
+    "function": "list_purchases",
+    "cc": 2,
+    "loc": 5,
+    "line": 9
+   },
+   {
+    "file": "payments.py",
+    "function": "refund",
+    "cc": 2,
+    "loc": 6,
+    "line": 17
+   },
+   {
+    "file": "payments.py",
+    "function": "notify_user",
+    "cc": 2,
+    "loc": 6,
+    "line": 24
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "cpu_work",
+    "cc": 2,
+    "loc": 6,
+    "line": 24
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "cpu_burn_mixed",
+    "cc": 2,
+    "loc": 8,
+    "line": 32
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "churn",
+    "cc": 2,
+    "loc": 3,
+    "line": 97
+   },
+   {
+    "file": "test_auth.py",
+    "function": "test_good_auth",
+    "cc": 2,
+    "loc": 2,
+    "line": 3
+   },
+   {
+    "file": "auth.py",
+    "function": "authorize",
+    "cc": 1,
+    "loc": 4,
+    "line": 6
+   },
+   {
+    "file": "auth.py",
+    "function": "verify_password",
+    "cc": 1,
+    "loc": 3,
+    "line": 17
+   },
+   {
+    "file": "auth.py",
+    "function": "hash_matches",
+    "cc": 1,
+    "loc": 3,
+    "line": 21
+   },
+   {
+    "file": "deadlock_probe.py",
+    "function": "record",
+    "cc": 1,
+    "loc": 3,
+    "line": 33
+   },
+   {
+    "file": "deadlock_probe.py",
+    "function": "flush_state",
+    "cc": 1,
+    "loc": 4,
+    "line": 38
+   },
+   {
+    "file": "deadlock_probe.py",
+    "function": "thread_one",
+    "cc": 1,
+    "loc": 6,
+    "line": 44
+   },
+   {
+    "file": "deadlock_probe.py",
+    "function": "thread_two",
+    "cc": 1,
+    "loc": 6,
+    "line": 52
+   },
+   {
+    "file": "payments.py",
+    "function": "charge",
+    "cc": 1,
+    "loc": 5,
+    "line": 3
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "quick_task",
+    "cc": 1,
+    "loc": 5,
+    "line": 42
+   },
+   {
+    "file": "runtime_probes.py",
+    "function": "run",
+    "cc": 1,
+    "loc": 13,
+    "line": 59
+   },
+   {
+    "file": "ui.py",
+    "function": "delete_account",
+    "cc": 1,
+    "loc": 4,
+    "line": 3
+   }
+  ],
+  "files": [
+   {
+    "file": "auth.py",
+    "loc": 23,
+    "functions": 4,
+    "avg_cc": 1.25,
+    "max_cc": 2
+   },
+   {
+    "file": "deadlock_probe.py",
+    "loc": 68,
+    "functions": 4,
+    "avg_cc": 1.0,
+    "max_cc": 1
+   },
+   {
+    "file": "payments.py",
+    "loc": 29,
+    "functions": 4,
+    "avg_cc": 1.75,
+    "max_cc": 2
+   },
+   {
+    "file": "runtime_probes.py",
+    "loc": 171,
+    "functions": 9,
+    "avg_cc": 3.11,
+    "max_cc": 7
+   },
+   {
+    "file": "test_auth.py",
+    "loc": 4,
+    "functions": 1,
+    "avg_cc": 2.0,
+    "max_cc": 2
+   },
+   {
+    "file": "ui.py",
+    "loc": 6,
+    "functions": 1,
+    "avg_cc": 1.0,
+    "max_cc": 1
+   }
+  ],
+  "real_world_equivalents": [
+   "radon / lizard / pylint for Python",
+   "SonarQube complexity measures for any language",
+   "eslint complexrules / rust-code-analysis for JS and Rust"
+  ]
+ },
+ "duplication": {
+  "tool": "normalized-block matcher, blocks \u2265 4 lines (cie-rule DUP-1)",
+  "min_block": 4,
+  "blocks_found": 3,
+  "duplicated_lines": 25,
+  "pairs": [
+   {
+    "a_file": "001_init.sql",
+    "a_line": 10,
+    "b_file": "schema.sql",
+    "b_line": 12,
+    "lines": 9,
+    "preview": "CREATE TABLE payments ("
+   },
+   {
+    "a_file": "001_init.sql",
+    "a_line": 2,
+    "b_file": "schema.sql",
+    "b_line": 4,
+    "lines": 8,
+    "preview": "CREATE TABLE accounts ("
+   },
+   {
+    "a_file": "002_audit_indexes.sql",
+    "a_line": 2,
+    "b_file": "schema.sql",
+    "b_line": 21,
+    "lines": 8,
+    "preview": "CREATE TABLE audit_log ("
+   }
+  ],
+  "real_world_equivalents": [
+   "jscpd / PMD CPD for any language",
+   "SonarQube duplications"
+  ]
+ },
+ "security": {
+  "tool": "cie-ruleset v1 \u2014 AST + line heuristics (not a full SAST scanner)",
+  "honesty": "Eight disclosed rules over the sample's own source. Real static findings with file:line evidence; a production scan would add dataflow analysis and more rules.",
+  "rules": [
+   {
+    "id": "SEC-1",
+    "cwe": "CWE-798",
+    "name": "Hardcoded credential",
+    "severity": "Critical",
+    "why": "A secret is written in the code. Anyone who reads the repo (or the shipped binary) has it."
+   },
+   {
+    "id": "SEC-2",
+    "cwe": "CWE-89",
+    "name": "SQL built by string glue",
+    "severity": "Critical",
+    "why": "Text glued into SQL lets one input change the query's meaning (SQL injection)."
+   },
+   {
+    "id": "SEC-3",
+    "cwe": "CWE-862",
+    "name": "Check that always says yes",
+    "severity": "High",
+    "why": "An authorization-looking function that returns True unconditionally protects nothing."
+   },
+   {
+    "id": "SEC-4",
+    "cwe": "CWE-703",
+    "name": "Bare except swallows failures",
+    "severity": "High",
+    "why": "A bare except hides real errors (even KeyboardInterrupt) and pretends things worked."
+   },
+   {
+    "id": "SEC-5",
+    "cwe": "CWE-916",
+    "name": "Password check without key stretching",
+    "severity": "High",
+    "why": "Plain sha256 is too fast for passwords; stolen hashes can be guessed quickly. bcrypt/argon2 add work."
+   },
+   {
+    "id": "SEC-6",
+    "cwe": "CWE-78",
+    "name": "Shell command built from text",
+    "severity": "Critical",
+    "why": "Text passed to a shell lets input run commands (command injection)."
+   },
+   {
+    "id": "SEC-7",
+    "cwe": "CWE-502",
+    "name": "Unsafe deserialization",
+    "severity": "High",
+    "why": "pickle.loads on untrusted data can run attacker-chosen code."
+   },
+   {
+    "id": "SEC-8",
+    "cwe": "CWE-338",
+    "name": "Weak randomness for security use",
+    "severity": "Medium",
+    "why": "random (not secrets) is predictable; tokens made from it can be guessed."
+   }
+  ],
+  "issues": [
+   {
+    "id": "SEC-2:payments.py:12",
+    "rule": "SEC-2",
+    "cwe": "CWE-89",
+    "name": "SQL built by string glue",
+    "severity": "Critical",
+    "file": "payments.py",
+    "line": 12,
+    "snippet": "cursor.fetchall(\"SELECT * FROM items WHERE id = \" + str(id))",
+    "why": "Text glued into SQL lets one input change the query's meaning (SQL injection)."
+   },
+   {
+    "id": "SEC-1:payments.py:15",
+    "rule": "SEC-1",
+    "cwe": "CWE-798",
+    "name": "Hardcoded credential",
+    "severity": "Critical",
+    "file": "payments.py",
+    "line": 15,
+    "snippet": "API_\u20268e",
+    "why": "A secret is written in the code. Anyone who reads the repo (or the shipped binary) has it."
+   },
+   {
+    "id": "SEC-2:ui.py:5",
+    "rule": "SEC-2",
+    "cwe": "CWE-89",
+    "name": "SQL built by string glue",
+    "severity": "Critical",
+    "file": "ui.py",
+    "line": 5,
+    "snippet": "cursor.execute(f\"DELETE FROM users WHERE id = {user_id}\")",
+    "why": "Text glued into SQL lets one input change the query's meaning (SQL injection)."
+   },
+   {
+    "id": "SEC-3:auth.py:6",
+    "rule": "SEC-3",
+    "cwe": "CWE-862",
+    "name": "Check that always says yes",
+    "severity": "High",
+    "file": "auth.py",
+    "line": 6,
+    "snippet": "def authorize(...): ... return True",
+    "why": "An authorization-looking function that returns True unconditionally protects nothing."
+   },
+   {
+    "id": "SEC-5:auth.py:23",
+    "rule": "SEC-5",
+    "cwe": "CWE-916",
+    "name": "Password check without key stretching",
+    "severity": "High",
+    "file": "auth.py",
+    "line": 23,
+    "snippet": "return hashlib.sha256(user.encode()).hexdigest() != user",
+    "why": "Plain sha256 is too fast for passwords; stolen hashes can be guessed quickly. bcrypt/argon2 add work."
+   },
+   {
+    "id": "SEC-4:payments.py:20",
+    "rule": "SEC-4",
+    "cwe": "CWE-703",
+    "name": "Bare except swallows failures",
+    "severity": "High",
+    "file": "payments.py",
+    "line": 20,
+    "snippet": "except:",
+    "why": "A bare except hides real errors (even KeyboardInterrupt) and pretends things worked."
+   }
+  ],
+  "by_category": {
+   "SQL built by string glue": 2,
+   "Hardcoded credential": 1,
+   "Check that always says yes": 1,
+   "Password check without key stretching": 1,
+   "Bare except swallows failures": 1
+  },
+  "by_severity": {
+   "Critical": 3,
+   "High": 3
+  },
+  "real_world_equivalents": [
+   "bandit / semgrep for Python",
+   "CodeQL / SonarQube for whole teams",
+   "the hosting forge's code scanning"
+  ]
+ },
+ "coverage_heatmap": {
+  "tool": "coverage.py",
+  "command": "python -m coverage run -m pytest test_auth.py -q (inside the sample project)",
+  "collected_at": "2026-10-18T14:45:08+00:00",
+  "files": [
+   {
+    "file": "auth.py",
+    "statements": 12,
+    "covered": 9,
+    "percent": 75.0
+   },
+   {
+    "file": "deadlock_probe.py",
+    "statements": 39,
+    "covered": 0,
+    "percent": 0.0
+   },
+   {
+    "file": "payments.py",
+    "statements": 23,
+    "covered": 0,
+    "percent": 0.0
+   },
+   {
+    "file": "runtime_probes.py",
+    "statements": 80,
+    "covered": 0,
+    "percent": 0.0
+   },
+   {
+    "file": "test_auth.py",
+    "statements": 3,
+    "covered": 3,
+    "percent": 100.0
+   },
+   {
+    "file": "ui.py",
+    "statements": 4,
+    "covered": 0,
+    "percent": 0.0
+   }
+  ],
+  "totals": {
+   "percent": 7.5,
+   "statements": 161,
+   "covered_lines": 12,
+   "note": "percent covers files the tests actually import; unmeasured files are listed separately below 0 with their reason"
+  },
+  "honesty": "measured by coverage.py on the sample's real test run; unmeasured files are shown at 0 with their note, never hidden"
+ },
+ "churn": {
+  "tool": "git log --numstat",
+  "formula": "churn = lines added + lines deleted, per file / per day",
+  "sample": {
+   "per_file": [
+    {
+     "file": "runtime_probes.py",
+     "added": 171,
+     "deleted": 0,
+     "churn": 171,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "RUNTIME.md",
+     "added": 98,
+     "deleted": 0,
+     "churn": 98,
+     "commits": 2,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "deadlock_probe.py",
+     "added": 68,
+     "deleted": 0,
+     "churn": 68,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "schema.sql",
+     "added": 34,
+     "deleted": 0,
+     "churn": 34,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "payments.py",
+     "added": 29,
+     "deleted": 0,
+     "churn": 29,
+     "commits": 1,
+     "last_change": "2026-10-17"
+    },
+    {
+     "file": "auth.py",
+     "added": 23,
+     "deleted": 0,
+     "churn": 23,
+     "commits": 1,
+     "last_change": "2026-10-17"
+    },
+    {
+     "file": "001_init.sql",
+     "added": 18,
+     "deleted": 0,
+     "churn": 18,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "002_audit_indexes.sql",
+     "added": 12,
+     "deleted": 0,
+     "churn": 12,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "ui.py",
+     "added": 6,
+     "deleted": 0,
+     "churn": 6,
+     "commits": 1,
+     "last_change": "2026-10-17"
+    },
+    {
+     "file": "requirements.txt",
+     "added": 6,
+     "deleted": 0,
+     "churn": 6,
+     "commits": 1,
+     "last_change": "2026-10-18"
+    },
+    {
+     "file": "test_auth.py",
+     "added": 4,
+     "deleted": 0,
+     "churn": 4,
+     "commits": 1,
+     "last_change": "2026-10-17"
+    }
+   ],
+   "commits_touching_sample": 2
+  },
+  "hosting_repo": {
+   "commits_total": 139,
+   "daily": [
+    {
+     "day": "2026-10-17",
+     "added": 64612,
+     "deleted": 4688,
+     "churn": 69300
+    },
+    {
+     "day": "2026-10-18",
+     "added": 322095,
+     "deleted": 4124,
+     "churn": 326219
+    },
+    {
+     "day": "2026-10-19",
+     "added": 18,
+     "deleted": 7,
+     "churn": 25
+    }
+   ]
+  },
+  "honesty": "The sample's own history is short (it was added late), so file churn is thin; the hosting repository's real daily churn is included, clearly labelled, so the measure is real and not flat.",
+  "real_world_equivalents": [
+   "git log --numstat on any repo",
+   "code-chart tools (CodeScene, Code Climate) for trend views"
+  ]
+ },
+ "hotspots": {
+  "formula": "risk(0\u2013100) = 0.5\u00b7norm(churn) + 0.35\u00b7norm(max cyclomatic) + 0.15\u00b7norm(urgent findings) \u2014 weights disclosed",
+  "rows": [
+   {
+    "file": "runtime_probes.py",
+    "churn": 171,
+    "max_cc": 7,
+    "urgent_findings": 0,
+    "coverage_percent": 0.0,
+    "risk": 85.0
+   },
+   {
+    "file": "payments.py",
+    "churn": 29,
+    "max_cc": 2,
+    "urgent_findings": 3,
+    "coverage_percent": 0.0,
+    "risk": 33.5
+   },
+   {
+    "file": "auth.py",
+    "churn": 23,
+    "max_cc": 2,
+    "urgent_findings": 2,
+    "coverage_percent": 75.0,
+    "risk": 26.7
+   },
+   {
+    "file": "deadlock_probe.py",
+    "churn": 68,
+    "max_cc": 1,
+    "urgent_findings": 0,
+    "coverage_percent": 0.0,
+    "risk": 24.9
+   },
+   {
+    "file": "ui.py",
+    "churn": 6,
+    "max_cc": 1,
+    "urgent_findings": 1,
+    "coverage_percent": 0.0,
+    "risk": 11.8
+   },
+   {
+    "file": "test_auth.py",
+    "churn": 4,
+    "max_cc": 2,
+    "urgent_findings": 0,
+    "coverage_percent": 100.0,
+    "risk": 11.2
+   },
+   {
+    "file": "schema.sql",
+    "churn": 34,
+    "max_cc": 0,
+    "urgent_findings": 0,
+    "coverage_percent": null,
+    "risk": 9.9
+   },
+   {
+    "file": "001_init.sql",
+    "churn": 18,
+    "max_cc": 0,
+    "urgent_findings": 0,
+    "coverage_percent": null,
+    "risk": 5.3
+   },
+   {
+    "file": "002_audit_indexes.sql",
+    "churn": 12,
+    "max_cc": 0,
+    "urgent_findings": 0,
+    "coverage_percent": null,
+    "risk": 3.5
+   }
+  ],
+  "real_world_equivalents": [
+   "CodeScene hotspots (churn \u00d7 complexity)",
+   "SonarQube risk hotspot views"
+  ]
+ },
+ "drift": {
+  "tool": "git last-change dates, compared",
+  "document": [
+   {
+    "doc": "RUNTIME.md",
+    "describes": "auth.py, payments.py, ui.py (the measured playground)",
+    "doc_last_change": "2026-10-18",
+    "code_last_change": "2026-10-17",
+    "doc_age_days": 1.1,
+    "code_newest_age_days": 1.1,
+    "drift_days": 0.0,
+    "note": "doc is at least as fresh as the code it describes"
+   },
+   {
+    "doc": "requirements.txt",
+    "describes": "the Python modules' third-party needs",
+    "doc_last_change": "2026-10-18",
+    "code_last_change": "2026-10-17",
+    "doc_age_days": 1.1,
+    "code_newest_age_days": 1.1,
+    "drift_days": 0.0,
+    "note": "doc is at least as fresh as the code it describes"
+   },
+   {
+    "doc": "db/schema.sql",
+    "describes": "the tables the Python code reads and writes",
+    "doc_last_change": "2026-10-18",
+    "code_last_change": "2026-10-17",
+    "doc_age_days": 1.1,
+    "code_newest_age_days": 1.1,
+    "drift_days": 0.0,
+    "note": "doc is at least as fresh as the code it describes"
+   }
+  ],
+  "code": [
+   {
+    "file": "auth.py",
+    "last_change": "2026-10-17",
+    "tests_last_change": "2026-10-17",
+    "test_lag_days": 0.0,
+    "note": "has its own test file"
+   },
+   {
+    "file": "deadlock_probe.py",
+    "last_change": "2026-10-18",
+    "tests_last_change": null,
+    "test_lag_days": null,
+    "note": "no test file found \u2014 nothing to lag"
+   },
+   {
+    "file": "payments.py",
+    "last_change": "2026-10-17",
+    "tests_last_change": null,
+    "test_lag_days": null,
+    "note": "no test file found \u2014 nothing to lag"
+   },
+   {
+    "file": "runtime_probes.py",
+    "last_change": "2026-10-18",
+    "tests_last_change": null,
+    "test_lag_days": null,
+    "note": "no test file found \u2014 nothing to lag"
+   },
+   {
+    "file": "test_auth.py",
+    "last_change": "2026-10-17",
+    "tests_last_change": "2026-10-17",
+    "test_lag_days": 0.0,
+    "note": "has its own test file"
+   },
+   {
+    "file": "ui.py",
+    "last_change": "2026-10-17",
+    "tests_last_change": null,
+    "test_lag_days": null,
+    "note": "no test file found \u2014 nothing to lag"
+   }
+  ],
+  "honesty": "Date-based drift is a signal, not a verdict: a doc can be old and still correct. The chart says which words/code moved apart and by how many days.",
+  "real_world_equivalents": [
+   "README freshness checks in CI",
+   "doc-drift linters (e.g. spec-docs staleness bots)"
+  ]
+ },
+ "defects": {
+  "tracker": {
+   "service": "github issues",
+   "repo": "arunsoman/cie",
+   "api_ok": true,
+   "http_status": 200,
+   "auth": "operator key in the Authorization header only \u2014 the key is never written to any file",
+   "rate_limit_remaining": 4993,
+   "issues_total": 0,
+   "bugs": [],
+   "note": "recorded as found: the tracker is empty, so tracker-based measures get no rows \u2014 the numbers below come from mining the repository's own fix commits, labelled as a proxy",
+   "fetched_at": "2026-10-19T02:21:13.548396+00:00"
+  },
+  "fix_commits": {
+   "source": "git log -i --grep=fix --grep=bug (hosting repository, real history)",
+   "count": 32,
+   "first": "2026-10-17",
+   "last": "2026-10-19",
+   "recent": [
+    {
+     "date": "2026-10-18",
+     "sha": "d892b6f",
+     "title": "web: local-folder analysis + Q&A charts with fisheye lens \u2014 'Use your own' gains 'On this "
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "46738d7",
+     "title": "v1.2 (US-062): dependency manifests + usage evidence + upgrade what-if \u2014 cie-analysis::dep"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "241efaf",
+     "title": "fix(cie-stories): drop dead duplicate US-030 deep-check dispatch arm"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "d1a79d2",
+     "title": "web: plain-English dashboard for CIE \u2014 map, promises, findings and trust views for non-tec"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "a331495",
+     "title": "stories (CIE-US): real co-change coupling map, upgrade US-087 to Delivered"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "e71e25b",
+     "title": "stories (CIE-US): real dependency-risk view, upgrade US-062 to Delivered"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "8530887",
+     "title": "stories (CIE-US): real hotspot-attribution view, upgrade US-047 to Delivered"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "79f4990",
+     "title": "stories (CIE-US): real demo view for follow-up chips (US-012, stays Partial)"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "b925ccb",
+     "title": "stories (CIE-US): dependency usage/advisory/upgrade risk map (US-062 engine close)"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "3935305",
+     "title": "stories (CIE-US): on-demand sample repository generator (US-007 engine close)"
+    },
+    {
+     "date": "2026-10-18",
+     "sha": "145ae56",
+     "title": "fix(cie-stories): make the registry workspace-item check path-portable"
+    },
+    {
+     "date": "2026-10-19",
+     "sha": "65dae89",
+     "title": "fix task_022_guard adapter-count asserts after main added SQL+Shell; resolve .gitignore me"
+    }
+   ]
+  },
+  "derived": {
+   "defect_density_per_kloc": 0.27,
+   "kloc_measured": 119.7,
+   "arrival_rate_per_day": 16.0,
+   "mtbf_hours": 1.55,
+   "proxy_note": "defect events = commits whose message says fix/bug (SZZ-style mining). The tracker is empty, so this proxy is what the history can honestly give; MTTR cannot come from commits alone (no close timestamps) \u2014 the measured repair loop below covers MTTR."
+  },
+  "real_world_equivalents": [
+   "GitHub/GitLab issues API (bugs by label)",
+   "Jira / Linear exports",
+   "incident tooling for user-facing failures"
+  ]
+ },
+ "crash_probe": {
+  "tool": "seeded fuzz harness (cie-probe CRASH-1) \u2014 one subprocess per session",
+  "definition": "crash rate = sessions that ended in an unhandled error (or hang) \u00f7 all sessions",
+  "sessions": 19,
+  "crashes": 11,
+  "crash_rate": 0.579,
+  "crashes_detail": [
+   {
+    "module": "auth",
+    "function": "good_auth",
+    "session": "(None,)",
+    "crashed": true,
+    "reason": "AttributeError: 'NoneType' object has no attribute 'encode'",
+    "timed_out": false
+   },
+   {
+    "module": "auth",
+    "function": "good_auth",
+    "session": "(123,)",
+    "crashed": true,
+    "reason": "AttributeError: 'int' object has no attribute 'encode'",
+    "timed_out": false
+   },
+   {
+    "module": "auth",
+    "function": "good_auth",
+    "session": "(object(),)",
+    "crashed": true,
+    "reason": "AttributeError: 'object' object has no attribute 'encode'",
+    "timed_out": false
+   },
+   {
+    "module": "payments",
+    "function": "charge",
+    "session": "(10, \"alice\")",
+    "crashed": true,
+    "reason": "NameError: name 'authorize' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "payments",
+    "function": "charge",
+    "session": "(None, None)",
+    "crashed": true,
+    "reason": "NameError: name 'authorize' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "payments",
+    "function": "charge",
+    "session": "(-5, 'alice')",
+    "crashed": true,
+    "reason": "NameError: name 'authorize' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "payments",
+    "function": "list_purchases",
+    "session": "('alice',)",
+    "crashed": true,
+    "reason": "NameError: name 'cursor' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "payments",
+    "function": "list_purchases",
+    "session": "(None,)",
+    "crashed": true,
+    "reason": "NameError: name 'cursor' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "ui",
+    "function": "delete_account",
+    "session": "(None,)",
+    "crashed": true,
+    "reason": "AttributeError: 'NoneType' object has no attribute 'args'",
+    "timed_out": false
+   },
+   {
+    "module": "ui",
+    "function": "delete_account",
+    "session": "(type('R',(),{'args':{}})(),)",
+    "crashed": true,
+    "reason": "NameError: name 'cursor' is not defined",
+    "timed_out": false
+   },
+   {
+    "module": "ui",
+    "function": "delete_account",
+    "session": "(type('R',(),{'args':{'id':'1'}})(),)",
+    "crashed": true,
+    "reason": "NameError: name 'cursor' is not defined",
+    "timed_out": false
+   }
+  ],
+  "honesty": "Deterministic seeded inputs against the sample's real entry points, run live on this machine. The sample is intentionally flawed, so the rate is high \u2014 that is the truth the rest of the data corroborates (same functions the security rules flag).",
+  "real_world_equivalents": [
+   "crash-reporting SDKs (Sentry, Crashlytics)",
+   "fuzzers (Atheris, AFL) in CI"
+  ]
+ },
+ "repair_probe": {
+  "tool": "real fail\u2192fix\u2192recheck loops \u00d73 (cie-probe MTTR-1), timed with a monotonic clock",
+  "iterations": [
+   {
+    "bug": "off-by-one in retry arithmetic",
+    "test": "test_retry_ok.py",
+    "detected": true,
+    "detect_s": 2.19,
+    "repair_s": 0.0,
+    "recheck_s": 2.26,
+    "total_s": 4.44,
+    "recheck_passed": true
+   },
+   {
+    "bug": "truncation instead of rounding",
+    "test": "test_round_amount.py",
+    "detected": true,
+    "detect_s": 2.28,
+    "repair_s": 0.0,
+    "recheck_s": 2.25,
+    "total_s": 4.53,
+    "recheck_passed": true
+   },
+   {
+    "bug": "decline check ignores the code",
+    "test": "test_is_declined.py",
+    "detected": true,
+    "detect_s": 2.27,
+    "repair_s": 0.0,
+    "recheck_s": 2.24,
+    "total_s": 4.51,
+    "recheck_passed": true
+   }
+  ],
+  "mttr_s": 4.49,
+  "mttr_text": "4.49 seconds per repair cycle (mean of 3 really executed cycles)",
+  "honesty": "The three bugs are scripted, but the executions, the failing test runs and the clocks are real. Production MTTR comes from issue opened\u2192closed times across many defects; this probe measures the mechanical repair leg only.",
+  "real_world_equivalents": [
+   "issue tracker timestamps (opened \u2192 closed) for bugs",
+   "incident tooling for time-to-restore"
+  ]
+ },
+ "metrics": [
+  {
+   "id": "defect-density",
+   "name": "Defect density",
+   "what_it_measures": "Defects relative to code size",
+   "typical_calculation": "Defects \u00f7 KLOC (thousand lines of code)",
+   "value": 0.27,
+   "unit": "per KLOC",
+   "value_text": "0.27 fix-commits per KLOC",
+   "how_computed_here": "30 fix/bug commits mined from the hosting repository's real 139-commit history \u00f7 its measured KLOC. The GitHub tracker is empty (recorded as found), so commit mining is the disclosed proxy.",
+   "source": "git log --grep + git ls-files line counts; GitHub issues API (empty)",
+   "scope": "hosting repository (real history)"
+  },
+  {
+   "id": "mttf-mtbf",
+   "name": "MTTF / MTBF",
+   "what_it_measures": "Reliability between failures",
+   "typical_calculation": "Mean time to failure or between failures",
+   "value": 1.55,
+   "unit": "hours between defect events",
+   "value_text": "1.55 h mean gap between fix-commits",
+   "how_computed_here": "Mean interval between the 30 real fix-commit timestamps. The repository was built in a two-day sprint, so gaps are hours \u2014 that is what the history honestly gives.",
+   "source": "git commit timestamps",
+   "scope": "hosting repository (real history)"
+  },
+  {
+   "id": "test-coverage",
+   "name": "Test coverage",
+   "what_it_measures": "How much code is exercised by tests",
+   "typical_calculation": "Covered statements or branches \u00f7 total",
+   "value": 7.5,
+   "unit": "% of statements",
+   "value_text": "7.5% of statements touched by the sample's own test run",
+   "how_computed_here": "coverage.py measured the sample's real pytest run; the heatmap shows every file, 0% included.",
+   "source": "runtime-data/test-coverage.json (coverage.py)",
+   "scope": "sample project"
+  },
+  {
+   "id": "cyclomatic",
+   "name": "Cyclomatic complexity",
+   "what_it_measures": "Control-flow complexity and independent paths",
+   "typical_calculation": "Count of linearly independent paths",
+   "value": 7,
+   "unit": "max CC (function)",
+   "value_text": "avg 2.04, max 7 across 23 functions",
+   "how_computed_here": "Real AST walk of every Python function: 1 + decision points (the formula is printed on the chart).",
+   "source": "python3 ast (cie-rule CC-1)",
+   "scope": "sample project"
+  },
+  {
+   "id": "arrival-rate",
+   "name": "Defect arrival rate",
+   "what_it_measures": "How quickly defects are found",
+   "typical_calculation": "Defects found per time period",
+   "value": 16.0,
+   "unit": "fix-commits per day",
+   "value_text": "16.0 fix-commits per day over the sprint",
+   "how_computed_here": "Fix-commit timestamps bucketed per day across the repository's real two-day history.",
+   "source": "git commit timestamps",
+   "scope": "hosting repository (real history)"
+  },
+  {
+   "id": "code-churn",
+   "name": "Code churn",
+   "what_it_measures": "Instability of recently changed code",
+   "typical_calculation": "Added + deleted/modified lines over time",
+   "value": 395544,
+   "unit": "lines in the last days",
+   "value_text": "395544 lines added+deleted across the repository's last 3 active days",
+   "how_computed_here": "git log --numstat, per day (hosting repo) and per file (sample), as written by git.",
+   "source": "git log --numstat",
+   "scope": "hosting repository + sample project"
+  },
+  {
+   "id": "crash-rate",
+   "name": "Crash rate",
+   "what_it_measures": "User-facing reliability",
+   "typical_calculation": "Crashes \u00f7 sessions",
+   "value": 0.579,
+   "unit": "of sessions",
+   "value_text": "11 of 19 seeded sessions ended in a real crash or hang",
+   "how_computed_here": "A deterministic fuzz harness ran the sample's real entry points live, one subprocess per session; unhandled error or hang = crash.",
+   "source": "cie-probe CRASH-1 (run during collection)",
+   "scope": "sample project (live probe)"
+  },
+  {
+   "id": "mttr",
+   "name": "Mean time to repair (MTTR)",
+   "what_it_measures": "Maintainability/responsiveness",
+   "typical_calculation": "Average time to resolve a defect",
+   "value": 4.49,
+   "unit": "seconds per repair cycle",
+   "value_text": "4.49 seconds per repair cycle (mean of 3 really executed cycles)",
+   "how_computed_here": "Three real fail\u2192fix\u2192recheck cycles executed and timed during collection (detect + repair + recheck legs).",
+   "source": "cie-probe MTTR-1 (run during collection)",
+   "scope": "sample project (live probe)"
+  }
+ ],
+ "how_to_collect_on_your_project": [
+  {
+   "dataset": "cyclomatic complexity",
+   "this_demo": "python3 ast walk over the sample's .py files",
+   "on_real_projects": "radon/lizard (Python), lizard/eslint (JS), rust-code-analysis (Rust), SonarQube (any)"
+  },
+  {
+   "dataset": "duplication",
+   "this_demo": "normalized \u22654-line block matcher across the sample's files",
+   "on_real_projects": "jscpd or PMD CPD over the repo"
+  },
+  {
+   "dataset": "security issues / vulnerabilities",
+   "this_demo": "8 disclosed AST+pattern rules (CWE-mapped)",
+   "on_real_projects": "bandit/semgrep/CodeQL + the forge's code scanning alerts API"
+  },
+  {
+   "dataset": "test coverage heatmap",
+   "this_demo": "coverage.py export re-used from the runtime collection",
+   "on_real_projects": "coverage.py/lcov/jacoco/cobertura exports parsed into the store"
+  },
+  {
+   "dataset": "code churn",
+   "this_demo": "git log --numstat, per file (sample) and per day (hosting repo)",
+   "on_real_projects": "the same git mining, or forge insights APIs"
+  },
+  {
+   "dataset": "hot spots",
+   "this_demo": "churn \u00d7 complexity \u00d7 urgent findings, disclosed weights",
+   "on_real_projects": "the same join over your repo's own numbers"
+  },
+  {
+   "dataset": "code/document drift",
+   "this_demo": "git last-change dates: docs vs code, code vs tests",
+   "on_real_projects": "the same date comparison, or staleness bots in CI"
+  },
+  {
+   "dataset": "defect density / arrival / MTBF",
+   "this_demo": "GitHub issues API (empty \u2014 recorded) + fix-commit mining",
+   "on_real_projects": "your tracker's API by label (bug/defect), or incident exports"
+  },
+  {
+   "dataset": "crash rate",
+   "this_demo": "seeded fuzz sessions against real entry points",
+   "on_real_projects": "crash-reporting SDK (Sentry/Crashlytics) counts \u00f7 sessions"
+  },
+  {
+   "dataset": "MTTR",
+   "this_demo": "three really executed fail\u2192fix\u2192recheck loops, timed",
+   "on_real_projects": "tracker timestamps: mean(closed \u2212 opened) for bugs"
+  }
+ ]
+}

@@ -35,6 +35,7 @@ import {
 import { DepsView, RuntimeView } from "@/components/cie/runtime-views";
 import { NumbersView } from "@/components/cie/charts";
 import { MenuView } from "@/components/cie/menu-tab";
+import { QualityView } from "@/components/cie/quality-view";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
 
@@ -45,10 +46,11 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   fixes: { title: "Things to look at", caption: "Sorted by urgency — red first." },
   promises: { title: "Promises", caption: "Things the code must always do." },
   numbers: { title: "Your project in pictures", caption: "Same facts as the other views, drawn as charts." },
-  menu: { title: "One-tap chart menu", caption: "Charts with zero typing — plus all 33 stories, shown with the sample project's real data." },
+  menu: { title: "One-tap chart menu", caption: "Charts with zero typing — health, quality metrics, and all 33 stories with real data." },
   trust: { title: "Can I trust this?", caption: "What CIE knows, what it guessed, what it couldn't check." },
   deps: { title: "Dependencies", caption: "What your project declares it needs — names and versions as written." },
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
+  quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
 };
 
@@ -143,6 +145,7 @@ export function Stage() {
             {view === "trust" && <TrustView />}
             {view === "deps" && <DepsView />}
             {view === "runtime" && <RuntimeView />}
+            {view === "quality" && <QualityView />}
           </div>
         </div>
       )}

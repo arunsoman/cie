@@ -11,7 +11,7 @@
 // menu was just too small. This module widens the menu to "anything the
 // store can honestly support", instantly.
 
-import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieQuality } from "./cie-types";
 import {
   engineFor,
   layoutFor,
@@ -20,6 +20,7 @@ import {
   type UmlNode,
   type UmlLink,
 } from "./chat-chart";
+import { buildConceptTreeSpec, buildCoverageHeatmapSpec } from "./quality";
 import {
   findingTitle,
   obligationTitle,
@@ -565,7 +566,8 @@ export function fillDiagram(
   viewspec: CieViewSpec | null,
   concepts: ConceptTree | null,
   title?: string,
-  tell?: string
+  tell?: string,
+  quality?: CieQuality | null
 ): ChatChartSpec | null {
   if (kind === "uml") {
     const built = buildUmlSpec(report, viewspec, concepts);
@@ -577,6 +579,24 @@ export function fillDiagram(
   }
   if (kind === "flow") {
     const built = buildFlowSpec(report);
+    if (built) {
+      if (title) built.title = title;
+      if (tell) built.tell = tell;
+    }
+    return built;
+  }
+  // trees and heatmaps are filled from the collected exports too — the model
+  // only picks the kind; the nodes/tiles come from concepts.json/quality.json
+  if (kind === "tree") {
+    const built = buildConceptTreeSpec(concepts);
+    if (built) {
+      if (title) built.title = title;
+      if (tell) built.tell = tell;
+    }
+    return built;
+  }
+  if (kind === "heatmap") {
+    const built = buildCoverageHeatmapSpec(quality ?? null);
     if (built) {
       if (title) built.title = title;
       if (tell) built.tell = tell;

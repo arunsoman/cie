@@ -1,0 +1,601 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→// All stage views for the CIE workspace, written in plain words.
+     4→     4→// Each renders only when the stage shows it (see stage.tsx).
+     5→     5→
+     6→     6→import { useMemo, useState } from "react";
+     7→     7→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+     8→     8→import { Badge } from "@/components/ui/badge";
+     9→     9→import { Button } from "@/components/ui/button";
+    10→    10→import { Skeleton } from "@/components/ui/skeleton";
+    11→    11→import {
+    12→    12→  Collapsible,
+    13→    13→  CollapsibleContent,
+    14→    14→  CollapsibleTrigger,
+    15→    15→} from "@/components/ui/collapsible";
+    16→    16→import MapView from "@/components/cie/map-view";
+    17→    17→import { useCie } from "@/lib/cie-store";
+    18→    18→import type { CieReport, Finding } from "@/lib/cie-types";
+    19→    19→import { KNOWN_UNSUPPORTED } from "@/lib/language-profiles";
+    20→    20→import {
+    21→    21→  severityPlain,
+    22→    22→  findingTitle,
+    23→    23→  obligationTitle,
+    24→    24→  authorityPlain,
+    25→    25→  certaintyPlain,
+    26→    26→  elementKindPlain,
+    27→    27→  DICTIONARY,
+    28→    28→} from "@/lib/plain-words";
+    29→    29→import {
+    30→    30→  FileSearch,
+    31→    31→  ShieldCheck,
+    32→    32→  Map as MapIcon,
+    33→    33→  Wand2,
+    34→    34→  AlertTriangle,
+    35→    35→  BadgeCheck,
+    36→    36→  HelpCircle,
+    37→    37→  ChevronDown,
+    38→    38→  BookOpen,
+    39→    39→  FileCode2,
+    40→    40→  ListChecks,
+    41→    41→  Languages,
+    42→    42→} from "lucide-react";
+    43→    43→
+    44→    44→// ---------- small shared pieces ----------
+    45→    45→
+    46→    46→export function SeverityChip({ sev }: { sev: string }) {
+    47→    47→  const p = severityPlain(sev);
+    48→    48→  const cls =
+    49→    49→    p.tone === "rose"
+    50→    50→      ? "bg-rose-100 text-rose-800 border-rose-200"
+    51→    51→      : p.tone === "amber"
+    52→    52→        ? "bg-amber-100 text-amber-800 border-amber-200"
+    53→    53→        : "bg-stone-100 text-stone-700 border-stone-200";
+    54→    54→  return <Badge variant="outline" className={`${cls} font-semibold`}>{p.label}</Badge>;
+    55→    55→}
+    56→    56→
+    57→    57→export function CertaintyChip({ mode }: { mode: string }) {
+    58→    58→  const c = certaintyPlain(mode);
+    59→    59→  const cls =
+    60→    60→    mode === "Fact"
+    61→    61→      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+    62→    62→      : mode === "Inference"
+    63→    63→        ? "bg-amber-50 text-amber-800 border-amber-200"
+    64→    64→        : "bg-stone-100 text-stone-700 border-stone-200";
+    65→    65→  return <Badge variant="outline" className={cls}>{c.label}</Badge>;
+    66→    66→}
+    67→    67→
+    68→    68→function CoverageRing({ pct }: { pct: number }) {
+    69→    69→  const r = 34, c = 2 * Math.PI * r;
+    70→    70→  const filled = (Math.min(100, Math.max(0, pct)) / 100) * c;
+    71→    71→  return (
+    72→    72→    <svg width="88" height="88" viewBox="0 0 88 88" role="img" aria-label={`Checked: ${pct}%`}>
+    73→    73→      <circle cx="44" cy="44" r={r} fill="none" stroke="#f5f5f4" strokeWidth="9" />
+    74→    74→      <circle
+    75→    75→        cx="44" cy="44" r={r} fill="none" stroke="#059669" strokeWidth="9"
+    76→    76→        strokeLinecap="round" strokeDasharray={`${filled} ${c - filled}`}
+    77→    77→        transform="rotate(-90 44 44)"
+    78→    78→      />
+    79→    79→      <text x="44" y="49" textAnchor="middle" fontSize="17" fontWeight="700" fill="#1c1917">
+    80→    80→        {Math.round(pct)}%
+    81→    81→      </text>
+    82→    82→    </svg>
+    83→    83→  );
+    84→    84→}
+    85→    85→
+    86→    86→function ruleKindPlain(k?: string): string {
+    87→    87→  if (!k) return "Rule";
+    88→    88→  const map: Record<string, string> = {
+    89→    89→    must_authorize: "Check permission first",
+    90→    90→    must_not_leak_secrets: "Keep secrets secret",
+    91→    91→    must_validate_input: "Check user input before using it",
+    92→    92→  };
+    93→    93→  return map[k] ?? k.replace(/_/g, " ");
+    94→    94→}
+    95→    95→
+    96→    96→function ruleStatusPlain(s?: string): { label: string; cls: string } {
+    97→    97→  const v = (s ?? "").toLowerCase();
+    98→    98→  if (v === "explicit") return { label: "Written by you", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+    99→    99→  if (v === "inferred_candidate" || v === "inferredcandidate") return { label: "CIE's guess", cls: "bg-amber-50 text-amber-800 border-amber-200" };
+   100→   100→  return { label: s ?? "", cls: "bg-stone-100 text-stone-700 border-stone-200" };
+   101→   101→}
+   102→   102→
+   103→   103→// ---------- Loading ----------
+   104→   104→
+   105→   105→export function LoadingView() {
+   106→   106→  return (
+   107→   107→    <div className="space-y-6">
+   108→   108→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   109→   109→        {[0, 1, 2, 3].map((i) => (
+   110→   110→          <Card key={i}><CardContent className="p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+   111→   111→        ))}
+   112→   112→      </div>
+   113→   113→      <Card><CardContent className="p-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
+   114→   114→    </div>
+   115→   115→  );
+   116→   116→}
+   117→   117→
+   118→   118→// ---------- Tab: Start here ----------
+   119→   119→
+   120→   120→export function StartView() {
+   121→   121→  const { report } = useCie();
+   122→   122→  if (!report) return null;
+   123→   123→  const criticals = report.findings.filter((f) => f.severity === "Critical").length;
+   124→   124→  const pct = report.coverage.symbols_total
+   125→   125→    ? (report.coverage.symbols_analyzed / report.coverage.symbols_total) * 100
+   126→   126→    : 0;
+   127→   127→
+   128→   128→  const stats = [
+   129→   129→    { icon: FileSearch, label: "Files read", value: report.coverage.files_analyzed, sub: `of ${report.coverage.files_total} in the project`, tone: "text-stone-700" },
+   130→   130→    { icon: FileCode2, label: "Named things found", value: report.symbols.length, sub: "functions, modules and more", tone: "text-stone-700" },
+   131→   131→    { icon: ShieldCheck, label: "Promises found", value: report.contracts.length, sub: "things the code must always do", tone: "text-emerald-700" },
+   132→   132→    { icon: AlertTriangle, label: "Things to look at", value: report.findings.length, sub: criticals ? `${criticals} need fixing soon` : "none are urgent", tone: criticals ? "text-rose-700" : "text-stone-700" },
+   133→   133→  ];
+   134→   134→
+   135→   135→  return (
+   136→   136→    <div className="space-y-6">
+   137→   137→      {/* 3-step story */}
+   138→   138→      <div className="grid gap-4 md:grid-cols-3">
+   139→   139→        {[
+   140→   140→          { n: "1", icon: FileSearch, t: "CIE reads your code", d: "It looks at every file and remembers what each part does — like reading a book and taking notes." },
+   141→   141→          { n: "2", icon: Wand2, t: "It checks the promises", d: "Code makes silent promises, like 'check the password first'. CIE finds them and tests them." },
+   142→   142→          { n: "3", icon: ListChecks, t: "It tells you, in plain words", d: "What's fine, what's a guess, and what to fix first. No confusing jargon — ever." },
+   143→   143→        ].map((s) => (
+   144→   144→          <Card key={s.n} className="border-stone-200">
+   145→   145→            <CardContent className="p-6 flex gap-4">
+   146→   146→              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 font-bold text-lg">
+   147→   147→                {s.n}
+   148→   148→              </div>
+   149→   149→              <div>
+   150→   150→                <p className="font-semibold text-stone-900 mb-1 flex items-center gap-2">
+   151→   151→                  <s.icon className="h-4 w-4 text-emerald-700" /> {s.t}
+   152→   152→                </p>
+   153→   153→                <p className="text-sm text-stone-600 leading-relaxed">{s.d}</p>
+   154→   154→              </div>
+   155→   155→            </CardContent>
+   156→   156→          </Card>
+   157→   157→        ))}
+   158→   158→      </div>
+   159→   159→
+   160→   160→      {/* health snapshot */}
+   161→   161→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-stretch">
+   162→   162→        {stats.map((s) => (
+   163→   163→          <Card key={s.label} className="border-stone-200">
+   164→   164→            <CardContent className="p-5">
+   165→   165→              <s.icon className={`h-5 w-5 mb-2 ${s.tone}`} />
+   166→   166→              <p className="text-3xl font-bold text-stone-900">{s.value}</p>
+   167→   167→              <p className="text-sm font-medium text-stone-700 mt-1">{s.label}</p>
+   168→   168→              <p className="text-xs text-stone-500 mt-0.5">{s.sub}</p>
+   169→   169→            </CardContent>
+   170→   170→          </Card>
+   171→   171→        ))}
+   172→   172→        <Card className="border-stone-200">
+   173→   173→          <CardContent className="p-5 flex items-center gap-4">
+   174→   174→            <CoverageRing pct={pct} />
+   175→   175→            <div>
+   176→   176→              <p className="text-sm font-semibold text-stone-800">Checked</p>
+   177→   177→              <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+   178→   178→                {report.coverage.complete ? "Everything CIE can read, it read." : "Some parts were skipped."}
+   179→   179→              </p>
+   180→   180→            </div>
+   181→   181→          </CardContent>
+   182→   182→        </Card>
+   183→   183→      </div>
+   184→   184→
+   185→   185→      {/* dictionary */}
+   186→   186→      <Card className="border-stone-200 bg-stone-50/60">
+   187→   187→        <CardHeader className="pb-2">
+   188→   188→          <CardTitle className="text-base flex items-center gap-2">
+   189→   189→            <BookOpen className="h-4 w-4 text-stone-500" /> Words CIE uses
+   190→   190→          </CardTitle>
+   191→   191→          <CardDescription>Every word on this site, explained simply.</CardDescription>
+   192→   192→        </CardHeader>
+   193→   193→        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   194→   194→          {DICTIONARY.map((d) => (
+   195→   195→            <div key={d.word} className="rounded-lg border border-stone-200 bg-white p-3">
+   196→   196→              <p className="text-sm font-semibold text-stone-900">{d.word}</p>
+   197→   197→              <p className="text-sm text-stone-600 mt-0.5 leading-relaxed">{d.means}</p>
+   198→   198→            </div>
+   199→   199→          ))}
+   200→   200→        </CardContent>
+   201→   201→      </Card>
+   202→   202→    </div>
+   203→   203→  );
+   204→   204→}
+   205→   205→
+   206→   206→// ---------- View: Map (a canvas view — the stage puts the camera and the
+   207→   207→// fisheye lens around it; the picked bubble becomes the chat's referent).
+   208→   208→// The bubble's details are a STAGE overlay (MapInfoCard), so they stay a
+   209→   209→// constant size while the map itself zooms. ----------
+   210→   210→
+   211→   211→export function MapViewSection() {
+   212→   212→  const { viewspec, mapSelected: sel, setMapSelected: setSel } = useCie();
+   213→   213→  if (!viewspec) return null;
+   214→   214→
+   215→   215→  return (
+   216→   216→    <div className="p-4 sm:p-6 pb-16 max-w-[880px]">
+   217→   217→      <Card className="border-stone-200 shadow-sm bg-white">
+   218→   218→        <CardContent className="p-4 sm:p-6">
+   219→   219→          <MapView spec={viewspec} selected={sel} onSelect={setSel} />
+   220→   220→        </CardContent>
+   221→   221→      </Card>
+   222→   222→    </div>
+   223→   223→  );
+   224→   224→}
+   225→   225→
+   226→   226→/** Fixed-size overlay: the plain-words facts about the picked bubble. */
+   227→   227→export function MapInfoCard() {
+   228→   228→  const { mapSelected: sel, setMapSelected: setSel } = useCie();
+   229→   229→  return (
+   230→   230→    <Card className="border-stone-200 shadow-md bg-white/95 backdrop-blur w-[250px]" data-lens-ui>
+   231→   231→      <CardHeader className="pb-1.5 px-4 py-3">
+   232→   232→        <CardTitle className="text-sm break-words">{sel ? sel.label : "Pick a bubble"}</CardTitle>
+   233→   233→        <CardDescription className="text-xs">
+   234→   234→          {sel ? elementKindPlain(sel.elementKind) : "Tap any bubble — it becomes the “these” in your next chat message."}
+   235→   235→        </CardDescription>
+   236→   236→      </CardHeader>
+   237→   237→      {sel && (
+   238→   238→        <CardContent className="space-y-2.5 text-xs px-4 pb-4">
+   239→   239→          <div>
+   240→   240→            <p className="font-medium text-stone-800 mb-1">How sure is CIE?</p>
+   241→   241→            <CertaintyChip mode={sel.displayMode} />
+   242→   242→            <p className="text-stone-600 mt-1 leading-relaxed">{certaintyPlain(sel.displayMode).hint}</p>
+   243→   243→          </div>
+   244→   244→          {sel.salience?.whyShown && (
+   245→   245→            <div>
+   246→   246→              <p className="font-medium text-stone-800 mb-1">Why is it on the map?</p>
+   247→   247→              <p className="text-stone-600 leading-relaxed">{sel.salience.whyShown.replace("(s)", "s")}</p>
+   248→   248→            </div>
+   249→   249→          )}
+   250→   250→          <div>
+   251→   251→            <p className="font-medium text-stone-800 mb-1">Where in your code?</p>
+   252→   252→            <p className="text-stone-600 font-mono text-[10px] bg-stone-100 rounded px-1.5 py-0.5 inline-block break-all">{sel.evidence.file}</p>
+   253→   253→          </div>
+   254→   254→          {sel.claimId && <p className="text-[10px] text-stone-400">Reference number: {sel.claimId}</p>}
+   255→   255→          <div className="flex gap-2 pt-0.5">
+   256→   256→            <button
+   257→   257→              type="button"
+   258→   258→              onClick={() => setSel(null)}
+   259→   259→              className="text-[11px] text-stone-500 hover:text-stone-800 underline"
+   260→   260→            >
+   261→   261→              Clear pick
+   262→   262→            </button>
+   263→   263→          </div>
+   264→   264→        </CardContent>
+   265→   265→      )}
+   266→   266→    </Card>
+   267→   267→  );
+   268→   268→}
+   269→   269→
+   270→   270→// ---------- Tab: What your app does (concepts) ----------
+   271→   271→
+   272→   272→export function ConceptsView() {
+   273→   273→  const { concepts, report } = useCie();
+   274→   274→  if (!concepts || !report) return null;
+   275→   275→  const roots = concepts.nodes.filter((n) => n.parent === null);
+   276→   276→  const modules = concepts.nodes.filter((n) => n.kind === "Module");
+   277→   277→  const symName = (id: number) => report.symbols.find((s) => s.id === id)?.qual_name ?? "?";
+   278→   278→
+   279→   279→  const ruleList = (node: (typeof concepts.nodes)[number]) => (
+   280→   280→    <>
+   281→   281→      {node.behaviors.length > 0 && (
+   282→   282→        <div className="flex flex-wrap gap-1.5 mb-2">
+   283→   283→          {node.behaviors.map((b, i) => (
+   284→   284→            <Badge key={i} variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 font-normal">
+   285→   285→              Does: {b.kind}
+   286→   286→            </Badge>
+   287→   287→          ))}
+   288→   288→        </div>
+   289→   289→      )}
+   290→   290→      {node.rules && node.rules.length > 0 && (
+   291→   291→        <div className="flex flex-wrap gap-1.5">
+   292→   292→          {node.rules.map((r, i) => {
+   293→   293→            const st = ruleStatusPlain(String(r.authority ?? "").toLowerCase());
+   294→   294→            const rid = typeof r.contract === "number" ? `C-${String(r.contract).padStart(3, "0")}` : "";
+   295→   295→            return (
+   296→   296→              <Badge key={i} variant="outline" className={`${st.cls} font-normal`}>
+   297→   297→                Rule {rid}: {ruleKindPlain(r.kind)} · {st.label}
+   298→   298→              </Badge>
+   299→   299→            );
+   300→   300→          })}
+   301→   301→        </div>
+   302→   302→      )}
+   303→   303→    </>
+   304→   304→  );
+   305→   305→
+   306→   306→  return (
+   307→   307→    <div className="space-y-4">
+   308→   308→      <Card className="border-stone-200">
+   309→   309→        <CardHeader className="pb-3">
+   310→   310→          <CardTitle className="text-base">The big picture</CardTitle>
+   311→   311→          <CardDescription>What your whole project does, in one glance.</CardDescription>
+   312→   312→        </CardHeader>
+   313→   313→        <CardContent>
+   314→   314→          {roots.map((r) => (
+   315→   315→            <div key={r.id}>
+   316→   316→              {ruleList(r)}
+   317→   317→              <p className="text-xs text-stone-500 mt-2">
+   318→   318→                Covers {r.symbols.length} named things, e.g. {r.symbols.slice(0, 4).map(symName).join(", ")}
+   319→   319→                {r.symbols.length > 4 ? "…" : ""}
+   320→   320→              </p>
+   321→   321→            </div>
+   322→   322→          ))}
+   323→   323→        </CardContent>
+   324→   324→      </Card>
+   325→   325→
+   326→   326→      <div className="grid gap-4 md:grid-cols-2">
+   327→   327→        {modules.map((m) => (
+   328→   328→          <Card key={m.id} className="border-stone-200">
+   329→   329→            <CardHeader className="pb-2">
+   330→   330→              <CardTitle className="text-base font-mono">{m.label}</CardTitle>
+   331→   331→              <CardDescription>A code file · {m.symbols.length} named things inside</CardDescription>
+   332→   332→            </CardHeader>
+   333→   333→            <CardContent>{ruleList(m)}</CardContent>
+   334→   334→          </Card>
+   335→   335→        ))}
+   336→   336→      </div>
+   337→   337→    </div>
+   338→   338→  );
+   339→   339→}
+   340→   340→
+   341→   341→// ---------- Tab: Things to look at (findings) ----------
+   342→   342→
+   343→   343→function FindingCard({ f, file }: { f: Finding; file: string }) {
+   344→   344→  const [open, setOpen] = useState(false);
+   345→   345→  const p = severityPlain(f.severity);
+   346→   346→  return (
+   347→   347→    <Card className={`border ${p.tone === "rose" ? "border-rose-200" : p.tone === "amber" ? "border-amber-200" : "border-stone-200"}`}>
+   348→   348→      <CardContent className="p-5 space-y-2.5">
+   349→   349→        <div className="flex items-center gap-2 flex-wrap">
+   350→   350→          <SeverityChip sev={f.severity} />
+   351→   351→          <span className="text-xs text-stone-400">{p.hint}</span>
+   352→   352→        </div>
+   353→   353→        <p className="font-semibold text-stone-900">{findingTitle(f)}</p>
+   354→   354→        <p className="text-sm text-stone-600 leading-relaxed">{f.message}</p>
+   355→   355→        {f.remediation && (
+   356→   356→          <p className="text-sm text-emerald-900 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-relaxed">
+   357→   357→            <span className="font-semibold">How to fix: </span>{f.remediation}
+   358→   358→          </p>
+   359→   359→        )}
+   360→   360→        <div className="flex items-center justify-between flex-wrap gap-2">
+   361→   361→          <span className="text-xs text-stone-500 font-mono">{file}{f.evidence_lines?.length ? ` · line ${f.evidence_lines[0]}` : ""}</span>
+   362→   362→          <Collapsible open={open} onOpenChange={setOpen}>
+   363→   363→            <CollapsibleTrigger className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
+   364→   364→              <HelpCircle className="h-3.5 w-3.5" /> {open ? "Hide" : "Show"} technical words
+   365→   365→              <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+   366→   366→            </CollapsibleTrigger>
+   367→   367→            <CollapsibleContent>
+   368→   368→              <p className="text-xs text-stone-500 mt-2 bg-stone-50 border border-stone-100 rounded p-2 font-mono">
+   369→   369→                {f.kind} · {f.id}
+   370→   370→              </p>
+   371→   371→            </CollapsibleContent>
+   372→   372→          </Collapsible>
+   373→   373→        </div>
+   374→   374→      </CardContent>
+   375→   375→    </Card>
+   376→   376→  );
+   377→   377→}
+   378→   378→
+   379→   379→export function FindingsView() {
+   380→   380→  const { report } = useCie();
+   381→   381→  const sorted = useMemo(() => {
+   382→   382→    if (!report) return [];
+   383→   383→    const order = { Critical: 0, High: 1, Medium: 2, Low: 3 } as Record<string, number>;
+   384→   384→    return [...report.findings].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
+   385→   385→  }, [report]);
+   386→   386→  if (!report) return null;
+   387→   387→
+   388→   388→  const groups: { key: string; title: string; desc: string }[] = [
+   389→   389→    { key: "Critical", title: "Fix soon", desc: "These could let the wrong people in or lose data." },
+   390→   390→    { key: "High", title: "Please look", desc: "Not an emergency, but worth your attention." },
+   391→   391→    { key: "Medium", title: "Worth checking", desc: "Could cause trouble later." },
+   392→   392→    { key: "Low", title: "Good to know", desc: "No rush — just so you know." },
+   393→   393→  ];
+   394→   394→
+   395→   395→  if (!report.findings.length) {
+   396→   396→    return (
+   397→   397→      <div>
+   398→   398→        <Card className="border-emerald-200 bg-emerald-50">
+   399→   399→          <CardContent className="p-8 text-center">
+   400→   400→            <BadgeCheck className="h-10 w-10 text-emerald-700 mx-auto mb-3" />
+   401→   401→            <p className="font-semibold text-emerald-900 text-lg">Nothing to worry about</p>
+   402→   402→            <p className="text-sm text-emerald-800 mt-1">CIE looked through everything and found no problems to report. Well done!</p>
+   403→   403→          </CardContent>
+   404→   404→        </Card>
+   405→   405→      </div>
+   406→   406→    );
+   407→   407→  }
+   408→   408→
+   409→   409→  return (
+   410→   410→    <div className="space-y-6">
+   411→   411→      {groups.map((g) => {
+   412→   412→        const items = sorted.filter((f) => f.severity === g.key);
+   413→   413→        if (!items.length) return null;
+   414→   414→        return (
+   415→   415→          <section key={g.key} aria-label={g.title} className="space-y-3">
+   416→   416→            <div>
+   417→   417→              <h3 className="font-semibold text-stone-900">{g.title} <span className="text-stone-400 font-normal">({items.length})</span></h3>
+   418→   418→              <p className="text-sm text-stone-500">{g.desc}</p>
+   419→   419→            </div>
+   420→   420→            {items.map((f) => (
+   421→   421→              <FindingCard key={f.id} f={f} file={report.files[f.symbol ? report.symbols.find((s) => s.id === f.symbol)?.loc.file ?? 0 : 0] ?? ""} />
+   422→   422→            ))}
+   423→   423→          </section>
+   424→   424→        );
+   425→   425→      })}
+   426→   426→    </div>
+   427→   427→  );
+   428→   428→}
+   429→   429→
+   430→   430→// ---------- Tab: Promises (contracts) ----------
+   431→   431→
+   432→   432→export function PromisesView() {
+   433→   433→  const { report } = useCie();
+   434→   434→  if (!report) return null;
+   435→   435→  return (
+   436→   436→    <div className="space-y-4">
+   437→   437→      <Card className="border-stone-200 bg-stone-50/60">
+   438→   438→        <CardContent className="p-5 text-sm text-stone-700 leading-relaxed">
+   439→   439→          <span className="font-semibold">What is a promise?</span> Code makes silent promises, like
+   440→   440→          &ldquo;always check the password before letting someone in&rdquo;. CIE finds these promises and
+   441→   441→          tells you who has to keep them — so nothing important gets forgotten.
+   442→   442→        </CardContent>
+   443→   443→      </Card>
+   444→   444→      {report.contracts.map((c) => {
+   445→   445→        const a = authorityPlain(c.authority);
+   446→   446→        const keepers = c.symbols.map((id) => report.symbols.find((s) => s.id === id)?.qual_name).filter(Boolean);
+   447→   447→        return (
+   448→   448→          <Card key={c.id} className="border-stone-200">
+   449→   449→            <CardContent className="p-5 space-y-2">
+   450→   450→              <div className="flex items-center gap-2 flex-wrap">
+   451→   451→                <BadgeCheck className="h-5 w-5 text-emerald-700" />
+   452→   452→                <p className="font-semibold text-stone-900">{obligationTitle(c.obligation)}</p>
+   453→   453→                <Badge variant="outline" className={a.label === "Written by you" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200"}>
+   454→   454→                  {a.label}
+   455→   455→                </Badge>
+   456→   456→              </div>
+   457→   457→              <p className="text-sm text-stone-600 leading-relaxed">&ldquo;{c.expr}&rdquo;</p>
+   458→   458→              {keepers.length > 0 && (
+   459→   459→                <p className="text-sm text-stone-700">
+   460→   460→                  <span className="font-medium">Who must keep it: </span>
+   461→   461→                  <span className="font-mono text-xs bg-stone-100 rounded px-1.5 py-0.5">{keepers.join(", ")}</span>
+   462→   462→                </p>
+   463→   463→              )}
+   464→   464→              {a.hint && <p className="text-xs text-stone-400">{a.hint}</p>}
+   465→   465→            </CardContent>
+   466→   466→          </Card>
+   467→   467→        );
+   468→   468→      })}
+   469→   469→    </div>
+   470→   470→  );
+   471→   471→}
+   472→   472→
+   473→   473→// ---------- Tab: Can I trust this? (evidence) ----------
+   474→   474→
+   475→   475→export function TrustView() {
+   476→   476→  const { report, viewspec, repoScan } = useCie();
+   477→   477→  if (!report) return null;
+   478→   478→  const ev = report.evidence;
+   479→   479→  return (
+   480→   480→    <div className="space-y-4">
+   481→   481→      <Card className="border-stone-200 bg-stone-50/60">
+   482→   482→        <CardContent className="p-5 text-sm text-stone-700 leading-relaxed">
+   483→   483→          <span className="font-semibold">Why this page exists: </span>
+   484→   484→          a tool that only says &ldquo;everything is fine&rdquo; is dangerous. CIE shows you
+   485→   485→          exactly what it knows, what it guessed, and what it couldn't check — so you can
+   486→   486→          decide how much to trust it.
+   487→   487→        </CardContent>
+   488→   488→      </Card>
+   489→   489→
+   490→   490→      {/* language honesty — only exists for connect-a-repo flows */}
+   491→   491→      {repoScan && (
+   492→   492→        <Card className={repoScan.unsupported.length ? "border-amber-200" : "border-emerald-200"}>
+   493→   493→          <CardHeader className="pb-2">
+   494→   494→            <CardTitle className="text-base flex items-center gap-2">
+   495→   495→              <Languages className={`h-4 w-4 ${repoScan.unsupported.length ? "text-amber-700" : "text-emerald-700"}`} />
+   496→   496→              Languages in your repo — what CIE read, and what it couldn't
+   497→   497→            </CardTitle>
+   498→   498→            <CardDescription>Taken from a quick look inside {repoScan.name} before the check started.</CardDescription>
+   499→   499→          </CardHeader>
+   500→   500→          <CardContent className="space-y-3 text-sm">
+   501→   501→            <div className="flex flex-wrap items-center gap-1.5">
+   502→   502→              {repoScan.languages.map((l) => (
+   503→   503→                <span key={l.id} className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-xs font-medium">
+   504→   504→                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} read
+   505→   505→                </span>
+   506→   506→              ))}
+   507→   507→              {repoScan.unsupported.map((l) => (
+   508→   508→                <span key={l.id} className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-xs font-medium">
+   509→   509→                  {l.name} · {l.files} file{l.files === 1 ? "" : "s"} skipped
+   510→   510→                </span>
+   511→   511→              ))}
+   512→   512→            </div>
+   513→   513→            {repoScan.unsupported.length > 0 ? (
+   514→   514→              <ul className="space-y-1.5 text-sm text-stone-600">
+   515→   515→                {repoScan.unsupported.map((l) => {
+   516→   516→                  const meta = KNOWN_UNSUPPORTED.find((k) => k.id === l.id);
+   517→   517→                  return (
+   518→   518→                    <li key={l.id} className="flex gap-2 leading-relaxed">
+   519→   519→                      <span className="text-amber-600 mt-0.5">•</span>
+   520→   520→                      <span>
+   521→   521→                        <span className="font-medium text-stone-800">{l.name}</span> — {meta?.why ?? "CIE skips these files for now."}
+   522→   522→                      </span>
+   523→   523→                    </li>
+   524→   524→                  );
+   525→   525→                })}
+   526→   526→                <li className="flex gap-2 leading-relaxed text-stone-600">
+   527→   527→                  <span className="text-amber-600 mt-0.5">•</span>
+   528→   528→                  <span>Anything in those files is missing from every page here. CIE would rather leave an honest gap than guess about code it can&apos;t read.</span>
+   529→   529→                </li>
+   530→   530→              </ul>
+   531→   531→            ) : (
+   532→   532→              <p className="text-sm text-emerald-800 flex items-center gap-1.5">
+   533→   533→                <BadgeCheck className="h-4 w-4 shrink-0" /> Every code file in this repo uses a language CIE can read.
+   534→   534→              </p>
+   535→   535→            )}
+   536→   536→          </CardContent>
+   537→   537→        </Card>
+   538→   538→      )}
+   539→   539→
+   540→   540→      <div className="grid gap-4 md:grid-cols-2">
+   541→   541→        <Card className="border-amber-200">
+   542→   542→          <CardHeader className="pb-2">
+   543→   543→            <CardTitle className="text-base flex items-center gap-2"><Wand2 className="h-4 w-4 text-amber-700" /> Things CIE assumed</CardTitle>
+   544→   544→            <CardDescription>Shortcuts CIE took. Usually fine — but you should know.</CardDescription>
+   545→   545→          </CardHeader>
+   546→   546→          <CardContent>
+   547→   547→            <ul className="space-y-2 text-sm text-stone-600">
+   548→   548→              {ev.assumptions.length ? ev.assumptions.map((a, i) => (
+   549→   549→                <li key={i} className="flex gap-2 leading-relaxed"><span className="text-amber-600 mt-0.5">•</span>{a}</li>
+   550→   550→              )) : <li className="text-stone-400">None. Nothing was assumed.</li>}
+   551→   551→            </ul>
+   552→   552→          </CardContent>
+   553→   553→        </Card>
+   554→   554→
+   555→   555→        <Card className="border-stone-200">
+   556→   556→          <CardHeader className="pb-2">
+   557→   557→            <CardTitle className="text-base flex items-center gap-2"><HelpCircle className="h-4 w-4 text-stone-500" /> Names CIE couldn't match</CardTitle>
+   558→   558→            <CardDescription>Calls to things CIE couldn't find in this project.</CardDescription>
+   559→   559→          </CardHeader>
+   560→   560→          <CardContent>
+   561→   561→            <ul className="space-y-2 text-sm text-stone-600 max-h-48 overflow-y-auto">
+   562→   562→              {ev.unresolved.length ? ev.unresolved.map((a, i) => (
+   563→   563→                <li key={i} className="flex gap-2 leading-relaxed font-mono text-xs"><span className="text-stone-400 mt-0.5">•</span>{a}</li>
+   564→   564→              )) : <li className="text-stone-400">None. Every name was matched.</li>}
+   565→   565→            </ul>
+   566→   566→          </CardContent>
+   567→   567→        </Card>
+   568→   568→
+   569→   569→        <Card className="border-stone-200">
+   570→   570→          <CardHeader className="pb-2">
+   571→   571→            <CardTitle className="text-base flex items-center gap-2"><MapIcon className="h-4 w-4 text-stone-500" /> Notes from the check</CardTitle>
+   572→   572→            <CardDescription>Technical limits, translated as honestly as we can.</CardDescription>
+   573→   573→          </CardHeader>
+   574→   574→          <CardContent>
+   575→   575→            <ul className="space-y-2 text-sm text-stone-600">
+   576→   576→              {report.coverage.notes.map((a, i) => (
+   577→   577→                <li key={i} className="flex gap-2 leading-relaxed"><span className="text-stone-400 mt-0.5">•</span>{a}</li>
+   578→   578→              ))}
+   579→   579→            </ul>
+   580→   580→          </CardContent>
+   581→   581→        </Card>
+   582→   582→
+   583→   583→        <Card className="border-stone-200">
+   584→   584→          <CardHeader className="pb-2">
+   585→   585→            <CardTitle className="text-base flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-emerald-700" /> Paper trail</CardTitle>
+   586→   586→            <CardDescription>Proof of where these results came from.</CardDescription>
+   587→   587→          </CardHeader>
+   588→   588→          <CardContent className="text-sm text-stone-600 space-y-1.5">
+   589→   589→            <p>Engine: <span className="font-mono text-xs bg-stone-100 rounded px-1.5 py-0.5">{ev.provenance}</span></p>
+   590→   590→            <p>Snapshot number: <span className="font-mono text-xs bg-stone-100 rounded px-1.5 py-0.5">rev {report.rev}</span></p>
+   591→   591→            {viewspec?.semanticHash && (
+   592→   592→              <p>Map fingerprint: <span className="font-mono text-xs bg-stone-100 rounded px-1.5 py-0.5 break-all">{viewspec.semanticHash.slice(0, 24)}…</span></p>
+   593→   593→            )}
+   594→   594→            {viewspec?.footer?.caption && <p className="text-xs text-stone-400 pt-1">&ldquo;{viewspec.footer.caption}&rdquo;</p>}
+   595→   595→          </CardContent>
+   596→   596→        </Card>
+   597→   597→      </div>
+   598→   598→    </div>
+   599→   599→  );
+   600→   600→}
+   601→   601→

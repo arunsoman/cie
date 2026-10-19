@@ -49,14 +49,14 @@ const ICONS = {
   timer: Timer,
 } as const;
 
-const GROUPS = ["Problems", "Promises", "The map", "What the code does", "Dependencies", "Watching it run"] as const;
+const GROUPS = ["Problems", "Promises", "The map", "What the code does", "Dependencies", "Watching it run", "Health", "Quality metrics"] as const;
 
 export function MenuView() {
-  const { report, viewspec, concepts, deps, runtime, stories, setPendingAsk } = useCie();
+  const { report, viewspec, concepts, deps, runtime, stories, quality, setPendingAsk } = useCie();
 
   const charts = useMemo(
-    () => buildCannedCharts(report, viewspec, concepts, deps, runtime),
-    [report, viewspec, concepts, deps, runtime]
+    () => buildCannedCharts(report, viewspec, concepts, deps, runtime, quality),
+    [report, viewspec, concepts, deps, runtime, quality]
   );
 
   const [activeId, setActiveId] = useState<string>(charts[0]?.id ?? "");
@@ -95,8 +95,11 @@ export function MenuView() {
           <p>
             <span className="font-semibold">Charts with zero typing. </span>
             Tap a question below and the picture appears instantly — worked out
-            directly from your loaded report, no waiting. For anything more
-            open-ended, the <span className="font-medium">chat on the right</span> is still there.
+            directly from your loaded report, no waiting. The <span className="font-medium">Health</span> and{" "}
+            <span className="font-medium">Quality metrics</span> groups come from the project&apos;s collected
+            quality data (extract → transform → load, formulas shown). Tap any element inside a chart
+            to start a conversation about it. For anything more open-ended, the{" "}
+            <span className="font-medium">chat on the right</span> is still there.
           </p>
         </CardContent>
       </Card>
