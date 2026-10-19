@@ -57,10 +57,17 @@ cie report examples/bankapp --as-of-rev 1
 | Python | `tree-sitter-python` | **Deep**: effects, exceptions + handler semantics, branches, loops, assignments, taint sources/sinks, f-string data flow, docstring contracts |
 | TypeScript / TSX | `tree-sitter-typescript` | Light: symbols, calls, imports, loops, assignments, sources/sinks, tests |
 | JavaScript | `tree-sitter-javascript` | Light (same) |
+| Java | `tree-sitter-java` | Deep: classes/interfaces/enums, JVM dispatch, throws/catch contracts, annotations |
 | Go | `tree-sitter-go` | Light (same) |
 | Rust | `tree-sitter-rust` | Light (same) |
+| C / C++ / C# | `tree-sitter-c` / `-cpp` / `-c-sharp` | Light (same) |
+| PHP | `tree-sitter-php` | Light (same) |
+| SQL | `cie-adapter-sql` | Deep: tables, views, procedures, foreign-key / read / write links |
+| Shell | `cie-adapter-shell` | Deep: functions, sourcing, external commands + their effects |
+| Kotlin (v1.2.2) | `tree-sitter-kotlin-ng` | Deep: classes/interfaces/objects, methods, imports, calls, throw/try/catch, coroutine spawn, val/var assignments |
+| Lua (v1.2.2) | `tree-sitter-lua` | Deep: functions + table closures, require imports, calls with stdlib effect map, error()/pcall, loops, assignments, returns |
 
-**Extension path (PRD §67, acceptance #9):** add `tree-sitter-<lang>` to `crates/cie-langs/Cargo.toml`, implement `LanguageAdapter`, add ONE registration line in `default_registry()` — zero core changes.
+**Extension path (PRD §67, acceptance #9):** add a grammar crate to the workspace `Cargo.toml`, create an adapter crate implementing `LanguageAdapter`, add ONE registration line in `cie-ingest::default_registry()` — zero core changes (Kotlin and Lua each landed in v1.2.2 exactly this way).
 
 ## Foundation guarantees (all enforced by construction)
 

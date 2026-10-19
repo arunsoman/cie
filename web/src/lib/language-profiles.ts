@@ -8,7 +8,7 @@
 //
 // Safe to import from client and server code (pure data, no node imports).
 
-// ---------- supported languages (engine registry, v1.2.0) ----------
+// ---------- supported languages (engine registry, v1.2.0 + v1.2.1 + v1.2.2) ----------
 
 export interface SupportedLanguage {
   id: string;
@@ -105,6 +105,20 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
     extensions: ["sh", "bash", "zsh"],
     reads: "functions, sourced files, the external commands scripts run, and the effects those commands have — file reads and writes, network calls, database tools, process execution.",
     limits: "It reads the script as written. It doesn't run it or expand variables, so commands hidden behind $VARS stay unknown — and it says so.",
+  },
+  {
+    id: "kotlin",
+    name: "Kotlin",
+    extensions: ["kt", "kts"],
+    reads: "classes, interfaces, objects, functions and methods, imports and calls — plus throw/try/catch as error handling and coroutines (launch/async) spotted as background work.",
+    limits: "It reads the code as written. It doesn't run the JVM, decide which override answers a call, or know what the libraries do behind the scenes. Gradle .kts build scripts are read as plain Kotlin, and it says so.",
+  },
+  {
+    id: "lua",
+    name: "Lua",
+    extensions: ["lua"],
+    reads: "functions — including closures assigned to tables — require imports, calls, loops, error()/pcall handling, and file and shell effects it can spot.",
+    limits: "It reads the code as written. Lua has no classes, so table-plus-metatable patterns are read as plain functions and fields, not class hierarchies — and coroutines stay out of sight.",
   },
 ];
 
@@ -275,13 +289,11 @@ export interface UnsupportedLanguage {
 
 export const KNOWN_UNSUPPORTED: UnsupportedLanguage[] = [
   { id: "ruby", name: "Ruby", extensions: ["rb", "erb", "rake"], why: "used for scripts and web backends — CIE skips these files for now." },
-  { id: "kotlin", name: "Kotlin", extensions: ["kt", "kts"], why: "common in Android apps and Gradle builds — CIE skips these files for now." },
   { id: "swift", name: "Swift", extensions: ["swift"], why: "used for iPhone and Mac apps — CIE skips these files for now." },
   { id: "scala", name: "Scala", extensions: ["scala"], why: "used for big-data and JVM projects — CIE skips these files for now." },
   { id: "dart", name: "Dart", extensions: ["dart"], why: "used for Flutter apps — CIE skips these files for now." },
   { id: "perl", name: "Perl", extensions: ["pl", "pm"], why: "used for text processing and scripts — CIE skips these files for now." },
   { id: "haskell", name: "Haskell", extensions: ["hs", "lhs"], why: "used for academic and finance code — CIE skips these files for now." },
-  { id: "lua", name: "Lua", extensions: ["lua"], why: "used for games and embedded scripts — CIE skips these files for now." },
   { id: "elixir", name: "Elixir", extensions: ["ex", "exs"], why: "used for realtime web servers — CIE skips these files for now." },
   { id: "clojure", name: "Clojure", extensions: ["clj", "cljs", "cljc", "edn"], why: "used for data and JVM projects — CIE skips these files for now." },
   { id: "zig", name: "Zig", extensions: ["zig"], why: "used for systems code — CIE skips these files for now." },

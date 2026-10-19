@@ -101,10 +101,14 @@ UI, speaking CIE's plain-words language throughout):
      the failure card when nothing is readable, and on the **Can I trust
      this?** tab as a permanent "Languages in your repo — what CIE read, and
      what it couldn't" card.
-   CIE currently reads **12 languages**: Python, JavaScript, TypeScript, Java,
+   CIE currently reads **14 languages**: Python, JavaScript, TypeScript, Java,
    Rust, Go, C, C++, C#, PHP, **SQL** (tables, views, procedures and the
-   table-to-table links the statements write down) and **Shell scripts**
-   (functions, sourced files, the commands scripts run and their effects).
+   table-to-table links the statements write down), **Shell scripts**
+   (functions, sourced files, the commands scripts run and their effects),
+   **Kotlin** (classes, interfaces, objects, functions, imports and calls,
+   throw/try/catch, coroutines spotted as background work) and **Lua**
+   (functions including table-assigned closures, require imports, calls,
+   loops, error()/pcall handling).
 
    **Ask before skipping** — when the inventory finds files CIE can't read
    yet, the check *pauses before reading anything* and asks: go ahead with
