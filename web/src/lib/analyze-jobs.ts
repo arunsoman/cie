@@ -206,37 +206,79 @@ function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: numbe
 }
 
 // ---------- engine binary ----------
+//
+// Resolution order (issue #7 — fail closed, never run an impostor):
+//   1. CIE_BIN env var — explicit, always wins.
+//   2. This checkout's cargo workspace targets, found by walking up from
+//      process.cwd(): <root>/target/{debug,release}/cie. Works in any
+//      clone on any machine — no hardcoded personal paths.
+//   3. Nothing. The old blind PATH probe is gone: on a real user's
+//      machine an unrelated tool that happens to be named `cie` (a
+//      Python/Click CLI) answered --version with exit 0, got accepted as
+//      "the engine", and its usage error was then misreported as a
+//      language-support problem. A PATH binary is only accepted if its
+//      --version output carries this engine's identity marker; otherwise
+//      we fail closed with an honest "engine not found".
+
+// clap prints "cie 1.2.0" (no comma). The unrelated same-named Click CLI
+// prints "cie, version 0.1.4" — the marker rejects it.
+const CIE_VERSION_MARKER = /^cie \d+\.\d+\.\d+\s*$/m;
 
 const CIE_CANDIDATES = [
   process.env.CIE_BIN ?? "",
-  // The cargo workspace builds to <repo>/target/ — both profiles.
-  "/home/z/my-project/target/debug/cie",
-  "/home/z/my-project/target/release/cie",
-  // Older checkouts nested the workspace under cie/.
-  "/home/z/my-project/cie/target/debug/cie",
-  "/home/z/my-project/cie/target/release/cie",
+  ...walkUpRoots().flatMap((r) => [path.join(r, "target", "debug", "cie"), path.join(r, "target", "release", "cie")]),
 ];
 
+/** The starting directory and up to five ancestors of it. */
+function walkUpRoots(): string[] {
+  const roots: string[] = [];
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    roots.push(dir);
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return roots;
+}
+
+let resolvedCieBin: string | null = null;
+
 async function resolveCieBin(): Promise<string | null> {
+  if (resolvedCieBin) {
+    try {
+      await fs.access(resolvedCieBin);
+      return resolvedCieBin;
+    } catch {
+      resolvedCieBin = null; // binary vanished (rebuild?) — resolve again
+    }
+  }
   for (const c of CIE_CANDIDATES) {
     if (!c) continue;
     try {
       await fs.access(c);
+      resolvedCieBin = c;
       return c;
     } catch {
       /* keep looking */
     }
   }
-  // Last resort: a `cie` on PATH (set CIE_BIN to override everything).
+  // Verified last resort: a `cie` on $PATH that can PROVE it is this
+  // project's engine. Identity, not just exit code.
   const probe = await run("cie", ["--version"], { timeoutMs: 10_000, maxStdout: 4096 });
-  return probe.code === 0 ? "cie" : null;
+  const out = `${probe.stdout}\n${probe.stderr}`;
+  if (probe.code === 0 && CIE_VERSION_MARKER.test(out.trim())) {
+    resolvedCieBin = "cie";
+    return "cie";
+  }
+  return null;
 }
 
 /** Honest "engine missing" technical detail: exactly where the resolver
  *  looked and what it found, so the UI's technical panel can answer
  *  "why does it say the engine is missing?" without server access. */
 async function cieBinMissingTechnical(): Promise<string> {
-  const lines: string[] = ["cie binary not found. Searched:"];
+  const lines: string[] = ["cie binary not found (or not provably this project's engine). Searched:"];
   for (const c of CIE_CANDIDATES) {
     if (!c) continue;
     let state: string;
@@ -248,12 +290,18 @@ async function cieBinMissingTechnical(): Promise<string> {
     }
     lines.push(`  ${c} — ${state}`);
   }
-  lines.push("  `cie` on $PATH — no working binary answered --version");
+  lines.push("  `cie` on $PATH — either not found, or its --version output did not match this engine (a same-named unrelated tool must never be run silently)");
   lines.push("Set CIE_BIN to the full path of this project's engine binary and try again.");
   return lines.join("\n");
 }
 
 // ---------- plain-words error mapping ----------
+
+/** Prefix technical details with the exact engine binary that ran, so a
+ *  wrong/impostor binary is diagnosable from the UI alone (issue #7). */
+function engineTechnical(bin: string, detail: string): string {
+  return `engine binary: ${bin}\n${detail}`;
+}
 
 function cloneErrorPlain(stderr: string, timedOut: boolean): string {
   const s = stderr.toLowerCase();
@@ -456,11 +504,11 @@ async function runPipeline(job: AnalyzeJob) {
     const t1 = Date.now();
     const ing = await run(bin, ["ingest", repoDir], { timeoutMs: CIE_TIMEOUT_MS });
     if (ing.timedOut || ing.code !== 0) {
-      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`);
+      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`));
       return;
     }
     if (/files 0 \|/.test(ing.stdout)) {
-      markRunningStepFailed(job, UNSUPPORTED_PLAIN, `cie ingest found 0 supported files: ${ing.stdout.slice(0, 200)}`);
+      markRunningStepFailed(job, UNSUPPORTED_PLAIN, engineTechnical(bin, `cie ingest found 0 supported files: ${ing.stdout.slice(0, 200)}`));
       return;
     }
     const rep = await run(bin, ["report", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
@@ -469,7 +517,7 @@ async function runPipeline(job: AnalyzeJob) {
       markRunningStepFailed(
         job,
         noSnapshot ? UNSUPPORTED_PLAIN : engineErrorPlain(rep.timedOut ? "timeout" : "crash"),
-        `cie report exit ${rep.code}: ${(rep.stderr || rep.stdout).slice(0, 400)}`
+        engineTechnical(bin, `cie report exit ${rep.code}: ${(rep.stderr || rep.stdout).slice(0, 400)}`)
       );
       return;
     }
@@ -477,7 +525,7 @@ async function runPipeline(job: AnalyzeJob) {
     try {
       report = JSON.parse(rep.stdout);
     } catch {
-      markRunningStepFailed(job, engineErrorPlain("bad-output"), "cie report produced unparseable JSON");
+      markRunningStepFailed(job, engineErrorPlain("bad-output"), engineTechnical(bin, "cie report produced unparseable JSON"));
       return;
     }
     setStep(job, "read", "done", `${report.symbols.length} named things found.`, Date.now() - t1);
