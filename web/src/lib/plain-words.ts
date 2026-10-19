@@ -44,8 +44,21 @@ const OBLIGATION_TITLES: Record<string, string> = {
   MustLog: "Keep a record of what happened",
 };
 
-export function obligationTitle(o: string): string {
-  return OBLIGATION_TITLES[o] ?? o.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+export function obligationTitle(o: unknown): string {
+  if (typeof o === "string") {
+    return OBLIGATION_TITLES[o] ?? o.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+  }
+  // The engine also emits structured obligations — most commonly the serde
+  // externally-tagged enum form {"Custom": "<the rule in the code's own
+  // words>"}. Show the engine's words as written; any other shape degrades
+  // to its variant name. None of these may ever crash a render.
+  if (o && typeof o === "object") {
+    const custom = (o as Record<string, unknown>).Custom;
+    if (typeof custom === "string" && custom) return custom;
+    const key = Object.keys(o as Record<string, unknown>)[0];
+    if (typeof key === "string" && key) return key.replace(/_/g, " ");
+  }
+  return "A promise CIE couldn't name";
 }
 
 export function authorityPlain(a: string): { label: string; hint: string } {

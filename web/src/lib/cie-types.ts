@@ -42,7 +42,10 @@ export interface Finding {
 
 export interface Contract {
   id: number;
-  obligation: string;
+  // Serde externally-tagged enum ObligationKind: named variants serialize as
+  // plain strings ("MustAuthorize"), Custom carries the rule in the code's
+  // own words ({"Custom": "must refuse transfers above the spending limit"}).
+  obligation: string | { Custom: string } | Record<string, unknown>;
   expr: string;
   authority: string; // Explicit | InferredCandidate | ...
   symbols: number[];
