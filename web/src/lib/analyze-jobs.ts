@@ -59,7 +59,13 @@ export interface AnalyzeJob {
 
 // ---------- constants ----------
 
-const JOBS_ROOT = "/home/z/my-project/.cie-jobs";
+// Scratch root for URL-clone jobs (clone target, viz output, per-job
+// workspace). CIE_JOBS_ROOT overrides everything; the fallback is relative
+// to the server's working directory — deliberately NOT a hardcoded absolute
+// path tied to one developer's machine (issue #4: on any other box the old
+// /home/z/... path made every URL job die with EACCES before cloning even
+// started, hidden behind the generic "something went wrong" banner).
+const JOBS_ROOT = process.env.CIE_JOBS_ROOT?.trim() || path.join(process.cwd(), ".cie-jobs");
 const CLONE_TIMEOUT_MS = 120_000;
 const CIE_TIMEOUT_MS = 240_000;
 const JOB_TTL_MS = 45 * 60_000;
@@ -226,6 +232,27 @@ async function resolveCieBin(): Promise<string | null> {
   return probe.code === 0 ? "cie" : null;
 }
 
+/** Honest "engine missing" technical detail: exactly where the resolver
+ *  looked and what it found, so the UI's technical panel can answer
+ *  "why does it say the engine is missing?" without server access. */
+async function cieBinMissingTechnical(): Promise<string> {
+  const lines: string[] = ["cie binary not found. Searched:"];
+  for (const c of CIE_CANDIDATES) {
+    if (!c) continue;
+    let state: string;
+    try {
+      await fs.access(c);
+      state = "exists but was not selected";
+    } catch {
+      state = "missing";
+    }
+    lines.push(`  ${c} — ${state}`);
+  }
+  lines.push("  `cie` on $PATH — no working binary answered --version");
+  lines.push("Set CIE_BIN to the full path of this project's engine binary and try again.");
+  return lines.join("\n");
+}
+
 // ---------- plain-words error mapping ----------
 
 function cloneErrorPlain(stderr: string, timedOut: boolean): string {
@@ -339,16 +366,24 @@ export async function startJob(opts: {
 
 async function runPipeline(job: AnalyzeJob) {
   const isLocal = job.source === "local";
-  const workDir = isLocal ? null : path.join(JOBS_ROOT, job.id);
-  const repoDir = isLocal ? (job.localPath as string) : path.join(workDir as string, "repo");
-  const vizOut = path.join(workDir ?? JOBS_ROOT, "viewspec.json");
+  // Every job gets its own scratch dir (viz output, clone target). Local
+  // folders are read in place — repoDir points at the user's own folder and
+  // is never inside the scratch dir, so the finally-block cleanup can't
+  // touch it. The scratch dir must exist even for local jobs, or `cie viz
+  // --out` would try to write into a missing directory and the map would
+  // silently fail on machines where JOBS_ROOT starts empty.
+  const workDir = path.join(JOBS_ROOT, job.id);
+  const repoDir = isLocal ? (job.localPath as string) : path.join(workDir, "repo");
+  const vizOut = path.join(workDir, "viewspec.json");
   job.state = "running";
 
   try {
+    await fs.mkdir(workDir, { recursive: true });
+
     // 0. Engine present?
     const bin = await resolveCieBin();
     if (!bin) {
-      markRunningStepFailed(job, engineErrorPlain("bin-missing"), "cie binary not found (looked at CIE_BIN, target/debug, target/release)");
+      markRunningStepFailed(job, engineErrorPlain("bin-missing"), await cieBinMissingTechnical());
       return;
     }
 
@@ -527,9 +562,10 @@ async function runPipeline(job: AnalyzeJob) {
     };
     job.state = "done";
   } finally {
-    // Don't keep clones on disk — results live in memory. Local folders are
-    // never touched (read-only analysis in place).
-    if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    // Don't keep clones or scratch files on disk — results live in memory.
+    // Local folders are never touched (read-only analysis in place; the
+    // user's folder is never inside workDir).
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
