@@ -37,6 +37,7 @@ import { NumbersView } from "@/components/cie/charts";
 import { MenuView } from "@/components/cie/menu-tab";
 import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
+import { AtlasView } from "@/components/cie/atlas-view";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
 
@@ -52,6 +53,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   deps: { title: "Dependencies", caption: "What your project declares it needs — names and versions as written." },
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
+  atlas: { title: "Atlas", caption: "Four synchronized views over one selection — containers, components, sequence, data flow." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
   mastery: { title: "Master this codebase", caption: "Four sections: the paragraph, the mains, the routes, the flows." },
 };
@@ -148,6 +150,7 @@ export function Stage() {
             {view === "runtime" && <RuntimeView />}
             {view === "quality" && <QualityView />}
             {view === "mastery" && <MasteryView />}
+            {view === "atlas" && <AtlasView />}
           </div>
         </div>
       )}

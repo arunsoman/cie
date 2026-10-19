@@ -441,7 +441,7 @@ const DG_MARGIN = 26;
 const DG_GAP = 16;
 const ROW_GAP = 34;
 
-function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
+function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
   const uid = useId().replace(/[:]/g, "");
   const [hover, setHover] = useState<string | null>(null);
   const ask = useAsk();
@@ -657,7 +657,10 @@ function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
                 onPointerLeave={() => setHover(null)}
                 onFocus={() => setHover(b.node.id)}
                 onBlur={() => setHover(null)}
-                onClick={() => ask(spec, { name: b.node.title, loc: b.node.loc })}
+                onClick={() => {
+                  onSelectElement?.({ kind: "node", id: b.node.id, label: b.node.title, loc: b.node.loc });
+                  ask(spec, { name: b.node.title, loc: b.node.loc });
+                }}
                 className="outline-none cursor-pointer"
               >
                 <title>{label}</title>
@@ -914,7 +917,21 @@ const SEQ_MARGIN = 22;
 const LANE_LABEL_H = 30;
 const MSG_ROW_H = 46;
 
-function SequenceSVG({ spec }: { spec: ChatChartSpec }) {
+/** What a diagram click reports upward when a host (the atlas dashboard)
+ *  wants the SAME click to also drive its Selection Context. Optional and
+ *  unused by the chat — every existing call site behaves exactly as before. */
+export interface DiagramSelection {
+  kind: "node" | "link" | "msg";
+  id: string;
+  label: string;
+  loc?: ElementLoc;
+  from?: string;
+  to?: string;
+}
+
+export type SelectHandler = (sel: DiagramSelection) => void;
+
+function SequenceSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
   const ask = useAsk();
   const uid = useId().replace(/[:]/g, "");
   const parts = spec.participants ?? [];
@@ -950,7 +967,10 @@ function SequenceSVG({ spec }: { spec: ChatChartSpec }) {
           <g
             key={`m-${m.label}-${i}`}
             className={m.loc?.file ? "cursor-pointer" : ""}
-            onClick={() => m.loc && ask(spec, { name: m.label.replace(/\(\)$/, ""), loc: m.loc })}
+            onClick={() => {
+              onSelectElement?.({ kind: "msg", id: m.label, label: m.label, loc: m.loc, from: m.from, to: m.to });
+              if (m.loc) ask(spec, { name: m.label.replace(/\(\)$/, ""), loc: m.loc });
+            }}
           >
             <text x={(x1 + x2) / 2} y={y - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill={color}>
               {m.label}
@@ -981,14 +1001,14 @@ function SequenceSVG({ spec }: { spec: ChatChartSpec }) {
 
 // ---------- dispatcher ----------
 
-export function ChatChart({ spec }: { spec: ChatChartSpec }) {
+export function ChatChart({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
   if (spec.kind === "table") return <div className="mt-1"><ChatTable spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "donut") return <div className="mt-1"><ChatDonut spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "stat") return <div className="mt-1"><ChatStat spec={spec} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "tree") return <div className="mt-1"><TreeSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "heatmap") return <div className="mt-1"><Heatmap spec={spec} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "c4") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "sequence") return <div className="mt-1"><SequenceSVG spec={spec} /><p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1"><MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} for an arrow — each one stands for real, recorded code · dashed = inferred · dashed emerald + YOU CONFIRMED = your own check</p><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "c4") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "sequence") return <div className="mt-1"><SequenceSVG spec={spec} onSelectElement={onSelectElement} /><p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1"><MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} for an arrow — each one stands for real, recorded code · dashed = inferred · dashed emerald + YOU CONFIRMED = your own check</p><ChartFootnote spec={spec} /></div>;
   return <div className="mt-1"><FisheyeHBar spec={spec} /><ChartFootnote spec={spec} /></div>;
 }

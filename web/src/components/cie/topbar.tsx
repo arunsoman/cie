@@ -48,6 +48,7 @@ const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"]
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 const MASTER_VIEWS: StageView[] = ["mastery"];
+const ATLAS_VIEWS: StageView[] = ["atlas"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   // Spreads Radix's trigger props through — a custom trigger child that
@@ -123,6 +124,9 @@ export function Topbar() {
 
         {/* main menus — top right */}
         <nav className="hidden lg:flex items-center gap-0.5" aria-label="Main">
+          <NavButton active={ATLAS_VIEWS.includes(view)} onClick={go("atlas")} title="The multi-view dashboard — four synchronized views over one selection">
+            <LayoutGrid className="h-4 w-4" aria-hidden /> Atlas
+          </NavButton>
           <NavButton active={MASTER_VIEWS.includes(view)} onClick={go("mastery")} title="The guided journey over this project — CIE guides, you verify">
             <GraduationCap className="h-4 w-4" aria-hidden /> Master
           </NavButton>
@@ -231,6 +235,9 @@ export function Topbar() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>The dashboard</DropdownMenuLabel>
+              <DropdownMenuItem onClick={go("atlas")} className={view === "atlas" ? "bg-emerald-50" : ""}>Atlas — four synchronized views</DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Master it</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("mastery")} className={view === "mastery" ? "bg-emerald-50" : ""}>Master this codebase</DropdownMenuItem>
               <DropdownMenuSeparator />

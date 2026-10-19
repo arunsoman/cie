@@ -18,12 +18,14 @@ import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
+import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
 
 export type DataSource = "demo" | "custom" | null;
 
 // Every page the middle stage can show. "chart" renders a chart the chat
 // (or a menu tap) sent to the canvas. "mastery" is the guided 5-station
-// journey
+// journey. "atlas" is the multi-view dashboard — four synchronized views
+// over one Selection Context (lib/atlas.ts).
 export type StageView =
   | "start"
   | "map"
@@ -37,6 +39,7 @@ export type StageView =
   | "runtime"
   | "quality"
   | "mastery"
+  | "atlas"
   | "chart";
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
@@ -108,6 +111,12 @@ interface CieState {
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
   pendingAsk: string | null; // click-to-chat: a question any chart/card handed to the chat
 
+  // atlas dashboard — the Selection Context (lib/atlas.ts). One click
+  // updates this; all four views re-render from it.
+  atlasSelection: AtlasSelection;
+  atlasView: "containers" | "components" | "sequence" | "dataflow";
+  atlasFactsOnly: boolean; // "Facts only" — dim/filter inferred elements everywhere
+
   // source panel — click a chart element with a location, see the code
   sourceViewer: SourceViewerRequest | null;
   sourceRoot: string | null; // absolute root of a consented local-folder project (URL clones are deleted after analysis — null there, honestly)
@@ -149,6 +158,13 @@ interface CieState {
   closeSourceViewer: () => void;
   cacheSource: (path: string, content: string) => void;
 
+  // atlas dashboard
+  setAtlasSelection: (ref: AtlasRef | null) => void; // click anywhere in any view
+  drillUp: () => void; // breadcrumb: reset to the level above
+  resetAtlas: () => void; // empty space / System crumb
+  setAtlasView: (v: "containers" | "components" | "sequence" | "dataflow") => void;
+  setAtlasFactsOnly: (b: boolean) => void;
+
   // mastery journey
   loadMastery: () => void; // (re)load for the CURRENT project; call after mount / project change
   updateMastery: (fn: (m: MasteryState) => MasteryState) => void; // pure edit + persist
@@ -187,6 +203,9 @@ export const useCie = create<CieState>((set, get) => ({
   sourceViewer: null,
   sourceRoot: null,
   sourceCache: {},
+  atlasSelection: ATLAS_RESET,
+  atlasView: "containers",
+  atlasFactsOnly: false,
 
   loadDemo: async () => {
     set({ loading: true, loadError: "" });
@@ -239,6 +258,9 @@ export const useCie = create<CieState>((set, get) => ({
         sourceCache: {},
         sourceViewer: null,
         pendingAsk: null,
+        atlasSelection: ATLAS_RESET,
+        atlasView: "containers",
+        atlasFactsOnly: false,
       });
     } catch {
       set({ loading: false, loadError: "Could not load the sample data. Please refresh the page." });
@@ -277,6 +299,9 @@ export const useCie = create<CieState>((set, get) => ({
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
       mapSelected: null,
+      atlasSelection: ATLAS_RESET,
+      atlasView: "containers",
+      atlasFactsOnly: false,
     }),
 
   reset: () => {
@@ -310,6 +335,39 @@ export const useCie = create<CieState>((set, get) => ({
   openSourceViewer: (req) => set({ sourceViewer: req }),
   closeSourceViewer: () => set({ sourceViewer: null }),
   cacheSource: (path, content) => set((s) => ({ sourceCache: { ...s.sourceCache, [path]: content } })),
+
+  // atlas — a click anywhere lands here; the scope follows the ref kind.
+  // Clicking the already-selected thing again zooms back out one level
+  // (toggle), so drill-down never becomes a trap.
+  setAtlasSelection: (ref) =>
+    set((s) => {
+      if (!ref) return { atlasSelection: ATLAS_RESET };
+      if (s.atlasSelection.primary?.kind === ref.kind && s.atlasSelection.primary?.id === ref.id) {
+        return { atlasSelection: ATLAS_RESET }; // second click = release
+      }
+      return { atlasSelection: { primary: ref, scope: scopeForRef(ref) } };
+    }),
+  drillUp: () =>
+    set((s) => {
+      const p = s.atlasSelection.primary;
+      if (!p) return {};
+      if (p.kind === "symbol") {
+        const file = p.loc?.file;
+        return file
+          ? { atlasSelection: { primary: { kind: "module", id: file, label: file.split("/").pop() ?? file, loc: { file } }, scope: "module" } }
+          : { atlasSelection: ATLAS_RESET };
+      }
+      if (p.kind === "module" || p.kind === "store") {
+        const i = p.id.indexOf("/");
+        return i > 0
+          ? { atlasSelection: { primary: { kind: "container", id: p.id.slice(0, i), label: p.id.slice(0, i) }, scope: "container" } }
+          : { atlasSelection: ATLAS_RESET };
+      }
+      return { atlasSelection: ATLAS_RESET };
+    }),
+  resetAtlas: () => set({ atlasSelection: ATLAS_RESET }),
+  setAtlasView: (v) => set({ atlasView: v }),
+  setAtlasFactsOnly: (b) => set({ atlasFactsOnly: b }),
 
   // mastery: keyed by the loaded project (label); load reads localStorage.
   // Switching projects drops the old state from memory so every component

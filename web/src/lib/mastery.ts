@@ -125,7 +125,7 @@ export function saveMasteryState(m: MasteryState) {
 
 type Sym = CieReport["symbols"][number];
 
-interface CallGraph {
+export interface CallGraph {
   byId: Map<number, Sym>;
   sumBySym: Map<number, CieReport["summaries"][number]>;
   /** callee id → number of distinct callers the report recorded */
@@ -134,7 +134,9 @@ interface CallGraph {
   calleesOf: Map<number, number[]>;
 }
 
-function buildCallGraph(report: CieReport): CallGraph {
+/** Exported for the atlas dashboard (lib/atlas.ts) — same graph, one builder,
+ *  never a second implementation drifting away from this one. */
+export function buildCallGraph(report: CieReport): CallGraph {
   const byId = new Map<number, Sym>(report.symbols.map((s) => [Number(s.id), s]));
   const sumBySym = new Map<number, CieReport["summaries"][number]>(report.summaries.map((s) => [Number(s.sym), s]));
   const fanIn = new Map<number, number>();
@@ -156,7 +158,8 @@ function buildCallGraph(report: CieReport): CallGraph {
   return { byId, sumBySym, fanIn, calleesOf };
 }
 
-const fileOf = (report: CieReport, s: Sym | undefined): string => (s ? report.files[s.loc.file] ?? "" : "");
+/** Exported for the atlas dashboard (lib/atlas.ts). */
+export const fileOf = (report: CieReport, s: Sym | undefined): string => (s ? report.files[s.loc.file] ?? "" : "");
 
 // ============================================================
 // Entry points
