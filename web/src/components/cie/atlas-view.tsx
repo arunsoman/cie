@@ -256,9 +256,8 @@ export function AtlasView() {
         ) : shownSpec ? (
           <Card className="border-stone-200 shadow-sm w-full">
             <CardContent className="p-4 sm:p-5">
-              <h2 className="text-sm font-semibold text-stone-800">{shownSpec.title}</h2>
-              {shownSpec.tell && <p className="text-xs text-stone-500 mt-0.5">{shownSpec.tell}</p>}
-              <div className="mt-3">
+              {/* ChatChart prints the spec's own title + tell — no duplicate header here */}
+              <div>
                 <ChatChart spec={shownSpec} onSelectElement={onSelectElement} />
               </div>
             </CardContent>
