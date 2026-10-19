@@ -235,11 +235,18 @@ function cloneErrorPlain(stderr: string, timedOut: boolean): string {
   return "We couldn't reach that repo. Check the address, and note it must be a public repo.";
 }
 
-function engineErrorPlain(step: StepKey, timedOut: boolean, binMissing: boolean): string {
-  if (binMissing) return "The CIE engine isn't installed on this server yet — that's on us, not you.";
-  if (timedOut) return "This project took too long to check. Try a smaller repo for now.";
-  if (step === "read") return "CIE couldn't fully read this project. It may use a language CIE doesn't support yet.";
-  return "CIE hit a snag while preparing your results. You can try again.";
+// Engine failures in plain words. A crash here is NEVER a language claim:
+// the inventory step already named every language in the repo, and the only
+// honest "no code we can read" case (zero supported files / "no snapshot")
+// has its own branch (UNSUPPORTED_PLAIN). Every other failure — non-zero
+// exit, panic, malformed output — is on the engine, so the message says so
+// and points at the technical details instead of guessing at a cause.
+function engineErrorPlain(kind: "bin-missing" | "timeout" | "crash" | "bad-output"): string {
+  if (kind === "bin-missing") return "The CIE engine isn't installed on this server yet — that's on us, not you.";
+  if (kind === "timeout") return "This project took too long to check. Try a smaller repo for now.";
+  if (kind === "bad-output")
+    return "The CIE engine finished but produced output we couldn't understand — that's on us, not your project. Nothing needs fixing on your side; the technical details below show what went wrong.";
+  return "The CIE engine hit an unexpected error while reading this project — that's on us, not you. It isn't about the languages in your repo (the inventory step already checked those). You can try again; the technical details below show exactly what happened.";
 }
 
 const UNSUPPORTED_PLAIN =
@@ -328,7 +335,7 @@ async function runPipeline(job: AnalyzeJob) {
     // 0. Engine present?
     const bin = await resolveCieBin();
     if (!bin) {
-      markRunningStepFailed(job, engineErrorPlain("read", false, true), "cie binary not found (looked at CIE_BIN, target/debug, target/release)");
+      markRunningStepFailed(job, engineErrorPlain("bin-missing"), "cie binary not found (looked at CIE_BIN, target/debug, target/release)");
       return;
     }
 
@@ -401,7 +408,7 @@ async function runPipeline(job: AnalyzeJob) {
     const t1 = Date.now();
     const ing = await run(bin, ["ingest", repoDir], { timeoutMs: CIE_TIMEOUT_MS });
     if (ing.timedOut || ing.code !== 0) {
-      markRunningStepFailed(job, engineErrorPlain("read", ing.timedOut, false), `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`);
+      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`);
       return;
     }
     if (/files 0 \|/.test(ing.stdout)) {
@@ -413,7 +420,7 @@ async function runPipeline(job: AnalyzeJob) {
       const noSnapshot = (rep.stderr || "").includes("no snapshot");
       markRunningStepFailed(
         job,
-        noSnapshot ? UNSUPPORTED_PLAIN : engineErrorPlain("read", rep.timedOut, false),
+        noSnapshot ? UNSUPPORTED_PLAIN : engineErrorPlain(rep.timedOut ? "timeout" : "crash"),
         `cie report exit ${rep.code}: ${(rep.stderr || rep.stdout).slice(0, 400)}`
       );
       return;
@@ -422,7 +429,7 @@ async function runPipeline(job: AnalyzeJob) {
     try {
       report = JSON.parse(rep.stdout);
     } catch {
-      markRunningStepFailed(job, engineErrorPlain("read", false, false), "cie report produced unparseable JSON");
+      markRunningStepFailed(job, engineErrorPlain("bad-output"), "cie report produced unparseable JSON");
       return;
     }
     setStep(job, "read", "done", `${report.symbols.length} named things found.`, Date.now() - t1);
