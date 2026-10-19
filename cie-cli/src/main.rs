@@ -1063,9 +1063,14 @@ fn run_stories(cmd: StoriesCmd) -> i32 {
                 Some(id) => vec![cie_stories::verify::verify_story(&id)],
                 None => cie_stories::verify::verify_all(),
             };
-            let unknown = verdicts
-                .iter()
-                .any(|v| matches!(v, Verdict::Unknown { .. }));
+            // A failing deep check is a first-class FAIL verdict — automation
+            // gates on this exit code, so FAIL must exit non-zero exactly
+            // like an unknown id does (issue #8). Anything else (audit-pass,
+            // pass, planned) stays exit 0.
+            let failed = verdicts.iter().any(|v| match v {
+                Verdict::Fail { .. } | Verdict::Unknown { .. } => true,
+                _ => false,
+            });
             if json {
                 println!("{}", serde_json::to_string_pretty(&verdicts).unwrap_or_default());
             } else {
@@ -1089,7 +1094,7 @@ fn run_stories(cmd: StoriesCmd) -> i32 {
                     }
                 }
             }
-            if unknown { 1 } else { 0 }
+            if failed { 1 } else { 0 }
         }
     }
 }
