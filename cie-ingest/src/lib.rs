@@ -494,7 +494,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
     // orphaned call edges survive a tombstoned deletion.
-    let _purged = store.purge_tombstoned(&mut snapshot)?;
+    let purged = store.purge_tombstoned(&mut snapshot)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous
@@ -502,16 +502,31 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // aborted run's rev id is simply reused by the next successful ingest.
     store.commit_rev(rev)?;
 
-    let (reverse_deps, test_map, _) = rebuild_graphs(
-        &extracted.store,
-        &analysis.summaries.values().cloned().collect::<Vec<_>>(),
-    );
+    // Issue #10 companion: when the purge actually removed symbols it also
+    // RENUMBERED the id space inside `snapshot` (id == index must hold on the
+    // persisted artifact, or a reload resolves ids to the wrong record). The
+    // in-memory store and graphs must then move to the same numbering — or
+    // in-process consumers (SARIF's store.get(finding.symbol), drift impact
+    // lookups) would resolve remapped ids against the pre-purge table: the
+    // same silently-wrong lookup the purge fix just eliminated for reloads.
+    // With no purge, nothing moved and the extracted store stays authoritative.
+    let (sym_store, reverse_deps, test_map) = if purged > 0 {
+        let st = SymbolStore::build(snapshot.symbols.clone());
+        let (rd, tm, _) = rebuild_graphs(&st, &snapshot.summaries);
+        (st, rd, tm)
+    } else {
+        let (rd, tm, _) = rebuild_graphs(
+            &extracted.store,
+            &analysis.summaries.values().cloned().collect::<Vec<_>>(),
+        );
+        (extracted.store, rd, tm)
+    };
 
     Ok(IngestOutcome {
         rev,
         plan,
         snapshot,
-        store: extracted.store,
+        store: sym_store,
         project_dir: project.to_path_buf(),
         reverse_deps,
         test_map,
