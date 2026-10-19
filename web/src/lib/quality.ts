@@ -13,7 +13,7 @@
 // metric that cannot be computed renders an honest empty state.
 
 import type { CannedChart } from "./canned-charts";
-import type { CieQuality, ConceptTree } from "./cie-types";
+import type { CieQuality, CieReport, ConceptTree, VizElement } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartSpec, type ElementLoc, type TreeNode, type HeatTile } from "./chat-chart";
 
 function cut(s: string, n: number): string {
@@ -28,23 +28,109 @@ function spec(kind: ChatChartSpec["kind"], title: string, tell: string, source?:
 // Concept hierarchy (from concepts.json — the engine's own concept tree)
 // ---------------------------------------------------------------------------
 
-export function buildConceptTreeSpec(concepts: ConceptTree | null): ChatChartSpec | null {
+/**
+ * Which concept node (if any) this question is actually about — so the
+ * concept tree stops being a fixed, unscoped "universal default" and
+ * becomes an explanatory chart for THIS question, same as fileScopedChart
+ * does for quality answers. Two signals, in priority order:
+ *   1. the map bubble the user tapped (mapSelected) — matched by the file
+ *      it points to, since both viewspec elements and concept Module nodes
+ *      ultimately name a real file from report.json.
+ *   2. a symbol named in the question itself — longest name wins, so
+ *      "LeafAccountController" beats a generic word like "account".
+ * Returns null when neither signal resolves — the honest, genuinely
+ * generic case still gets the full project tree, unscoped.
+ */
+export function resolveConceptFocus(
+  concepts: ConceptTree | null,
+  report: CieReport | null,
+  question: string,
+  mapSelected?: VizElement | null
+): number | null {
+  if (!concepts?.nodes?.length) return null;
+
+  if (mapSelected?.evidence?.file) {
+    const file = mapSelected.evidence.file;
+    const hit = concepts.nodes.find(
+      (n) => n.kind === "Module" && (file.endsWith(n.label) || n.label.endsWith(file))
+    );
+    if (hit) return hit.id;
+  }
+
+  if (report?.symbols?.length) {
+    const q = question.toLowerCase();
+    let best: { id: number; len: number } | null = null;
+    for (const s of report.symbols) {
+      const name = s.name?.toLowerCase();
+      if (name && name.length > 2 && q.includes(name) && (!best || name.length > best.len)) {
+        best = { id: s.id, len: name.length };
+      }
+    }
+    if (best) {
+      // The project's own Domain root lists EVERY symbol, so the first match
+      // is never the right answer — pick the node with the SMALLEST symbol
+      // set that still contains it (the most specific one, e.g. the Module
+      // or UseCase the symbol actually lives in, not the whole project).
+      let node: ConceptTree["nodes"][number] | null = null;
+      for (const n of concepts.nodes) {
+        if (!n.symbols?.includes(best.id)) continue;
+        if (!node || n.symbols.length < node.symbols.length) node = n;
+      }
+      if (node) return node.id;
+    }
+  }
+
+  return null;
+}
+
+export function buildConceptTreeSpec(concepts: ConceptTree | null, focusId?: number | null): ChatChartSpec | null {
   if (!concepts?.nodes?.length) return null;
   const kinds = new Set(concepts.nodes.map((n) => n.kind));
   if (!kinds.has("Domain")) return null; // no hierarchy to draw — honest empty
 
-  const tree: TreeNode[] = concepts.nodes
-    .slice(0, 40)
-    .map((n) => ({
-      id: `c${n.id}`,
-      label: cut(n.label, 30),
-      kind: n.kind,
-      parent: n.parent === null || n.parent === undefined ? null : `c${n.parent}`,
-      note: n.behaviors?.length
-        ? `${n.behaviors.length} ${n.behaviors.length === 1 ? "behaviour" : "behaviours"}`
-        : undefined,
-      certainty: undefined,
-    }));
+  const byId = new Map(concepts.nodes.map((n) => [n.id, n]));
+  let slice = concepts.nodes;
+  let focusLabel: string | null = null;
+
+  if (focusId != null && byId.has(focusId)) {
+    // Keep only the focus node's ancestor chain (its context, up to the
+    // project root) plus its own immediate children — never the whole tree.
+    const keep = new Set<number>();
+    let cur = byId.get(focusId);
+    while (cur) {
+      keep.add(cur.id);
+      cur = cur.parent != null ? byId.get(cur.parent) : undefined;
+    }
+    for (const childId of byId.get(focusId)!.children ?? []) keep.add(childId);
+    slice = concepts.nodes.filter((n) => keep.has(n.id));
+    focusLabel = cut(byId.get(focusId)!.label, 30);
+  } else {
+    slice = concepts.nodes.slice(0, 40);
+  }
+
+  const tree: TreeNode[] = slice.map((n) => ({
+    id: `c${n.id}`,
+    label: cut(n.label, 30),
+    kind: n.kind,
+    parent: n.parent === null || n.parent === undefined ? null : `c${n.parent}`,
+    note: n.behaviors?.length
+      ? `${n.behaviors.length} ${n.behaviors.length === 1 ? "behaviour" : "behaviours"}`
+      : undefined,
+    certainty: undefined,
+    highlight: n.id === focusId,
+  }));
+
+  if (focusLabel) {
+    return {
+      ...spec(
+        "tree",
+        `Where ${focusLabel} sits`,
+        `Centred on ${focusLabel} — its place in the project, from the big idea down. Tap any node to ask about it.`
+      ),
+      tree,
+      source: "concepts.json (the engine's concept tree)",
+    };
+  }
 
   const roots = tree.filter((t) => t.parent === null).length;
   return {
@@ -837,7 +923,13 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
  * Ranked keyword match, then an honest fallback order. Never invents: every
  * spec comes from the same builders the menu uses, or renders an honest empty.
  */
-export function buildCompanionChart(question: string, quality: CieQuality | null, concepts: ConceptTree | null): ChatChartSpec | null {
+export function buildCompanionChart(
+  question: string,
+  quality: CieQuality | null,
+  concepts: ConceptTree | null,
+  report?: CieReport | null,
+  mapSelected?: VizElement | null
+): ChatChartSpec | null {
   const n = question.toLowerCase();
   const wants = (w: string[]) => w.some((k) => n.includes(k));
   if (quality) {
@@ -884,8 +976,11 @@ export function buildCompanionChart(question: string, quality: CieQuality | null
     }
   }
   // universal default: what the project is made of — the picture that gives
-  // any answer its context. Falls through the real exports in order.
-  const tree = buildConceptTreeSpec(concepts);
+  // any answer its context. Centred on whatever the question is actually
+  // about (resolveConceptFocus), never the blind whole-project tree, when
+  // that can be resolved. Falls through the real exports in order.
+  const focusId = resolveConceptFocus(concepts, report ?? null, question, mapSelected ?? null);
+  const tree = buildConceptTreeSpec(concepts, focusId);
   if (tree) return tree;
   if (quality) {
     return (

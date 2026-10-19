@@ -70,6 +70,9 @@ export interface TreeNode {
   parent: string | null;
   note?: string; // one plain-words line, e.g. behaviour count
   certainty?: "Fact" | "Inference" | "Hypothesis";
+  // True on the node the current question was about — drawn with a dark
+  // outline (never colour alone), same rule as HeatTile/ChatChartDataPoint.
+  highlight?: boolean;
 }
 
 // One tile of a heatmap (kind "heatmap") — e.g. per-file test coverage.

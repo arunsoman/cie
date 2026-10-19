@@ -21,8 +21,7 @@ import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
-import { tryAnswerQuality, buildCompanionChart } from "@/lib/quality";
-import { ChatChart } from "@/components/cie/chat-chart";
+import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus } from "@/lib/quality";
 import { providerLabel } from "@/lib/llm-config";
 
 const STARTERS = [
@@ -114,12 +113,30 @@ export function ChatPanel() {
     pushChat({ role: "user", content: question });
     if (inputRef.current) inputRef.current.value = "";
 
+    // Core behaviour: every answer carries a chart, and the chart shows up
+    // on the canvas right away — never a click needed to see it. "respond"
+    // is the one place that pushes an assistant turn, so this cannot be
+    // forgotten by any of the answer paths below.
+    const respond = (msg: {
+      content: string;
+      chart?: ChatChartSpec;
+      instant?: boolean;
+      error?: boolean;
+      technical?: string;
+      providerIssue?: boolean;
+    }) => {
+      pushChat({ role: "assistant", ...msg });
+      if (msg.chart) openChartOnCanvas(msg.chart);
+    };
+
     // De-facto companion chart: EVERY answer carries a chart drawn from the
     // loaded exports. If the answerer found none, the companion picker picks
     // the most relevant real chart for the question (never invented — see
-    // buildCompanionChart). Error bubbles stay chart-less on purpose.
+    // buildCompanionChart), centred on whatever the question is actually
+    // about (the tapped map bubble, or a symbol named in the question)
+    // rather than a fixed, unscoped default. Error bubbles stay chart-less.
     const withChart = (c: ChatChartSpec | null | undefined) =>
-      c ?? buildCompanionChart(question, quality, concepts) ?? undefined;
+      c ?? buildCompanionChart(question, quality, concepts, report, mapSelected) ?? undefined;
 
     // ---- fast path 1: story questions are answered locally from the
     // collected stories.json — instant, honest, nothing invented. Runs
@@ -127,12 +144,7 @@ export function ChatPanel() {
     // its own story instead of the project map. ----
     const storyAns = tryAnswerStory(question, stories);
     if (storyAns) {
-      pushChat({
-        role: "assistant",
-        content: storyAns.answer,
-        chart: withChart(storyAns.chart),
-        instant: true,
-      });
+      respond({ content: storyAns.answer, chart: withChart(storyAns.chart), instant: true });
       return;
     }
 
@@ -142,12 +154,7 @@ export function ChatPanel() {
     // Instant, nothing invented; unmatched questions fall through. ----
     const qualityAns = tryAnswerQuality(question, quality, concepts);
     if (qualityAns) {
-      pushChat({
-        role: "assistant",
-        content: qualityAns.answer,
-        chart: withChart(qualityAns.chart),
-        instant: true,
-      });
+      respond({ content: qualityAns.answer, chart: withChart(qualityAns.chart), instant: true });
       return;
     }
 
@@ -155,12 +162,7 @@ export function ChatPanel() {
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
     const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {
-      pushChat({
-        role: "assistant",
-        content: local.answer,
-        chart: withChart(local.chart),
-        instant: true,
-      });
+      respond({ content: local.answer, chart: withChart(local.chart), instant: true });
       return;
     }
 
@@ -208,9 +210,10 @@ export function ChatPanel() {
         // filled from the loaded store, so nothing can be invented.
         let chart = parsed.chart;
         if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length && !chart.tree?.length && !chart.tiles?.length) {
-          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality) ?? chart;
+          const focusId = resolveConceptFocus(concepts, report, question, mapSelected);
+          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality, focusId) ?? chart;
         }
-        pushChat({ role: "assistant", content: parsed.answer, chart: withChart(chart) });
+        respond({ content: parsed.answer, chart: withChart(chart) });
       }
     } catch {
       pushChat({
@@ -312,22 +315,17 @@ export function ChatPanel() {
                   <Settings2 className="h-3.5 w-3.5" /> Check the connection settings
                 </Button>
               )}
+              {/* The chart itself lives only on the canvas (opened automatically
+                  the moment this answer arrives) — no duplicate rendered here
+                  and no click needed to see it. */}
               {m.chart && (
-                <>
-                  {/* a small preview stays with the answer; the canvas carries the big one */}
-                  <div className="mt-2 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2">
-                    <ChatChart spec={m.chart} />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 h-8 border-emerald-200 text-emerald-800 hover:bg-emerald-50"
-                    onClick={() => openChartOnCanvas(m.chart!)}
-                  >
-                    <Maximize2 className="h-3.5 w-3.5" /> Show this chart big on the canvas
-                  </Button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => openChartOnCanvas(m.chart!)}
+                  className="mt-2 flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-900 hover:underline"
+                >
+                  <Maximize2 className="h-3 w-3" /> {m.chart.title ?? "Chart"} — on the canvas
+                </button>
               )}
             </div>
           </div>

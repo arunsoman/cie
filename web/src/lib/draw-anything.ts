@@ -579,7 +579,8 @@ export function fillDiagram(
   concepts: ConceptTree | null,
   title?: string,
   tell?: string,
-  quality?: CieQuality | null
+  quality?: CieQuality | null,
+  focusId?: number | null
 ): ChatChartSpec | null {
   if (kind === "uml") {
     const built = buildUmlSpec(report, viewspec, concepts);
@@ -600,7 +601,7 @@ export function fillDiagram(
   // trees and heatmaps are filled from the collected exports too — the model
   // only picks the kind; the nodes/tiles come from concepts.json/quality.json
   if (kind === "tree") {
-    const built = buildConceptTreeSpec(concepts);
+    const built = buildConceptTreeSpec(concepts, focusId);
     if (built) {
       if (title) built.title = title;
       if (tell) built.tell = tell;

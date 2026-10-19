@@ -825,8 +825,8 @@ function TreeSVG({ spec }: { spec: ChatChartSpec }) {
                   height={BOX_H}
                   rx={7}
                   fill={st.fill}
-                  stroke={st.stroke}
-                  strokeWidth={1.2}
+                  stroke={n.highlight ? "#1c1917" : st.stroke}
+                  strokeWidth={n.highlight ? 2.5 : 1.2}
                 />
                 <text x={24 + d * COL_W + 10} y={ny - 6} fontSize={9} fill={st.text} fontWeight={700}>
                   {(KIND_PLAIN[n.kind] ?? n.kind).toUpperCase()}
@@ -842,6 +842,7 @@ function TreeSVG({ spec }: { spec: ChatChartSpec }) {
       </div>
       <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
         <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} · scroll sideways if the tree is wider than this box
+        {nodes.some((n) => n.highlight) ? " · dark outline = what you asked about" : ""}
       </p>
     </div>
   );
