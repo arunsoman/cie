@@ -387,6 +387,408 @@ function specOf(kind: ChatChartSpec["kind"], title: string, tell?: string): Chat
 }
 
 // ---------------------------------------------------------------------------
+// Flow view — the flow chart that keeps adapting to the selection's level.
+//
+//   system    → containers as a flow (who hands work to whom)
+//   container → the components of that container, entry components on top
+//   module    → inside one component: its functions, entry → effects
+//   symbol    → that one function, step by step (reads → calls → effects → end)
+//
+// The engine records no line-by-line CFG, so the flow is built ONLY from
+// what it does record — the shared call graph (who calls whom, in recorded
+// order) and each symbol's behaviour summary (reads, writes, effects,
+// exceptions, loops, failure paths). Every box traces back to a record, and
+// the tell says plainly that the order is the recorded order, never a traced
+// execution. Same one call-graph builder as everywhere else — never a
+// second implementation to drift.
+// ---------------------------------------------------------------------------
+
+export type FlowLevel = "system" | "container" | "module" | "symbol";
+
+export interface FlowBuild {
+  level: FlowLevel;
+  /** one-line description of what this level draws — the panel badge */
+  label: string;
+  spec: ChatChartSpec | null;
+}
+
+const MAX_FLOW_NODES = 15;
+const MAX_FLOW_STEPS = 6;
+
+const FLOW_HONESTY =
+  "Built from the engine's records: arrows are recorded calls, boxes carry each step's recorded reads, writes and effects. The order is the order they were recorded — not a traced run. Click any box to re-level this flow.";
+
+export function buildFlowSpec(report: CieReport, sel: AtlasSelection): FlowBuild {
+  const ref = sel.primary;
+  if (ref?.kind === "symbol") return flowOfFunction(report, ref);
+  if (ref?.kind === "module") return flowOfComponent(report, ref.id);
+  if (ref?.kind === "container") return flowOfContainer(report, ref.id);
+  return flowOfSystem(report, ref);
+}
+
+/** level 0 — the whole system: containers as a flow. Also the honest fallback
+ *  for selections that have no call flow of their own (a store, an edge). */
+function flowOfSystem(report: CieReport, ref: AtlasRef | null): FlowBuild {
+  const note =
+    ref?.kind === "store"
+      ? "A store has no call flow of its own — the system-level flow is shown. Click a component or a function to zoom in."
+      : ref?.kind === "external" || ref?.kind === "edge"
+        ? "That element has no call flow of its own — the system-level flow is shown."
+        : null;
+  const g = graphOf(report);
+  const symCount = new Map<string, number>();
+  const fileCount = new Map<string, number>();
+  for (const s of report.symbols) {
+    const f = fileOf(report, s);
+    if (!f) continue;
+    const c = containerOfPath(f);
+    symCount.set(c, (symCount.get(c) ?? 0) + 1);
+    fileCount.set(c, (fileCount.get(c) ?? 0) + 1);
+  }
+  const ordered = [...symCount.keys()].sort((a, b) => (symCount.get(b) ?? 0) - (symCount.get(a) ?? 0) || a.localeCompare(b));
+  if (!ordered.length) return { level: "system", label: "nothing indexed to flow", spec: null };
+  const shown = ordered.slice(0, MAX_FLOW_NODES);
+  const rest = ordered.length - shown.length;
+  const nodes: UmlNode[] = shown.map((c) => ({
+    id: c,
+    title: c,
+    kind: "module",
+    lines: [`${fileCount.get(c) ?? 0} file(s) · ${symCount.get(c) ?? 0} named thing(s)`],
+    certainty: "Fact" as const,
+  }));
+  if (rest > 0) nodes.push({ id: "…more-containers", title: `…and ${rest} more group(s)`, kind: "module", lines: ["grouped out of this picture, not hidden"], certainty: "Inference" });
+  const shownSet = new Set(shown);
+  const seenEdge = new Set<string>();
+  const hasIncoming = new Set<string>();
+  const links: UmlLink[] = [];
+  for (const s of report.symbols) {
+    const fromFile = fileOf(report, s);
+    if (!fromFile) continue;
+    const from = containerOfPath(fromFile);
+    if (!shownSet.has(from)) continue;
+    for (const callee of g.calleesOf.get(Number(s.id)) ?? []) {
+      const toFile = fileOf(report, g.byId.get(callee));
+      if (!toFile) continue;
+      const to = containerOfPath(toFile);
+      if (to === from || !shownSet.has(to)) continue;
+      const key = `${from}->${to}`;
+      if (seenEdge.has(key)) continue;
+      seenEdge.add(key);
+      hasIncoming.add(to);
+      links.push({ from, to, label: "calls into", certainty: "Fact" });
+    }
+  }
+  for (const n of nodes) {
+    if (n.id.startsWith("…")) continue;
+    if (!hasIncoming.has(n.id)) n.lines = [...(n.lines ?? []), "entry — nothing in the index calls into this"];
+  }
+  const spec = specOf("flow", "Flow — how the top-level groups hand work to each other", note ? `${note} ${FLOW_HONESTY}` : FLOW_HONESTY);
+  spec.nodes = nodes;
+  spec.links = links;
+  spec.source = "report.json — the file table and recorded calls, grouped by the repo's own folders";
+  return { level: "system", label: "the system, container by container", spec };
+}
+
+/** level 1 — one container: its components (files) as a flow, entry
+ *  components on top, recorded calls as arrows. */
+function flowOfContainer(report: CieReport, container: string): FlowBuild {
+  const g = graphOf(report);
+  const inContainer = (f: string): boolean => containerOfPath(f) === container;
+  const files = report.files.filter((f) => report.symbols.some((s) => fileOf(report, s) === f) && inContainer(f));
+  if (!files.length) return { level: "container", label: container, spec: null };
+  const shown = files.slice(0, MAX_FLOW_NODES);
+  const rest = files.length - shown.length;
+  const shownSet = new Set(shown);
+  const symCount = new Map<string, number>();
+  for (const s of report.symbols) {
+    const f = fileOf(report, s);
+    if (f && shownSet.has(f)) symCount.set(f, (symCount.get(f) ?? 0) + 1);
+  }
+  const nodes: UmlNode[] = shown.map((f) => ({
+    id: f,
+    title: f.split("/").pop() ?? f,
+    kind: "module",
+    lines: [`${symCount.get(f) ?? 0} named thing(s)`, f],
+    certainty: "Fact" as const,
+    loc: { file: f },
+  }));
+  if (rest > 0) nodes.push({ id: "…more-modules", title: `…and ${rest} more component(s)`, kind: "module", lines: ["grouped out of this picture, not hidden"], certainty: "Inference" });
+  const seenEdge = new Set<string>();
+  const hasIncoming = new Set<string>();
+  const links: UmlLink[] = [];
+  for (const s of report.symbols) {
+    const from = fileOf(report, s);
+    if (!from || !shownSet.has(from)) continue;
+    for (const callee of g.calleesOf.get(Number(s.id)) ?? []) {
+      const to = fileOf(report, g.byId.get(callee));
+      if (!to || to === from || !shownSet.has(to)) continue;
+      const key = `${from}->${to}`;
+      if (seenEdge.has(key)) continue;
+      seenEdge.add(key);
+      hasIncoming.add(to);
+      links.push({ from, to, label: "calls into", certainty: "Fact" });
+    }
+  }
+  for (const n of nodes) {
+    if (n.id.startsWith("…")) continue;
+    if (!hasIncoming.has(n.id)) n.lines = [...(n.lines ?? []), "entry — reached from outside this flow"];
+  }
+  const spec = specOf("flow", `Flow inside ${container} — component by component`, FLOW_HONESTY);
+  spec.nodes = nodes;
+  spec.links = links;
+  spec.source = "report.json — recorded calls between this container's own files";
+  return { level: "container", label: `components of ${container}`, spec };
+}
+
+/** level 2 — one component (a file): its functions as a flow. Entries on top,
+ *  recorded internal calls as arrows; what flows in from and out to other
+ *  components is drawn as its own boxes so the boundary stays visible. */
+function flowOfComponent(report: CieReport, file: string): FlowBuild {
+  const g = graphOf(report);
+  const syms = symbolsOfModule(report, file);
+  if (!syms.length) return { level: "module", label: file, spec: null };
+  const shown = syms.slice(0, MAX_FLOW_NODES);
+  const rest = syms.length - shown.length;
+  const shownIds = new Set(shown.map((s) => Number(s.id)));
+
+  const externalCallers = new Map<string, string[]>(); // this file's fn qual → caller quals elsewhere
+  const externalCallees = new Map<string, string[]>(); // this file's fn qual → callee quals elsewhere
+  for (const s of shown) {
+    const id = Number(s.id);
+    const qual = s.qual_name || s.name;
+    for (const [from, callees] of g.calleesOf) {
+      if (shownIds.has(from)) continue;
+      if (!callees.includes(id)) continue;
+      const caller = g.byId.get(from);
+      if (!caller) continue;
+      const list = externalCallers.get(qual) ?? [];
+      list.push(caller.qual_name || caller.name);
+      externalCallers.set(qual, list);
+    }
+    for (const c of g.calleesOf.get(id) ?? []) {
+      if (shownIds.has(c)) continue;
+      const callee = g.byId.get(c);
+      if (!callee) continue;
+      const list = externalCallees.get(qual) ?? [];
+      list.push(callee.qual_name || callee.name);
+      externalCallees.set(qual, list);
+    }
+  }
+
+  const nodes: UmlNode[] = shown.map((s) => {
+    const sum = g.sumBySym.get(Number(s.id));
+    const qual = s.qual_name || s.name;
+    const lines: string[] = [];
+    if (externalCallers.has(qual)) lines.push(`called from other components`);
+    if ((g.fanIn.get(Number(s.id)) ?? 0) === 0) lines.push("entry — nothing in the index calls this");
+    if (sum?.writes?.length) lines.push(`writes ${sum.writes.slice(0, 1).join(", ")}`);
+    else if (sum?.effects?.length) lines.push(`touches: ${sum.effects.slice(0, 2).join(", ")}`);
+    if (!lines.length) lines.push("local computation");
+    return {
+      id: qual,
+      title: `${s.name}()`,
+      kind: "function",
+      lines,
+      certainty: "Fact" as const,
+      loc: { file, byteStart: s.loc.start, byteEnd: s.loc.end },
+    };
+  });
+  const inIds = new Set(nodes.map((n) => n.id));
+  if (externalCallers.size) {
+    const names = [...new Set([...externalCallers.values()].flat())].slice(0, 3);
+    nodes.unshift({
+      id: "fl-callers-elsewhere",
+      title: "called from other components",
+      kind: "module",
+      lines: names.length ? names.map((n) => `${n}()`) : ["callers the engine resolved outside this file"],
+      more: [...new Set([...externalCallers.values()].flat())].length - names.length || undefined,
+      certainty: "Fact",
+    });
+  }
+  if (rest > 0) nodes.push({ id: "…more-symbols", title: `…and ${rest} more named thing(s)`, kind: "module", lines: ["grouped out of this picture, not hidden"], certainty: "Inference" });
+  if (externalCallees.size) {
+    const names = [...new Set([...externalCallees.values()].flat())].slice(0, 3);
+    nodes.push({
+      id: "fl-out-elsewhere",
+      title: "calls into other components",
+      kind: "module",
+      lines: names.length ? names.map((n) => `${n}()`) : ["callees the engine resolved outside this file"],
+      more: [...new Set([...externalCallees.values()].flat())].length - names.length || undefined,
+      certainty: "Fact",
+    });
+  }
+
+  const links: UmlLink[] = [];
+  const seenEdge = new Set<string>();
+  for (const s of shown) {
+    const from = s.qual_name || s.name;
+    if (!inIds.has(from)) continue;
+    for (const c of g.calleesOf.get(Number(s.id)) ?? []) {
+      const callee = g.byId.get(c);
+      if (!callee || callee.loc.file !== s.loc.file) continue;
+      const to = callee.qual_name || callee.name;
+      if (!inIds.has(to) || to === from) continue;
+      const key = `${from}->${to}`;
+      if (seenEdge.has(key)) continue;
+      seenEdge.add(key);
+      links.push({ from, to, label: "calls", certainty: "Fact" });
+    }
+  }
+  for (const [qual] of externalCallers) {
+    if (inIds.has(qual)) links.push({ from: "fl-callers-elsewhere", to: qual, label: "calls", certainty: "Fact" });
+  }
+  for (const [qual] of externalCallees) {
+    if (inIds.has(qual)) links.push({ from: qual, to: "fl-out-elsewhere", label: "calls", certainty: "Fact" });
+  }
+
+  const spec = specOf("flow", `Flow inside ${file.split("/").pop() ?? file} — function by function`, FLOW_HONESTY);
+  spec.nodes = nodes;
+  spec.links = links;
+  spec.source = "report.json — this file's own symbols, their recorded calls, and who calls them from outside";
+  return { level: "module", label: `inside ${file.split("/").pop() ?? file}`, spec };
+}
+
+/** level 3 — one function, step by step: start → what it reads → each
+ *  recorded callee (in recorded order) → what it writes and touches → end,
+ *  with the failure path and loops drawn when the summary records them.
+ *  The engine does not trace executions — the tell says so, every box still
+ *  opens the exact code. */
+function flowOfFunction(report: CieReport, ref: AtlasRef): FlowBuild {
+  const sym = symbolByQualName(report, ref.id);
+  const label = sym ? `${sym.name}()` : ref.label;
+  if (!sym) return { level: "symbol", label, spec: null };
+  const g = graphOf(report);
+  const id = Number(sym.id);
+  const sum = g.sumBySym.get(id);
+  const file = fileOf(report, sym);
+  const loc: ElementLoc | undefined = file ? { file, byteStart: sym.loc.start, byteEnd: sym.loc.end } : undefined;
+  const qual = sym.qual_name || sym.name;
+
+  const nodes: UmlNode[] = [
+    { id: "fl-start", title: "start", kind: "step", lines: [`${qual}() begins`], certainty: "Fact", loc },
+  ];
+  const reads = [...new Set(sum?.reads ?? [])];
+  if (reads.length) {
+    nodes.push({
+      id: "fl-reads",
+      title: "reads",
+      kind: "step",
+      lines: reads.slice(0, 3),
+      more: reads.length - 3 || undefined,
+      certainty: "Fact",
+      loc,
+    });
+  }
+  // each recorded callee, in recorded order — the flow's main path
+  const stepIds: string[] = [];
+  const seenStep = new Set<string>();
+  for (const c of g.calleesOf.get(id) ?? []) {
+    if (stepIds.length >= MAX_FLOW_STEPS) break;
+    const callee = g.byId.get(c);
+    if (!callee) continue;
+    const cqual = callee.qual_name || callee.name;
+    if (seenStep.has(cqual)) continue;
+    seenStep.add(cqual);
+    stepIds.push(cqual);
+    const csum = g.sumBySym.get(c);
+    const cfile = fileOf(report, callee);
+    const lines: string[] = [];
+    if (cfile) lines.push(cfile);
+    if (csum?.writes?.length) lines.push(`writes ${csum.writes.slice(0, 1).join(", ")}`);
+    else if (csum?.effects?.length) lines.push(`touches: ${csum.effects.slice(0, 2).join(", ")}`);
+    if (!csum) lines.push("no records kept for this step");
+    nodes.push({
+      id: cqual,
+      title: `${callee.name}()`,
+      kind: "function",
+      lines: lines.slice(0, 3),
+      certainty: "Fact",
+      loc: cfile ? { file: cfile, byteStart: callee.loc.start, byteEnd: callee.loc.end } : undefined,
+    });
+  }
+  const truncatedSteps = Math.max(0, (g.calleesOf.get(id) ?? []).length - stepIds.length);
+  if (truncatedSteps > 0) {
+    nodes.push({ id: "fl-more-steps", title: `…and ${truncatedSteps} more call(s)`, kind: "module", lines: ["smaller — grouped out of this picture, not hidden"], certainty: "Inference" });
+  }
+  const unresolved = [...new Set(sum?.unresolved_callees ?? [])];
+  if (unresolved.length) {
+    nodes.push({
+      id: "fl-unresolved",
+      title: "names not resolved",
+      kind: "external",
+      lines: unresolved.slice(0, 3).map((n) => `${n} — the engine couldn't map it to a symbol`),
+      more: unresolved.length - 3 || undefined,
+      certainty: "Inference",
+    });
+  }
+  const writes = [...new Set(sum?.writes ?? [])];
+  const effects = [...new Set((sum?.effects ?? []).map((e) => e))].slice(0, 2);
+  if (writes.length || effects.length) {
+    nodes.push({
+      id: "fl-effects",
+      title: "writes & effects",
+      kind: "step",
+      lines: [...writes.slice(0, 2).map((w) => `writes ${w}`), ...effects],
+      certainty: "Fact",
+      loc,
+    });
+  }
+  const exceptions = [...new Set(sum?.exceptions ?? [])];
+  if (sum?.has_failure_path || exceptions.length) {
+    nodes.push({
+      id: "fl-fail",
+      title: "failure path",
+      kind: "step",
+      lines: exceptions.length ? exceptions.slice(0, 3) : ["the summary records a failure path"],
+      certainty: "Fact",
+      loc,
+    });
+  }
+  if (sum?.has_loops) {
+    nodes.push({
+      id: "fl-loop",
+      title: "loops",
+      kind: "step",
+      lines: ["the summary records a loop — the body can repeat"],
+      certainty: "Fact",
+      loc,
+    });
+  }
+  nodes.push({
+    id: "fl-end",
+    title: "end",
+    kind: "step",
+    lines: [sum ? (sum.complete ? "everything the summary records is drawn" : "summary incomplete — some behaviour stayed unrecorded") : "no behaviour summary was recorded for this symbol"],
+    certainty: sum ? (sum.complete ? "Fact" : "Inference") : "Inference",
+    loc,
+  });
+
+  // the main chain, in recorded order
+  const chain: string[] = ["fl-start"];
+  if (reads.length) chain.push("fl-reads");
+  chain.push(...stepIds);
+  if (writes.length || effects.length) chain.push("fl-effects");
+  chain.push("fl-end");
+  const links: UmlLink[] = [];
+  for (let i = 0; i < chain.length - 1; i++) links.push({ from: chain[i], to: chain[i + 1], label: "then", certainty: "Fact" });
+  if (truncatedSteps > 0 && stepIds.length) links.push({ from: stepIds[stepIds.length - 1], to: "fl-more-steps", label: "then", certainty: "Inference", dashed: true });
+  else if (truncatedSteps > 0) links.push({ from: "fl-start", to: "fl-more-steps", label: "then", certainty: "Inference", dashed: true });
+  const branchFrom = chain[chain.length - 2] ?? "fl-start";
+  if (unresolved.length) links.push({ from: branchFrom, to: "fl-unresolved", label: "also calls", certainty: "Inference", dashed: true });
+  if (sum?.has_failure_path || exceptions.length) {
+    links.push({ from: branchFrom, to: "fl-fail", label: "when it fails", certainty: "Fact", dashed: true });
+    links.push({ from: "fl-fail", to: "fl-end", label: "then", certainty: "Fact", dashed: true });
+  }
+  if (sum?.has_loops) links.push({ from: "fl-start", to: "fl-loop", label: "can repeat", certainty: "Inference", dashed: true });
+
+  const spec = specOf("flow", `${qual}() — what happens, step by step`, FLOW_HONESTY);
+  spec.nodes = nodes;
+  spec.links = links;
+  spec.source = "report.json — this symbol's behaviour summary and its recorded callees, in recorded order";
+  return { level: "symbol", label: `${qual}() step by step`, spec };
+}
+
+// ---------------------------------------------------------------------------
 // Detail rail — callers, callees, tests that reach here (PRD §9)
 // ---------------------------------------------------------------------------
 
