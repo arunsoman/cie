@@ -586,7 +586,7 @@ impl KotlinAdapter {
         if tree.root_node().has_error() {
             ctx.notes.insert("syntax errors present — extraction is partial".into());
         }
-        ctx.facts.unsupported.extend(ctx.notes.into_iter());
+        ctx.facts.unsupported.extend(ctx.notes);
         ctx.facts
             .exceptions
             .sort_by_key(|e| (e.line, e.kind_text.clone()));

@@ -209,7 +209,7 @@ fn arg_vars_of_call(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
 
 /// Last dotted segment of a name: `M.test_foo` → `test_foo`.
 fn last_segment(name: &str) -> &str {
-    name.rsplit(|c| c == '.' || c == ':')
+    name.rsplit(['.', ':'])
         .next()
         .unwrap_or(name)
 }
@@ -363,10 +363,17 @@ fn walk_lua(ctx: &mut LuaCtx, node: tree_sitter::Node) {
                     emit_anonymous_fn(ctx, *rhs, &nm);
                 }
             }
-            // The nested assignment_statement is already handled above —
-            // walking it again would double-emit its facts.
+            // The nested assignment_statement's own facts were emitted
+            // above — but its VALUES still get walked (a `require` call or
+            // any other call hides there), so imports/calls are not lost.
             for child in children_of(node) {
-                if child.kind() != "assignment_statement" {
+                if child.kind() == "assignment_statement" {
+                    for c2 in children_of(child) {
+                        if c2.kind() == "expression_list" {
+                            walk_children(ctx, c2);
+                        }
+                    }
+                } else {
                     walk_lua(ctx, child);
                 }
             }
@@ -659,7 +666,7 @@ impl LuaAdapter {
             ctx.notes
                 .insert("syntax errors present — extraction is partial".into());
         }
-        ctx.facts.unsupported.extend(ctx.notes.into_iter());
+        ctx.facts.unsupported.extend(ctx.notes);
         ctx.facts
             .exceptions
             .sort_by_key(|e| (e.line, e.kind_text.clone()));
