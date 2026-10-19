@@ -774,12 +774,14 @@ export function buildCompanionChart(question: string, quality: CieQuality | null
 /**
  * The question a chart element hands to the chat when tapped. When the
  * element carries a source location, the question names the exact file and
- * line — so the answerer (and the AI fallback) ground the reply in the very
- * code the user is looking at.
+ * line; when the caller also holds the real code (sourceCache), a small
+ * verbatim snippet rides along — so the answerer (and the AI fallback)
+ * ground the reply in the very code the user is looking at. The snippet is
+ * optional and always verbatim: no snippet is sent rather than an invented one.
  */
 export function askAboutChartElement(
   chartTitle: string | undefined,
-  el: { name: string; value?: number | string; loc?: ElementLoc }
+  el: { name: string; value?: number | string; loc?: ElementLoc; snippet?: string }
 ): string {
   const v = el.value !== undefined ? ` (value ${el.value})` : "";
   const where = el.loc?.file
@@ -787,5 +789,23 @@ export function askAboutChartElement(
       ? ` in ${el.loc.file} at line ${el.loc.line}`
       : ` in ${el.loc.file}`
     : "";
-  return `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}${where}. What does the collected data say about it, and how was it collected?`;
+  const base = `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}${where}. What does the collected data say about it, and how was it collected?`;
+  return el.snippet && el.loc?.file ? `${base}\n\nThe code at that spot (${el.loc.file}${el.loc.line != null ? `, line ${el.loc.line}` : ""}):\n${el.snippet}` : base;
+}
+
+/** A small verbatim, line-numbered window around one line — built from real
+ * content the caller already has (store sourceCache). Never guessed. */
+export function snippetAround(content: string, line: number | null | undefined, before = 3, after = 4): string | undefined {
+  if (line == null || line < 1) return undefined;
+  const lines = content.split("\n");
+  if (line > lines.length) return undefined;
+  const start = Math.max(1, line - before);
+  const end = Math.min(lines.length, line + after);
+  const width = String(end).length;
+  const out: string[] = [];
+  for (let i = start; i <= end; i++) {
+    const mark = i === line ? ">" : " ";
+    out.push(`${mark} ${String(i).padStart(width)} | ${lines[i - 1].slice(0, 120)}`);
+  }
+  return out.join("\n");
 }

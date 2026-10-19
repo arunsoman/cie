@@ -22,7 +22,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import oneLight from "react-syntax-highlighter/dist/esm/styles/prism/one-light";
 import { FileCode2, MessageCircleQuestion, ShieldCheck, X } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
-import { askAboutChartElement } from "@/lib/quality";
+import { askAboutChartElement, snippetAround } from "@/lib/quality";
 
 // extension → prism language (kept honest: anything unlisted renders plain)
 const LANG: Record<string, string> = {
@@ -171,11 +171,17 @@ export function SourcePanel() {
 
   const ask = () => {
     if (!req.elName && !req.chartTitle) return;
+    // ride the real code along when we hold it — verbatim, line-numbered,
+    // so the chat answer is grounded in exactly what is on screen
+    const cached = sourceCache[req.file];
+    const line = target ?? req.line;
+    const snippet = cached ? snippetAround(cached, line) : undefined;
     setPendingAsk(
       askAboutChartElement(req.chartTitle, {
         name: req.elName ?? req.file,
         value: req.elValue,
-        loc: { file: req.file, line: target ?? req.line },
+        loc: { file: req.file, line },
+        snippet,
       })
     );
     closeSourceViewer();

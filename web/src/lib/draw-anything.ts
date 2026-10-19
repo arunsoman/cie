@@ -17,6 +17,7 @@ import {
   layoutFor,
   type ChatChartKind,
   type ChatChartSpec,
+  type ElementLoc,
   type UmlNode,
   type UmlLink,
 } from "./chat-chart";
@@ -257,6 +258,11 @@ export function buildUmlSpec(
       kind: e.elementKind,
       certainty: (e.displayMode as UmlNode["certainty"]) ?? "Inference",
     };
+    // the engine's own evidence span — kept, not dropped: tapping the box
+    // opens the exact file (line resolved when the content is available)
+    if (e.evidence?.file) {
+      node.loc = { file: e.evidence.file, byteStart: e.evidence.start, byteEnd: e.evidence.end };
+    }
     if (e.elementKind === "module") {
       const idx = fileIdx.get(basename(e.evidence?.file ?? e.label)) ?? fileIdx.get(basename(e.label));
       const fns = idx != null ? (fnsByFile.get(idx) ?? []) : [];
@@ -353,13 +359,18 @@ export function buildFlowSpec(report: CieReport | null): ChatChartSpec | null {
   const nodes: UmlNode[] = [...involved].map((id) => {
     const s = byId.get(id)!;
     const effs = [...new Set(effectsBySym.get(id) ?? [])].slice(0, 2).map(effectPlain);
-    return {
+    const node: UmlNode = {
       id: String(id),
       title: s.qual_name,
       kind: "function",
       lines: effs.length ? effs : undefined,
       certainty: "Fact" as const,
     };
+    // byte offsets from the report — the panel resolves them to a line only
+    // when the file's content is really available (never a guessed line)
+    const file = report.files[s.loc?.file];
+    if (file) node.loc = { file, byteStart: s.loc.start, byteEnd: s.loc.end };
+    return node;
   });
 
   const s = spec("flow", "Who calls whom", "An arrow means \u201ccalls\u201d. Only calls the report recorded are drawn.");
@@ -475,6 +486,7 @@ function runtimeAnswer(
       name: cut(f.function, 22),
       value: Math.round(f.cum_ms),
       color: "amber",
+      ...(f.file ? { loc: { file: f.file, line: f.line } as ElementLoc } : {}),
     }));
     s.source = `runtime.json — ${cpu.tool}`;
     const top = cpu.top_functions[0];
@@ -610,7 +622,7 @@ export function fillDiagram(
 
 const sevOrder = ["Critical", "High", "Medium", "Low"] as const;
 
-function findingsPerFile(report: CieReport): { name: string; value: number }[] {
+function findingsPerFile(report: CieReport): { name: string; value: number; loc?: ElementLoc }[] {
   const byFile = new Map<number, number>();
   for (const f of report.findings) {
     const sym = report.symbols.find((s) => s.id === f.symbol);
@@ -622,6 +634,7 @@ function findingsPerFile(report: CieReport): { name: string; value: number }[] {
     .map(([idx, v]) => ({
       name: cut(basename(report.files[idx] ?? `File ${idx}`), 19),
       value: v,
+      ...(report.files[idx] ? { loc: { file: report.files[idx] } as ElementLoc } : {}),
     }));
 }
 
@@ -655,7 +668,7 @@ function barFor(q: string, report: CieReport): ChatChartSpec | null {
       }
     }
     if (!byFile.size) return null;
-    data = [...byFile.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([idx, v]) => ({ name: cut(basename(report.files[idx] ?? `File ${idx}`), 19), value: v, color: "emerald" }));
+    data = [...byFile.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([idx, v]) => ({ name: cut(basename(report.files[idx] ?? `File ${idx}`), 19), value: v, color: "emerald", ...(report.files[idx] ? { loc: { file: report.files[idx] } as ElementLoc } : {}) }));
     title = "Promises per file";
     tell = "How many promise-carrying named things live in each file.";
   } else {
