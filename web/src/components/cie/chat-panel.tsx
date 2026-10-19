@@ -15,14 +15,25 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, Maximize2, X, Zap } from "lucide-react";
+import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
-import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus } from "@/lib/quality";
+import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus, findSymbolInQuestion } from "@/lib/quality";
+import type { CieImpact } from "@/lib/cie-types";
 import { providerLabel } from "@/lib/llm-config";
+
+// Blast-radius / impact questions are the one chat path that calls the real
+// engine live, on demand (cie impact --symbol) — see the fast path below.
+const IMPACT_WORDS = /\b(impact|blast radius|what breaks|what('| i)s affected|minimum tests?|which tests?|test set)\b/i;
+
+function cut8(items: string[]): string {
+  if (!items.length) return "none";
+  const shown = items.slice(0, 4).join(", ");
+  return items.length > 4 ? `${shown}, +${items.length - 4} more` : shown;
+}
 
 const STARTERS = [
   "What should I fix first?",
@@ -79,15 +90,15 @@ export function ChatPanel() {
   const {
     report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
-    stories, quality, pendingAsk, setPendingAsk,
+    stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The digest is recomputed whenever the loaded project changes.
   const digest = useMemo(
-    () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality),
-    [report, viewspec, concepts, label, deps, runtime, quality]
+    () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift),
+    [report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift]
   );
 
   // Keep the newest message in view.
@@ -136,7 +147,7 @@ export function ChatPanel() {
     // about (the tapped map bubble, or a symbol named in the question)
     // rather than a fixed, unscoped default. Error bubbles stay chart-less.
     const withChart = (c: ChatChartSpec | null | undefined) =>
-      c ?? buildCompanionChart(question, quality, concepts, report, mapSelected) ?? undefined;
+      c ?? buildCompanionChart(question, quality, concepts, report, mapSelected, cochange, overlap, drift) ?? undefined;
 
     // ---- fast path 1: story questions are answered locally from the
     // collected stories.json — instant, honest, nothing invented. Runs
@@ -164,6 +175,68 @@ export function ChatPanel() {
     if (local) {
       respond({ content: local.answer, chart: withChart(local.chart), instant: true });
       return;
+    }
+
+    // ---- fast path 2b: impact / blast-radius questions call the real
+    // engine live (cie impact --symbol) — the one answer this chat can't
+    // pre-compute, since it needs a specific symbol as a target. Only
+    // possible when the project's files are still on disk (sourceRoot);
+    // a cloned URL's checkout is deleted right after ingest. ----
+    if (IMPACT_WORDS.test(question)) {
+      const target = findSymbolInQuestion(report, question);
+      if (target) {
+        if (!sourceRoot) {
+          respond({
+            content: `Impact analysis for \`${target.qual_name}\` needs this project's files still on disk, and they aren't — it was loaded from a cloned link (deleted right after CIE read it) or uploaded files (never saved to disk). Point CIE at a local folder on this computer to ask this.`,
+            instant: true,
+          });
+          return;
+        }
+        setChatBusy(true);
+        try {
+          const res = await fetch("/api/impact", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sourceRoot, symbol: target.qual_name }),
+          });
+          const data = (await res.json().catch(() => ({}))) as Partial<CieImpact> & { error?: string; technical?: string };
+          if (!res.ok || !data.symbol) {
+            respond({ content: data.error ?? "CIE couldn't work out the impact just now. Please try again.", error: true, technical: data.technical });
+          } else {
+            const impact = data as CieImpact;
+            const rows: (string | number)[][] = [
+              ["Affected symbols", impact.affected_symbols.length, cut8(impact.affected_symbols)],
+              ["Minimum test set", impact.minimum_test_set.length, cut8(impact.minimum_test_set)],
+              ["Affected concepts", impact.affected_concepts.length, cut8(impact.affected_concepts)],
+            ];
+            const chart: ChatChartSpec = {
+              kind: "table",
+              engine: "grid",
+              layout: "scroll-rows",
+              title: `Blast radius of changing '${impact.symbol}'`,
+              tell: "A real dependency-graph walk from this symbol (cie impact), run just now on your actual project — never estimated.",
+              columns: ["What", "Count", "Which"],
+              rows,
+              source: "cie impact (on-demand, live)",
+            };
+            respond({
+              content:
+                `Changing **${impact.symbol}** touches **${impact.affected_symbols.length}** symbol(s) total` +
+                (impact.minimum_test_set.length
+                  ? `, and the minimum test set to catch a regression is **${impact.minimum_test_set.length}** test(s): ${cut8(impact.minimum_test_set)}.`
+                  : ", and CIE found no tests that cover it — a change here has no safety net.") +
+                (impact.affected_concepts.length ? ` It also reaches into: ${cut8(impact.affected_concepts)}.` : ""),
+              chart,
+              instant: true,
+            });
+          }
+        } catch {
+          respond({ content: "The connection dropped before CIE could work out the impact. Please check your internet and try again.", error: true });
+        } finally {
+          setChatBusy(false);
+        }
+        return;
+      }
     }
 
     setChatBusy(true);
@@ -315,18 +388,9 @@ export function ChatPanel() {
                   <Settings2 className="h-3.5 w-3.5" /> Check the connection settings
                 </Button>
               )}
-              {/* The chart itself lives only on the canvas (opened automatically
-                  the moment this answer arrives) — no duplicate rendered here
-                  and no click needed to see it. */}
-              {m.chart && (
-                <button
-                  type="button"
-                  onClick={() => openChartOnCanvas(m.chart!)}
-                  className="mt-2 flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-900 hover:underline"
-                >
-                  <Maximize2 className="h-3 w-3" /> {m.chart.title ?? "Chart"} — on the canvas
-                </button>
-              )}
+              {/* The chart itself lives only on the canvas — opened automatically
+                  the moment this answer arrives, nothing duplicated here and
+                  no click needed to see it, not even a link back to it. */}
             </div>
           </div>
         ))}

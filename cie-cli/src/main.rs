@@ -1,7 +1,7 @@
 //! cie — Code Intelligence Engine CLI.
 //!
-//! Commands: ingest, analyze, concepts, drift, impact, report, sample,
-//! ingest-org, viz, stories.
+//! Commands: ingest, analyze, concepts, drift, impact, overlap, report,
+//! sample, ingest-org, viz, stories, cochange, deps.
 
 use cie_drift::persist::DriftStoreExt;
 use cie_incremental::SnapshotStoreExt;
@@ -154,6 +154,19 @@ pub enum Command {
         #[arg(long)]
         symbol: String,
         /// Code change mode: list changed files (git-style) instead
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Capability-overlap matrix over the project's own concept nodes
+    /// (cie-concepts::overlap, US-106 engine close): which named parts of
+    /// the project share real symbols, so "does this already exist" is a
+    /// structural comparison, never a guess from names alone.
+    Overlap {
+        path: PathBuf,
+        /// Minimum shared symbols for a pair to be reported.
+        #[arg(long, default_value_t = 2)]
+        min_shared: u64,
         #[arg(long)]
         json: bool,
     },
@@ -757,6 +770,92 @@ fn run(cli: Cli) -> i32 {
                         println!("  affected concepts:");
                         for c in &affected_concepts {
                             println!("    - {c}");
+                        }
+                    }
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    1
+                }
+            }
+        }
+        Command::Overlap {
+            path,
+            min_shared,
+            json,
+        } => {
+            let opts = IngestOptions::default();
+            let path = path.canonicalize().unwrap_or(path);
+            match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
+                Ok(outcome) => {
+                    let names: std::collections::BTreeMap<SymbolId, String> = outcome
+                        .store
+                        .symbols
+                        .iter()
+                        .map(|s| (s.id, s.qual_name.clone()))
+                        .collect();
+                    // Every non-Domain concept node is a named, comparable
+                    // "capability" — the Domain root maps to every symbol in
+                    // the project, which would trivially "overlap" with
+                    // everything and say nothing.
+                    let mappings: std::collections::BTreeMap<
+                        String,
+                        std::collections::BTreeSet<SymbolId>,
+                    > = outcome
+                        .snapshot
+                        .concepts
+                        .nodes
+                        .iter()
+                        .filter(|n| n.kind != cie_concepts::ConceptKind::Domain && !n.symbols.is_empty())
+                        .map(|n| (n.label.clone(), n.symbols.iter().copied().collect()))
+                        .collect();
+                    let matrix = cie_concepts::overlap_matrix(&mappings, min_shared as usize);
+                    if json {
+                        let pairs: Vec<serde_json::Value> = matrix
+                            .pairs
+                            .iter()
+                            .map(|p| {
+                                let name_of =
+                                    |ids: &std::collections::BTreeSet<SymbolId>| -> Vec<String> {
+                                        ids.iter().filter_map(|i| names.get(i).cloned()).collect()
+                                    };
+                                serde_json::json!({
+                                    "a": p.a,
+                                    "b": p.b,
+                                    "shared": name_of(&p.shared),
+                                    "only_a": name_of(&p.only_a),
+                                    "only_b": name_of(&p.only_b),
+                                    "similarity": p.similarity(),
+                                })
+                            })
+                            .collect();
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&serde_json::json!({
+                                "pairs": pairs,
+                                "unmapped": matrix.unmapped,
+                                "min_shared": min_shared,
+                            }))
+                            .unwrap_or_default()
+                        );
+                    } else {
+                        println!(
+                            "capability overlap for {} — {} concept(s) compared",
+                            path.display(),
+                            mappings.len()
+                        );
+                        if matrix.pairs.is_empty() {
+                            println!("  no overlapping pairs at the given threshold");
+                        }
+                        for p in &matrix.pairs {
+                            println!(
+                                "  {:>3.0}%  {} <-> {}  ({} shared)",
+                                p.similarity() * 100.0,
+                                p.a,
+                                p.b,
+                                p.shared.len()
+                            );
                         }
                     }
                     0

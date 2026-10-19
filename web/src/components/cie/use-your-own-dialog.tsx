@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "@/lib/cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieOverlap, CieDrift } from "@/lib/cie-types";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
@@ -143,6 +143,9 @@ function ConnectRepo() {
         concepts?: ConceptTree | null;
         deps?: CieDeps | null;
         runtime?: CieRuntime | null;
+        cochange?: CieCochange | null;
+        overlap?: CieOverlap | null;
+        drift?: CieDrift | null;
         label?: string;
         scan?: RepoScan | null;
         sourceRoot?: string | null;
@@ -156,7 +159,15 @@ function ConnectRepo() {
       const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
       const deps = data.deps && data.deps.table ? data.deps : null;
       const runtime = data.runtime && data.runtime.datasets ? data.runtime : null;
-      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", data.scan ?? null, deps, runtime, null, null, data.sourceRoot ?? null);
+      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", {
+        repoScan: data.scan ?? null,
+        deps,
+        runtime,
+        cochange: data.cochange ?? null,
+        overlap: data.overlap ?? null,
+        drift: data.drift ?? null,
+        sourceRoot: data.sourceRoot ?? null,
+      });
       setJobId(null);
       setStatus(null);
       setUrl("");

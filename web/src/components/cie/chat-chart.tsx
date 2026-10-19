@@ -168,13 +168,12 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
 
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        height={H}
+        className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 w-full block"
         role="img"
         aria-label={`Bar chart, ${rows.length} rows: ${rows.map((r) => `${r.name} ${r.value}`).join(", ")}`}
         tabIndex={0}
@@ -190,7 +189,6 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
             }
           }
         }}
-        className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40"
       >
         {/* rows — order and value axis never change; only local magnification.
             Geometry transitions (90ms) smooth pointer/keyboard lens moves. */}
@@ -266,7 +264,7 @@ function ChatDonut({ spec }: { spec: ChatChartSpec }) {
   if (!total) return null;
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1">{spec.tell}</p>}
       <div className="flex items-center gap-3">
         <div className="relative h-[120px] w-[120px] shrink-0">
@@ -315,7 +313,7 @@ function ChatStat({ spec }: { spec: ChatChartSpec }) {
   if (!d) return null;
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-1">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-1 break-words">{spec.title}</p>}
       <button
         type="button"
         onClick={() => ask(spec, { name: d.name, value: d.value, loc: d.loc })}
@@ -340,7 +338,7 @@ function ChatTable({ spec }: { spec: ChatChartSpec }) {
   if (!spec.columns?.length || !spec.rows?.length) return null;
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
       <div className="max-h-56 overflow-y-auto rounded-lg border border-stone-200">
         <table className="w-full text-xs">
@@ -579,7 +577,7 @@ function DiagramSVG({ spec }: { spec: ChatChartSpec }) {
 
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-1.5 text-[10.5px] text-stone-500">
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border" style={{ background: CERT_STYLE.Fact.fill, borderColor: CERT_STYLE.Fact.stroke }} /> proven</span>
@@ -777,10 +775,16 @@ function TreeSVG({ spec }: { spec: ChatChartSpec }) {
 
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={`Concept hierarchy, ${nodes.length} nodes`}>
+        {/* No width/height attributes — like MapView's SVG, a bare viewBox +
+            CSS width lets the browser scale height to match, so the tree
+            actually grows to fill the canvas instead of capping at its
+            native pixel size (width="100%" + a fixed height attribute
+            would cap preserveAspectRatio's scale at 1, same bug the map
+            view had). */}
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" role="img" aria-label={`Concept hierarchy, ${nodes.length} nodes`}>
           {/* elbow connectors: parent right edge → child left edge */}
           {ordered.map(({ n, d, y: ny }) => {
             if (!n.parent) return null;
@@ -869,9 +873,9 @@ function Heatmap({ spec }: { spec: ChatChartSpec }) {
 
   return (
     <div className="mt-2">
-      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5">{spec.title}</p>}
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Heat map of ${tiles.length} files: ${tiles.map((t) => `${t.name} ${t.value}%`).join(", ")}`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" role="img" aria-label={`Heat map of ${tiles.length} files: ${tiles.map((t) => `${t.name} ${t.value}%`).join(", ")}`}>
         {tiles.map((t, i) => {
           const x = GAP + (i % perRow) * (TW + GAP);
           const y = GAP + Math.floor(i / perRow) * (TH + GAP);

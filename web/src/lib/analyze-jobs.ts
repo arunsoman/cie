@@ -8,14 +8,14 @@ import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime } from "./cie-types";
-import { scanRepoLanguages } from "./repo-scan";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieDrift, CieOverlap } from "./cie-types";
+import { scanRepoLanguages, findDocFiles, MAX_DOCS, MAX_DOC_BYTES } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps";
+export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "cochange" | "overlap" | "drift";
 export type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 export type JobState = "queued" | "running" | "awaiting_permission" | "done" | "failed";
 
@@ -47,6 +47,9 @@ export interface AnalyzeJob {
     concepts: ConceptTree | null;
     deps?: CieDeps | null;
     runtime?: CieRuntime | null;
+    cochange?: CieCochange | null;
+    overlap?: CieOverlap | null;
+    drift?: CieDrift | null;
     label: string;
     scan?: RepoScan | null;
     // The absolute root the source panel may read from — set ONLY for
@@ -78,6 +81,9 @@ export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "map", label: "Drawing the map", hint: "Sketching how all the parts of your code connect." },
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
   { key: "deps", label: "Listing the dependencies", hint: "Reading pom.xml, build.gradle, package.json, Cargo.toml and friends — names and versions as written." },
+  { key: "cochange", label: "Checking what changes together", hint: "Mining git history for files that tend to be edited in the same commit." },
+  { key: "overlap", label: "Checking for overlap", hint: "Comparing every part's symbols against every other part — what's shared, what's not." },
+  { key: "drift", label: "Checking docs against code", hint: "Reading your docs' own claims and verifying each one against what the code actually does." },
 ];
 
 const LOCAL_FIRST_STEP: { label: string; hint: string } = {
@@ -166,14 +172,14 @@ export function validateRepoUrl(raw: string): { ok: true; url: string; repoName:
 
 // ---------- process helper ----------
 
-interface RunResult {
+export interface RunResult {
   code: number;
   stdout: string;
   stderr: string;
   timedOut: boolean;
 }
 
-function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number }): Promise<RunResult> {
+export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number }): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -183,7 +189,7 @@ function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: numbe
     let stdout = "";
     let stderr = "";
     let timedOut = false;
-    const cap = opts.maxStdout ?? 24 * 1024 * 1024;
+    const cap = opts.maxStdout ?? 256 * 1024 * 1024;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
@@ -204,6 +210,7 @@ function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: numbe
     });
   });
 }
+
 
 // ---------- engine binary ----------
 //
@@ -244,7 +251,7 @@ function walkUpRoots(): string[] {
 
 let resolvedCieBin: string | null = null;
 
-async function resolveCieBin(): Promise<string | null> {
+export async function resolveCieBin(): Promise<string | null> {
   if (resolvedCieBin) {
     try {
       await fs.access(resolvedCieBin);
@@ -583,7 +590,94 @@ async function runPipeline(job: AnalyzeJob) {
       Date.now() - t4
     );
 
-    // 6. runtime evidence — only if the project ships its own collector
+    // 6. co-change — real git history, files that tend to change together.
+    //    A shallow URL clone (--depth 1) has almost no history to mine; that
+    //    is recorded honestly via sample_commits, never hidden or faked.
+    setStep(job, "cochange", "running", "Mining commit history…");
+    const t5 = Date.now();
+    let cochange: CieCochange | null = null;
+    const coch = await run(bin, ["cochange", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+    if (!coch.timedOut && coch.code === 0) {
+      try {
+        cochange = JSON.parse(coch.stdout) as CieCochange;
+      } catch {
+        cochange = null;
+      }
+    }
+    setStep(
+      job,
+      "cochange",
+      cochange ? "done" : "skipped",
+      cochange
+        ? cochange.sample_commits <= 1
+          ? `Only ${cochange.sample_commits} commit available here (a shallow clone, or a fresh repo) — not enough history to find real pairs.`
+          : `${cochange.sample_commits} commits mined, ${cochange.edges.length} co-change pair(s) found.`
+        : "Couldn't read git history — skipped.",
+      Date.now() - t5
+    );
+
+    // 7. capability overlap — which named parts of the project share real
+    //    symbols (cie-concepts' FCA-built concept tree, compared pairwise).
+    setStep(job, "overlap", "running", "Comparing every part against every other part…");
+    const t6 = Date.now();
+    let overlap: CieOverlap | null = null;
+    const ovl = await run(bin, ["overlap", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
+    if (!ovl.timedOut && ovl.code === 0) {
+      try {
+        overlap = JSON.parse(ovl.stdout) as CieOverlap;
+      } catch {
+        overlap = null;
+      }
+    }
+    setStep(
+      job,
+      "overlap",
+      overlap ? "done" : "skipped",
+      overlap
+        ? `${overlap.pairs.length} overlapping pair(s) found among the parts CIE could compare.`
+        : "Skipped — nothing comparable yet.",
+      Date.now() - t6
+    );
+
+    // 8. drift — real claim extraction from the project's own docs, verified
+    //    against the code (not the git-date proxy the demo page uses).
+    //    Capped doc set: a doc this large a project ships is unlikely to be
+    //    load-bearing prose, and a huge doc set would make ingest slow.
+    setStep(job, "drift", "running", "Reading your docs…");
+    const t7 = Date.now();
+    let drift: CieDrift | null = null;
+    let driftDetail = "No documentation files found — nothing to check.";
+    try {
+      const candidates = await findDocFiles(repoDir);
+      const docs: string[] = [];
+      for (const f of candidates) {
+        if (docs.length >= MAX_DOCS) break;
+        try {
+          const st = await fs.stat(f);
+          if (st.isFile() && st.size > 0 && st.size <= MAX_DOC_BYTES) docs.push(f);
+        } catch {
+          /* unreadable — skip */
+        }
+      }
+      if (docs.length) {
+        const drf = await run(bin, ["drift", ...docs, "--code", repoDir, "--format", "json"], { timeoutMs: CIE_TIMEOUT_MS });
+        if (!drf.timedOut && drf.code === 0) {
+          try {
+            drift = JSON.parse(drf.stdout) as CieDrift;
+          } catch {
+            drift = null;
+          }
+        }
+        driftDetail = drift
+          ? `${drift.docs.length} doc(s) read, ${drift.claims.length} claim(s) found and checked against the code.`
+          : "Couldn't check the docs — skipped.";
+      }
+    } catch {
+      drift = null;
+    }
+    setStep(job, "drift", drift ? "done" : "skipped", driftDetail, Date.now() - t7);
+
+    // 9. runtime evidence — only if the project ships its own collector
     //    output (runtime-data/runtime.json). CIE never invents runtime data.
     let runtime: CieRuntime | null = null;
     try {
@@ -602,6 +696,9 @@ async function runPipeline(job: AnalyzeJob) {
       concepts,
       deps,
       runtime,
+      cochange,
+      overlap,
+      drift,
       label: isLocal
         ? `Your project: ${job.repoName} (from this computer)`
         : `Your project: ${job.repoName} (from ${hostOf(job.url)})`,

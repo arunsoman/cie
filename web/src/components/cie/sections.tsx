@@ -315,8 +315,8 @@ export function MapViewSection() {
   if (!viewspec) return null;
 
   return (
-    <div className="p-4 sm:p-6 pb-16 max-w-[880px]">
-      <Card className="border-stone-200 shadow-sm bg-white">
+    <div className="p-4 sm:p-6 pb-16 w-full">
+      <Card className="border-stone-200 shadow-sm bg-white w-full">
         <CardContent className="p-4 sm:p-6">
           <MapView spec={viewspec} selected={sel} onSelect={setSel} />
         </CardContent>

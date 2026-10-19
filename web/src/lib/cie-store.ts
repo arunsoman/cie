@@ -12,7 +12,7 @@
 // offers as a referent).
 
 import { create } from "zustand";
-import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import type { ChatChartSpec } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
@@ -76,6 +76,9 @@ interface CieState {
   runtime: CieRuntime | null; // collected runtime evidence — null when the project has none
   stories: CieStories | null; // the 33 story demos with real data — null when the project has none
   quality: CieQuality | null; // health/quality ETL export — null when the project has none
+  cochange: CieCochange | null; // git co-change coupling (cie cochange) — null when none, or too shallow a clone to mine
+  overlap: CieOverlap | null; // capability overlap over the concept tree (cie overlap) — null when none
+  drift: CieDrift | null; // real claim-extraction + verification over the project's own docs (cie drift) — null when no docs found
   source: DataSource;
   label: string;
   loading: boolean;
@@ -104,12 +107,17 @@ interface CieState {
     viewspec: CieViewSpec | null,
     concepts: ConceptTree | null,
     label: string,
-    repoScan?: RepoScan | null,
-    deps?: CieDeps | null,
-    runtime?: CieRuntime | null,
-    stories?: CieStories | null,
-    quality?: CieQuality | null,
-    sourceRoot?: string | null
+    extra?: {
+      repoScan?: RepoScan | null;
+      deps?: CieDeps | null;
+      runtime?: CieRuntime | null;
+      stories?: CieStories | null;
+      quality?: CieQuality | null;
+      cochange?: CieCochange | null;
+      overlap?: CieOverlap | null;
+      drift?: CieDrift | null;
+      sourceRoot?: string | null;
+    }
   ) => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
@@ -137,6 +145,9 @@ export const useCie = create<CieState>((set, get) => ({
   runtime: null,
   stories: null,
   quality: null,
+  cochange: null,
+  overlap: null,
+  drift: null,
   source: null,
   label: "",
   loading: true,
@@ -160,7 +171,11 @@ export const useCie = create<CieState>((set, get) => ({
     try {
       // deps.json + runtime.json + stories.json are optional extras: a project
       // without them still loads, and those views show honest empty states.
-      const [report, viewspec, concepts, deps, runtime, stories, quality] = await Promise.all([
+      // cochange.json is deliberately not bundled: the sample lives inside
+      // this engine's own monorepo without its own .git root, so `cie
+      // cochange` there would mine the ENGINE's commit history, not the
+      // sample's — honestly null beats a misleading real-looking chart.
+      const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift] = await Promise.all([
         fetch("/data/report.json").then((r) => r.json()),
         fetch("/data/viewspec.json").then((r) => r.json()),
         fetch("/data/concepts.json").then((r) => r.json()),
@@ -168,6 +183,8 @@ export const useCie = create<CieState>((set, get) => ({
         fetch("/data/runtime.json").then((r) => r.json()).catch(() => null),
         fetch("/data/stories.json").then((r) => r.json()).catch(() => null),
         fetch("/data/quality.json").then((r) => r.json()).catch(() => null),
+        fetch("/data/overlap.json").then((r) => r.json()).catch(() => null),
+        fetch("/data/drift.json").then((r) => r.json()).catch(() => null),
       ]);
       set({
         report,
@@ -177,6 +194,9 @@ export const useCie = create<CieState>((set, get) => ({
         runtime,
         stories,
         quality,
+        cochange: null,
+        overlap,
+        drift,
         source: "demo",
         label: "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
@@ -201,15 +221,18 @@ export const useCie = create<CieState>((set, get) => ({
     }
   },
 
-  setCustom: (report, viewspec, concepts, label, repoScan, deps, runtime, stories, quality, sourceRoot) =>
+  setCustom: (report, viewspec, concepts, label, extra) =>
     set({
       report,
       viewspec,
       concepts,
-      deps: deps ?? null,
-      runtime: runtime ?? null,
-      stories: stories ?? null,
-      quality: quality ?? null,
+      deps: extra?.deps ?? null,
+      runtime: extra?.runtime ?? null,
+      stories: extra?.stories ?? null,
+      quality: extra?.quality ?? null,
+      cochange: extra?.cochange ?? null,
+      overlap: extra?.overlap ?? null,
+      drift: extra?.drift ?? null,
       source: "custom",
       label,
       loading: false,
@@ -218,11 +241,11 @@ export const useCie = create<CieState>((set, get) => ({
       chatBusy: false,
       // The scan only exists for connect-a-repo flows; switching to the
       // sample or to uploaded files honestly drops it.
-      repoScan: repoScan ?? null,
+      repoScan: extra?.repoScan ?? null,
       // Only local-folder projects keep a readable root on this machine.
       // URL clones are deleted after analysis and uploads never touched
       // disk — the source panel says so honestly for those.
-      sourceRoot: sourceRoot ?? null,
+      sourceRoot: extra?.sourceRoot ?? null,
       sourceCache: {},
       sourceViewer: null,
       // A new project starts on its own front page, not on an old chart.

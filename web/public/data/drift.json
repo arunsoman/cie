@@ -1,0 +1,623 @@
+{
+  "rev": 1,
+  "docs": [
+    "examples/bankapp/RUNTIME.md"
+  ],
+  "claims": [
+    {
+      "id": 0,
+      "doc": "examples/bankapp/RUNTIME.md",
+      "text": "test imports are listed as 0 **with that reason**, never as a fake number.",
+      "kind": "Prohibition",
+      "modality": "Must",
+      "loc": {
+        "doc": "examples/bankapp/RUNTIME.md",
+        "section": "How each capture works (plain words)",
+        "line": 53,
+        "char_start": 3285,
+        "char_end": 3359
+      },
+      "confidence": 0.9,
+      "extractor": "rule:regex-v1",
+      "created_ns": 1792405218339185088
+    },
+    {
+      "id": 1,
+      "doc": "examples/bankapp/RUNTIME.md",
+      "text": "report — and will keep the same honesty contract: tool named, command",
+      "kind": "Capability",
+      "modality": "Will",
+      "loc": {
+        "doc": "examples/bankapp/RUNTIME.md",
+        "section": "Why this matters for real projects",
+        "line": 71,
+        "char_start": 4158,
+        "char_end": 4229
+      },
+      "confidence": 0.6,
+      "extractor": "rule:regex-v1",
+      "created_ns": 1792405218339185088
+    }
+  ],
+  "mappings": [],
+  "verifications": [
+    {
+      "claim": 0,
+      "status": "Missing",
+      "checker": "verify/behavioral-v1",
+      "evidence": [
+        "complete search over 122 symbols: no candidate reached the mapping threshold"
+      ],
+      "counterexamples": [],
+      "symbols": [],
+      "reason": null,
+      "verified_ns": 1792405218340131427,
+      "compute_ns": 0
+    },
+    {
+      "claim": 1,
+      "status": "Missing",
+      "checker": "verify/behavioral-v1",
+      "evidence": [
+        "complete search over 122 symbols: no candidate reached the mapping threshold"
+      ],
+      "counterexamples": [],
+      "symbols": [],
+      "reason": null,
+      "verified_ns": 1792405218340132168,
+      "compute_ns": 0
+    }
+  ],
+  "reverse_drift": [
+    {
+      "symbol": 1,
+      "qual_name": "auth.authorize",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 2,
+      "qual_name": "auth.good_auth",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 3,
+      "qual_name": "auth.verify_password",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 4,
+      "qual_name": "auth.hash_matches",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 16,
+      "qual_name": "deadlock_probe.record",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 17,
+      "qual_name": "deadlock_probe.flush_state",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 18,
+      "qual_name": "deadlock_probe.thread_one",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 19,
+      "qual_name": "deadlock_probe.thread_two",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 21,
+      "qual_name": "payments.charge",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 22,
+      "qual_name": "payments.list_purchases",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 23,
+      "qual_name": "payments.refund",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 24,
+      "qual_name": "payments.notify_user",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 26,
+      "qual_name": "runtime_probes.cpu_work",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 27,
+      "qual_name": "runtime_probes.cpu_burn_mixed",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 28,
+      "qual_name": "runtime_probes.quick_task",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 29,
+      "qual_name": "runtime_probes.pipeline",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 31,
+      "qual_name": "runtime_probes.allocate_blocks",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 32,
+      "qual_name": "runtime_probes.churn",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 33,
+      "qual_name": "runtime_probes.racing_counter",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 34,
+      "qual_name": "runtime_probes.worker",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 37,
+      "qual_name": "scripts.collect_quality.log",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 38,
+      "qual_name": "scripts.collect_quality.sh",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 39,
+      "qual_name": "scripts.collect_quality.days_ago",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 40,
+      "qual_name": "scripts.collect_quality.git_date_args",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 41,
+      "qual_name": "scripts.collect_quality.loc_of",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 42,
+      "qual_name": "scripts.collect_quality.cyclomatic",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 43,
+      "qual_name": "scripts.collect_quality.collect_complexity",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 44,
+      "qual_name": "scripts.collect_quality.normalize",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 45,
+      "qual_name": "scripts.collect_quality.collect_duplication",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 46,
+      "qual_name": "scripts.collect_quality.collect_security",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 47,
+      "qual_name": "scripts.collect_quality.git_commit_dates",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 48,
+      "qual_name": "scripts.collect_quality.collect_churn",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 49,
+      "qual_name": "scripts.collect_quality.collect_drift",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 50,
+      "qual_name": "scripts.collect_quality.gh_api",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 51,
+      "qual_name": "scripts.collect_quality.collect_defects",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 52,
+      "qual_name": "scripts.collect_quality.run_session",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 53,
+      "qual_name": "scripts.collect_quality.collect_crash_rate",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 54,
+      "qual_name": "scripts.collect_quality.collect_repair_loop",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 55,
+      "qual_name": "scripts.collect_quality.collect_hotspots",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 56,
+      "qual_name": "scripts.collect_quality.collect_coverage_heatmap",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 57,
+      "qual_name": "scripts.collect_quality.assemble_metrics",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 60,
+      "qual_name": "scripts.collect_runtime.env_block",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 61,
+      "qual_name": "scripts.collect_runtime.write",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 62,
+      "qual_name": "scripts.collect_runtime.collect_cpu",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 63,
+      "qual_name": "scripts.collect_runtime.collect_concurrency",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 64,
+      "qual_name": "scripts.collect_runtime.collect_memory",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 65,
+      "qual_name": "scripts.collect_runtime.parse_faulthandler_stacks",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 66,
+      "qual_name": "scripts.collect_runtime.collect_deadlock",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 67,
+      "qual_name": "scripts.collect_runtime.norm",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 68,
+      "qual_name": "scripts.collect_runtime.collect_race",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 69,
+      "qual_name": "scripts.collect_runtime.collect_coverage",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 72,
+      "qual_name": "scripts.collect_stories.env_block",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 73,
+      "qual_name": "scripts.collect_stories.write_story",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 74,
+      "qual_name": "scripts.collect_stories.sha256_bytes",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 76,
+      "qual_name": "scripts.collect_stories.make_sandbox",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 77,
+      "qual_name": "scripts.collect_stories.apply_candidate",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 78,
+      "qual_name": "scripts.collect_stories.hash_name",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 79,
+      "qual_name": "scripts.collect_stories.git_history_rows",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 80,
+      "qual_name": "scripts.collect_stories.parse_elf",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 81,
+      "qual_name": "scripts.collect_stories.sh",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 82,
+      "qual_name": "scripts.collect_stories.sec_name",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 83,
+      "qual_name": "scripts.collect_stories.github_fetch",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 84,
+      "qual_name": "scripts.collect_stories.measure_replay",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 85,
+      "qual_name": "scripts.collect_stories.measure_duplicate",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 86,
+      "qual_name": "scripts.collect_stories.measure_slow_trace",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 87,
+      "qual_name": "scripts.collect_stories.measure_speed_pair",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 88,
+      "qual_name": "scripts.collect_stories.measure_sandbox_compare",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 89,
+      "qual_name": "scripts.collect_stories.measure_journeys",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 90,
+      "qual_name": "scripts.collect_stories.measure_build",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 91,
+      "qual_name": "scripts.collect_stories.measure_fix_recheck",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 92,
+      "qual_name": "scripts.collect_stories.export_patch",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 93,
+      "qual_name": "scripts.collect_stories.measure_apply",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 94,
+      "qual_name": "scripts.collect_stories.measure_consequences",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 95,
+      "qual_name": "scripts.collect_stories.record_plan_story",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 96,
+      "qual_name": "scripts.collect_stories.record_clarifications",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 97,
+      "qual_name": "scripts.collect_stories.record_brief",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 98,
+      "qual_name": "scripts.collect_stories.record_revision",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 99,
+      "qual_name": "scripts.collect_stories.record_wizard",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 100,
+      "qual_name": "scripts.collect_stories.record_draft_pr",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 101,
+      "qual_name": "scripts.collect_stories.record_approvals",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 102,
+      "qual_name": "scripts.collect_stories.record_checklist",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 103,
+      "qual_name": "scripts.collect_stories.record_editor_focus",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 104,
+      "qual_name": "scripts.collect_stories.story",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 106,
+      "qual_name": "scripts.collect_stories.tick",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 107,
+      "qual_name": "scripts.collect_stories.add",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 109,
+      "qual_name": "scripts.lib.common.log",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 110,
+      "qual_name": "scripts.lib.common.require_cmd",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 120,
+      "qual_name": "scripts.stories.candidate_transfers.can_transfer",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 121,
+      "qual_name": "scripts.stories.candidate_transfers.transfer",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 123,
+      "qual_name": "scripts.stories_probes.replay_authorize",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 124,
+      "qual_name": "scripts.stories_probes.tracer",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 125,
+      "qual_name": "scripts.stories_probes._external_call",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 126,
+      "qual_name": "scripts.stories_probes._db_query",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 127,
+      "qual_name": "scripts.stories_probes._password_check",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 128,
+      "qual_name": "scripts.stories_probes.slow_request",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 131,
+      "qual_name": "scripts.stories_probes.Ledger.charge",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 132,
+      "qual_name": "scripts.stories_probes.duplicate_delivery",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 133,
+      "qual_name": "scripts.stories_probes._locked_pipeline",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 134,
+      "qual_name": "scripts.stories_probes.task",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 135,
+      "qual_name": "scripts.stories_probes._free_pipeline",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 136,
+      "qual_name": "scripts.stories_probes.task",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 137,
+      "qual_name": "scripts.stories_probes.bench",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 138,
+      "qual_name": "scripts.stories_probes.price_variant_a",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 139,
+      "qual_name": "scripts.stories_probes.price_variant_b",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 140,
+      "qual_name": "scripts.stories_probes.sandbox_compare",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 141,
+      "qual_name": "scripts.stories_probes.can_transfer",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 142,
+      "qual_name": "scripts.stories_probes.transfer",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 143,
+      "qual_name": "scripts.stories_probes.journey",
+      "reason": "no document claim maps to this symbol"
+    },
+    {
+      "symbol": 147,
+      "qual_name": "ui.delete_account",
+      "reason": "no document claim maps to this symbol"
+    }
+  ],
+  "aggregate": {
+    "missing": 2
+  },
+  "complete": true,
+  "generated_ns": 1792405218339185088
+}

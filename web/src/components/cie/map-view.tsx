@@ -22,7 +22,10 @@ interface LaidNode {
   h: number;
 }
 
-const VB_W = 940;
+const VB_W_MIN = 940;
+const VB_W_MAX = 7200; // past this, more width stops helping legibility — let height grow instead
+const AVG_NODE_W = 170; // rough node width incl. the 14px gap, for the width estimate below
+const TARGET_ASPECT = 0.6; // aimed-for height:width of the finished canvas (landscape)
 const MARGIN = 30;
 const BAND_GAP = 64;
 const ROW_H = 66;
@@ -45,7 +48,20 @@ function truncate(s: string, n: number) {
 }
 
 export default function MapView({ spec, selected, onSelect }: Props) {
-  const { nodes, bands, vbH } = useMemo(() => {
+  const { nodes, bands, vbW, vbH } = useMemo(() => {
+    // 0. Canvas width scales with element count instead of staying fixed.
+    // A fixed 940px column was fine for a few dozen bubbles, but wrapped a
+    // large real project (thousands of elements) into a single file-cabinet
+    // of rows — tens of thousands of pixels tall and only 940 wide, a 20:1+
+    // aspect ratio no zoom level could show usefully. Solving
+    // height ≈ (N·AVG_NODE_W/vbW)·ROW_H for the width that keeps
+    // height/width ≈ TARGET_ASPECT gives vbW ≈ √(N·AVG_NODE_W·ROW_H / TARGET_ASPECT),
+    // so the map stays a landscape rectangle a "Fit" can actually fit,
+    // whatever the project's size.
+    const totalEls = spec.elements.length;
+    const estimatedW = Math.sqrt((totalEls * AVG_NODE_W * ROW_H) / TARGET_ASPECT);
+    const vbW = Math.round(Math.min(VB_W_MAX, Math.max(VB_W_MIN, estimatedW)) / 20) * 20;
+
     // 1. Group elements into bands (top → bottom)
     const bandOrder: { kinds: string[]; name: string }[] = [
       { kinds: ["domain"], name: "The big picture" },
@@ -75,7 +91,7 @@ export default function MapView({ spec, selected, onSelect }: Props) {
       let rowW = 0;
       g.els.forEach((_, i) => {
         const w = widths[i];
-        if (rowW + w + 14 > VB_W - 2 * MARGIN && rows[rows.length - 1].length) {
+        if (rowW + w + 14 > vbW - 2 * MARGIN && rows[rows.length - 1].length) {
           rows.push([]);
           rowW = 0;
         }
@@ -84,7 +100,7 @@ export default function MapView({ spec, selected, onSelect }: Props) {
       });
       rows.forEach((row) => {
         const totalW = row.reduce((s, i) => s + widths[i] + 14, 0) - 14;
-        let x = (VB_W - totalW) / 2;
+        let x = (vbW - totalW) / 2;
         row.forEach((i) => {
           laid.push({ el: g.els[i], x, y, w: widths[i], h: NODE_H });
           x += widths[i] + 14;
@@ -95,7 +111,7 @@ export default function MapView({ spec, selected, onSelect }: Props) {
       y += BAND_GAP;
     }
     const height = Math.max(y - BAND_GAP + 30, 420);
-    return { nodes: laid, bands: bandMeta, vbH: height };
+    return { nodes: laid, bands: bandMeta, vbW, vbH: height };
   }, [spec]);
 
   const byId = useMemo(() => {
@@ -137,7 +153,7 @@ export default function MapView({ spec, selected, onSelect }: Props) {
           zoom for this view, so the map can overflow and be zoomed to fit. */}
       <div className="rounded-xl border border-stone-200 bg-white">
         <svg
-          viewBox={`0 0 ${VB_W} ${vbH}`}
+          viewBox={`0 0 ${vbW} ${vbH}`}
           className="w-full min-w-[680px] block"
           role="img"
           aria-label="Map of how the code is organised"

@@ -118,8 +118,7 @@ export function Stage() {
               <ChartOnCanvas />
             ) : (
               <div className="p-10 text-center text-sm text-stone-400">
-                No chart on the canvas right now — ask CIE something, then press{" "}
-                <span className="font-medium text-stone-500">“Show this chart big on the canvas”</span>.
+                No chart on the canvas right now — ask CIE something and its chart opens here automatically.
               </div>
             )}
           </div>
@@ -186,9 +185,9 @@ function ChartOnCanvas() {
   const { canvasChart, closeCanvasChart } = useCie();
   if (!canvasChart) return null;
   return (
-    <div className="p-4 sm:p-8 w-full max-w-3xl mx-auto">
-      <Card className="border-stone-200 shadow-sm">
-        <CardContent className="p-5">
+    <div className="p-4 sm:p-6 w-full">
+      <Card className="border-stone-200 shadow-sm w-full">
+        <CardContent className="p-5 w-full">
           <ChatChart spec={canvasChart} />
         </CardContent>
       </Card>

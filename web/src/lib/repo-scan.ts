@@ -73,6 +73,30 @@ async function walk(dir: string, depth: number, acc: WalkResult, deadline: numbe
   }
 }
 
+// ---------- doc discovery (for `cie drift`) ----------
+
+const DOC_EXTS = new Set(["md", "rst", "adoc"]);
+const MAX_DOCS = 20;
+const MAX_DOC_BYTES = 256 * 1024; // a doc this big is unlikely to be read-for-claims prose
+
+/**
+ * Candidate documentation files for a real drift pass — the same walk and
+ * ignore list as the language scan, filtered to doc extensions, capped so
+ * one huge project doesn't turn a single ingest into dozens of drift runs.
+ * Shortest paths first (README.md over some deeply nested changelog) so the
+ * cap keeps the most load-bearing docs when there are more than MAX_DOCS.
+ */
+export async function findDocFiles(dir: string): Promise<string[]> {
+  const acc: WalkResult = { files: [], truncated: false };
+  await walk(dir, 0, acc, Date.now() + SCAN_BUDGET_MS);
+  return acc.files
+    .filter((f) => DOC_EXTS.has(path.extname(f).slice(1).toLowerCase()))
+    .sort((a, b) => a.split(path.sep).length - b.split(path.sep).length || a.length - b.length)
+    .slice(0, MAX_DOCS * 3); // caller still stat()s for size; keep slack before that filter
+}
+
+export { MAX_DOCS, MAX_DOC_BYTES };
+
 // ---------- manifest helpers ----------
 
 async function readTextIfExists(file: string): Promise<string | null> {

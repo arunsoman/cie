@@ -13,7 +13,7 @@
 // metric that cannot be computed renders an honest empty state.
 
 import type { CannedChart } from "./canned-charts";
-import type { CieQuality, CieReport, ConceptTree, VizElement } from "./cie-types";
+import type { CieQuality, CieReport, ConceptNode, ConceptTree, VizElement, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartSpec, type ElementLoc, type TreeNode, type HeatTile } from "./chat-chart";
 
 function cut(s: string, n: number): string {
@@ -41,6 +41,26 @@ function spec(kind: ChatChartSpec["kind"], title: string, tell: string, source?:
  * Returns null when neither signal resolves — the honest, genuinely
  * generic case still gets the full project tree, unscoped.
  */
+/**
+ * The symbol most likely named in free-form question text — longest name
+ * wins, so "LeafAccountController" beats a generic word like "account".
+ * Shared by resolveConceptFocus and the impact on-demand chat path, so
+ * "which function is this question about" is answered the same way
+ * everywhere instead of two slightly different guesses.
+ */
+export function findSymbolInQuestion(report: CieReport | null, question: string): CieReport["symbols"][number] | null {
+  if (!report?.symbols?.length) return null;
+  const q = question.toLowerCase();
+  let best: { s: CieReport["symbols"][number]; len: number } | null = null;
+  for (const s of report.symbols) {
+    const name = s.name?.toLowerCase();
+    if (name && name.length > 2 && q.includes(name) && (!best || name.length > best.len)) {
+      best = { s, len: name.length };
+    }
+  }
+  return best?.s ?? null;
+}
+
 export function resolveConceptFocus(
   concepts: ConceptTree | null,
   report: CieReport | null,
@@ -57,27 +77,18 @@ export function resolveConceptFocus(
     if (hit) return hit.id;
   }
 
-  if (report?.symbols?.length) {
-    const q = question.toLowerCase();
-    let best: { id: number; len: number } | null = null;
-    for (const s of report.symbols) {
-      const name = s.name?.toLowerCase();
-      if (name && name.length > 2 && q.includes(name) && (!best || name.length > best.len)) {
-        best = { id: s.id, len: name.length };
-      }
+  const best = findSymbolInQuestion(report, question);
+  if (best) {
+    // The project's own Domain root lists EVERY symbol, so the first match
+    // is never the right answer — pick the node with the SMALLEST symbol
+    // set that still contains it (the most specific one, e.g. the Module
+    // or UseCase the symbol actually lives in, not the whole project).
+    let node: ConceptTree["nodes"][number] | null = null;
+    for (const n of concepts.nodes) {
+      if (!n.symbols?.includes(best.id)) continue;
+      if (!node || n.symbols.length < node.symbols.length) node = n;
     }
-    if (best) {
-      // The project's own Domain root lists EVERY symbol, so the first match
-      // is never the right answer — pick the node with the SMALLEST symbol
-      // set that still contains it (the most specific one, e.g. the Module
-      // or UseCase the symbol actually lives in, not the whole project).
-      let node: ConceptTree["nodes"][number] | null = null;
-      for (const n of concepts.nodes) {
-        if (!n.symbols?.includes(best.id)) continue;
-        if (!node || n.symbols.length < node.symbols.length) node = n;
-      }
-      if (node) return node.id;
-    }
+    if (node) return node.id;
   }
 
   return null;
@@ -137,6 +148,166 @@ export function buildConceptTreeSpec(concepts: ConceptTree | null, focusId?: num
     ...spec("tree", "What the project is made of", `The idea hierarchy: ${roots} big-picture ${roots === 1 ? "idea" : "ideas"}, the files under them, and what each does. Tap any node to ask about it.`),
     tree,
     source: "concepts.json (the engine's concept tree)",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Repeated behavior (concepts.json's FCA pass — cie-analysis/src/fca.rs,
+// wired in cie-analysis/src/hierarchy.rs). Formal Concept Analysis groups
+// symbols that share the exact same behavior/effect tags into one formal
+// concept (primary_edge "FcaSubsumption"); a concept with 2+ symbols in its
+// extent is two or more DIFFERENT functions the engine independently found
+// doing the same thing. This is behavior-based, not text matching — it
+// survives renaming and crosses files/classes — and unlike quality.json's
+// duplication table (DUP-1, a demo-only Python script), it runs as part of
+// every `cie analyze`/`cie concepts` call, on any project.
+//
+// Specificity matters more than extent size: a concept whose intent is one
+// generic tag ("print") is weak evidence — plenty of unrelated functions
+// print something. Several shared tags together is the real signal, so
+// clusters rank by intent size first, and anything with only one shared
+// tag is left out of the chart entirely (still real data, just too noisy
+// to call "repeated behavior" on its own).
+// ---------------------------------------------------------------------------
+
+export interface FcaCluster {
+  node: ConceptNode;
+  symbolNames: string[];
+  loc?: ElementLoc;
+}
+
+/** FCA-derived concept nodes, ranked by how specific (not just how big) the shared behavior is. */
+export function selectFcaClusters(concepts: ConceptTree | null, report: CieReport | null, minIntent = 1): FcaCluster[] {
+  if (!concepts?.nodes?.length) return [];
+  const symName = (id: number) => report?.symbols.find((s) => s.id === id)?.qual_name;
+  const nodes = concepts.nodes
+    .filter((n) => n.primary_edge === "FcaSubsumption" && n.symbols.length >= 2 && (n.intent?.length ?? 0) >= minIntent)
+    .sort((a, b) => (b.intent?.length ?? 0) - (a.intent?.length ?? 0) || b.symbols.length - a.symbols.length);
+  return nodes.map((node) => {
+    const symbolNames = node.symbols.map(symName).filter((x): x is string => !!x);
+    const firstSym = report?.symbols.find((s) => s.id === node.symbols[0]);
+    const loc = firstSym ? ({ file: report!.files[firstSym.loc.file] } as ElementLoc) : undefined;
+    return { node, symbolNames, loc };
+  });
+}
+
+function conceptPlainLabel(label: string): string {
+  // "Concept:<attr-keys>:<pretty words>" (cie-analysis/src/fca.rs's
+  // concept_label) — the pretty, human part is everything after the 2nd colon.
+  const parts = label.split(":");
+  return parts.length > 2 ? parts.slice(2).join(":") : label;
+}
+
+export function buildRepeatedBehaviorSpec(concepts: ConceptTree | null, report: CieReport | null): ChatChartSpec | null {
+  const clusters = selectFcaClusters(concepts, report, 2).slice(0, 8);
+  if (!clusters.length) return null;
+  const data = clusters.map((c) => ({
+    name: cut(conceptPlainLabel(c.node.label), 40),
+    value: c.node.symbols.length,
+    color: (c.node.intent?.length ?? 0) >= 3 ? ("rose" as const) : ("amber" as const),
+    loc: c.loc,
+  }));
+  return {
+    ...spec(
+      "hbar",
+      "Repeated behavior CIE found",
+      "Different functions sharing the exact same behavior signature (what they read, write, call, and touch) — found by the engine's own concept analysis, not text matching, so renamed copies still show up. More shared traits is a stronger signal than a bigger count."
+    ),
+    data,
+    source: "concepts.json — formal concept analysis (fca:godin-v1)",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Co-change coupling (cochange.json — `cie cochange`, real git history)
+// ---------------------------------------------------------------------------
+
+export function buildCochangeSpec(cochange: CieCochange | null): ChatChartSpec | null {
+  if (!cochange?.edges?.length) return null;
+  const edges = cochange.edges.slice(0, 8);
+  const data = edges.map((e) => ({
+    name: cut(`${e.a.split("/").pop()} ↔ ${e.b.split("/").pop()}`, 40),
+    value: e.support,
+    color: e.cross_directory ? ("rose" as const) : ("amber" as const),
+    loc: { file: e.a } as ElementLoc,
+  }));
+  const shallow = cochange.sample_commits <= 1;
+  return {
+    ...spec(
+      "hbar",
+      "Files that change together",
+      shallow
+        ? "Only 1 commit was available to mine (a shallow clone) — not enough history for this to mean anything yet."
+        : `Real git history, ${cochange.counted_commits} commits counted (${cochange.excluded_bulk} bulk edits excluded). Rose = different top-level directories — the more surprising, more worth checking kind.`
+    ),
+    data,
+    source: "cochange.json — git log --name-status, real commit history",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Capability overlap (overlap.json — `cie overlap`, concept-tree symbol sets)
+// ---------------------------------------------------------------------------
+
+export function buildOverlapSpec(overlap: CieOverlap | null): ChatChartSpec | null {
+  if (!overlap?.pairs?.length) return null;
+  // Two-way distinctness (both sides have something the other doesn't) is
+  // the meaningful "two different-looking things might be the same
+  // capability" signal — a pure subset (only_a or only_b empty) is just one
+  // concept nested inside another by construction, not a finding.
+  const candidates = overlap.pairs.filter((p) => p.only_a.length > 0 && p.only_b.length > 0);
+  const pool = (candidates.length ? candidates : overlap.pairs).slice().sort((a, b) => b.similarity - a.similarity).slice(0, 8);
+  if (!pool.length) return null;
+  const rows = pool.map((p) => [cut(p.a, 28), cut(p.b, 28), String(p.shared.length), `${Math.round(p.similarity * 100)}%`]);
+  return {
+    ...spec(
+      "table",
+      "Where capabilities overlap",
+      "Parts of the project that share real symbols — not similar names, actual shared functions. High similarity with both sides still having their own code is the 'does this already exist' signal."
+    ),
+    columns: ["Part A", "Part B", "Shared", "Similarity"],
+    rows,
+    source: "overlap.json — capability overlap over the concept tree (cie-concepts, US-106)",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Doc-vs-code drift (drift.json — `cie drift`, real claim verification)
+// ---------------------------------------------------------------------------
+
+const DRIFT_STATUS_COLOR: Record<string, "rose" | "amber" | "emerald" | "stone"> = {
+  Implemented: "emerald",
+  Partial: "amber",
+  Drifted: "amber",
+  Missing: "rose",
+  Contradicting: "rose",
+  Undocumented: "stone",
+  Unverifiable: "stone",
+  Unknown: "stone",
+  Superseded: "stone",
+};
+
+export function buildDriftSpec(drift: CieDrift | null): ChatChartSpec | null {
+  if (!drift?.claims?.length) return null;
+  // aggregate's keys and verifications[].status use different casing in the
+  // engine's own output (e.g. "missing" vs "Missing") — normalize so the
+  // colour lookup and the label are never at the mercy of that.
+  const titleCase = (s: string) => (s.length ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s);
+  const data = Object.entries(drift.aggregate)
+    .map(([status, count]) => {
+      const name = titleCase(status);
+      return { name, value: count, color: DRIFT_STATUS_COLOR[name] ?? ("stone" as const) };
+    })
+    .sort((a, b) => b.value - a.value);
+  if (!data.length) return null;
+  return {
+    ...spec(
+      "hbar",
+      "Does the code still match the docs?",
+      `${drift.claims.length} claim(s) read from your own docs, each checked against what the code actually does. Green = implemented, amber = partial or drifted, rose = missing or contradicted.`
+    ),
+    data,
+    source: `drift.json — claim extraction + verification over ${drift.docs.length} doc(s) (cie drift)`,
   };
 }
 
@@ -785,7 +956,7 @@ function metricFacts(q: CieQuality, needle: string): QualityAnswer | null {
     (mm.id === "cyclomatic" && (n.includes("cyclomatic") || (n.includes("complex") && n.includes("control")))) ||
     (mm.id === "arrival-rate" && (n.includes("arrival") || n.includes("how fast are defects"))) ||
     (mm.id === "code-churn" && n.includes("churn")) ||
-    (mm.id === "crash-rate" && (n.includes("crash") || n.includes("hang"))) ||
+    (mm.id === "crash-rate" && (n.includes("crash") || /\bhangs?\b/.test(n))) ||
     (mm.id === "mttr" && (n.includes("mttr") || n.includes("repair") || n.includes("time to resolve")))
   );
   if (!m) return null;
@@ -882,7 +1053,7 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
       };
     }
   }
-  if (wants(["duplicate", "twice", "copy-paste", "copy paste"])) {
+  if (wants(["duplicat", "twice", "copy-paste", "copy paste", "clone", "repeat"])) {
     const dup = q.duplication;
     const rows = (dup.pairs ?? []).slice(0, 6).map((p) => `- ${p.a_file}:${p.a_line} ↔ ${p.b_file}:${p.b_line} — ${p.lines} lines (${p.preview || "same block"})`);
     return {
@@ -928,10 +1099,41 @@ export function buildCompanionChart(
   quality: CieQuality | null,
   concepts: ConceptTree | null,
   report?: CieReport | null,
-  mapSelected?: VizElement | null
+  mapSelected?: VizElement | null,
+  cochange?: CieCochange | null,
+  overlap?: CieOverlap | null,
+  drift?: CieDrift | null
 ): ChatChartSpec | null {
   const n = question.toLowerCase();
   const wants = (w: string[]) => w.some((k) => n.includes(k));
+
+  // Repeated behavior (concepts.json's FCA pass) works on ANY project, not
+  // just the bundled demo — try it first so a real project's duplication
+  // question gets a real chart instead of falling through to the universal
+  // concept-tree default. quality.json's own duplication table (demo-only)
+  // stays the fallback below, for the cases the FCA pass can't see (e.g.
+  // non-function symbols like SQL table definitions).
+  if (wants(["duplicat", "copy-paste", "copy paste", "twice", "clone", "repeat"])) {
+    const s = buildRepeatedBehaviorSpec(concepts, report ?? null);
+    if (s) return s;
+  }
+
+  // Co-change, overlap and drift are all real `cie` engine data (cochange/
+  // overlap/drift subcommands) — work the same way on any project, so they
+  // get checked before the quality.json-only (demo-only) block below.
+  if (wants(["co-change", "cochange", "change together", "changed together", "committed together", "edited together", "coupling", "coupled"])) {
+    const s = buildCochangeSpec(cochange ?? null);
+    if (s) return s;
+  }
+  if (wants(["overlap", "already exist", "already have", "reuse", "redundant", "similar capability"])) {
+    const s = buildOverlapSpec(overlap ?? null);
+    if (s) return s;
+  }
+  if (wants(["drift", "stale doc", "out of date", "outdated", "docs match", "documentation accurate", "docs accurate", "docs still"])) {
+    const s = buildDriftSpec(drift ?? null);
+    if (s) return s;
+  }
+
   if (quality) {
     const q = quality;
     if (wants(["coverage", "test", "tests"])) {
@@ -954,7 +1156,7 @@ export function buildCompanionChart(
       const data = Object.entries(q.security.by_category ?? {}).map(([k, v]) => ({ name: cut(k, 24), value: v, color: "amber" as const }));
       if (data.length) return { ...spec("hbar", "Security issues by kind", "Counts per finding kind, from the disclosed rule set."), data, source: "quality.json — security scan" };
     }
-    if (wants(["duplicate", "copy-paste", "copy paste", "twice"])) {
+    if (wants(["duplicat", "copy-paste", "copy paste", "twice", "clone", "repeat"])) {
       const s = buildDuplicationSpec(q);
       if (s) return s;
     }

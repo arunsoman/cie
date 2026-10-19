@@ -144,10 +144,14 @@ export interface ConceptNode {
   kind: string; // Domain | Module | UseCase ...
   parent: number | null;
   children: number[];
-  primary_edge: string;
+  primary_edge: string; // PackageContainment | CallOwnership | FcaSubsumption | ClusterCohesion ...
   symbols: number[];
   behaviors: ConceptBehavior[];
   rules?: ConceptRule[];
+  // Present on FcaSubsumption (primary_edge) nodes only: the shared
+  // behavior/effect tags (cie-analysis/src/hierarchy.rs's FCA pass) that
+  // put every symbol in `symbols` into this same formal concept.
+  intent?: string[];
 }
 
 export interface ConceptTree {
@@ -155,6 +159,123 @@ export interface ConceptTree {
   unattached_behaviors: ConceptBehavior[];
   unattached_rules: ConceptRule[];
   dirty: boolean;
+}
+
+// ---- cochange.json (the `cie cochange <dir> --json` export) ----
+// Historical git co-change coupling — files that tend to change together.
+// Needs real commit history: a shallow (--depth 1) clone has almost none,
+// so this is honest but thin for URL-connected projects; full for a local
+// folder read in place.
+
+export interface CochangeEdge {
+  a: string;
+  b: string;
+  support: number; // commits touching both paths
+  cross_directory: boolean;
+  supporting_commits: string[];
+}
+
+export interface CieCochange {
+  sample_commits: number;
+  counted_commits: number;
+  excluded_bulk: number;
+  rename_events: number;
+  edges: CochangeEdge[];
+  note: string;
+}
+
+// ---- impact.json (the `cie impact <dir> --symbol <name> --json` export)
+// On-demand only — this one needs a live `cie` call per symbol, so it is
+// never pre-computed at ingest time. Only available when the project's
+// files are still on disk (a local folder read in place); a cloned URL's
+// checkout is deleted right after ingest.
+
+export interface CieImpact {
+  symbol: string;
+  affected_symbols: string[];
+  minimum_test_set: string[];
+  affected_concepts: string[];
+}
+
+// ---- drift.json (the `cie drift <docs...> --code <dir> --format json`
+// export) — a real claim-extraction + verification pass over the project's
+// own docs, not the git-date proxy quality.json's demo stand-in uses.
+
+export interface DriftDocLoc {
+  doc: string;
+  section?: string;
+  line: number;
+  char_start: number;
+  char_end: number;
+}
+
+export interface DriftClaim {
+  id: number;
+  doc: string;
+  text: string;
+  kind: string; // Capability | Prohibition | Invariant | ...
+  modality: string; // Must | Will | ...
+  loc: DriftDocLoc;
+  confidence: number;
+  extractor: string;
+  created_ns: number;
+}
+
+export interface DriftClaimMapping {
+  claim: number;
+  symbols: number[];
+  confidence: number;
+  proposer: string;
+}
+
+export interface DriftVerification {
+  claim: number;
+  status: string; // Implemented | Partial | Missing | Contradicting | Drifted | Undocumented | Unverifiable | Unknown | Superseded
+  checker: string;
+  evidence: string[];
+  counterexamples: string[];
+  symbols: number[];
+  reason: string | null;
+  verified_ns: number;
+  compute_ns: number;
+}
+
+export interface DriftReverseEntry {
+  symbol: number;
+  qual_name: string;
+  reason: string;
+}
+
+export interface CieDrift {
+  rev: number;
+  docs: string[];
+  claims: DriftClaim[];
+  mappings: DriftClaimMapping[];
+  verifications: DriftVerification[];
+  reverse_drift: DriftReverseEntry[];
+  aggregate: Record<string, number>; // status -> count
+  complete: boolean;
+  generated_ns: number;
+}
+
+// ---- overlap.json (the `cie overlap <dir> --json` export) — capability
+// overlap over the project's own concept nodes (cie-concepts/src/overlap.rs,
+// US-106): which named parts of the project share real symbols, so "does
+// this already exist" is a structural comparison, not a guess from names.
+
+export interface OverlapPair {
+  a: string;
+  b: string;
+  shared: string[]; // symbol qual_names present in BOTH
+  only_a: string[];
+  only_b: string[];
+  similarity: number; // 0..1, Jaccard over the three sets above
+}
+
+export interface CieOverlap {
+  pairs: OverlapPair[];
+  unmapped: string[]; // concepts with no symbols — can't be compared
+  min_shared: number;
 }
 
 // ---- deps.json (the `cie deps <dir> --json` export, US-062) ----

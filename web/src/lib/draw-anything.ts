@@ -68,7 +68,11 @@ const CPU_WORDS = /\b(cpu|hotspot|profile|profiler|where.*(time|slow)|slowest)\b
 const MEMORY_WORDS = /\b(memory|allocation|heap|bytes|tracemalloc)\b/i;
 const RACE_WORDS = /\b(race|lost updates?|data race|atomic)\b/i;
 const DEADLOCK_WORDS = /\bdeadlocks?\b/i;
-const CONCURRENCY_WORDS = /\b(concurren|threads? (ran|run|overlap)|overlap|parallel)\b/i;
+// A bare "overlap" used to be in here too, but that word now also means
+// capability overlap (cie overlap, buildCompanionChart) — require it to
+// actually be about threads/time so a real capability-overlap question
+// doesn't get silently hijacked into the runtime-concurrency chart.
+const CONCURRENCY_WORDS = /\b(concurren|threads? (ran|run|overlap)|overlap(ping)? (thread|time|run)|parallel)\b/i;
 
 export interface DrawResult {
   answer: string;

@@ -3,8 +3,9 @@
 // and capped so the payload stays small, and every technical term is
 // translated with the same plain-words policy as the rest of the UI.
 
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieQuality } from "./cie-types";
+import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import { findingTitle, obligationTitle, effectPlain, certaintyPlain } from "./plain-words";
+import { selectFcaClusters, type FcaCluster } from "./quality";
 
 function cut(s: string, n: number): string {
   const t = String(s ?? "").replace(/\s+/g, " ").trim();
@@ -18,7 +19,10 @@ export function buildDigest(
   label: string,
   deps?: CieDeps | null,
   runtime?: CieRuntime | null,
-  quality?: CieQuality | null
+  quality?: CieQuality | null,
+  cochange?: CieCochange | null,
+  overlap?: CieOverlap | null,
+  drift?: CieDrift | null
 ): Record<string, unknown> | null {
   if (!report) return null;
 
@@ -104,6 +108,22 @@ export function buildDigest(
       })),
     };
   }
+
+  // Repeated behavior — concepts.json's FCA pass (cie-analysis/src/fca.rs):
+  // different symbols sharing the exact same behavior/effect signature,
+  // found by the engine on THIS project (not a text-matching tool, not
+  // demo-only). This is CIE's real answer to "is there duplication?" — use
+  // it instead of guessing from symbol names. Clusters with only one shared
+  // trait are left out as too generic to call "repeated behavior."
+  const repeatedBehavior: Record<string, unknown>[] = concepts
+    ? selectFcaClusters(concepts, report, 2)
+        .slice(0, 10)
+        .map((c: FcaCluster) => ({
+          shared_traits: c.node.intent ?? [],
+          found_in: c.symbolNames.slice(0, 6),
+          times: c.node.symbols.length,
+        }))
+    : [];
 
   // Effects — what the code touches in the outside world.
   const effectTally: Record<string, number> = {};
@@ -243,6 +263,66 @@ export function buildDigest(
     };
   }
 
+  // Co-change — real git history (cie cochange), works on any project with
+  // enough commits on disk. A shallow URL clone has almost none; said so
+  // honestly via sample_commits rather than hidden.
+  let cochange_facts: Record<string, unknown> | null = null;
+  if (cochange) {
+    cochange_facts = {
+      sample_commits: cochange.sample_commits,
+      counted_commits: cochange.counted_commits,
+      shallow_history: cochange.sample_commits <= 1,
+      pairs: cochange.edges.slice(0, 12).map((e) => ({
+        a: e.a,
+        b: e.b,
+        times_together: e.support,
+        cross_directory: e.cross_directory,
+      })),
+      honesty: cochange.note,
+    };
+  }
+
+  // Capability overlap — real concept-tree comparison (cie overlap). Only
+  // the genuinely two-way pairs (both sides have their own code too) are
+  // worth citing; a pure subset is just one concept nested in another.
+  let overlap_facts: Record<string, unknown> | null = null;
+  if (overlap?.pairs?.length) {
+    const two_way = overlap.pairs.filter((p) => p.only_a.length > 0 && p.only_b.length > 0);
+    overlap_facts = {
+      compared: overlap.pairs.length + overlap.unmapped.length,
+      pairs: (two_way.length ? two_way : overlap.pairs)
+        .slice()
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 10)
+        .map((p) => ({
+          a: p.a,
+          b: p.b,
+          shared_symbols: p.shared.slice(0, 6),
+          similarity_percent: Math.round(p.similarity * 100),
+        })),
+      honesty: "based on real shared symbols, not names — a high percentage with both sides still having their own code is the 'does this already exist' signal",
+    };
+  }
+
+  // Doc drift — real claim extraction + verification (cie drift), not the
+  // git-date proxy quality_facts.document_drift uses for the demo.
+  let drift_facts: Record<string, unknown> | null = null;
+  if (drift?.claims?.length) {
+    const byClaim = new Map(drift.claims.map((c) => [c.id, c]));
+    drift_facts = {
+      docs_checked: drift.docs,
+      claims_total: drift.claims.length,
+      by_status: drift.aggregate,
+      claims: drift.verifications.slice(0, 15).map((v) => ({
+        claim: cut(byClaim.get(v.claim)?.text ?? "", 160),
+        doc: byClaim.get(v.claim)?.doc,
+        status: v.status,
+        evidence: v.evidence.slice(0, 2).map((e) => cut(e, 160)),
+      })),
+      honesty: "every status is a real verification against the code's own summaries, never guessed from the doc text alone",
+    };
+  }
+
   // Certainty vocabulary, so the model uses the same words as the UI.
   const words = {
     Fact: certaintyPlain("Fact").label,
@@ -275,6 +355,12 @@ export function buildDigest(
       ...(quality_facts
         ? ["bars/stat/table/tree/heatmap of the collected quality data below — metrics, security findings, duplication, hot spots, drift, coverage heatmap, concept hierarchy — always state the source"]
         : []),
+      ...(repeatedBehavior.length
+        ? ["hbar of repeated_behavior below for 'is there duplication / repeated code' questions — this is a real finding from the engine's own analysis, on THIS project, not a demo stand-in"]
+        : []),
+      ...(cochange_facts ? ["hbar of cochange_facts below for 'what changes together / coupling' questions — real git history on THIS project"] : []),
+      ...(overlap_facts ? ["table of overlap_facts below for 'does this already exist / overlap / redundant' questions — real shared-symbol comparison on THIS project"] : []),
+      ...(drift_facts ? ["hbar of drift_facts below for 'do the docs match the code / drift' questions — real claim verification on THIS project, not the git-date proxy"] : []),
     ],
     project: {
       files: report.files?.map((f) => f.split("/").pop() ?? f) ?? [],
@@ -291,8 +377,12 @@ export function buildDigest(
     coverage_and_trust: trust,
     map,
     what_it_does: whatItDoes,
+    repeated_behavior: repeatedBehavior.length ? repeatedBehavior : null,
     ...(dependencies ? { dependencies } : {}),
     ...(runtime_evidence ? { runtime_evidence } : { runtime_evidence: null }),
     ...(quality_facts ? { quality_facts } : { quality_facts: null }),
+    cochange_facts,
+    overlap_facts,
+    drift_facts,
   };
 }

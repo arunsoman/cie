@@ -206,6 +206,35 @@ export function isDiagramKind(kind: ChatChartKind): boolean {
 }
 
 /**
+ * Models sometimes write a raw newline/tab inside a JSON string instead of
+ * the escaped \n/\t JSON requires (very common when the "answer" field is a
+ * multi-line bulleted list) — JSON.parse rejects that outright. Walk the
+ * same in-string state parseChartReply already tracks and escape any raw
+ * control character found inside a string literal, so a model's formatting
+ * slip doesn't throw away the whole parse (and the chart with it).
+ */
+function escapeRawControlCharsInStrings(body: string): string {
+  let out = "";
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (esc) { out += ch; esc = false; continue; }
+    if (ch === "\\") { out += ch; esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; out += ch; continue; }
+    if (inStr && ch.charCodeAt(0) < 0x20) {
+      if (ch === "\n") out += "\\n";
+      else if (ch === "\r") out += "\\r";
+      else if (ch === "\t") out += "\\t";
+      else out += "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
  * The model is asked to answer with a single JSON object, but models
  * sometimes wrap it in prose or code fences. Extract tolerantly: find the
  * first balanced {...} block and parse it; fall back to treating the whole
@@ -241,7 +270,17 @@ export function parseChartReply(raw: string): ParsedReply {
               return { answer: obj.answer, chart: sanitizeChart(obj.chart) };
             }
           } catch {
-            /* fall through to plain-text answer */
+            // Raw parse failed — most often an unescaped newline/tab inside
+            // a string (models write these often). Retry once, sanitized,
+            // before giving up and showing the raw JSON as plain text.
+            try {
+              const obj = JSON.parse(escapeRawControlCharsInStrings(candidate)) as Record<string, unknown>;
+              if (typeof obj.answer === "string") {
+                return { answer: obj.answer, chart: sanitizeChart(obj.chart) };
+              }
+            } catch {
+              /* fall through to plain-text answer */
+            }
           }
           break;
         }
