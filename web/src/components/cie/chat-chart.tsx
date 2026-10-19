@@ -219,13 +219,23 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
                 {r.name.length > 19 ? r.name.slice(0, 18) + "…" : r.name}
               </text>
               <rect x={barX} y={cy - h / 2} width={barMax} height={h} rx={4} fill="#f5f5f4" opacity={lensActive ? 0.5 : 1} style={{ transition: "y 90ms ease-out, height 90ms ease-out" }} />
-              <rect x={barX} y={cy - h / 2} width={w} height={h} rx={4} fill={r.color} style={{ transition: "y 90ms ease-out, height 90ms ease-out, fill 120ms" }} />
+              <rect
+                x={barX}
+                y={cy - h / 2}
+                width={w}
+                height={h}
+                rx={4}
+                fill={r.color}
+                stroke={r.highlight ? "#1c1917" : "none"}
+                strokeWidth={r.highlight ? 1.8 : 0}
+                style={{ transition: "y 90ms ease-out, height 90ms ease-out, fill 120ms" }}
+              />
               <text
                 x={barX + w + 6}
                 y={cy + 4}
                 fontSize={labelSize}
-                fill={mags[i] > 1.25 ? "#1c1917" : "#78716c"}
-                fontWeight={mags[i] > 1.25 ? 700 : 500}
+                fontWeight={r.highlight || mags[i] > 1.25 ? 700 : 500}
+                fill={r.highlight ? "#1c1917" : mags[i] > 1.25 ? "#1c1917" : "#78716c"}
                 style={{ transition: "y 90ms ease-out, fill 120ms" }}
               >
                 {r.value}
@@ -241,6 +251,7 @@ function FisheyeHBar({ spec }: { spec: ChatChartSpec }) {
       )}
       <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-0.5">
         <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT}
+        {rows.some((r) => r.highlight) && <span className="text-stone-600 font-medium"> · dark outline = the file you asked about</span>}
       </p>
     </div>
   );
@@ -866,8 +877,9 @@ function Heatmap({ spec }: { spec: ChatChartSpec }) {
           return (
             <g key={`${t.name}-${i}`} onClick={() => ask(spec, { name: t.name, value: `${t.value}%`, loc: t.loc })} className="cursor-pointer">
               <title>{`${t.name}: ${t.value}% (${t.label ?? ""}) — ${ASK_HINT}`}</title>
-              <rect x={x} y={y} width={TW} height={TH} rx={8} fill={tileColor(t.value)} stroke={tileStroke(t.value)} strokeWidth={1.2} />
-              <text x={x + 10} y={y + 20} fontSize={11} fontWeight={600} fill="#1c1917">
+              {/* highlight = the tile this question was about: dark outline, never colour alone */}
+              <rect x={x} y={y} width={TW} height={TH} rx={8} fill={tileColor(t.value)} stroke={t.highlight ? "#1c1917" : tileStroke(t.value)} strokeWidth={t.highlight ? 2.5 : 1.2} />
+              <text x={x + 10} y={y + 20} fontSize={11} fontWeight={t.highlight ? 700 : 600} fill="#1c1917">
                 {t.name.length > 18 ? t.name.slice(0, 17) + "…" : t.name}
               </text>
               <text x={x + 10} y={y + 38} fontSize={15} fontWeight={700} fill={tileStroke(t.value)}>
@@ -884,6 +896,7 @@ function Heatmap({ spec }: { spec: ChatChartSpec }) {
       </svg>
       <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
         <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} — green well covered · amber partial · rose never imported (percentages always shown)
+        {tiles.some((t) => t.highlight) && <span className="text-stone-600 font-medium"> · dark outline = the file you asked about</span>}
       </p>
     </div>
   );

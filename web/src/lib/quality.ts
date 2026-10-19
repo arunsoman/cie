@@ -472,6 +472,117 @@ export interface QualityAnswer {
   chart: ChatChartSpec | null;
 }
 
+/**
+ * The chart for a per-file answer (issue #3): scoped to that file wherever
+ * the collected data allows, otherwise the matching project-wide chart with
+ * the asked file outlined. Never again the same undifferentiated
+ * whole-project heatmap for every single-file question.
+ *
+ * Priority = how concrete the per-file evidence is:
+ *   1. security findings on the file → this file's own rows, with lines
+ *   2. the file's own functions → complexity bars scoped to the file
+ *   3. coverage → the measured heatmap with this file's tile outlined
+ *   4. hot-spot risk → the ranked bars with this file outlined (context)
+ *   5. churn → per-file churn with this file outlined (context)
+ *   6. drift-only → the file's own drift row as a one-row table
+ *   7. nothing matched well enough → null (the honest empty state)
+ */
+function fileScopedChart(
+  q: CieQuality,
+  f: {
+    file: string;
+    cc?: (typeof q.complexity.files)[number];
+    churn?: (typeof q.churn.sample.per_file)[number];
+    sec: (typeof q.security.issues)[number][];
+    cov?: (typeof q.coverage_heatmap.files)[number];
+    spot?: (typeof q.hotspots.rows)[number];
+    drift?: (typeof q.drift.code)[number];
+  }
+): ChatChartSpec | null {
+  // 1. Concrete findings on this file — the most actionable evidence.
+  if (f.sec.length) {
+    return {
+      ...spec(
+        "table",
+        `Security findings in ${f.file}`,
+        "Only this file's rows from the disclosed rule-set scan — line numbers included. Project-wide counts stay one tap away."
+      ),
+      columns: ["Line", "Finding", "CWE", "Urgency"],
+      rows: f.sec.map((it) => [String(it.line), cut(it.name, 34), it.cwe, it.severity]),
+      rowLoc: f.sec.map((it) => ({ file: f.file, line: it.line } as ElementLoc)),
+      source: "quality.json — security scan, scoped to the file you asked about",
+    };
+  }
+
+  // 2. This file's own functions, complexity worst-first — a genuinely scoped chart.
+  const fns = (q.complexity.functions ?? [])
+    .filter((fn) => fn.file === f.file)
+    .sort((a, b) => b.cc - a.cc)
+    .slice(0, 8);
+  if (fns.length) {
+    return {
+      ...spec("hbar", `Complexity inside ${cut(f.file, 26)}`, `${q.complexity.formula} — this file's own functions only, worst first.`),
+      data: fns.map((fn) => ({
+        name: cut(fn.function, 20),
+        value: fn.cc,
+        color: fn.cc >= q.complexity.totals.max_cc ? "rose" : fn.cc >= 4 ? "amber" : "stone",
+        loc: { file: fn.file, line: fn.line } as ElementLoc,
+      })),
+      source: `quality.json — ${q.complexity.tool}, scoped to the file you asked about`,
+    };
+  }
+
+  // 3. Coverage — the whole-project picture is the honest one here, but the
+  //    asked file's tile is outlined so the chart names what was asked.
+  if (f.cov) {
+    const heat = buildCoverageHeatmapSpec(q);
+    if (heat) {
+      return {
+        ...heat,
+        tiles: (heat.tiles ?? []).map((t) => (t.loc?.file === f.file ? { ...t, highlight: true } : t)),
+        tell: `${heat.tell ?? ""} The dark-outlined tile is ${f.file} — the file you asked about.`.trim(),
+      };
+    }
+  }
+
+  // 4. Hot-spot risk — ranked project context, asked file outlined.
+  if (f.spot) {
+    const hs = buildHotspotSpec(q);
+    if (hs) {
+      return {
+        ...hs,
+        data: (hs.data ?? []).map((d) => (d.loc?.file === f.file ? { ...d, highlight: true } : d)),
+        tell: `${hs.tell ?? ""} The dark-outlined bar is ${f.file}, in project context.`.trim(),
+      };
+    }
+  }
+
+  // 5. Churn — per-file ranking, asked file outlined.
+  if (f.churn) {
+    const ch = buildPerFileChurnSpec(q);
+    if (ch) {
+      return {
+        ...ch,
+        data: (ch.data ?? []).map((d) => (d.loc?.file === f.file ? { ...d, highlight: true } : d)),
+        tell: `${ch.tell ?? ""} The dark-outlined bar is ${f.file}.`.trim(),
+      };
+    }
+  }
+
+  // 6. Drift-only match — the file's own row, as a small honest table.
+  if (f.drift) {
+    return {
+      ...spec("table", `Drift for ${cut(f.file, 26)}`, "This file's own row from the drift table (git dates, as recorded)."),
+      columns: ["File", "Code last changed", "Tests last changed", "Lag (days)"],
+      rows: [[cut(f.file, 24), f.drift.last_change ?? "—", f.drift.tests_last_change ?? "no test file", f.drift.test_lag_days != null ? String(f.drift.test_lag_days) : "—"]],
+      rowLoc: [{ file: f.file } as ElementLoc],
+      source: "quality.json — drift (git dates), scoped to the file you asked about",
+    };
+  }
+
+  return null;
+}
+
 function fileFacts(q: CieQuality, name: string): QualityAnswer | null {
   // exact filename tokens first ("auth.py", "001_init.sql"), then stem match
   const tokens: string[] = name.toLowerCase().match(/[a-z0-9_\-]+\.(py|sql|md|txt|sh)/g) ?? [];
@@ -514,7 +625,9 @@ function fileFacts(q: CieQuality, name: string): QualityAnswer | null {
   lines.push(`_From quality.json — collected by the ETL collector on ${q.collected_at.slice(0, 10)}._`);
   return {
     answer: lines.join("\n\n"),
-    chart: buildCoverageHeatmapSpec(q),
+    // Chart scoped/highlighted to THIS file, matched to the evidence the
+    // answer actually cites — not a fixed project-wide heatmap (issue #3).
+    chart: fileScopedChart(q, { file: matchedFile, cc, churn, sec, cov, spot, drift }),
   };
 }
 

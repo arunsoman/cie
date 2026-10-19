@@ -33,6 +33,9 @@ export interface ChatChartDataPoint {
   value: number;
   color?: string; // rose | amber | emerald | stone (never colour alone: labels always present)
   loc?: ElementLoc; // where this bar/point lives in the source (optional, honest)
+  // True on the one bar/point a scoped question was about ("the file you
+  // asked about") — rendered as an outline, never colour alone.
+  highlight?: boolean;
 }
 
 // One box in a diagram (UML-style or call flow). Diagram geometry is NEVER
@@ -75,6 +78,9 @@ export interface HeatTile {
   value: number; // 0..100 — always shown as text too (never colour alone)
   label?: string; // extra line under the tile, e.g. "9 of 12 lines"
   loc?: ElementLoc; // the file this tile measures
+  // True on the tile the current question was about — drawn with a dark
+  // outline (never colour alone) plus a legend note under the chart.
+  highlight?: boolean;
 }
 
 export interface ChatChartSpec {
