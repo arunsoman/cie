@@ -62,7 +62,7 @@ flipped to `delivered`, one engine capability per named gap:
 | composite analytics | US-046, US-069, US-071 | `cie-analysis::risk`, `cie-fault::next_steps`, `cie-drift::causal` |
 | interface timelines | US-089 | `cie-incremental::timeline` |
 | measurement protocol | US-074, US-085, US-100, US-102, US-119, US-120 | `cie-evidence::workload` + `cie-evidence::readiness` |
-| agent seam | US-134 | `cie-server::mcp` (JSON-RPC 2.0, read-only, budgeted) |
+| agent seam | US-134 | `cie-server::mcp` (JSON-RPC 2.0 parsing + declared-scope refusal — story is `partial`: no production ToolExecutor, no stdio transport loop yet) |
 | what-if simulation | US-099 | `cie-incremental::whatif` |
 | query + capability layer | US-009, US-010, US-024, US-052, US-059, US-109 | `cie-llm::readings`, `cie-analysis::{query,endpoints,alternatives,impact_dims}` |
 | steering + collaboration | US-066, US-091, US-107, US-113, US-114 | `cie-incremental::steer`, `cie-claims::share`, `cie-drift::conflicts`, `cie-incremental::{attrib,diffgen}` |
@@ -184,7 +184,7 @@ dispatched by `cie stories verify --id US-xxx` and executed in bulk by the
 ### Editor and agent integrations
 
 - **US-133 — Navigate definitions and references from the editor**: definitions and references navigable from the semantic graph — a symbol resolves to its definition site AND its referents.
-- **US-134 — Give coding agents evidence-shaped answers**: evidence-shaped answers for agents — the ViewSpec wire protocol roundtrips under the strict schema (deny_unknown_fields), so a machine consumer can rely on it; records carry typed JSON payloads.
+- **US-134 — Give coding agents evidence-shaped answers**: `partial`, honestly named. The protocol seam is real: JSON-RPC 2.0 message parsing and declared-scope refusal are deep-checked (an out-of-scope tool call is refused with an explicit error, never fabricated). What is NOT shipped: a production `ToolExecutor` wired to the real engine, and the stdio transport loop — so no agent can actually connect today. The ViewSpec wire-protocol roundtrip that used to be reported under this id is a real property, but a different one; it is covered as a plain test, not as this story's check.
 
 ### Privacy, models and product control
 

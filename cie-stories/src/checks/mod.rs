@@ -127,7 +127,11 @@ pub fn deep_check(id: &str) -> Option<Result<(), String>> {
         // ---- P2F / validation / delivery / editor-agent ----
         "US-107" => s9_delivery::us_107,
         "US-133" => s9_delivery::us_133,
-        "US-134" => s9_delivery::us_134,
+        // US-134 dispatches to the check that actually exercises MCP
+        // semantics (declared-scope refusal over the protocol seam). The
+        // old s9 ViewSpec-roundtrip check tested an unrelated capability
+        // under this id; it survives as a plain test in s9_delivery.
+        "US-134" => s11_closes::us_134,
         "US-113" => s11_closes::us_113,
         "US-114" => s11_closes::us_114,
         "US-119" => s11_closes::us_119,

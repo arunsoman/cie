@@ -50,23 +50,37 @@ pub fn us_133() -> Result<(), String> {
     }
 }
 
-/// US-134: evidence-shaped answers for agents — the ViewSpec wire protocol
-/// roundtrips under the strict schema (deny_unknown_fields), so a machine
-/// consumer can rely on it; records carry typed JSON payloads.
-pub fn us_134() -> Result<(), String> {
-    let spec = cie_viz::produce::produce(
-        &fixture::ingest("us134").snapshot,
-        &cie_viz::produce::ProduceOptions::default(),
-    )
-    .map_err(|e| e)?;
-    let wire = serde_json::to_string(&spec).map_err(|e| e.to_string())?;
-    let back: cie_viz::ViewSpec = serde_json::from_str(&wire)
-        .map_err(|e| format!("wire protocol not schema-stable: {e}"))?;
-    if back.semantic_hash != spec.semantic_hash {
-        return Err("protocol roundtrip changed the sealed hash".into());
+// The ViewSpec wire-protocol roundtrip is a real, shipped property — but it
+// is not what US-134 (the MCP agent seam) claims. It used to sit at this
+// module as `us_134`, which made `cie stories verify --id US-134` audit an
+// unrelated capability while the real MCP semantics went unchecked (issue
+// #9). US-134's dispatch now points at s11_closes::us_134; this property
+// stays covered as a plain test, labelled with what it actually verifies.
+#[cfg(test)]
+mod wire_roundtrip {
+    use super::fixture;
+
+    /// The ViewSpec wire protocol roundtrips under the strict schema
+    /// (deny_unknown_fields), so a machine consumer can rely on it.
+    #[test]
+    fn view_spec_wire_roundtrip_is_schema_stable() -> Result<(), String> {
+        let spec = cie_viz::produce::produce(
+            &fixture::ingest("us134").snapshot,
+            &cie_viz::produce::ProduceOptions::default(),
+        )
+        .map_err(|e| e)?;
+        let wire = serde_json::to_string(&spec).map_err(|e| e.to_string())?;
+        let back: cie_viz::ViewSpec = serde_json::from_str(&wire)
+            .map_err(|e| format!("wire protocol not schema-stable: {e}"))?;
+        assert_eq!(
+            back.semantic_hash, spec.semantic_hash,
+            "protocol roundtrip changed the sealed hash"
+        );
+        assert_eq!(
+            back.elements.len(),
+            spec.elements.len(),
+            "protocol roundtrip changed the element population"
+        );
+        Ok(())
     }
-    if back.elements.len() != spec.elements.len() {
-        return Err("protocol roundtrip changed the element population".into());
-    }
-    Ok(())
 }

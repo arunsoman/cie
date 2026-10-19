@@ -367,8 +367,11 @@ pub const REGISTRY: &[Entry] = &[
         "Editor integrations not shipped."),
     entry!("US-133", Delivered, ["cie-semantic::graph", "cli:impact", "cie-ingest::IngestOutcome.reverse_deps"],
         "Definitions/references navigable from the semantic graph + reverse deps."),
-    entry!("US-134", Delivered, ["cie-server::mcp", "cie-viz", "cie-store::records"],
-        "MCP server seam: JSON-RPC 2.0 over stdio, read-only declared-scope tools, budget exhaustion as an explicit error (no partial fabrications), honesty envelope leading with claim classes/citations/gaps/revision/staleness."),
+    entry!("US-134", Partial, ["cie-server::mcp"],
+        "Protocol seam only, honestly partial: JSON-RPC 2.0 message parsing and \
+         declared-scope refusal are real and deep-checked, but no production \
+         ToolExecutor is wired to the engine and there is no stdio transport \
+         loop — no agent can connect over this seam today."),
     // ---- Privacy, models and product control ------------------------------
     entry!("US-135", Delivered, ["cie-llm::offline", "cli:ingest --llm-provider"],
         "Offline-first default: no network needed for any core flow."),
