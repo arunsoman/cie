@@ -48,7 +48,7 @@ function isValidConcepts(o: unknown): o is ConceptTree {
 
 // ---------- job status shape (matches /api/analyze/status) ----------
 
-type StepState = "pending" | "running" | "done" | "failed";
+type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 interface StepView {
   key: string;
   label: string;
@@ -73,7 +73,36 @@ function StepIcon({ state }: { state: StepState }) {
   if (state === "done") return <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />;
   if (state === "running") return <Loader2 className="h-5 w-5 text-emerald-700 animate-spin shrink-0" />;
   if (state === "failed") return <CircleAlert className="h-5 w-5 text-rose-600 shrink-0" />;
+  if (state === "skipped") return <Circle className="h-5 w-5 text-stone-400 shrink-0" />;
   return <Circle className="h-5 w-5 text-stone-300 shrink-0" />;
+}
+
+// A poll can outlive its job: the server may have restarted (the in-memory
+// job map is gone), the job expired, or it was evicted to cap the job count.
+// When the API says the job is unknown — or stays unreachable — the panel
+// fails honestly and stops polling. It must never sit on "working…" with
+// the form hidden and no way out.
+const LOST_JOB = {
+  plain:
+    "We lost track of this check — the server was restarted or the job expired. Nothing in your project was changed. Please start over.",
+  technical: "status polling: job id no longer known to the server",
+};
+const LOST_CONNECTION = {
+  plain:
+    "We couldn't reach the server after several tries, so we stopped watching this check. Nothing in your project was changed — please start over and check again.",
+  technical: "status polling failed repeatedly (server unreachable)",
+};
+
+function failWhereItStood(prev: JobStatusView, err: { plain: string; technical: string }): JobStatusView {
+  if (prev.state === "failed" && prev.error) return prev;
+  return {
+    ...prev,
+    state: "failed",
+    error: err,
+    steps: prev.steps.map((s) =>
+      s.state === "running" ? { ...s, state: "failed" as StepState, detail: err.plain } : s
+    ),
+  };
 }
 
 function ConnectRepo() {
@@ -94,6 +123,7 @@ function ConnectRepo() {
   const [scanError, setScanError] = useState("");
   const scanReq = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollMisses = useRef(0);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -145,20 +175,30 @@ function ConnectRepo() {
     void (async () => {
       try {
         const res = await fetch(`/api/analyze/status?job=${encodeURIComponent(jobId)}`);
-        const data = (await res.json().catch(() => ({}))) as { status?: JobStatusView };
-        if (!cancelled && data.status) setStatus(data.status);
+        if (!cancelled && res.status === 404) {
+          // The job is long gone (server restart / expiry / eviction) — clear
+          // the stale id so the form comes back instead of re-probing a dead
+          // job on every open.
+          setJobId(null);
+          return;
+        }
+        if (!cancelled && res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { status?: JobStatusView };
+          if (data.status) setStatus(data.status);
+        }
       } catch {
-        /* the poll loop below will retry */
+        /* the poll loop below will retry once the panel is showing */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [jobId, status]);
+  }, [jobId, status, setJobId]);
 
   // Poll while the job is alive — including while it waits for the
   // ask-before-skipping answer, so the moment it resumes (or stops) the
-  // panel follows without a stale snapshot.
+  // panel follows without a stale snapshot. A dead job or an unreachable
+  // server ends in an honest failure after a few tries — never a forever-spin.
   useEffect(() => {
     stopPolling();
     if (
@@ -170,10 +210,24 @@ function ConnectRepo() {
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/analyze/status?job=${encodeURIComponent(jobId)}`);
+        if (res.status === 404) {
+          // The API says this job is unknown — mirror it in the panel.
+          stopPolling();
+          setStatus((prev) => (prev ? failWhereItStood(prev, LOST_JOB) : prev));
+          return;
+        }
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        pollMisses.current = 0;
         const data = (await res.json().catch(() => ({}))) as { status?: JobStatusView };
         if (data.status) setStatus(data.status);
       } catch {
-        /* transient network hiccup — keep polling */
+        // Transient hiccups are fine; several in a row mean the server is
+        // genuinely unreachable — stop and say so.
+        pollMisses.current += 1;
+        if (pollMisses.current >= 5) {
+          stopPolling();
+          setStatus((prev) => (prev ? failWhereItStood(prev, LOST_CONNECTION) : prev));
+        }
       }
     }, 1200);
     return stopPolling;
@@ -197,6 +251,7 @@ function ConnectRepo() {
         return;
       }
       setJobId(data.jobId);
+      pollMisses.current = 0;
       setStatus(data.status ?? null);
     } catch {
       setStartError("We couldn't reach the server. Please try again.");
@@ -207,6 +262,7 @@ function ConnectRepo() {
 
   const resetJob = () => {
     stopPolling();
+    pollMisses.current = 0;
     setJobId(null);
     setStatus(null);
     setStartError("");
@@ -432,7 +488,7 @@ function ConnectRepo() {
                     {s.state === "running" && <span className="text-emerald-700 font-normal"> — working…</span>}
                     {s.ms !== undefined && s.state === "done" && <span className="text-stone-400 font-normal text-xs"> · {(s.ms / 1000).toFixed(1)}s</span>}
                   </p>
-                  {(s.state === "running" || s.state === "done" || s.state === "failed") && s.detail && (
+                  {(s.state !== "pending" && s.detail) && (
                     <p className={`text-xs mt-0.5 leading-relaxed ${s.state === "failed" ? "text-rose-700 font-medium" : "text-stone-500"}`}>{s.detail}</p>
                   )}
                   {s.state === "pending" && <p className="text-xs text-stone-400 mt-0.5 leading-relaxed">{s.hint}</p>}
@@ -470,28 +526,35 @@ function ConnectRepo() {
             </div>
           )}
 
-          {/* failure card */}
-          {failed && status.error && (
+          {/* failure card — shown even if the error object itself went
+              missing, so "Try again" is always reachable after a failure */}
+          {failed && (
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-2">
               <p className="text-sm font-semibold text-rose-900 flex items-center gap-2">
                 <CircleAlert className="h-4 w-4" /> That didn&apos;t work
               </p>
-              <p className="text-sm text-rose-800 leading-relaxed">{status.error.plain}</p>
+              <p className="text-sm text-rose-800 leading-relaxed">
+                {status.error?.plain ?? "The check stopped unexpectedly. Nothing in your project was changed — try again."}
+              </p>
               {status.scan && (
                 <ScanCard scan={status.scan} compact />
               )}
-              <button
-                type="button"
-                onClick={() => setTechnicalOpen((o) => !o)}
-                className="text-xs text-rose-700/80 hover:text-rose-900 flex items-center gap-1"
-              >
-                <ChevronDown className={`h-3 w-3 transition-transform ${technicalOpen ? "rotate-180" : ""}`} />
-                {technicalOpen ? "Hide" : "Show"} technical details
-              </button>
-              {technicalOpen && (
-                <pre className="text-[10px] leading-relaxed text-rose-900/70 bg-white/70 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
-                  {status.error.technical}
-                </pre>
+              {status.error?.technical && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTechnicalOpen((o) => !o)}
+                    className="text-xs text-rose-700/80 hover:text-rose-900 flex items-center gap-1"
+                  >
+                    <ChevronDown className={`h-3 w-3 transition-transform ${technicalOpen ? "rotate-180" : ""}`} />
+                    {technicalOpen ? "Hide" : "Show"} technical details
+                  </button>
+                  {technicalOpen && (
+                    <pre className="text-[10px] leading-relaxed text-rose-900/70 bg-white/70 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                      {status.error.technical}
+                    </pre>
+                  )}
+                </>
               )}
               <Button onClick={resetJob} className="bg-rose-700 hover:bg-rose-800 text-white h-9">
                 <RotateCcw className="h-4 w-4 mr-1.5" /> Try again

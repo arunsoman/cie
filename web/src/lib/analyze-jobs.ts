@@ -203,6 +203,10 @@ function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: numbe
 
 const CIE_CANDIDATES = [
   process.env.CIE_BIN ?? "",
+  // The cargo workspace builds to <repo>/target/ — both profiles.
+  "/home/z/my-project/target/debug/cie",
+  "/home/z/my-project/target/release/cie",
+  // Older checkouts nested the workspace under cie/.
   "/home/z/my-project/cie/target/debug/cie",
   "/home/z/my-project/cie/target/release/cie",
 ];
@@ -265,7 +269,16 @@ function setStep(job: AnalyzeJob, key: StepKey, state: StepState, detail?: strin
 
 function markRunningStepFailed(job: AnalyzeJob, plain: string, technical: string) {
   const running = job.steps.find((s) => s.state === "running");
-  if (running) setStep(job, running.key, "failed", plain);
+  if (running) {
+    setStep(job, running.key, "failed", plain);
+  } else {
+    // No step held "running" (engine missing before the pipeline started,
+    // consent declined between steps, or an exception at a step boundary) —
+    // mark the step that would have run next, so the step list shows where
+    // it stopped instead of an all-pending list under a red banner.
+    const next = job.steps.find((s) => s.state !== "done" && s.state !== "failed");
+    if (next) setStep(job, next.key, "failed", plain);
+  }
   job.state = "failed";
   job.error = { plain, technical };
 }

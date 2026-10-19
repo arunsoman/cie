@@ -297,7 +297,7 @@ export function Topbar() {
         onSave={setLlm}
       />
       <Dialog open={ownOpen} onOpenChange={setOwnOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] supports-[height:1dvh]:max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>See your own project here</DialogTitle>
             <DialogDescription>
