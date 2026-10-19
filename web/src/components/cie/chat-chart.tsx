@@ -643,10 +643,11 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
             const cert = (b.node.certainty ?? "Inference") as Cert;
             const st = CERT_STYLE[cert];
             const isHover = hover === b.node.id;
+            const isSelected = !!b.node.selected;
             const body = b.node.lines ?? [];
             const bodyLines = body.map((l) => (l.length > 26 ? l.slice(0, 25) + "…" : l));
             const headH = 8 + b.titleLines.length * 13.5;
-            const label = `${KIND_PLAIN[b.node.kind] ?? b.node.kind}: ${b.node.title} — ${cert === "Fact" ? "proven" : cert === "Inference" ? "good guess" : "not sure yet"}`;
+            const label = `${KIND_PLAIN[b.node.kind] ?? b.node.kind}: ${b.node.title} — ${cert === "Fact" ? "proven" : cert === "Inference" ? "good guess" : "not sure yet"}${isSelected ? " — selected" : ""}`;
             return (
               <g
                 key={b.node.id}
@@ -677,11 +678,19 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
                   height={b.h}
                   rx={8}
                   fill={st.fill}
-                  stroke={isHover ? "#1c1917" : st.stroke}
-                  strokeWidth={isHover ? 2.4 : 1.4}
+                  stroke={isSelected ? "#047857" : isHover ? "#1c1917" : st.stroke}
+                  strokeWidth={isSelected ? 2.8 : isHover ? 2.4 : 1.4}
                   strokeDasharray={st.dash}
                   style={{ transition: "stroke-width 100ms" }}
                 />
+                {isSelected && (
+                  <>
+                    <rect x={b.x - 3.5} y={b.y - 3.5} width={b.w + 7} height={b.h + 7} rx={10} fill="none" stroke="#059669" strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
+                    <text x={b.x + b.w / 2} y={b.y - 8} textAnchor="middle" fontSize="8.5" fontWeight={700} fill="#047857" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                      SELECTED
+                    </text>
+                  </>
+                )}
                 {/* title compartment */}
                 <line x1={b.x} y1={b.y + headH} x2={b.x + b.w} y2={b.y + headH} stroke={st.stroke} strokeWidth={0.8} opacity={0.55} />
                 {b.titleLines.map((t, ti) => (

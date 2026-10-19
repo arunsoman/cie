@@ -50,6 +50,7 @@ export interface UmlNode {
   more?: number; // "…and n more" when lines were capped
   certainty?: "Fact" | "Inference" | "Hypothesis";
   loc?: ElementLoc; // the file (and offsets) this box was built from
+  selected?: boolean; // the element the dashboard's Selection Context points at — drawn with a ring, not a guess
 }
 
 export interface UmlLink {
