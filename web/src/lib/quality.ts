@@ -496,8 +496,11 @@ function fileFacts(q: CieQuality, name: string): QualityAnswer | null {
   const drift = q.drift.code.find((c) => matchFile(c.file));
   if (!cc && !churn && !sec.length && !cov && !spot) return null;
 
+  // the heading names the file the data actually matched — never the raw
+  // question (which can be a whole sentence when the panel grounds it)
+  const matchedFile = cc?.file ?? churn?.file ?? cov?.file ?? spot?.file ?? drift?.file ?? exactFile ?? name;
   const lines: string[] = [];
-  lines.push(`**Everything collected about \`${name}\`**`);
+  lines.push(`**Everything collected about \`${matchedFile}\`**`);
   if (cc) lines.push(`**Complexity:** ${cc.functions} functions, avg CC ${cc.avg_cc}, max ${cc.max_cc} (formula: ${q.complexity.formula}).`);
   if (churn) lines.push(`**Churn:** ${churn.added} lines added + ${churn.deleted} deleted over ${churn.commits} commit(s); last changed ${churn.last_change ?? "unknown"}.`);
   if (cov) lines.push(`**Test coverage:** ${cov.percent}% (${cov.note ?? (cov.covered != null ? `${cov.covered} of ${cov.statements} lines` : "never even imported")}) — measured by ${q.coverage_heatmap.tool}.`);
@@ -633,7 +636,18 @@ export function tryAnswerQuality(question: string, quality: CieQuality | null, c
 
   // ---------- element-level answers FIRST (a tapped bar/tile/row must win
   // over the whole-chart answer, whose keywords often appear in the same
-  // question) ----------
+  // question) — UNLESS the question is asked in the metric's own vocabulary
+  // ("quality metric", "what it measures", "how was it computed"). Those
+  // want THE metric: without the guard, "code churn" collides with the
+  // sample's function actually named `churn` and mis-answers. ----------
+  if (
+    n.includes("quality metric") || n.includes("what it measures") ||
+    n.includes("how was it computed") || n.includes("typical calculation") ||
+    n.includes("collected value")
+  ) {
+    const mFirst = metricFacts(q, question);
+    if (mFirst) return mFirst;
+  }
   const fileAns = fileFacts(q, question);
   if (fileAns) return fileAns;
   const fnAns = functionFacts(q, question);
