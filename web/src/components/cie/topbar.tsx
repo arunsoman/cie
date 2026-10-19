@@ -8,7 +8,7 @@
 // answering (built-in AI, Ollama, or an OpenAI-compatible service), and one
 // click opens the full connection settings. No hidden defaults, no restarts.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,6 +36,8 @@ import {
   Wand2,
   LayoutGrid,
   Gauge,
+  FileText,
+  GraduationCap,
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
 import { providerLabel } from "@/lib/llm-config";
@@ -45,6 +47,7 @@ import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
+const MASTER_VIEWS: StageView[] = ["mastery", "notes"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   // Spreads Radix's trigger props through — a custom trigger child that
@@ -65,8 +68,18 @@ function NavButton({ children, active, ...props }: { children: React.ReactNode; 
 }
 
 export function Topbar() {
-  const { source, label, view, setView, llm, setLlm, llmSettingsOpen, setLlmSettingsOpen, loading, clearChat, closeCanvasChart } = useCie();
+  const { source, label, view, setView, llm, setLlm, llmSettingsOpen, setLlmSettingsOpen, loading, clearChat, closeCanvasChart, loadMastery, mastery } = useCie();
   const [ownOpen, setOwnOpen] = useState(false);
+
+  // keep the journey state ready for both views + the notes badge, whichever loads first
+  useEffect(() => {
+    loadMastery();
+  }, [source, label, loadMastery]);
+
+  // what the notes doc actually holds: traces, corrections, exports (+ that journey state exists)
+  const notesCount = mastery
+    ? Object.keys(mastery.traces).length + mastery.corrections.length + mastery.exports.length + (Object.keys(mastery.prompts).length ? 1 : 0)
+    : 0;
 
   const go = (v: StageView) => () => setView(v);
 
@@ -115,6 +128,14 @@ export function Topbar() {
 
         {/* main menus — top right */}
         <nav className="hidden lg:flex items-center gap-0.5" aria-label="Main">
+          <NavButton active={MASTER_VIEWS.includes(view)} onClick={go("mastery")} title="The guided journey over this project — CIE guides, you verify">
+            <GraduationCap className="h-4 w-4" aria-hidden /> Master
+            {notesCount > 0 && (
+              <span className="ml-0.5 rounded-full bg-emerald-700 px-1.5 text-[10px] font-bold text-white" aria-label={`${notesCount} notes held`}>
+                {notesCount}
+              </span>
+            )}
+          </NavButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <NavButton active={EXPLORE_VIEWS.includes(view)}>
@@ -220,6 +241,12 @@ export function Topbar() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Master it</DropdownMenuLabel>
+              <DropdownMenuItem onClick={go("mastery")} className={view === "mastery" ? "bg-emerald-50" : ""}>Master this codebase</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("notes")} className={view === "notes" ? "bg-emerald-50" : ""}>
+                Mastery notes{notesCount > 0 ? ` · ${notesCount}` : ""}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Look around</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("start")} className={view === "start" ? "bg-emerald-50" : ""}>Start here</DropdownMenuItem>
               <DropdownMenuItem onClick={go("map")} className={view === "map" ? "bg-emerald-50" : ""}>The map</DropdownMenuItem>

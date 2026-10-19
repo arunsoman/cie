@@ -6,7 +6,7 @@
 // modelled on US-023: magnify locally, never mutate the base chart, state
 // the source.
 
-export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap";
+export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap" | "sequence" | "c4";
 
 /**
  * Where a chart element lives in the source code — the link that used to be
@@ -104,7 +104,77 @@ export interface ChatChartSpec {
   links?: UmlLink[];
   tree?: TreeNode[]; // kind "tree" — built from concepts.json
   tiles?: HeatTile[]; // kind "heatmap" — per-file measured values
+  participants?: string[]; // kind "sequence" — the lanes (files), in first-appearance order
+  msgs?: SequenceMsg[]; // kind "sequence" — the arrows (calls), with each step's state
   source?: string; // honesty note: which export the diagram was built from
+}
+
+// ---------- mastery journey card vocabulary (lib/mastery.ts builds them;
+// the chat renders them — never the model, never invented) ----------
+
+/** One row of an entry-points / flows card. */
+export interface MasteryRow {
+  idx: number;
+  title: string;
+  detail: string;
+  file?: string;
+  byteStart?: number;
+  byteEnd?: number;
+  /** CONFIRMED = the engine fully read this symbol; INFERRED = concluded, not read */
+  status: "confirmed" | "inferred";
+  /** one-line honesty reason attached to an INFERRED tag */
+  why?: string;
+  /** trace target for flow candidates */
+  entryId?: number;
+}
+
+/** One step of a trace — the engine's own record for that symbol. */
+export interface TraceStep {
+  idx: number;
+  caller?: string;
+  name: string;
+  qualName: string;
+  file: string;
+  byteStart?: number;
+  byteEnd?: number;
+  reads: string[];
+  writes: string[];
+  effects: string[];
+  exceptions: string[];
+  /** no summary recorded for this symbol at all */
+  noSummary: boolean;
+  /** the engine's summary recorded AND marked complete */
+  complete: boolean;
+}
+
+/** One arrow of a sequence diagram. */
+export interface SequenceMsg {
+  from: string;
+  to: string;
+  label: string;
+  sub?: string;
+  /** the strongest state the step holds at draw time — dashed emerald = you */
+  status: "you" | "confirmed" | "inferred";
+  /** the real code this arrow stands for (panel opens exactly here) */
+  loc?: ElementLoc;
+}
+
+/** The interactive card a mastery fast path may attach to a chat answer:
+ *  entry points, flow candidates, the trace (with the verification loop),
+ *  or the "5 things" draft. Built in lib/mastery.ts from the loaded
+ *  report — the model has no say over a single field of it. */
+export interface MasteryCardData {
+  kind: "entrypoints" | "flows" | "trace" | "fivethings";
+  title: string;
+  entryRows?: MasteryRow[];
+  steps?: TraceStep[];
+  /** trace honesty: symbols the walk reached but capped out of the draw */
+  truncated?: number;
+  entryQual?: string;
+  entryId?: number;
+  items?: string[];
+  note?: string;
+  traceKey?: string;
 }
 
 export interface ParsedReply {
@@ -126,6 +196,8 @@ export function engineFor(kind: ChatChartKind): string {
     case "flow": return "custom-svg";
     case "tree": return "custom-svg";
     case "heatmap": return "custom-svg";
+    case "sequence": return "custom-svg";
+    case "c4": return "custom-svg";
   }
 }
 export function layoutFor(kind: ChatChartKind): string {
@@ -138,6 +210,8 @@ export function layoutFor(kind: ChatChartKind): string {
     case "flow": return "call-flow";
     case "tree": return "concept-tree";
     case "heatmap": return "coverage-grid";
+    case "sequence": return "sequence-lanes";
+    case "c4": return "uml-boxes";
   }
 }
 
@@ -200,9 +274,9 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
   return spec;
 }
 
-/** True for the kinds whose boxes/arrows are built from the store. */
+/** True for the kinds whose boxes/arrows/lanes are built from the store. */
 export function isDiagramKind(kind: ChatChartKind): boolean {
-  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap";
+  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4";
 }
 
 /**

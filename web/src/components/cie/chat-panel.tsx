@@ -22,6 +22,8 @@ import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-c
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
 import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus, findSymbolInQuestion } from "@/lib/quality";
+import { buildTraceAnswer, tryAnswerMastery, type MasteryCtx } from "@/lib/mastery";
+import { MasteryCard } from "@/components/cie/mastery-cards";
 import type { CieImpact } from "@/lib/cie-types";
 import { providerLabel } from "@/lib/llm-config";
 
@@ -54,7 +56,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   );
 }
 
-function Formatted({ text }: { text: string }) {
+export function Formatted({ text }: { text: string }) {
   const out: React.ReactNode[] = [];
   let bullets: React.ReactNode[] = [];
   const flush = (key: string | number) => {
@@ -91,6 +93,7 @@ export function ChatPanel() {
     report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
     stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
+    pendingTrace, setPendingTrace, updateMastery, loadMastery,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,6 +119,29 @@ export function ChatPanel() {
       void send(q);
     }
   }, [pendingAsk]);
+
+  // The journey's flow candidates hand a trace here — pushed as a real user
+  // turn so the conversation keeps telling the truth about what was asked.
+  useEffect(() => {
+    if (pendingTrace && !chatBusy && report) {
+      const t = pendingTrace;
+      setPendingTrace(null);
+      pushChat({ role: "user", content: `Trace ${t.title}, end to end` });
+      const ans = buildTraceAnswer(report, t.entryId);
+      if (ans) {
+        pushChat({ role: "assistant", content: ans.answer, card: ans.card, instant: true });
+        markMasteryPrompt(ans.promptKey);
+      }
+    }
+  }, [pendingTrace]);
+
+  /** the journey's progress chips update when their prompt was actually answered */
+  const markMasteryPrompt = (key: string | undefined) => {
+    if (!key) return;
+    loadMastery(); // ensures the right person's state on a fresh session
+    const m = useCie.getState().mastery;
+    if (m && !m.prompts[key]) updateMastery((mm) => ({ ...mm, prompts: { ...mm.prompts, [key]: Date.now() } }));
+  };
 
   const send = async (text: string) => {
     const question = text.trim();
@@ -169,7 +195,29 @@ export function ChatPanel() {
       return;
     }
 
-    // ---- fast path 2: drawing requests are built locally from the loaded
+    // ---- fast path 2: the journey's canonical prompts are answered
+    // locally, from the loaded exports — instant, cited, interactive cards
+    // (entry points / flows / trace with the verify loop / 5 things). ----
+    const masteryCtx: MasteryCtx = { report, concepts, deps, cochange, overlap, drift, label };
+    const masteryAns = tryAnswerMastery(question, masteryCtx);
+    if (masteryAns) {
+      // every answered journey prompt keeps its chart in the MESSAGE; the
+      // canvas opens for diagram-bearing answers — except the trace card's
+      // sequence, which the card itself opens rebuilt with the live verify state
+      const traceCard = masteryAns.card?.kind === "trace";
+      pushChat({
+        role: "assistant",
+        content: masteryAns.answer || "(the trace card below is the answer)",
+        card: masteryAns.card,
+        chart: masteryAns.chart ?? undefined,
+        instant: true,
+      });
+      if (!traceCard && masteryAns.chart) openChartOnCanvas(masteryAns.chart);
+      markMasteryPrompt(masteryAns.promptKey);
+      return;
+    }
+
+    // ---- fast path 2b: drawing requests are built locally from the loaded
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
     const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {
@@ -177,7 +225,7 @@ export function ChatPanel() {
       return;
     }
 
-    // ---- fast path 2b: impact / blast-radius questions call the real
+    // ---- fast path 2c: impact / blast-radius questions call the real
     // engine live (cie impact --symbol) — the one answer this chat can't
     // pre-compute, since it needs a specific symbol as a target. Only
     // possible when the project's files are still on disk (sourceRoot);
@@ -366,6 +414,11 @@ export function ChatPanel() {
                 </span>
               )}
               {m.role === "user" ? m.content : <Formatted text={m.content} />}
+              {m.card && (
+                <div className="mt-2">
+                  <MasteryCard card={m.card} chart={m.chart} />
+                </div>
+              )}
               {m.instant && (
                 <p className="mt-2 pt-1.5 border-t border-stone-100 text-[10px] text-stone-400 flex items-center gap-1">
                   <Zap className="h-3 w-3 text-amber-500" /> Drawn instantly from your loaded report — no AI involved, nothing invented.

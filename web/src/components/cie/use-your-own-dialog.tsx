@@ -46,6 +46,7 @@ import {
   Link2,
   Loader2,
   PartyPopper,
+  GraduationCap,
   PencilLine,
   RotateCcw,
   ShieldCheck,
@@ -422,7 +423,7 @@ function failWhereItStood(prev: JobStatusView, err: { plain: string; technical: 
   };
 }
 
-function ConnectRepo({ kind }: { kind: "web" | "local" }) {
+function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (open: boolean) => void }) {
   const { setCustom, jobId, setJobId } = useCie();
   const { toast } = useToast();
   const [url, setUrl] = useState("");
@@ -462,8 +463,10 @@ function ConnectRepo({ kind }: { kind: "web" | "local" }) {
     }
   }, []);
 
-  // Fetch the JSON exports and load them into the dashboard.
-  const showProject = async (id: string) => {
+  // Fetch the JSON exports and load them into the dashboard. `dest`
+  // decides what happens after: default stays on the success card;
+  // "master" closes the dialog straight into the journey view.
+  const showProject = async (id: string, dest: "explore" | "master" = "explore") => {
     setLoadingResult(true);
     try {
       const res = await fetch(`/api/analyze/result?job=${encodeURIComponent(id)}`);
@@ -503,6 +506,10 @@ function ConnectRepo({ kind }: { kind: "web" | "local" }) {
       setUrl("");
       setBranch("");
       toast({ title: "Your project is ready", description: "Every page below now shows your code — and Ask CIE knows it too." });
+      if (dest === "master") {
+        onClosed?.(false);
+        useCie.getState().setView("mastery");
+      }
     } catch {
       toast({ title: "Connection problem", description: "We couldn't fetch your results. Please try again.", variant: "destructive" });
     } finally {
@@ -940,10 +947,25 @@ function ConnectRepo({ kind }: { kind: "web" | "local" }) {
                 Branch: <span className="font-mono">{status.branch ?? (kind === "web" ? "default" : "as on disk")}</span>
                 {status.viaSnapshot ? " (read-only copy — the source panel can't open these files)" : ""}
               </p>
-              <Button onClick={() => void showProject(status.id)} disabled={loadingResult} className="bg-emerald-700 hover:bg-emerald-800 text-white h-10 w-full sm:w-auto">
-                {loadingResult ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-                {loadingResult ? "Opening your project…" : "Show my project"}
-              </Button>
+              {loadingResult ? (
+                <Button disabled className="bg-emerald-700 text-white h-10 w-full sm:w-auto">
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Opening your project…
+                </Button>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={() => void showProject(status.id)} className="bg-emerald-700 hover:bg-emerald-800 text-white h-10 w-full sm:w-auto">
+                    Show my project
+                  </Button>
+                  <Button
+                    onClick={() => void showProject(status.id, "master")}
+                    variant="outline"
+                    className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 h-10 w-full sm:w-auto inline-flex items-center gap-1.5 justify-center"
+                    title="Open the guided 5-station journey on this project"
+                  >
+                    <GraduationCap className="h-4 w-4" /> Master this repo (the journey)
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1103,7 +1125,7 @@ export function UseYourOwnProjectDialog({ open, onOpenChange }: { open: boolean;
         </DialogHeader>
         {!inFlight && <SourceCards kind={kind} setKind={setKind} />}
         <div className="pt-1">
-          {kind === "upload" && !inFlight ? <UploadFiles /> : <ConnectRepo kind={kind === "upload" ? "web" : kind} />}
+          {kind === "upload" && !inFlight ? <UploadFiles /> : <ConnectRepo kind={kind === "upload" ? "web" : kind} onClosed={onOpenChange} />}
         </div>
       </DialogContent>
     </Dialog>

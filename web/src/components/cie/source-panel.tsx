@@ -23,6 +23,7 @@ import oneLight from "react-syntax-highlighter/dist/esm/styles/prism/one-light";
 import { FileCode2, MessageCircleQuestion, ShieldCheck, X } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement, snippetAround } from "@/lib/quality";
+import { BlastRadiusButton } from "@/components/cie/mastery-cards";
 
 // extension → prism language (kept honest: anything unlisted renders plain)
 const LANG: Record<string, string> = {
@@ -255,7 +256,7 @@ export function SourcePanel() {
         )}
       </div>
 
-      {/* footer — honesty note + the grounded ask */}
+      {/* footer — honesty note + the grounded ask + the blast radius (Phase-5 habit: before you change it) */}
       <div className="px-4 py-3 border-t border-stone-200 bg-white flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10.5px] text-stone-400 leading-snug min-w-0">
           {state.kind === "ready" ? (
@@ -268,16 +269,19 @@ export function SourcePanel() {
             "shown exactly as collected — nothing added"
           )}
         </p>
-        {(req.elName || req.chartTitle) && (
-          <button
-            type="button"
-            onClick={ask}
-            disabled={state.kind !== "ready"}
-            className="h-8 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0"
-          >
-            <MessageCircleQuestion className="h-3.5 w-3.5" /> Ask CIE about this
-          </button>
-        )}
+        <span className="flex items-center gap-2 shrink-0 relative">
+          <BlastRadiusButton symbolName={req.elName} file={req.file} byteStart={req.byteStart} />
+          {(req.elName || req.chartTitle) && (
+            <button
+              type="button"
+              onClick={ask}
+              disabled={state.kind !== "ready"}
+              className="h-8 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <MessageCircleQuestion className="h-3.5 w-3.5" /> Ask CIE about this
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );

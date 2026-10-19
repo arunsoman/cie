@@ -78,7 +78,7 @@ function ChartFootnote({ spec }: { spec: ChatChartSpec }) {
         {spec.catalog ? `catalog ${spec.catalog} · ` : ""}
         {spec.engine} · {spec.layout}
         {spec.kind === "hbar" && spec.lens !== false ? " · fisheye lens: hover or use ↑↓" : ""}
-        {(spec.kind === "uml" || spec.kind === "flow") ? " · hover a box to light up its connections" : ""}
+        {spec.kind === "uml" || spec.kind === "flow" || spec.kind === "c4" ? " · hover a box to light up its connections" : ""}
         {spec.source ? ` · built from ${spec.source}` : " · drawn from your loaded report"}
       </span>
     </p>
@@ -907,6 +907,78 @@ function Heatmap({ spec }: { spec: ChatChartSpec }) {
   );
 }
 
+// ---------- sequence lanes (trace steps; clickable into the source) ----------
+
+const SEQ_W = 960;
+const SEQ_MARGIN = 22;
+const LANE_LABEL_H = 30;
+const MSG_ROW_H = 46;
+
+function SequenceSVG({ spec }: { spec: ChatChartSpec }) {
+  const ask = useAsk();
+  const uid = useId().replace(/[:]/g, "");
+  const parts = spec.participants ?? [];
+  const msgs = spec.msgs ?? [];
+  const laneX = (name: string): number => {
+    const i = parts.indexOf(name);
+    return SEQ_MARGIN + 50 + ((SEQ_W - 2 * SEQ_MARGIN - 100) * Math.max(0, i)) / Math.max(1, parts.length - 1);
+  };
+  return (
+    <svg role="img" aria-label={spec.title ?? "Sequence diagram"} viewBox={`0 0 ${SEQ_W} ${SEQ_MARGIN + LANE_LABEL_H + msgs.length * MSG_ROW_H + 14}`} width="100%">
+      {/* lifelines */}
+      {parts.map((p) => (
+        <line key={`ll-${p}`} x1={laneX(p)} y1={SEQ_MARGIN + LANE_LABEL_H - 4} x2={laneX(p)} y2={SEQ_MARGIN + LANE_LABEL_H + msgs.length * MSG_ROW_H - 4} stroke="#e7e5e4" strokeWidth={2} />
+      ))}
+      {/* participant chips */}
+      {parts.map((p, i) => (
+        <g key={`p-${p}-${i}`}>
+          <rect x={laneX(p) - 62} y={SEQ_MARGIN} width={124} height={LANE_LABEL_H - 10} rx={7} fill="#047857" />
+          <text x={laneX(p)} y={SEQ_MARGIN + 18} textAnchor="middle" fontSize={11.5} fill="#fff" fontWeight={700}>
+            {p.length > 20 ? p.slice(0, 19) + "…" : p}
+          </text>
+        </g>
+      ))}
+      {/* messages */}
+      {msgs.map((m, i) => {
+        const x1 = laneX(m.from);
+        const x2 = laneX(m.to);
+        const y = SEQ_MARGIN + LANE_LABEL_H + i * MSG_ROW_H + 10;
+        const you = m.status === "you";
+        const color = you ? "#059669" : m.status === "inferred" ? "#d97706" : "#57534e";
+        const dashed = m.status !== "confirmed";
+        return (
+          <g
+            key={`m-${m.label}-${i}`}
+            className={m.loc?.file ? "cursor-pointer" : ""}
+            onClick={() => m.loc && ask(spec, { name: m.label.replace(/\(\)$/, ""), loc: m.loc })}
+          >
+            <text x={(x1 + x2) / 2} y={y - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill={color}>
+              {m.label}
+              {you ? " · YOU CONFIRMED" : m.status === "inferred" ? " · inferred" : ""}
+            </text>
+            {m.sub && (
+              <text x={(x1 + x2) / 2} y={y + 20} textAnchor="middle" fontSize={10} fill="#78716c">
+                {m.sub.length > 64 ? m.sub.slice(0, 63) + "…" : m.sub}
+              </text>
+            )}
+            <line
+              x1={x1} y1={y} x2={x2} y2={y}
+              stroke={color} strokeWidth={2}
+              strokeDasharray={dashed ? "5 3" : undefined}
+              markerEnd={`url(#${uid}-seq-arrow)`}
+              markerStart={"url(#noop)"}
+            />
+          </g>
+        );
+      })}
+      <defs>
+        <marker id={`${uid}-seq-arrow`} viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
+          <path d="M0,0L10,5L0,10z" fill="#57534e" />
+        </marker>
+      </defs>
+    </svg>
+  );}
+
 // ---------- dispatcher ----------
 
 export function ChatChart({ spec }: { spec: ChatChartSpec }) {
@@ -916,5 +988,7 @@ export function ChatChart({ spec }: { spec: ChatChartSpec }) {
   if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "tree") return <div className="mt-1"><TreeSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "heatmap") return <div className="mt-1"><Heatmap spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "c4") return <div className="mt-1"><DiagramSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "sequence") return <div className="mt-1"><SequenceSVG spec={spec} /><p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1"><MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} for an arrow — each one stands for real, recorded code · dashed = inferred · dashed emerald + YOU CONFIRMED = your own check</p><ChartFootnote spec={spec} /></div>;
   return <div className="mt-1"><FisheyeHBar spec={spec} /><ChartFootnote spec={spec} /></div>;
 }

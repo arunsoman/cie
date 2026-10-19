@@ -13,14 +13,16 @@
 
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
-import type { ChatChartSpec } from "./chat-chart";
+import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
+import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 
 export type DataSource = "demo" | "custom" | null;
 
 // Every page the middle stage can show. "chart" renders a chart the chat
-// (or a menu tap) sent to the canvas.
+// (or a menu tap) sent to the canvas. "mastery" is the guided 5-station
+// journey; "notes" is its living document (see lib/mastery.ts).
 export type StageView =
   | "start"
   | "map"
@@ -33,6 +35,8 @@ export type StageView =
   | "deps"
   | "runtime"
   | "quality"
+  | "mastery"
+  | "notes"
   | "chart";
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
@@ -41,11 +45,13 @@ export type StageView =
 // the connection settings). `instant` marks answers drawn locally from the
 // loaded store (draw-anything.ts) — no AI was involved, and the footer says
 // so instead of naming a provider.
+//        (or a menu tap) sent to the canvas.
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   error?: boolean;
   chart?: ChatChartSpec;
+  card?: MasteryCardData; // mastery journey cards — entry points, flows, trace (with the verify loop), 5 things
   technical?: string;
   providerIssue?: boolean;
   instant?: boolean;
@@ -87,6 +93,11 @@ interface CieState {
   chatBusy: boolean;
   jobId: string | null; // active "Connect a repo" job, survives dialog close
   repoScan: RepoScan | null; // language inventory from connect-a-repo flows
+
+  // mastery journey — per-project state, localStorage-backed (lib/mastery.ts).
+  // Null until the owning components load it after mount (browser-only API).
+  mastery: MasteryState | null;
+  pendingTrace: { entryId: number; title: string } | null; // a card handed a trace to the chat
 
   // workspace state
   view: StageView; // what the middle stage shows
@@ -135,6 +146,12 @@ interface CieState {
   openSourceViewer: (req: SourceViewerRequest) => void;
   closeSourceViewer: () => void;
   cacheSource: (path: string, content: string) => void;
+
+  // mastery journey
+  loadMastery: () => void; // (re)load for the CURRENT project; call after mount / project change
+  updateMastery: (fn: (m: MasteryState) => MasteryState) => void; // pure edit + persist
+  resetMastery: () => void; // start over — but never silently: callers confirm first
+  setPendingTrace: (t: { entryId: number; title: string } | null) => void;
 }
 
 export const useCie = create<CieState>((set, get) => ({
@@ -156,6 +173,8 @@ export const useCie = create<CieState>((set, get) => ({
   chatBusy: false,
   jobId: null,
   repoScan: null,
+  mastery: null,
+  pendingTrace: null,
   view: "start",
   canvasChart: null,
   mapSelected: null,
@@ -285,4 +304,27 @@ export const useCie = create<CieState>((set, get) => ({
   openSourceViewer: (req) => set({ sourceViewer: req }),
   closeSourceViewer: () => set({ sourceViewer: null }),
   cacheSource: (path, content) => set((s) => ({ sourceCache: { ...s.sourceCache, [path]: content } })),
+
+  // mastery: keyed by the loaded project (label); load reads localStorage.
+  // Switching projects drops the old state from memory so every component
+  // that renders it re-reads the right person's journey.
+  loadMastery: () => {
+    const key = masteryKeyOf(get().source, get().label);
+    set((s) => (s.mastery?.key === key ? s : { mastery: loadMasteryState(key) }));
+  },
+  updateMastery: (fn) => {
+    const m = get().mastery;
+    if (!m) return; // loaded after mount only
+    const next = fn(m);
+    if (next === m) return;
+    set({ mastery: next });
+    saveMasteryState(next);
+  },
+  resetMastery: () => {
+    const key = masteryKeyOf(get().source, get().label);
+    const fresh = freshMastery(key);
+    set({ mastery: fresh });
+    saveMasteryState(fresh);
+  },
+  setPendingTrace: (t) => set({ pendingTrace: t }),
 }));
