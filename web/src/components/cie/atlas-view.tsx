@@ -27,12 +27,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ChevronRight, Home, Layers, Route, Share2, Boxes, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import {
   breadcrumbOf,
   buildComponentSpec,
   buildDataFlowSpec,
+  buildFlowSpec,
   calleesOfSym,
   callersOf,
   containerOfPath,
@@ -56,6 +57,7 @@ const PANELS = [
   { id: "components", label: "Components", icon: Layers },
   { id: "sequence", label: "Sequence", icon: Route },
   { id: "dataflow", label: "Data flow", icon: Share2 },
+  { id: "flow", label: "Flow", icon: Workflow },
 ] as const;
 
 type PanelId = (typeof PANELS)[number]["id"];
@@ -124,6 +126,15 @@ export function AtlasView() {
     if (!report) return null;
     return buildDataFlowSpec(report, scopeId);
   }, [report, scopeId]);
+
+  // ---- flow: the chart that re-levels itself. Whatever the Selection
+  // Context points at — a container, a component, a function — the flow is
+  // rebuilt at THAT level: container click → its components' flow; drill
+  // into a function → that function, step by step. ----
+  const flowBuild = useMemo(() => {
+    if (!report) return null;
+    return buildFlowSpec(report, atlasSelection);
+  }, [report, atlasSelection]);
 
   // ---- sequence: symbol-centred trace, or the top flow of the scope ----
   const autoFlow = useMemo(() => {
@@ -206,6 +217,31 @@ export function AtlasView() {
     const qual = sel.id.replace(/\(\)$/, "");
     if (symbolByQualName(report, qual)) setAtlasSelection({ kind: "symbol", id: qual, label: qual, loc: sel.loc });
   };
+  // flow clicks re-level the dashboard: a function box drills to that
+  // function, a component box to that component, a container box to that
+  // container. fl-* boxes are the flow's own markers (start, reads, end) —
+  // they only open the code at the exact spot they stand for.
+  const onFlowClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "node") return;
+    if (!report) return;
+    if (sel.id.startsWith("…") || sel.id.startsWith("fl-")) {
+      openCodeFor(sel.loc, sel.label);
+      return;
+    }
+    const sym = symbolByQualName(report, sel.id);
+    if (sym) {
+      setAtlasSelection({ kind: "symbol", id: sel.id, label: sel.label, loc: sel.loc ?? locOfSym(report, sym) });
+      openCodeFor(sel.loc ?? locOfSym(report, sym), sel.label);
+      return;
+    }
+    if (report.files.includes(sel.id)) {
+      setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
+      openCodeFor(sel.loc, sel.label);
+      return;
+    }
+    const isContainer = sel.id === "(project root)" || report.files.some((f) => containerOfPath(f) === sel.id);
+    if (isContainer) setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
+  };
 
   const crumbs = breadcrumbOf(atlasSelection);
   const shown = (s: ChatChartSpec | null): ChatChartSpec | null => (atlasFactsOnly && s ? filterFacts(s) : s);
@@ -213,6 +249,7 @@ export function AtlasView() {
   const shownComp = shown(compSpec);
   const shownFlow = shown(dataflowSpec);
   const shownSeq = shown(seqSpec);
+  const shownFlowChart = shown(flowBuild?.spec ?? null);
 
   if (!report) {
     return (
@@ -233,6 +270,10 @@ export function AtlasView() {
     if (id === "dataflow")
       return shownFlow ? <ChatChart spec={shownFlow} onSelectElement={onDataflowClick} /> : (
         <HonestEmpty scope={scopeId} what="recorded reads and writes" />
+      );
+    if (id === "flow")
+      return shownFlowChart ? <ChatChart spec={shownFlowChart} onSelectElement={onFlowClick} /> : (
+        <HonestEmpty scope={scopeId} what="recorded calls and behaviour summaries to draw a flow from" />
       );
     return (
       <SequencePanel
@@ -326,6 +367,18 @@ export function AtlasView() {
                 {body("dataflow")}
               </Panel>
               <div className="lg:col-span-2">
+                <Panel
+                  id="flow"
+                  icon={Workflow}
+                  label="Flow"
+                  scopeNote={flowBuild ? `level: ${flowBuild.label}` : null}
+                  scopedTo={null}
+                  onToggle={() => setExpanded("flow")}
+                >
+                  {body("flow")}
+                </Panel>
+              </div>
+              <div className="lg:col-span-2">
                 <Panel id="sequence" icon={Route} label="Sequence" scopedTo={scopeId} onToggle={() => setExpanded("sequence")}>
                   {body("sequence")}
                 </Panel>
@@ -380,6 +433,7 @@ function Panel({
   children,
   noExpand,
   testId,
+  scopeNote,
 }: {
   id: PanelId | "quality";
   icon: React.ComponentType<{ className?: string }>;
@@ -390,6 +444,8 @@ function Panel({
   children: React.ReactNode;
   noExpand?: boolean; // quality panels keep their place in the grid — no fill-the-grid mode
   testId?: string;
+  /** replaces the default scope caption when a panel's state isn't a container scope (the Flow panel's level) */
+  scopeNote?: string | null;
 }) {
   return (
     <Card className={`border-stone-200 shadow-sm ${expanded ? "" : "max-h-[520px] overflow-hidden flex flex-col"}`} data-testid={`atlas-panel-${testId ?? id}`}>
@@ -400,6 +456,8 @@ function Panel({
           <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50" data-testid={`atlas-scope-${testId ?? id}`}>
             scoped: {scopedTo}
           </Badge>
+        ) : scopeNote ? (
+          <span className="text-[10px] text-emerald-800 bg-emerald-50 rounded-md px-1.5 py-0.5 border border-emerald-300" data-testid={`atlas-scope-${testId ?? id}`}>{scopeNote}</span>
         ) : (
           <span className="text-[10px] text-stone-400">{id === "containers" ? "click one to filter everything" : "all containers"}</span>
         )}
