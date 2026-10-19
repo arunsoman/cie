@@ -5,6 +5,7 @@
 // This module must never be imported from client code.
 
 import { spawn } from "child_process";
+import { StringDecoder } from "string_decoder";
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -196,6 +197,10 @@ export interface RunResult {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /** True when stdout data past the byte cap was captured but DROPPED.
+   *  A truncated JSON payload must never be misreported as the engine
+   *  "producing unparseable JSON" — the cut is on our side (issue #12). */
+  stdoutTruncated: boolean;
 }
 
 /** A read-only git command run inside a folder (or plain git with dir=null).
@@ -214,24 +219,36 @@ export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let stdoutTruncated = false;
     const cap = opts.maxStdout ?? 256 * 1024 * 1024;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
     }, opts.timeoutMs);
+    // StringDecoder, not Buffer.toString(): a multi-byte UTF-8 character
+    // split across pipe chunks must never be corrupted mid-JSON — chunk
+    // boundaries are a property of the pipe, not of the text.
+    const stdoutDecoder = new StringDecoder("utf8");
+    const stderrDecoder = new StringDecoder("utf8");
     child.stdout.on("data", (d: Buffer) => {
-      if (stdout.length < cap) stdout += d.toString();
+      if (stdout.length + d.length > cap) {
+        stdoutTruncated = true;
+        return; // keep draining so the child never blocks on a full pipe
+      }
+      stdout += stdoutDecoder.write(d);
     });
     child.stderr.on("data", (d: Buffer) => {
-      if (stderr.length < 64 * 1024) stderr += d.toString();
+      if (stderr.length < 64 * 1024) stderr += stderrDecoder.write(d);
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      resolve({ code: -1, stdout, stderr: `${stderr}\n${err.message}`, timedOut });
+      resolve({ code: -1, stdout, stderr: `${stderr}\n${err.message}`, timedOut, stdoutTruncated });
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      resolve({ code: code ?? -1, stdout, stderr, timedOut });
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
+      resolve({ code: code ?? -1, stdout, stderr, timedOut, stdoutTruncated });
     });
   });
 }
@@ -766,7 +783,15 @@ async function runPipeline(job: AnalyzeJob) {
       markRunningStepFailed(job, UNSUPPORTED_PLAIN, engineTechnical(bin, `cie ingest found 0 supported files: ${ing.stdout.slice(0, 200)}`));
       return;
     }
-    const rep = await run(bin, ["report", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
+    // The report is the one output that grows with repo size, so it is
+    // delivered as a file (`--out`, issue #12) — no pipe byte cap can
+    // truncate it. Older engines without the flag fall back to stdout.
+    const reportOut = path.join(workDir, "report.json");
+    let rep = await run(bin, ["report", repoDir, "--json", "--out", reportOut], { timeoutMs: CIE_TIMEOUT_MS });
+    let repFile = rep.code === 0;
+    if (!repFile && !rep.timedOut && /unexpected argument|Invalid Args|unknown.*--out|--out.*was not expected/i.test(rep.stderr)) {
+      rep = await run(bin, ["report", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
+    }
     if (rep.timedOut || rep.code !== 0) {
       const noSnapshot = (rep.stderr || "").includes("no snapshot");
       markRunningStepFailed(
@@ -778,9 +803,18 @@ async function runPipeline(job: AnalyzeJob) {
     }
     let report: CieReport;
     try {
-      report = JSON.parse(rep.stdout);
+      report = JSON.parse(repFile ? await fs.readFile(reportOut, "utf8") : rep.stdout);
     } catch {
-      markRunningStepFailed(job, engineErrorPlain("bad-output"), engineTechnical(bin, "cie report produced unparseable JSON"));
+      markRunningStepFailed(
+        job,
+        engineErrorPlain("bad-output"),
+        engineTechnical(
+          bin,
+          rep.stdoutTruncated
+            ? `cie report output exceeded the stdout capture cap and was cut off mid-JSON — the cut is on the reader side, not the engine`
+            : "cie report produced unparseable JSON"
+        )
+      );
       return;
     }
     setStep(job, "read", "done", `${report.symbols.length} named things found.`, Date.now() - t1);
