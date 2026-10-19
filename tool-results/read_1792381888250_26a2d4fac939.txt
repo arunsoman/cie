@@ -1,0 +1,559 @@
+     1→// Quality / health charts + local answers — built from the ETL export
+     2→// (runtime-data/quality.json, produced by
+     3→// examples/bankapp/scripts/collect_quality.py).
+     4→//
+     5→// The pipeline: EXTRACT real sources (the sample's own files, the hosting
+     6→// repository's git history, the GitHub issues API recorded as found, the
+     7→// measured coverage export) → TRANSFORM with the classic formulas (stated on
+     8→// every chart) → LOAD quality.json. This module turns that export into the
+     9→// same ChatChartSpec every other view renders — so the fisheye lens, the
+    10→// engine+layout disclosure and click-to-chat all carry over unchanged.
+    11→//
+    12→// Nothing here invents numbers: an empty tracker is recorded as empty, a
+    13→// metric that cannot be computed renders an honest empty state.
+    14→
+    15→import type { CannedChart } from "./canned-charts";
+    16→import type { CieQuality, ConceptTree } from "./cie-types";
+    17→import { engineFor, layoutFor, type ChatChartSpec, type TreeNode, type HeatTile } from "./chat-chart";
+    18→
+    19→function cut(s: string, n: number): string {
+    20→  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+    21→}
+    22→
+    23→function spec(kind: ChatChartSpec["kind"], title: string, tell: string, source?: string): ChatChartSpec {
+    24→  return { kind, engine: engineFor(kind), layout: layoutFor(kind), title, tell, source };
+    25→}
+    26→
+    27→// ---------------------------------------------------------------------------
+    28→// Concept hierarchy (from concepts.json — the engine's own concept tree)
+    29→// ---------------------------------------------------------------------------
+    30→
+    31→export function buildConceptTreeSpec(concepts: ConceptTree | null): ChatChartSpec | null {
+    32→  if (!concepts?.nodes?.length) return null;
+    33→  const kinds = new Set(concepts.nodes.map((n) => n.kind));
+    34→  if (!kinds.has("Domain")) return null; // no hierarchy to draw — honest empty
+    35→
+    36→  const tree: TreeNode[] = concepts.nodes
+    37→    .slice(0, 40)
+    38→    .map((n) => ({
+    39→      id: `c${n.id}`,
+    40→      label: cut(n.label, 30),
+    41→      kind: n.kind,
+    42→      parent: n.parent === null || n.parent === undefined ? null : `c${n.parent}`,
+    43→      note: n.behaviors?.length
+    44→        ? `${n.behaviors.length} ${n.behaviors.length === 1 ? "behaviour" : "behaviours"}`
+    45→        : undefined,
+    46→      certainty: undefined,
+    47→    }));
+    48→
+    49→  const roots = tree.filter((t) => t.parent === null).length;
+    50→  return {
+    51→    ...spec("tree", "What the project is made of", `The idea hierarchy: ${roots} big-picture ${roots === 1 ? "idea" : "ideas"}, the files under them, and what each does. Tap any node to ask about it.`),
+    52→    tree,
+    53→    source: "concepts.json (the engine's concept tree)",
+    54→  };
+    55→}
+    56→
+    57→// ---------------------------------------------------------------------------
+    58→// Coverage heatmap (from the measured coverage export)
+    59→// ---------------------------------------------------------------------------
+    60→
+    61→export function buildCoverageHeatmapSpec(quality: CieQuality | null): ChatChartSpec | null {
+    62→  const cov = quality?.coverage_heatmap;
+    63→  if (!cov?.files?.length) return null;
+    64→  const tiles: HeatTile[] = cov.files.map((f) => ({
+    65→    name: cut(f.file, 22),
+    66→    value: Math.round(f.percent),
+    67→    label: f.covered != null && f.statements != null ? `${f.covered} of ${f.statements} lines` : "never even imported",
+    68→  }));
+    69→  const pct = cov.totals?.percent;
+    70→  return {
+    71→    ...spec(
+    72→      "heatmap",
+    73→      "Test coverage, file by file (measured)",
+    74→      `Measured by ${cov.tool ?? "coverage.py"} on the sample's real test run. ${pct != null ? `Whole project: ${pct}% of statements.` : ""} Green is well covered; rose was never even imported — the label says so.`,
+    75→    ),
+    76→    tiles,
+    77→    source: "quality.json — coverage_heatmap (coverage.py)",
+    78→  };
+    79→}
+    80→
+    81→// ---------------------------------------------------------------------------
+    82→// All the health + metric charts, for the one-tap menu
+    83→// ---------------------------------------------------------------------------
+    84→
+    85→const SEV_COLOR: Record<string, string> = { Critical: "rose", High: "amber", Medium: "stone", Low: "emerald" };
+    86→
+    87→export function buildQualityCharts(quality: CieQuality | null, concepts: ConceptTree | null): CannedChart[] {
+    88→  const charts: CannedChart[] = [];
+    89→  if (!quality) return charts;
+    90→  const q = quality;
+    91→
+    92→  // ---------- Health ----------
+    93→
+    94→  // 1. concept hierarchy
+    95→  {
+    96→    const s = buildConceptTreeSpec(concepts);
+    97→    charts.push({
+    98→      id: "concept-hierarchy",
+    99→      group: "Health",
+   100→      question: "What is this project made of?",
+   101→      hint: s ? "The idea hierarchy, drawn from the concept tree." : "No concept tree in this project — honest empty.",
+   102→      icon: "shapes",
+   103→      spec: s,
+   104→    });
+   105→  }
+   106→
+   107→  // 2. security issues by kind
+   108→  {
+   109→    const byCat = Object.entries(q.security.by_category ?? {}).sort((a, b) => b[1] - a[1]);
+   110→    const data = byCat.map(([name, v]) => ({
+   111→      name: cut(name, 24),
+   112→      value: v,
+   113→      color: name.includes("Hardcoded") || name.includes("SQL") || name.includes("Shell") ? "rose" : "amber",
+   114→    }));
+   115→    charts.push({
+   116→      id: "security-issues",
+   117→      group: "Health",
+   118→      question: "Where is the code insecure?",
+   119→      hint: data.length ? `${q.security.issues.length} findings from ${q.security.tool.split("—")[0].trim()}.` : "The scan found nothing to flag.",
+   120→      icon: "shield",
+   121→      spec: data.length
+   122→        ? { ...spec("hbar", "Security issues by kind", "Each bar counts findings of one kind. Tap a bar to ask about it."), data, source: "quality.json — security scan (rules disclosed)" }
+   123→        : null,
+   124→    });
+   125→  }
+   126→
+   127→  // 3. vulnerabilities — the CWE-mapped table
+   128→  {
+   129→    const rows = q.security.issues.slice(0, 8).map((it) => [
+   130→      `${it.file}:${it.line}`,
+   131→      cut(it.name, 30),
+   132→      it.cwe,
+   133→      it.severity,
+   134→    ]);
+   135→    charts.push({
+   136→      id: "vulnerabilities",
+   137→      group: "Health",
+   138→      question: "Which weaknesses have a CWE number?",
+   139→      hint: rows.length ? "CWE = the common catalogue of software weaknesses." : "No CWE-mapped findings.",
+   140→      icon: "shield",
+   141→      spec: rows.length
+   142→        ? { ...spec("table", "Weaknesses with a CWE number", "Each row is a real finding: where it lives, what kind, its catalogue id."), columns: ["Where", "Weakness", "CWE", "Urgency"], rows, source: "quality.json — security scan" }
+   143→        : null,
+   144→    });
+   145→  }
+   146→
+   147→  // 4. code duplications
+   148→  {
+   149→    const dup = q.duplication;
+   150→    const rows = (dup.pairs ?? []).slice(0, 8).map((p) => [
+   151→      `${p.a_file}:${p.a_line}`,
+   152→      `${p.b_file}:${p.b_line}`,
+   153→      String(p.lines),
+   154→      cut(p.preview || "(same block)", 34),
+   155→    ]);
+   156→    charts.push({
+   157→      id: "duplications",
+   158→      group: "Health",
+   159→      question: "Where is the same code written twice?",
+   160→      hint: (dup.blocks_found ?? 0) > 0 ? `${dup.blocks_found} repeated block(s), ${dup.duplicated_lines} lines — real matches.` : "No repeated blocks found.",
+   161→      icon: "list",
+   162→      spec: rows.length
+   163→        ? { ...spec("table", "Duplicated blocks (measured)", "Blocks of the same normalized lines appearing in two different files."), columns: ["Here", "And again", "Lines", "Starts with"], rows, source: `quality.json — ${dup.tool}` }
+   164→        : null,
+   165→    });
+   166→  }
+   167→
+   168→  // 5. hot spots
+   169→  {
+   170→    const rows = (q.hotspots.rows ?? []).slice(0, 8).map((r) => [
+   171→      cut(r.file, 24),
+   172→      String(r.risk),
+   173→      String(r.churn),
+   174→      String(r.max_cc),
+   175→      String(r.urgent_findings),
+   176→    ]);
+   177→    charts.push({
+   178→      id: "hotspots",
+   179→      group: "Health",
+   180→      question: "Which parts are the hot spots?",
+   181→      hint: "Churn × complexity × urgent findings — the formula is disclosed.",
+   182→      icon: "activity",
+   183→      spec: rows.length
+   184→        ? { ...spec("table", "Hot spots, ranked", q.hotspots.formula), columns: ["File", "Risk 0–100", "Churn lines", "Max complexity", "Urgent findings"], rows, source: "quality.json — hotspots" }
+   185→        : null,
+   186→    });
+   187→  }
+   188→
+   189→  // 6. coverage heatmap
+   190→  {
+   191→    const s = buildCoverageHeatmapSpec(quality);
+   192→    charts.push({
+   193→      id: "coverage-heatmap",
+   194→      group: "Health",
+   195→      question: "A heat map of test coverage?",
+   196→      hint: s ? "Every file, measured — rose tiles were never even imported." : "No coverage export — honest empty.",
+   197→      icon: "shield",
+   198→      spec: s,
+   199→    });
+   200→  }
+   201→
+   202→  // 7. code drift (code vs its tests)
+   203→  {
+   204→    const rows = (q.drift.code ?? []).slice(0, 8).map((c) => [
+   205→      cut(c.file, 20),
+   206→      c.last_change ?? "—",
+   207→      c.tests_last_change ?? "no test file",
+   208→      c.test_lag_days != null ? String(c.test_lag_days) : "—",
+   209→      cut(c.note, 30),
+   210→    ]);
+   211→    charts.push({
+   212→      id: "code-drift",
+   213→      group: "Health",
+   214→      question: "Which code moved ahead of its tests?",
+   215→      hint: "Last change of each file vs its tests' last change (real git dates).",
+   216→      icon: "timer",
+   217→      spec: rows.length
+   218→        ? { ...spec("table", "Code drift vs tests", "Lag = days since the file changed minus days since its tests did. “No test file” is the loudest entry."), columns: ["File", "Code last changed", "Tests last changed", "Lag (days)", "Note"], rows, source: "quality.json — drift (git dates)" }
+   219→        : null,
+   220→    });
+   221→  }
+   222→
+   223→  // 8. document drift
+   224→  {
+   225→    const rows = (q.drift.document ?? []).slice(0, 8).map((d) => [
+   226→      cut(d.doc, 20),
+   227→      cut(d.describes, 34),
+   228→      `${d.doc_age_days}d ago`,
+   229→      d.drift_days > 0 ? `${d.drift_days}d behind` : "fresh",
+   230→      cut(d.note, 30),
+   231→    ]);
+   232→    charts.push({
+   233→      id: "document-drift",
+   234→      group: "Health",
+   235→      question: "Which words fell behind the code?",
+   236→      hint: "Docs' last change vs the code they describe.",
+   237→      icon: "timer",
+   238→      spec: rows.length
+   239→        ? { ...spec("table", "Document drift", "A doc can be old and still correct — this says which ones moved apart and by how many days."), columns: ["Doc", "Describes", "Doc age", "Drift", "Note"], rows, source: "quality.json — drift (git dates)" }
+   240→        : null,
+   241→    });
+   242→  }
+   243→
+   244→  // 9. most complex parts
+   245→  {
+   246→    const fns = (q.complexity.functions ?? []).slice(0, 8);
+   247→    const data = fns.map((f) => ({
+   248→      name: cut(f.function, 20),
+   249→      value: f.cc,
+   250→      color: f.cc >= q.complexity.totals.max_cc ? "rose" : f.cc >= 4 ? "amber" : "stone",
+   251→    }));
+   252→    charts.push({
+   253→      id: "most-complex",
+   254→      group: "Health",
+   255→      question: "Where is the most twisted logic?",
+   256→      hint: data.length ? `Cyclomatic complexity, worst first — avg ${q.complexity.totals.avg_cc}, max ${q.complexity.totals.max_cc}.` : "No functions parsed — honest empty.",
+   257→      icon: "shapes",
+   258→      spec: data.length
+   259→        ? { ...spec("hbar", "Most complex functions (measured)", q.complexity.formula), data, source: `quality.json — ${q.complexity.tool}` }
+   260→        : null,
+   261→    });
+   262→  }
+   263→
+   264→  // ---------- Quality metrics (the eight classic measures) ----------
+   265→
+   266→  const metricById = new Map(q.metrics.map((m) => [m.id, m]));
+   267→
+   268→  const metricChart = (
+   269→    id: string,
+   270→    chartId: string,
+   271→    question: string,
+   272→    hint: string,
+   273→    icon: CannedChart["icon"],
+   274→    extra?: { spec: ChatChartSpec | null }
+   275→  ): CannedChart => {
+   276→    const m = metricById.get(id);
+   277→    const s: ChatChartSpec | null = m
+   278→      ? {
+   279→          ...spec("stat", m.name, `${m.what_it_measures}. Typical calculation: ${m.typical_calculation}.`),
+   280→          data: [{ name: m.value_text, value: typeof m.value === "number" ? m.value : 0 }],
+   281→          unit: m.unit,
+   282→          source: `${m.source} · scope: ${m.scope}`,
+   283→        }
+   284→      : null;
+   285→    return { id: chartId, group: "Quality metrics", question, hint, icon, spec: s ?? extra?.spec ?? null };
+   286→  };
+   287→
+   288→  const d = q.defects;
+   289→  charts.push(
+   290→    metricChart("defect-density", "metric-defect-density",
+   291→      "What is the defect density?",
+   292→      (d.derived.defect_density_per_kloc ?? 0) + " fix-commits per KLOC — the tracker is empty, commit mining is the disclosed proxy.",
+   293→      "gauge"),
+   294→    metricChart("mttf-mtbf", "metric-mtbf",
+   295→      "What is the mean time between failures?",
+   296→      d.derived.mtbf_hours + " h between real fix-commit timestamps.",
+   297→      "timer"),
+   298→    metricChart("test-coverage", "metric-coverage",
+   299→      "How much do the tests cover?",
+   300→      "Measured by coverage.py on the sample's own test run.",
+   301→      "shield"),
+   302→    metricChart("cyclomatic", "metric-cyclomatic",
+   303→      "How complex is the control flow?",
+   304→      `Avg ${q.complexity.totals.avg_cc}, max ${q.complexity.totals.max_cc} — real AST walk.`,
+   305→      "shapes"),
+   306→    metricChart("arrival-rate", "metric-arrival",
+   307→      "How fast are defects arriving?",
+   308→      d.derived.arrival_rate_per_day + " fix-commits per day over the real history.",
+   309→      "gauge"),
+   310→    metricChart("code-churn", "metric-churn",
+   311→      "How much is the code churning?",
+   312→      "Lines added+deleted, real git numstat.",
+   313→      "activity",
+   314→      {
+   315→        spec: (q.churn.hosting_repo.daily?.length ?? 0) > 0
+   316→          ? {
+   317→              ...spec("hbar", "Churn per day (hosting repository)", q.churn.tool + " — " + q.churn.formula),
+   318→              data: q.churn.hosting_repo.daily.slice(-8).map((dd) => ({ name: dd.day.slice(5), value: dd.churn, color: "amber" })),
+   319→              source: "quality.json — churn (hosting repo, labelled)",
+   320→            }
+   321→          : null,
+   322→      }),
+   323→    metricChart("crash-rate", "metric-crash",
+   324→      "What share of sessions crashes?",
+   325→      `${q.crash_probe.crashes} of ${q.crash_probe.sessions} seeded sessions — run live during collection.`,
+   326→      "activity",
+   327→      {
+   328→        spec: (q.crash_probe.crashes_detail?.length ?? 0) > 0
+   329→          ? {
+   330→              ...spec("table", "The crashes behind the rate", q.crash_probe.definition),
+   331→              columns: ["Entry point", "Input", "What happened"],
+   332→              rows: q.crash_probe.crashes_detail.slice(0, 8).map((c) => [`${c.module}.${c.function}`, cut(c.session, 24), cut(c.reason || "timeout", 40)]),
+   333→              source: "quality.json — crash probe",
+   334→            }
+   335→          : null,
+   336→      }),
+   337→    metricChart("mttr", "metric-mttr",
+   338→      "How fast does a repair land?",
+   339→      "Mean of really executed fail→fix→recheck loops, timed.",
+   340→      "timer",
+   341→      {
+   342→        spec: (q.repair_probe.iterations?.length ?? 0) > 0
+   343→          ? {
+   344→              ...spec("table", "The repair loops behind MTTR", q.repair_probe.tool),
+   345→              columns: ["Bug", "Detect (s)", "Repair (s)", "Recheck (s)", "Total (s)"],
+   346→              rows: q.repair_probe.iterations.map((i) => [cut(i.bug, 30), String(i.detect_s), String(i.repair_s), String(i.recheck_s), String(i.total_s)]),
+   347→              source: "quality.json — repair probe",
+   348→            }
+   349→          : null,
+   350→      }),
+   351→  );
+   352→
+   353→  return charts;
+   354→}
+   355→
+   356→// ---------------------------------------------------------------------------
+   357→// Click-to-chat: answer questions about the health charts + their elements
+   358→// straight from the collected data — no AI round-trip, nothing invented.
+   359→// ---------------------------------------------------------------------------
+   360→
+   361→export interface QualityAnswer {
+   362→  answer: string;
+   363→  chart: ChatChartSpec | null;
+   364→}
+   365→
+   366→function fileFacts(q: CieQuality, name: string): QualityAnswer | null {
+   367→  // exact filename tokens first ("auth.py", "001_init.sql"), then stem match
+   368→  const tokens: string[] = name.toLowerCase().match(/[a-z0-9_\-]+\.(py|sql|md|txt|sh)/g) ?? [];
+   369→  const exactFile = tokens.length
+   370→    ? q.complexity.files.find((f) => tokens.includes(f.file.toLowerCase()))?.file ??
+   371→      q.coverage_heatmap.files.find((f) => tokens.includes(f.file.toLowerCase()))?.file
+   372→    : undefined;
+   373→
+   374→  const base = (exactFile ?? name).toLowerCase().replace(/\.(py|sql|md|txt|sh)$/, "");
+   375→  const matchFile = (f: string) => {
+   376→    const lf = f.toLowerCase();
+   377→    if (exactFile) return lf === exactFile.toLowerCase();
+   378→    return lf.includes(base) && base.length > 2;
+   379→  };
+   380→  if (base.length <= 2 && !exactFile) return null;
+   381→
+   382→  const cc = q.complexity.files.find((f) => matchFile(f.file));
+   383→  const churn = q.churn.sample.per_file.find((r) => matchFile(r.file));
+   384→  const sec = q.security.issues.filter((it) => matchFile(it.file));
+   385→  const cov = q.coverage_heatmap.files.find((f) => matchFile(f.file));
+   386→  const spot = q.hotspots.rows.find((r) => matchFile(r.file));
+   387→  const drift = q.drift.code.find((c) => matchFile(c.file));
+   388→  if (!cc && !churn && !sec.length && !cov && !spot) return null;
+   389→
+   390→  const lines: string[] = [];
+   391→  lines.push(`**Everything collected about \`${name}\`**`);
+   392→  if (cc) lines.push(`**Complexity:** ${cc.functions} functions, avg CC ${cc.avg_cc}, max ${cc.max_cc} (formula: ${q.complexity.formula}).`);
+   393→  if (churn) lines.push(`**Churn:** ${churn.added} lines added + ${churn.deleted} deleted over ${churn.commits} commit(s); last changed ${churn.last_change ?? "unknown"}.`);
+   394→  if (cov) lines.push(`**Test coverage:** ${cov.percent}% (${cov.note ?? (cov.covered != null ? `${cov.covered} of ${cov.statements} lines` : "never even imported")}) — measured by ${q.coverage_heatmap.tool}.`);
+   395→  if (spot) lines.push(`**Hot-spot risk:** ${spot.risk}/100 (${q.hotspots.formula}).`);
+   396→  if (sec.length) {
+   397→    lines.push(`**Security findings:** ${sec.map((it) => `${it.name} (${it.cwe}) at line ${it.line}`).join("; ")}.`);
+   398→  } else if (cc || cov) {
+   399→    lines.push(`**Security findings:** none on this file from the disclosed rule set.`);
+   400→  }
+   401→  if (drift) lines.push(`**Drift:** ${drift.note}; code last changed ${drift.last_change}, tests ${drift.tests_last_change ?? "none"}.`);
+   402→  lines.push(`_From quality.json — collected by the ETL collector on ${q.collected_at.slice(0, 10)}._`);
+   403→  return {
+   404→    answer: lines.join("\n\n"),
+   405→    chart: buildCoverageHeatmapSpec(q),
+   406→  };
+   407→}
+   408→
+   409→function securityFacts(q: CieQuality, needle: string): QualityAnswer | null {
+   410→  const n = needle.toLowerCase();
+   411→  // a generic "are there security problems" question should NOT pin one
+   412→  // category — only match when a concrete kind / CWE / rule is named
+   413→  const hitCategory = Object.keys(q.security.by_category ?? {}).find((c) => n.includes(c.toLowerCase().slice(0, 14)));
+   414→  const hitIssue = q.security.issues.find((it) => n.includes(it.cwe.toLowerCase()) || n.includes(it.rule.toLowerCase()) || n.includes(it.name.toLowerCase()));
+   415→  if (!hitCategory && !hitIssue) return null;
+   416→  const name = hitIssue?.name ?? hitCategory!;
+   417→  const rows = q.security.issues.filter((it) => it.name === name || (hitIssue && it.id === hitIssue.id));
+   418→  const list = rows.map((it) => `- ${it.file}:${it.line} — ${it.cwe}, ${it.severity.toLowerCase()} urgency. Why it matters: ${it.why}`);
+   419→  const answer = [
+   420→    `**${name} — ${rows.length} finding(s) in the sample**`,
+   421→    list.join("\n"),
+   422→    `The scan is ${q.security.tool} — heuristics with file:line evidence, not a full SAST scanner. On production projects the same slots come from ${q.security.real_world_equivalents?.join(", ") ?? "bandit, semgrep, CodeQL"}.`,
+   423→    `_Ask about a specific file name to see its full collected facts._`,
+   424→  ].join("\n\n");
+   425→  const data = Object.entries(q.security.by_category ?? {}).map(([k, v]) => ({
+   426→    name: cut(k, 24),
+   427→    value: v,
+   428→    color: k.includes("Hardcoded") || k.includes("SQL") ? "rose" : "amber",
+   429→  }));
+   430→  return {
+   431→    answer,
+   432→    chart: data.length
+   433→      ? { ...spec("hbar", "Security issues by kind", "Counts per finding kind, from the disclosed rule set."), data, source: "quality.json — security scan" }
+   434→      : null,
+   435→  };
+   436→}
+   437→
+   438→function functionFacts(q: CieQuality, needle: string): QualityAnswer | null {
+   439→  const n = needle.toLowerCase();
+   440→  const fn = q.complexity.functions.find((f) => f.function.toLowerCase() === n.replace(/[^a-z0-9_]/g, "") || n.includes(` ${f.function.toLowerCase()} `) || n.includes(`"${f.function.toLowerCase()}"`));
+   441→  if (!fn) return null;
+   442→  const churnRow = q.churn.sample.per_file.find((r) => r.file === fn.file);
+   443→  const cov = q.coverage_heatmap.files.find((f) => f.file === fn.file);
+   444→  const answer = [
+   445→    `**\`${fn.function}\` (in ${fn.file}, line ${fn.line})**`,
+   446→    `Cyclomatic complexity **${fn.cc}** — ${q.complexity.formula}. Its file's max CC is ${q.complexity.files.find((f) => f.file === fn.file)?.max_cc}.`,
+   447→    churnRow ? `The file churned ${churnRow.added + churnRow.deleted} lines over ${churnRow.commits} commit(s).` : "",
+   448→    cov ? `Test coverage of ${fn.file}: ${cov.percent}%.` : "",
+   449→    `Measured by ${q.complexity.tool}. On production projects: ${q.complexity.real_world_equivalents?.join(", ") ?? "radon, lizard, SonarQube"}.`,
+   450→  ].filter(Boolean).join("\n\n");
+   451→  return { answer, chart: null };
+   452→}
+   453→
+   454→function metricFacts(q: CieQuality, needle: string): QualityAnswer | null {
+   455→  const n = needle.toLowerCase();
+   456→  const m = q.metrics.find((mm) =>
+   457→    (mm.id === "defect-density" && (n.includes("defect density") || n.includes("density"))) ||
+   458→    (mm.id === "mttf-mtbf" && (n.includes("mtbf") || n.includes("mttf") || n.includes("between failures"))) ||
+   459→    (mm.id === "test-coverage" && n.includes("coverage") && !n.includes("heatmap") && !n.includes("heat map")) ||
+   460→    (mm.id === "cyclomatic" && (n.includes("cyclomatic") || (n.includes("complex") && n.includes("control")))) ||
+   461→    (mm.id === "arrival-rate" && (n.includes("arrival") || n.includes("how fast are defects"))) ||
+   462→    (mm.id === "code-churn" && n.includes("churn")) ||
+   463→    (mm.id === "crash-rate" && (n.includes("crash") || n.includes("hang"))) ||
+   464→    (mm.id === "mttr" && (n.includes("mttr") || n.includes("repair") || n.includes("time to resolve")))
+   465→  );
+   466→  if (!m) return null;
+   467→  const answer = [
+   468→    `**${m.name}: ${m.value_text}**`,
+   469→    `**What it measures:** ${m.what_it_measures}. **Typical calculation:** ${m.typical_calculation}.`,
+   470→    `**How it was computed here:** ${m.how_computed_here}`,
+   471→    `**Source:** ${m.source} · **Scope:** ${m.scope}.`,
+   472→    q.defects.derived.proxy_note && (m.id === "defect-density" || m.id === "mttf-mtbf" || m.id === "arrival-rate") ? `**Proxy disclosure:** ${q.defects.derived.proxy_note}` : "",
+   473→  ].filter(Boolean).join("\n\n");
+   474→  return { answer, chart: null };
+   475→}
+   476→
+   477→export function tryAnswerQuality(question: string, quality: CieQuality | null, concepts: ConceptTree | null): QualityAnswer | null {
+   478→  if (!quality) return null;
+   479→  const q = quality;
+   480→  const n = question.toLowerCase();
+   481→
+   482→  // ---------- element-level answers FIRST (a tapped bar/tile/row must win
+   483→  // over the whole-chart answer, whose keywords often appear in the same
+   484→  // question) ----------
+   485→  const fileAns = fileFacts(q, question);
+   486→  if (fileAns) return fileAns;
+   487→  const fnAns = functionFacts(q, question);
+   488→  if (fnAns) return fnAns;
+   489→  const secEl = securityFacts(q, question);
+   490→  if (secEl) return secEl;
+   491→  const dayMatch = question.match(/\d{4}-\d{2}-\d{2}/);
+   492→  if (dayMatch) {
+   493→    const row = q.churn.hosting_repo.daily.find((d) => d.day === dayMatch[0]);
+   494→    if (row) {
+   495→      return {
+   496→        answer: `**Churn on ${row.day}** — ${row.added} lines added, ${row.deleted} deleted (${row.churn} total), from ${q.churn.tool} over the hosting repository's real history. The biggest day of this sprint is the day the sample playground landed.`,
+   497→        chart: null,
+   498→      };
+   499→    }
+   500→  }
+   501→
+   502→  // ---------- whole-chart keyword answers ----------
+   503→  const wants = (w: string[]) => w.some((k) => n.includes(k));
+   504→
+   505→  if (wants(["hierarchy", "made of"]) && !wants(["file "])) {
+   506→    const s = buildConceptTreeSpec(concepts);
+   507→    if (s) return { answer: `**The concept hierarchy** — the big picture first, then the files under it, then what each does. Every node comes from the engine's concept tree; tap any node to ask about it.\n\n_Source: concepts.json._`, chart: s };
+   508→  }
+   509→  if (wants(["security", "insecure", "secret", "credential", "vulnerab", "weakness"])) {
+   510→    const sec = securityFacts(q, question) ?? fileFacts(q, question);
+   511→    if (sec) return sec;
+   512→    const data = Object.entries(q.security.by_category ?? {}).map(([k, v]) => ({ name: cut(k, 24), value: v, color: "amber" as const }));
+   513→    if (data.length) {
+   514→      return {
+   515→        answer: `**The security scan found ${q.security.issues.length} findings** (${Object.entries(q.security.by_severity ?? {}).map(([s, c]) => `${c} ${s.toLowerCase()}`).join(", ")}). Kinds: ${Object.entries(q.security.by_category).map(([k, v]) => `${v}× ${k}`).join(", ")}.\n\nThe scan is ${q.security.tool} — ${q.security.honesty} On production projects: ${q.security.real_world_equivalents?.join(", ")}.`,
+   516→        chart: { ...spec("hbar", "Security issues by kind", "Counts per finding kind."), data, source: "quality.json — security scan" },
+   517→      };
+   518→    }
+   519→  }
+   520→  if (wants(["duplicate", "twice", "copy-paste", "copy paste"])) {
+   521→    const dup = q.duplication;
+   522→    const rows = (dup.pairs ?? []).slice(0, 6).map((p) => `- ${p.a_file}:${p.a_line} ↔ ${p.b_file}:${p.b_line} — ${p.lines} lines (${p.preview || "same block"})`);
+   523→    return {
+   524→      answer: rows.length
+   525→        ? `**${dup.blocks_found} duplicated block(s), ${dup.duplicated_lines} lines** — matched by ${dup.tool}:\n${rows.join("\n")}\n\nHere the duplicated blocks are the CREATE TABLE definitions shared between the migrations and the schema dump — a classic sample of schema defined twice.`
+   526→        : `No repeated blocks found by ${dup.tool} — recorded as found.`,
+   527→      chart: null,
+   528→    };
+   529→  }
+   530→  if (wants(["hot spot", "hotspot", "hot spot"])) {
+   531→    const rows = (q.hotspots.rows ?? []).slice(0, 5).map((r) => `- ${r.file} — risk ${r.risk}/100 (churn ${r.churn}, max CC ${r.max_cc}, urgent findings ${r.urgent_findings})`);
+   532→    return { answer: `**Hot spots, ranked** by the disclosed formula: ${q.hotspots.formula}.\n${rows.join("\n")}\n\nOn production projects: ${q.hotspots.real_world_equivalents?.join(", ") ?? "CodeScene, SonarQube"}.`, chart: null };
+   533→  }
+   534→  if (wants(["heatmap", "heat map", "coverage map"]) || (wants(["coverage"]) && wants(["every", "file by file", "grid"]))) {
+   535→    const s = buildCoverageHeatmapSpec(q);
+   536→    if (s) return { answer: `**The coverage heat map** — every file, measured by ${q.coverage_heatmap.tool}. ${q.coverage_heatmap.honesty}\n\n_Tap any tile to ask about that file._`, chart: s };
+   537→  }
+   538→  if (wants(["code drift", "ahead of its tests", "test lag"])) {
+   539→    const rows = (q.drift.code ?? []).slice(0, 6).map((c) => `- ${c.file} — code ${c.last_change}, tests ${c.tests_last_change ?? "none"}${c.test_lag_days != null ? ` (lag ${c.test_lag_days}d)` : ""}`);
+   540→    return { answer: `**Code drift vs tests** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: null };
+   541→  }
+   542→  if (wants(["document drift", "docs behind", "words fell"])) {
+   543→    const rows = (q.drift.document ?? []).slice(0, 6).map((d) => `- ${d.doc} — ${d.note}${d.drift_days > 0 ? ` (${d.drift_days}d behind)` : ""}`);
+   544→    return { answer: `**Document drift** (${q.drift.tool}):\n${rows.join("\n")}\n\n${q.drift.honesty}`, chart: null };
+   545→  }
+   546→
+   547→  // metric answers
+   548→  const mAns = metricFacts(q, question);
+   549→  if (mAns) return mAns;
+   550→
+   551→  return null;
+   552→}
+   553→
+   554→/** The question a chart element hands to the chat when tapped. */
+   555→export function askAboutChartElement(chartTitle: string | undefined, el: { name: string; value?: number | string }): string {
+   556→  const v = el.value !== undefined ? ` (value ${el.value})` : "";
+   557→  return `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}. What does the collected data say about it, and how was it collected?`;
+   558→}
+   559→
