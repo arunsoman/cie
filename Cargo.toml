@@ -20,6 +20,8 @@ members = [
     "cie-adapter-php",
     "cie-adapter-sql",
     "cie-adapter-shell",
+    "cie-adapter-kotlin",
+    "cie-adapter-lua",
     "cie-ingest",
     "cie-evidence",
     "cie-summary",
@@ -93,6 +95,12 @@ tree-sitter-c = "0.24"
 tree-sitter-cpp = "0.23"
 tree-sitter-c-sharp = "0.23"
 tree-sitter-php = "0.25"
+# Kotlin + Lua (v1.2.2): the -ng/modern grammar crates expose the
+# tree-sitter-language `LanguageFn` API that tree-sitter 0.25 expects.
+# The legacy `tree-sitter-kotlin` crate pins the pre-0.23 C API and is
+# deliberately NOT used.
+tree-sitter-kotlin-ng = "1.1"
+tree-sitter-lua = "0.5"
 
 # ---- internal crates ----
 cie-core = { path = "cie-core" }
@@ -111,6 +119,8 @@ cie-adapter-rust = { path = "cie-adapter-rust" }
 cie-adapter-php = { path = "cie-adapter-php" }
 cie-adapter-sql = { path = "cie-adapter-sql" }
 cie-adapter-shell = { path = "cie-adapter-shell" }
+cie-adapter-kotlin = { path = "cie-adapter-kotlin" }
+cie-adapter-lua = { path = "cie-adapter-lua" }
 cie-ingest = { path = "cie-ingest" }
 cie-evidence = { path = "cie-evidence" }
 cie-summary = { path = "cie-summary" }

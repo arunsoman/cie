@@ -301,6 +301,9 @@ fn shebang_lang(bytes: &[u8]) -> LangId {
         if r.contains("php") {
             return LangId::Php;
         }
+        if r.contains("lua") {
+            return LangId::Lua;
+        }
         if r.contains("bash") || r.contains("/sh") {
             return LangId::Unknown; // shell: no adapter (honest unknown)
         }

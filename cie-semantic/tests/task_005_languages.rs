@@ -65,6 +65,9 @@ fn task_005_extension_detection_full_table() {
         ("ts", LangId::TypeScript),
         ("go", LangId::Go),
         ("rs", LangId::Rust),
+        ("kt", LangId::Kotlin),
+        ("kts", LangId::Kotlin),
+        ("lua", LangId::Lua),
         ("rb", LangId::Unknown), // v1.1 language: no id yet
     ] {
         assert_eq!(

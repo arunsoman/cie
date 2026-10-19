@@ -353,6 +353,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "cie-adapter-kotlin"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+ "tree-sitter",
+ "tree-sitter-kotlin-ng",
+]
+
+[[package]]
+name = "cie-adapter-lua"
+version = "1.2.0"
+dependencies = [
+ "cie-adapters",
+ "cie-core",
+ "cie-semantic",
+ "serde",
+ "tree-sitter",
+ "tree-sitter-lua",
+]
+
+[[package]]
 name = "cie-adapter-php"
 version = "1.2.0"
 dependencies = [
@@ -623,6 +647,8 @@ dependencies = [
  "cie-adapter-go",
  "cie-adapter-java",
  "cie-adapter-javascript",
+ "cie-adapter-kotlin",
+ "cie-adapter-lua",
  "cie-adapter-php",
  "cie-adapter-python",
  "cie-adapter-rust",
@@ -2432,10 +2458,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-kotlin-ng"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e800ebbda938acfbf224f4d2c34947a31994b1295ee6e819b65226c7b51b4450"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-language"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0af592be68c579aa78a16846bd19422978c3c52e438523d45ff5d1bff1f9d4a"
+
+[[package]]
+name = "tree-sitter-lua"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8daaf5f4235188a58603c39760d5fa5d4b920d36a299c934adddae757f32a10c"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
 
 [[package]]
 name = "tree-sitter-php"

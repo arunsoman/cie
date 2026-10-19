@@ -3,9 +3,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Languages supported by the adapter set (PRD §65, §16 v1 table, extended
-/// in v1.2.1 with SQL and Shell). Shipping a `LangId` does NOT imply a
-/// shipped adapter (FR-17/FR-18): ids exist so facts can name their language
-/// before adapters land.
+/// in v1.2.1 with SQL and Shell, and in v1.2.2 with Kotlin and Lua).
+/// Shipping a `LangId` does NOT imply a shipped adapter (FR-17/FR-18): ids
+/// exist so facts can name their language before adapters land.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
 )]
@@ -24,6 +24,8 @@ pub enum LangId {
     Php,
     Sql,
     Shell,
+    Kotlin,
+    Lua,
 }
 
 impl LangId {
@@ -42,6 +44,8 @@ impl LangId {
             LangId::Php => "php",
             LangId::Sql => "sql",
             LangId::Shell => "shell",
+            LangId::Kotlin => "kotlin",
+            LangId::Lua => "lua",
         }
     }
 
@@ -59,6 +63,8 @@ impl LangId {
             "php" => LangId::Php,
             "sql" => LangId::Sql,
             "sh" | "bash" | "zsh" | "shell" => LangId::Shell,
+            "kt" | "kts" | "kotlin" => LangId::Kotlin,
+            "lua" => LangId::Lua,
             _ => LangId::Unknown,
         }
     }
@@ -77,14 +83,17 @@ impl LangId {
             "php" | "php3" | "php4" | "php5" | "phtml" => LangId::Php,
             "sql" | "ddl" => LangId::Sql,
             "sh" | "bash" | "zsh" => LangId::Shell,
+            "kt" | "kts" => LangId::Kotlin,
+            "lua" => LangId::Lua,
             _ => LangId::Unknown,
         }
     }
 }
 
 /// The §16 language table (TASK-005): the ten v1 languages plus the v1.2.1
-/// additions (SQL, Shell). Ruby, Kotlin, Swift and Scala still have no ids
-/// and no adapters — they stay honestly "can't read yet".
+/// additions (SQL, Shell) and the v1.2.2 additions (Kotlin, Lua).
+/// Ruby, Swift and Scala still have no ids and no adapters — they stay
+/// honestly "can't read yet".
 pub struct LanguageTable;
 
 impl LanguageTable {
@@ -106,7 +115,8 @@ impl LanguageTable {
     }
 
     /// Every language id this engine can currently extract (v1 table + the
-    /// SQL/Shell adapters shipped in v1.2.1).
+    /// SQL/Shell adapters shipped in v1.2.1 + the Kotlin/Lua adapters
+    /// shipped in v1.2.2).
     pub fn all() -> &'static [LangId] {
         &[
             LangId::Python,
@@ -121,6 +131,8 @@ impl LanguageTable {
             LangId::Php,
             LangId::Sql,
             LangId::Shell,
+            LangId::Kotlin,
+            LangId::Lua,
         ]
     }
 }
@@ -149,5 +161,10 @@ mod tests {
         assert_eq!(lang_for_path("scripts/setup.sh"), LangId::Shell);
         assert_eq!(lang_for_path("migrations/002_hold.ddl"), LangId::Sql);
         assert_eq!(lang_for_path("deploy.bash"), LangId::Shell);
+        assert_eq!(lang_for_path("app/MainActivity.kt"), LangId::Kotlin);
+        assert_eq!(lang_for_path("build.gradle.kts"), LangId::Kotlin);
+        assert_eq!(lang_for_path("game/scripts/enemy.lua"), LangId::Lua);
+        // v1.1 languages still have no ids (FR-17).
+        assert_eq!(lang_for_path("a.rb"), LangId::Unknown);
     }
 }

@@ -1,0 +1,16 @@
+[package]
+name = "cie-adapter-lua"
+description = "Lua adapter (metatable dynamic dispatch, error()/pcall raise semantics, implicit numeric coercion)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-semantic = { workspace = true }
+cie-adapters = { workspace = true }
+serde = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-lua = { workspace = true }

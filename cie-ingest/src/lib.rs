@@ -715,6 +715,8 @@ pub fn default_registry() -> cie_adapters::LanguageRegistry {
     reg.register(cie_adapter_php::adapter());
     reg.register(cie_adapter_sql::adapter());
     reg.register(cie_adapter_shell::adapter());
+    reg.register(cie_adapter_kotlin::adapter());
+    reg.register(cie_adapter_lua::adapter());
     // New language goes HERE — one line, e.g.:
     // reg.register(cie_adapter_ruby::adapter());
     reg
