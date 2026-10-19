@@ -15,6 +15,7 @@
 import type { CannedChart } from "./canned-charts";
 import type { CieQuality, CieReport, ConceptNode, ConceptTree, VizElement, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import { engineFor, layoutFor, type ChatChartSpec, type ElementLoc, type TreeNode, type HeatTile } from "./chat-chart";
+import { containerOfPath } from "./atlas";
 
 function cut(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
@@ -315,21 +316,33 @@ export function buildDriftSpec(drift: CieDrift | null): ChatChartSpec | null {
 // Coverage heatmap (from the measured coverage export)
 // ---------------------------------------------------------------------------
 
-export function buildCoverageHeatmapSpec(quality: CieQuality | null): ChatChartSpec | null {
+/** Optional `container` scopes the tiles to one top-level folder — the same
+ *  file list, filtered before capping, with the headline percent recomputed
+ *  from exactly the rows shown (never the repo total dressed up as a scope). */
+export function buildCoverageHeatmapSpec(quality: CieQuality | null, container: string | null = null): ChatChartSpec | null {
   const cov = quality?.coverage_heatmap;
   if (!cov?.files?.length) return null;
-  const tiles: HeatTile[] = cov.files.map((f) => ({
+  const rows = container ? cov.files.filter((f) => containerOfPath(f.file) === container) : cov.files;
+  if (!rows.length) return null;
+  const tiles: HeatTile[] = rows.map((f) => ({
     name: cut(f.file, 22),
     value: Math.round(f.percent),
     label: f.covered != null && f.statements != null ? `${f.covered} of ${f.statements} lines` : "never even imported",
     loc: { file: f.file },
   }));
-  const pct = cov.totals?.percent;
+  let pct = cov.totals?.percent;
+  if (container) {
+    const withNums = rows.filter((f) => f.statements != null && f.statements > 0);
+    const stmts = withNums.reduce((s, f) => s + (f.statements ?? 0), 0);
+    const covd = withNums.reduce((s, f) => s + (f.covered ?? 0), 0);
+    pct = stmts > 0 ? Math.round((covd / stmts) * 100) : null;
+  }
+  const scopeNote = container ? `Scoped to ${container}: ${rows.length} of the ${cov.files.length} measured file(s) shown; the percent is recomputed from just those rows.` : `Whole project: measured across ${cov.files.length} file(s).`;
   return {
     ...spec(
       "heatmap",
-      "Test coverage, file by file (measured)",
-      `Measured by ${cov.tool ?? "coverage.py"} on the sample's real test run. ${pct != null ? `Whole project: ${pct}% of statements.` : ""} Green is well covered; rose was never even imported — the label says so.`,
+      container ? `Test coverage, file by file — ${container} (measured)` : "Test coverage, file by file (measured)",
+      `Measured by ${cov.tool ?? "coverage.py"} on the sample's real test run. ${scopeNote} Green is well covered; rose was never even imported — the label says so.`,
     ),
     tiles,
     source: "quality.json — coverage_heatmap (coverage.py)",
@@ -342,9 +355,11 @@ export function buildCoverageHeatmapSpec(quality: CieQuality | null): ChatChartS
 // always draw the exact same picture from the exact same export.
 // ---------------------------------------------------------------------------
 
-/** Most complex functions, worst first (real AST walk). */
-export function buildComplexitySpec(q: CieQuality): ChatChartSpec | null {
-  const fns = (q.complexity.functions ?? []).slice(0, 8);
+/** Most complex functions, worst first (real AST walk). Optional `container`
+ *  filters the ranking to one top-level folder before the cap applies. */
+export function buildComplexitySpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+  const all = q.complexity.functions ?? [];
+  const fns = (container ? all.filter((f) => containerOfPath(f.file) === container) : all).slice(0, 8);
   if (!fns.length) return null;
   const data = fns.map((f) => ({
     name: cut(f.function, 20),
@@ -353,7 +368,7 @@ export function buildComplexitySpec(q: CieQuality): ChatChartSpec | null {
     loc: { file: f.file, line: f.line } as ElementLoc,
   }));
   return {
-    ...spec("hbar", "Most complex functions (measured)", q.complexity.formula),
+    ...spec("hbar", container ? `Most complex functions — ${container} (measured)` : "Most complex functions (measured)", q.complexity.formula),
     data,
     source: `quality.json — ${q.complexity.tool}`,
   };
@@ -370,12 +385,14 @@ export function buildDailyChurnSpec(q: CieQuality): ChatChartSpec | null {
   };
 }
 
-/** Churn per file in the sample project — which files moved the most. */
-export function buildPerFileChurnSpec(q: CieQuality): ChatChartSpec | null {
-  const rows = (q.churn.sample.per_file ?? []).slice(0, 8);
+/** Churn per file in the sample project — which files moved the most.
+ *  Optional `container` scopes the ranking to one top-level folder. */
+export function buildPerFileChurnSpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+  const all = q.churn.sample.per_file ?? [];
+  const rows = (container ? all.filter((r) => containerOfPath(r.file) === container) : all).slice(0, 8);
   if (!rows.length) return null;
   return {
-    ...spec("hbar", "Churn per file (sample project)", `${q.churn.tool} over the sample's own files — added + deleted lines per file.`),
+    ...spec("hbar", container ? `Churn per file — ${container} (sample project)` : "Churn per file (sample project)", `${q.churn.tool} over the sample's own files — added + deleted lines per file.`),
     data: rows.map((r) => ({ name: cut(r.file, 22), value: r.churn, color: "amber" as const, loc: { file: r.file } as ElementLoc })),
     source: "quality.json — churn (sample, per file)",
   };
@@ -430,12 +447,14 @@ export function buildRepairTableSpec(q: CieQuality): ChatChartSpec | null {
   };
 }
 
-/** Hot spots as bars (risk 0–100 per file) — the ranked list, drawn. */
-export function buildHotspotSpec(q: CieQuality): ChatChartSpec | null {
-  const rows = (q.hotspots.rows ?? []).slice(0, 8);
+/** Hot spots as bars (risk 0–100 per file) — the ranked list, drawn.
+ *  Optional `container` scopes the ranking to one top-level folder. */
+export function buildHotspotSpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+  const all = q.hotspots.rows ?? [];
+  const rows = (container ? all.filter((r) => containerOfPath(r.file) === container) : all).slice(0, 8);
   if (!rows.length) return null;
   return {
-    ...spec("hbar", "Hot spots, ranked", q.hotspots.formula),
+    ...spec("hbar", container ? `Hot spots — ${container}, ranked` : "Hot spots, ranked", q.hotspots.formula),
     data: rows.map((r) => ({
       name: cut(r.file, 22),
       value: Math.round(r.risk),
