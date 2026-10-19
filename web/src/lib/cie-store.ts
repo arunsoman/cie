@@ -186,6 +186,15 @@ export const useCie = create<CieState>((set, get) => ({
         view: "start",
         canvasChart: null,
         mapSelected: null,
+        // The sample project has no local-folder root on this machine.
+        // Switching away from a connected project must drop its source
+        // state too, or the panel would try to resolve demo files against
+        // the stale root — surfacing wrong-project code or a confusing
+        // read error (issue #6). Mirrors setCustom()'s reset.
+        sourceRoot: null,
+        sourceCache: {},
+        sourceViewer: null,
+        pendingAsk: null,
       });
     } catch {
       set({ loading: false, loadError: "Could not load the sample data. Please refresh the page." });
