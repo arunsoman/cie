@@ -1,7 +1,7 @@
 //! cie — Code Intelligence Engine CLI.
 //!
 //! Commands: ingest, analyze, concepts, drift, impact, overlap, report,
-//! sample, ingest-org, viz, stories, cochange, deps.
+//! sample, ingest-org, viz, stories, cochange, deps, stack.
 
 use cie_drift::persist::DriftStoreExt;
 use cie_incremental::SnapshotStoreExt;
@@ -63,6 +63,12 @@ pub enum Command {
         /// Licence-obligation report (US-098; advisory feeds stay unplanned-by-design offline)
         #[arg(long)]
         licences: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Tech-stack report: manifests + docker + framework code facts (US-100)
+    Stack {
+        path: PathBuf,
         #[arg(long)]
         json: bool,
     },
@@ -299,6 +305,56 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::Stack { path, json } => {
+            let report = cie_stack::stack_report(&path);
+            if json {
+                println!("{}", cie_stack::to_json(&report));
+                return 0;
+            }
+            println!("tech stack — read from the project's own files; nothing inferred here:");
+            println!("  build      · {}", report.build.tool);
+            println!("  artifact   · {}", if report.build.artifact_name.is_empty() { "(not stated)" } else { &report.build.artifact_name });
+            for l in &report.languages {
+                println!(
+                    "  language   · {} ({} file(s){})",
+                    l.family,
+                    l.files,
+                    if l.shared_runtime { ", one runtime with java+kotlin" } else { "" }
+                );
+            }
+            for f in &report.frameworks {
+                println!(
+                    "  framework  · {}{}",
+                    f.name,
+                    if f.modules.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" [{}]", f.modules.join(", "))
+                    }
+                );
+            }
+            if let Some(jvm) = &report.jvm {
+                println!(
+                    "  spring     · {} route(s), {} service(s), {} repo(s), {} entities, {} scheduled, {} listener(s)",
+                    report.routes.len(),
+                    jvm.services.len(),
+                    jvm.repositories.len(),
+                    jvm.entities.len(),
+                    jvm.scheduled_in.len(),
+                    jvm.listeners.len()
+                );
+                for f in &jvm.flows {
+                    println!("  controller · {} ({})", f.name, f.rel);
+                }
+            }
+            if report.docker.present {
+                println!("  docker     · {}", report.docker.note);
+            }
+            for n in &report.notes {
+                println!("  note       · {}", n);
+            }
+            return 0;
+        }
         Command::Deps { path, what_if, licences, json } => {
             let table = cie_analysis::deps::scan_manifests(&path);
             if licences {

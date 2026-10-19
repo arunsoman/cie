@@ -13,6 +13,7 @@
 
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
+import type { TechStack } from "./stack-types";
 import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
@@ -22,7 +23,7 @@ export type DataSource = "demo" | "custom" | null;
 
 // Every page the middle stage can show. "chart" renders a chart the chat
 // (or a menu tap) sent to the canvas. "mastery" is the guided 5-station
-// journey; "notes" is its living document (see lib/mastery.ts).
+// journey
 export type StageView =
   | "start"
   | "map"
@@ -36,7 +37,6 @@ export type StageView =
   | "runtime"
   | "quality"
   | "mastery"
-  | "notes"
   | "chart";
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
@@ -85,6 +85,7 @@ interface CieState {
   cochange: CieCochange | null; // git co-change coupling (cie cochange) — null when none, or too shallow a clone to mine
   overlap: CieOverlap | null; // capability overlap over the concept tree (cie overlap) — null when none
   drift: CieDrift | null; // real claim-extraction + verification over the project's own docs (cie drift) — null when no docs found
+  stack: TechStack | null; // the engine's tech-stack artifact (cie stack) — null when the pass found nothing
   source: DataSource;
   label: string;
   loading: boolean;
@@ -127,6 +128,7 @@ interface CieState {
       cochange?: CieCochange | null;
       overlap?: CieOverlap | null;
       drift?: CieDrift | null;
+      stack?: TechStack | null;
       sourceRoot?: string | null;
     }
   ) => void;
@@ -165,6 +167,7 @@ export const useCie = create<CieState>((set, get) => ({
   cochange: null,
   overlap: null,
   drift: null,
+  stack: null,
   source: null,
   label: "",
   loading: true,
@@ -194,7 +197,7 @@ export const useCie = create<CieState>((set, get) => ({
       // this engine's own monorepo without its own .git root, so `cie
       // cochange` there would mine the ENGINE's commit history, not the
       // sample's — honestly null beats a misleading real-looking chart.
-      const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift] = await Promise.all([
+      const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift, stack] = await Promise.all([
         fetch("/data/report.json").then((r) => r.json()),
         fetch("/data/viewspec.json").then((r) => r.json()),
         fetch("/data/concepts.json").then((r) => r.json()),
@@ -204,6 +207,7 @@ export const useCie = create<CieState>((set, get) => ({
         fetch("/data/quality.json").then((r) => r.json()).catch(() => null),
         fetch("/data/overlap.json").then((r) => r.json()).catch(() => null),
         fetch("/data/drift.json").then((r) => r.json()).catch(() => null),
+        fetch("/data/stack.json").then((r) => r.json()).catch(() => null),
       ]);
       set({
         report,
@@ -216,6 +220,7 @@ export const useCie = create<CieState>((set, get) => ({
         cochange: null,
         overlap,
         drift,
+        stack,
         source: "demo",
         label: "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
@@ -252,6 +257,7 @@ export const useCie = create<CieState>((set, get) => ({
       cochange: extra?.cochange ?? null,
       overlap: extra?.overlap ?? null,
       drift: extra?.drift ?? null,
+      stack: extra?.stack ?? null,
       source: "custom",
       label,
       loading: false,

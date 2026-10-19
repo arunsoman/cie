@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieOverlap, CieDrift } from "@/lib/cie-types";
+import type { TechStack } from "@/lib/stack-types";
+import { isTechStack } from "@/lib/stack-types";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
@@ -479,6 +481,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         cochange?: CieCochange | null;
         overlap?: CieOverlap | null;
         drift?: CieDrift | null;
+        stack?: TechStack | null;
         label?: string;
         scan?: RepoScan | null;
         sourceRoot?: string | null;
@@ -499,6 +502,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         cochange: data.cochange ?? null,
         overlap: data.overlap ?? null,
         drift: data.drift ?? null,
+        stack: data.stack && isTechStack(data.stack) ? data.stack : null,
         sourceRoot: data.sourceRoot ?? null,
       });
       setJobId(null);

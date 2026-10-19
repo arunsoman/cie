@@ -37,7 +37,6 @@ import { NumbersView } from "@/components/cie/charts";
 import { MenuView } from "@/components/cie/menu-tab";
 import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
-import { MasteryNotesView } from "@/components/cie/mastery-notes";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
 
@@ -54,8 +53,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
-  mastery: { title: "Master this codebase", caption: "The 5-station journey — CIE guides, you verify, both remember." },
-  notes: { title: "Mastery notes", caption: "The living document — engine-said regenerates, yours never changes under you." },
+  mastery: { title: "Master this codebase", caption: "Four sections: the paragraph, the mains, the routes, the flows." },
 };
 
 export function Stage() {
@@ -150,7 +148,6 @@ export function Stage() {
             {view === "runtime" && <RuntimeView />}
             {view === "quality" && <QualityView />}
             {view === "mastery" && <MasteryView />}
-            {view === "notes" && <MasteryNotesView />}
           </div>
         </div>
       )}

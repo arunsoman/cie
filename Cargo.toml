@@ -34,6 +34,7 @@ members = [
     "cie-store",
     "cie-llm",
     "cie-docs",
+    "cie-stack",
     "cie-claims",
     "cie-drift",
     "cie-cli",
@@ -129,6 +130,7 @@ cie-analysis = { path = "cie-analysis" }
 cie-incremental = { path = "cie-incremental" }
 cie-concepts = { path = "cie-concepts" }
 cie-counterexample = { path = "cie-counterexample" }
+cie-stack = { path = "cie-stack" }
 cie-fault = { path = "cie-fault" }
 cie-store = { path = "cie-store" }
 cie-llm = { path = "cie-llm" }

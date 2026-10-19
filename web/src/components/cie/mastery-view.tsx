@@ -1,394 +1,716 @@
 "use client";
 
-// "Master this codebase" — the 5-station guided journey over the loaded
-// project. This view owns nothing:
-//   • every Phase-1 chip is a prompt the chat answers INSTANTLY from the
-//     loaded engine exports (fast paths in lib/mastery.ts — no AI round-trip)
-//   • every Phase-3 button opens the REAL views/charts — the journey forks
-//     nothing, it links
-//   • progress lives per project in localStorage (lib/mastery.ts) and never
-//     leaves the machine; export is an explicit button
-// The chat stays the engine of the journey — this page is the map of it.
+// "Master this codebase" — four sections, nothing else:
+//   ① a paragraph describing the project — from the stack pass (build files,
+//      framework classes read as written) + the engine's own numbers.
+//      Inferred things stay tagged; every claim names its file and is
+//      clickable into the real code.
+//   ② the mains graph — Spring's ONE application class with everything it
+//      boots (port, schedulers, listeners, the controllers), or, for stacks
+//      CIE hasn't parsed yet, the engine's usual entry points — honestly.
+//   ③ the routes table — every HTTP endpoint the framework code declares.
+//   ④ the data-flow diagram — per route, controller → service → repository
+//      → database → response, with every if/else and switch branch as
+//      written, throws and returns included. Conditions are QUOTED, never
+//      evaluated (CIE doesn't run the code).
+//
+// The chat keeps the old journey's fast paths; this page is the map.
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Check, Clipboard, Download, FileText, GitMerge, Layers, Map as MapIcon, PartyPopper, PenLine, RotateCcw, Sparkles, Target, Waves, Zap } from "lucide-react";
+import { Boxes, CheckCircle2, FileQuestion, Map as MapIcon, Route as RouteIcon, Workflow } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
-import {
-  exportArchitecture,
-  exportNotes,
-  downloadTextFile,
-  summaryAnswer,
-  traceFlow,
-} from "@/lib/mastery";
-import { buildCochangeSpec, buildOverlapSpec } from "@/lib/quality";
-import { computeRisk } from "@/lib/mastery";
-import { Formatted } from "@/components/cie/chat-panel";
+import { computeEntryPoints, type MasteryRow } from "@/lib/mastery";
+import type { FlowNode, TechStack } from "@/lib/stack-types";
 
-// ---- the four Phase-1 prompts, each answered instantly by the chat ----
+// ============================================================
+// ① the paragraph
+// ============================================================
 
-const PHASE1_PROMPTS = [
-  { id: "summary", icon: "🗺️", title: "What is this system?", question: "What is this system? Summarize it in plain words.", detail: "Instant, from the engine facts" },
-  { id: "entry", icon: "🚪", title: "Where does it start from?", question: "Where does it start from?", detail: "Entry points with the real file:line — click a row, see the code" },
-  { id: "c4", icon: "📦", title: "Draw the big picture", question: "Draw the big picture — C4 containers of the parts.", detail: "Containers + calls across them → the canvas" },
-  { id: "flows", icon: "🛤️", title: "The top flows", question: "Show the top flow candidates.", detail: "Ranked by how much code each start reaches — pick one, trace it" },
-] as const;
+function StackParagraph({ stack, hasReport, noProject }: { stack: TechStack | null; hasReport: boolean; noProject: boolean }) {
+  if (noProject) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900 leading-relaxed">
+        No project is loaded yet. <b>Use your own</b> — a repo link with its branch, or a folder on this computer — and CIE reads the build files, Docker files and framework code directly. The sample project also works, loaded by default.
+      </div>
+    );
+  }
+  if (!stack) {
+    return (
+      <p className="text-[13px] text-stone-600 leading-relaxed">
+        This project was loaded without the tech-stack pass (an older analysis, or the engine&apos;s own JSON files), so the four sections below only have the engine&apos;s counts — reconnect the project to get the full read.
+      </p>
+    );
+  }
+
+  const parts: { text: string; evidence?: { rel?: string; line?: number } }[] = [];
+  const jvm = stack.jvm ?? null;
+  const buildName = stack.build.artifactName || "the project";
+  const toolWords = { maven: "a Maven", gradle: "a Gradle", cargo: "a Cargo", npm: "an npm", go: "a Go", python: "a Python", mix: "an Elixir" }[stack.build.tool];
+  if (toolWords) {
+    parts.push({ text: `${buildName} is ${toolWords} build.` });
+  }
+
+  if (stack.frameworks.length > 0) {
+    const f = stack.frameworks[0];
+    parts.push({ text: ` ${f.name} — declared in`, evidence: { rel: f.evidence } });
+    parts.push({
+      text: ` ${f.modules.length ? `(${f.modules.slice(0, 4).join(", ")}${f.modules.length > 4 ? ", …" : ""})` : ""}`,
+    });
+  }
+
+  if (jvm) {
+    const oneRuntime = jvm.javaFiles > 0 && jvm.kotlinFiles > 0;
+    if (oneRuntime) {
+      parts.push({ text: ` ${jvm.javaFiles} java + ${jvm.kotlinFiles} kotlin files share ONE runtime — one family, two syntaxes.` });
+    } else {
+      parts.push({ text: ` ${jvm.scanned} java/kotlin file(s) scanned.` });
+    }
+    if (stack.mains.length > 0) {
+      const m = stack.mains[0];
+      parts.push({ text: ` ${m.name}`, evidence: { rel: m.rel, line: m.line } });
+      parts.push({
+        text: ` boots the framework: ${stack.routes.length} HTTP route(s) run through ${jvm.services.length} service(s) down to ${jvm.repositories.length} repositor${jvm.repositories.length === 1 ? "y" : "ies"} over ${jvm.entities.length} entit${jvm.entities.length === 1 ? "y" : "ies"}.`,
+      });
+    }
+    if (jvm.scheduledIn.length > 0) parts.push({ text: ` ${jvm.scheduledIn.length} scheduled job(s) run on timers.` });
+    if (jvm.listeners.length > 0) parts.push({ text: ` ${jvm.listeners.length} messaging listener(s) react to topics.` });
+  } else {
+    const langs = stack.languages.map((l) => `${l.files} ${l.family} file(s)`).join(" + ");
+    if (langs) parts.push({ text: ` ${langs} counted.` });
+    parts.push({
+      text: ` No route/main parser for this stack yet — CIE counts files but doesn't name routes for it (that's the honest stub, not a guess).`,
+    });
+  }
+
+  if (stack.docker.present) {
+    const svc = stack.docker.compose?.services ?? [];
+    parts.push({
+      text: ` It ships as Docker: ${svc.length ? `compose with ${svc.length} service${svc.length === 1 ? "" : "s"} (${svc.slice(0, 4).map((s) => s.name).join(", ")}), ` : ""}${stack.docker.dockerfiles.length} Dockerfile(s).`,
+    });
+    parts.push({ text: " Read as written; CIE doesn't build or run containers." });
+  }
+  const cfg = stack.config[0];
+  if (cfg?.port) {
+    parts.push({ text: ` The code says it listens on port ${cfg.port}`, evidence: { rel: cfg.rel } });
+    parts.push({ text: "." });
+  }
+  if (cfg?.datasource) {
+    parts.push({ text: ` Its database URL is "${cfg.datasource}"`, evidence: { rel: cfg.rel } });
+    parts.push({ text: "." });
+  }
+
+  const notes = stack.notes.filter((n) => !n.startsWith("[stack]"));
+  return (
+    <div className="space-y-2">
+      <p className="text-[13px] text-stone-700 leading-relaxed">
+        {parts.map((p, i) => (
+          <span key={i}>
+            {p.text}
+            {p.evidence?.rel && (
+              <EvidenceChip
+                rel={p.evidence.rel}
+                line={p.evidence.line}
+              />
+            )}
+          </span>
+        ))}
+      </p>
+      {notes.length > 0 && (
+        <ul className="space-y-1">
+          {notes.slice(0, 4).map((n, i) => (
+            <li key={i} className="text-[11.5px] text-stone-500 flex items-start gap-1.5">
+              <FileQuestion className="h-3 w-3 mt-0.5 shrink-0 text-amber-600" /> {n}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** the little file:line chip EVERY claim carries — the tag that stays */
+function EvidenceChip({ rel, line }: { rel?: string | null; line?: number | null }) {
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  if (!rel) return null;
+  const short = rel.split("/").pop() ?? rel;
+  return (
+    <button
+      type="button"
+      onClick={() => openSourceViewer({ file: rel, line: line ?? undefined })}
+      className="inline-flex items-center gap-0.5 mx-0.5 rounded bg-emerald-50 border border-emerald-200 px-1 py-0 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100 align-middle whitespace-nowrap"
+      title={`Open ${rel}${line ? ` line ${line}` : ""} in the source panel`}
+    >
+      {short}
+      {line ? `:${line}` : ""}
+    </button>
+  );
+}
+
+// ============================================================
+// ② the mains graph
+// ============================================================
+
+function MainsGraph({ stack, hasReport }: { stack: TechStack | null; hasReport: boolean }) {
+  const mains = stack?.mains ?? [];
+  const jvm = stack?.jvm ?? null;
+
+  if (mains.length > 0 && jvm) {
+    const items: { label: string; sub: string; rel?: string; line?: number }[] = [];
+    const cfg = stack?.config[0];
+    if (cfg?.port) {
+      items.push({ label: `listens on :${cfg.port}`, sub: cfg.rel.split("/").pop() ?? "", rel: cfg.rel });
+    }
+    if (jvm.scheduledIn.length > 0) {
+      items.push({ label: `${jvm.scheduledIn.length} scheduled job(s)`, sub: jvm.scheduledIn.slice(0, 3).map((s) => `${s.cls}.${s.method}`).join(", ") + (jvm.scheduledIn.length > 3 ? ", …" : ""), rel: jvm.scheduledIn[0].rel, line: jvm.scheduledIn[0].line });
+    }
+    if (jvm.listeners.length > 0) {
+      items.push({ label: `${jvm.listeners.length} listener(s)`, sub: jvm.listeners.slice(0, 3).map((s) => `${s.cls}.${s.method}${s.target ? ` → ${s.target}` : ""}`).join(", ") + (jvm.listeners.length > 3 ? ", …" : ""), rel: jvm.listeners[0].rel, line: jvm.listeners[0].line });
+    }
+    items.push({ label: `${stack?.routes.length ?? 0} HTTP route(s)`, sub: jvm.flows.map((f) => f.name).slice(0, 4).join(", "), rel: jvm.flows[0]?.rel });
+    items.push({
+      label: `${jvm.services.length} service(s) → ${jvm.repositories.length} repo(s)`,
+      sub: jvm.entities.slice(0, 3).map((e) => e.name + (e.table ? ` (${e.table})` : "")).join(", ") || "—",
+      rel: jvm.services[0]?.rel,
+      line: jvm.services[0]?.line,
+    });
+    return <MainsTree mains={mains} items={items} langNote={jvm.javaFiles > 0 && jvm.kotlinFiles > 0 ? "one runtime, two syntaxes" : undefined} />;
+  }
+
+  return <EngineFallbackGraph hasReport={hasReport} />;
+}
+
+function MainsTree({
+  mains,
+  items,
+  langNote,
+}: {
+  mains: TechStack["mains"];
+  items: { label: string; sub: string; rel?: string; line?: number }[];
+  langNote?: string;
+}) {
+  return (
+    <div className="p-3">
+      <div className="flex flex-col items-center gap-0">
+        {/* the application class — the ONE boot point */}
+        {mains.map((m) => (
+          <div key={m.rel + m.name} className="flex flex-col items-center">
+            <MainPill main={m} />
+            <span className="w-px h-4 bg-stone-300" aria-hidden />
+          </div>
+        ))}
+        {/* everything it boots */}
+        <div className="grid sm:grid-cols-2 gap-2 w-full max-w-xl">
+          {items.map((it, i) => (
+            <div key={i} className="rounded-lg border border-stone-200 bg-white p-2.5 min-w-0">
+              <p className="text-[12px] font-bold text-stone-800 truncate flex items-center gap-1">
+                <Boxes className="h-3.5 w-3.5 text-emerald-700 shrink-0" /> {it.label}
+              </p>
+              <p className="text-[10.5px] text-stone-500 truncate mt-0.5">{it.sub || "—"}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {langNote && <p className="text-[11px] text-stone-400 text-center mt-2">☕ {langNote} — both syntaxes parsed into the same picture</p>}
+      <p className="text-[10.5px] text-stone-400 text-center mt-1">Read from the code as written — click a claim&apos;s chip to see the file.</p>
+    </div>
+  );
+}
+
+function MainPill({ main }: { main: TechStack["mains"][number] }) {
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  return (
+    <button
+      type="button"
+      onClick={() => openSourceViewer({ file: main.rel, line: main.line })}
+      className="rounded-xl border-2 border-emerald-600 bg-emerald-700 px-4 py-2 text-white shadow-sm hover:bg-emerald-800 text-center"
+      title={`Open ${main.rel}`}
+    >
+      <span className="block text-[13px] font-bold">{main.name}</span>
+      <span className="block text-[10px] opacity-80 font-mono">
+        {main.rel.split("/").pop()}:{main.line} · @SpringBootApplication
+      </span>
+    </button>
+  );
+}
+
+function EngineFallbackGraph({ hasReport }: { hasReport: boolean }) {
+  const report = useCie((s) => s.report);
+  const rows = useMemo(() => (report ? computeEntryPoints(report).slice(0, 6) : []), [report]);
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  return (
+    <div className="p-3">
+      <p className="text-[12px] text-stone-600 mb-2">
+        No application class parsed for this stack — the honest fallback is the engine&apos;s own reading of where the code starts: symbols nothing calls, that touch the outside world.
+        {!hasReport && " (No engine report loaded.)"}
+      </p>
+      <div className="grid sm:grid-cols-2 gap-2">
+        {rows.map((r, i) => (
+          <EntryRow key={i} row={r} onClick={() => openSourceViewer({ file: r.file ?? "", byteStart: r.byteStart, byteEnd: r.byteEnd })} />
+        ))}
+      </div>
+      {rows.length === 0 && hasReport && <p className="text-[11px] text-stone-400">The engine didn&apos;t record entry points for this project — the report&apos;s own numbers stay the only facts.</p>}
+    </div>
+  );
+}
+
+function EntryRow({ row, onClick }: { row: MasteryRow; onClick: () => void }) {
+  const statusWord = row.status === "confirmed" ? "confirmed by the engine" : "inferred — stays tagged";
+  return (
+    <button type="button" onClick={onClick} className="text-left rounded-lg border border-stone-200 bg-white p-2.5 hover:border-emerald-300 hover:bg-emerald-50/40 min-w-0">
+      <span className="flex items-center gap-1.5">
+        <span className="text-[12px] font-semibold text-stone-900 truncate font-mono">{row.title}</span>
+        {row.status === "confirmed" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+      </span>
+      <span className="block text-[10.5px] text-stone-500 truncate mt-0.5">
+        {row.detail} · {statusWord}
+      </span>
+    </button>
+  );
+}
+
+// ============================================================
+// ③ the routes table
+// ============================================================
+
+function RoutesTable({ stack }: { stack: TechStack | null }) {
+  const routes = stack?.routes ?? [];
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  if (!stack) return <p className="p-3 text-[12px] text-stone-500">No stack report loaded — no routes to table.</p>;
+  if (routes.length === 0) {
+    return (
+      <div className="p-3 space-y-1">
+        <p className="text-[12px] text-stone-600">
+          {stack.jvm
+            ? "Spring is named in the build files, but no @RestController/@Controller endpoints were parsed in the scanned files — the table stays honestly empty rather than guessing."
+            : "No framework routes parsed for this stack yet (the stub says exactly what CIE did and didn't read)."}
+        </p>
+        {stack.notes.filter((n) => !n.startsWith("[stack]") && n.includes("route")).slice(0, 1).map((n, i) => (
+          <p key={i} className="text-[11px] text-stone-400">{n}</p>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[12px]">
+        <thead className="text-[10px] text-stone-400 text-left border-b border-stone-100">
+          <tr>
+            <th className="py-1.5 px-3 font-bold">Verb</th>
+            <th className="py-1.5 px-3 font-bold">Path</th>
+            <th className="py-1.5 px-3 font-bold">Handler</th>
+            <th className="py-1.5 px-3 font-bold">Params</th>
+            <th className="py-1.5 px-3 font-bold">Returns</th>
+            <th className="py-1.5 px-3 font-bold" />
+          </tr>
+        </thead>
+        <tbody>
+          {routes.map((r, i) => (
+            <tr key={i} className="border-b border-stone-50 hover:bg-emerald-50/40">
+              <td className="py-1.5 px-3">
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${VERB_CLASS(r.verb)}`}>{r.verb}</span>
+              </td>
+              <td className="py-1.5 px-3 font-mono text-[11.5px] font-semibold" title={r.path}>{r.path}</td>
+              <td className="py-1.5 px-3 text-[11.5px]">
+                <span className="font-mono">{r.owner}</span>.<span className="font-semibold">{r.method}</span>()
+              </td>
+              <td className="py-1.5 px-3 text-[11px] text-stone-500" title={r.params.join(", ")}>
+                {r.params.length ? r.params.join(", ") : "—"}
+              </td>
+              <td className="py-1.5 px-3 text-[11px] font-mono text-stone-600">{r.returns || "—"}</td>
+              <td className="py-1.5 px-3">
+                <EvidenceChip rel={r.rel} line={r.line} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-3 pb-2.5 pt-1.5 text-[10.5px] text-stone-400">
+        {routes.length} route(s) as written in the annotations — every row carries its evidence; nothing inferred.
+      </p>
+    </div>
+  );
+}
+
+function VERB_CLASS(verb: string): string {
+  switch (verb) {
+    case "GET": return "bg-sky-100 text-sky-800 border border-sky-200";
+    case "POST": return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+    case "PUT": return "bg-amber-100 text-amber-800 border border-amber-200";
+    case "DELETE": return "bg-rose-100 text-rose-800 border border-rose-200";
+    case "PATCH": return "bg-violet-100 text-violet-800 border border-violet-200";
+    default: return "bg-stone-100 text-stone-700 border border-stone-200";
+  }
+}
+
+// ============================================================
+// ④ the data-flow diagram — branch-capable
+// ============================================================
+
+const CANON_LANES = ["client", "controller", "service", "repository", "database", "response"] as const;
+const LANE_COLORS: Record<string, string> = {
+  client: "#57534e",
+  controller: "#047857",
+  service: "#1d4ed8",
+  repository: "#6d28d9",
+  database: "#b45309",
+  response: "#0f766e",
+};
+const LANE_LABELS: Record<string, string> = {
+  client: "client",
+  controller: "controller",
+  service: "service",
+  repository: "repository",
+  database: "database",
+  response: "response",
+};
+
+type FlatRow =
+  | { t: "arrow"; lane: string; to: string; label: string; sub?: string; kind: "call" | "throw" | "return" | "request"; node: FlowNode; armDepth: number }
+  | { t: "self"; lane: string; label: string; node: FlowNode; armDepth: number }
+  | { t: "decision"; lane: string; label: string; node: FlowNode; armDepth: number }
+  | { t: "arm"; label: string; armDepth: number };
+
+/// flatten a flow's body into lane rows — branches become `arm` rows whose
+/// inner rows carry armDepth (one row per node, all evidence kept)
+function flattenFlow(
+  nodes: FlowNode[],
+  lane: string,
+  armDepth: number,
+  out: FlatRow[],
+  lanesUsed: Set<string>
+) {
+  for (const n of nodes) {
+    if (out.length > 220) return; // hard cap, honest
+    switch (n.kind) {
+      case "decision": {
+        out.push({ t: "decision", lane, label: n.label, node: n, armDepth });
+        for (const child of n.children) {
+          out.push({ t: "arm", label: child.label, armDepth });
+          flattenFlow(child.nodes, lane, armDepth + 1, out, lanesUsed);
+        }
+        break;
+      }
+      case "throw": {
+        lanesUsed.add("response");
+        out.push({ t: "arrow", lane, to: "response", label: n.label, kind: "throw", node: n, armDepth });
+        break;
+      }
+      case "return": {
+        lanesUsed.add("response");
+        out.push({ t: "arrow", lane, to: "response", label: n.label, kind: "return", node: n, armDepth });
+        break;
+      }
+      case "request": {
+        lanesUsed.add("client");
+        lanesUsed.add("controller");
+        out.push({ t: "arrow", lane: "client", to: "controller", label: n.label, kind: "request", node: n, armDepth });
+        // the handler chain continues: request → controller → body …
+        for (const child of n.children) {
+          for (const sub of child.nodes) {
+            if (sub.kind === "action" || sub.kind === "other") {
+              // the controller's own action — a self chip, then its body
+              out.push({ t: "self", lane: "controller", label: sub.label, node: sub, armDepth });
+              for (const sub2 of sub.children) {
+                flattenFlow(sub2.nodes, "controller", armDepth, out, lanesUsed);
+              }
+            } else {
+              flattenFlow([sub], "controller", armDepth, out, lanesUsed);
+            }
+          }
+        }
+        break;
+      }
+      default: {
+        // action — self chip when unresolvable ("other") or same lane
+        const laneable = CANON_LANES.includes(n.layer as (typeof CANON_LANES)[number]) && n.layer !== lane && n.layer !== "other";
+        if (laneable) {
+          lanesUsed.add(n.layer);
+          out.push({ t: "arrow", lane, to: n.layer, label: n.label, kind: "call", node: n, armDepth });
+          const into = n.children[0];
+          if (into) {
+            flattenFlow(into.nodes, n.layer, armDepth, out, lanesUsed);
+          }
+        } else {
+          out.push({ t: "self", lane, label: n.label, node: n, armDepth });
+          const into = n.children[0];
+          if (into) {
+            flattenFlow(into.nodes, lane, armDepth, out, lanesUsed);
+          }
+        }
+      }
+    }
+  }
+}
+
+const ARM_INDENT = 22;
+const ROW_H = 46;
+
+function FlowDiagram({ flow }: { flow: FlowNode }) {
+  const openSourceViewer = useCie((s) => s.openSourceViewer);
+  const uid = useSafeId();
+
+  const rows = useMemo(() => {
+    const out: FlatRow[] = [];
+    const lanes = new Set<string>(["client", "controller"]);
+    flattenFlow([flow], "client", 0, out, lanes);
+    return { rows: out.slice(0, 220), lanes: [...lanes] };
+  }, [flow]);
+
+  const lanes = useMemo(
+    () => CANON_LANES.filter((l) => rows.lanes.includes(l)),
+    [rows.lanes]
+  );
+  const laneOf = (name: string) => 96 + (lanes.indexOf(name as (typeof CANON_LANES)[number]) * (720 - 96)) / Math.max(1, lanes.length - 1);
+
+  const H = 64 + rows.rows.length * ROW_H + 26;
+  return (
+    <svg role="img" aria-label="Data flow of this route" viewBox={`0 0 820 ${H}`} width="100%" className="overflow-visible">
+      <defs>
+        <marker id={`${uid}-arrow`} viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
+          <path d="M0,0L10,5L0,10z" fill="#57534e" />
+        </marker>
+      </defs>
+      {/* lifelines */}
+      {lanes.map((l) => (
+        <line key={`ll-${l}`} x1={laneOf(l)} y1={40} x2={laneOf(l)} y2={H - 14} stroke="#e7e5e4" strokeWidth={2} />
+      ))}
+      {lanes.map((l) => (
+        <g key={`lb-${l}`}>
+          <rect x={laneOf(l) - 46} y={6} width={92} height={24} rx={7} fill={LANE_COLORS[l] ?? "#78716c"} />
+          <text x={laneOf(l)} y={22} textAnchor="middle" fontSize={11} fill="#fff" fontWeight={700}>
+            {LANE_LABELS[l] ?? l}
+          </text>
+        </g>
+      ))}
+      {rows.rows.map((r, i) => renderRow(r, i))}
+    </svg>
+  );
+
+  function renderRow(r: FlatRow, i: number): React.ReactNode {
+    // arms render a full-width label chip; arrows shift inside arms
+    const y = 58 + i * ROW_H;
+    const indent = r.t === "arrow" || r.t === "self" || r.t === "decision" ? r.armDepth * ARM_INDENT : 0;
+    switch (r.t) {
+      case "arm":
+        return (
+          <g key={`r-${i}`}>
+            <rect x={10 + r.armDepth * ARM_INDENT} y={y - 14} width={r.label.length * 6.1 + 26} height={20} rx={5} fill="#fef3c7" stroke="#fcd34d" />
+            <text x={22 + r.armDepth * ARM_INDENT} y={y} fontSize={10.5} fontWeight={700} fill="#92400e">
+              {r.label.length > 40 ? r.label.slice(0, 39) + "…" : r.label}
+            </text>
+          </g>
+        );
+      case "decision":
+        return (
+          <g key={`r-${i}`} className="cursor-pointer" onClick={() => clickSrc(r.node)}>
+            <rect x={laneOf(r.lane) - 34} y={y - 12} width={68} height={24} rx={4} fill="#fffbeb" stroke="#d97706" transform={`translate(${indent},0)`} />
+            <text x={laneOf(r.lane) + indent} y={y + 4} textAnchor="middle" fontSize={9.5} fontWeight={800} fill="#b45309">
+              ◇
+            </text>
+            <text x={(laneOf(r.lane) + indent - 34) + 82} y={y + 4} fontSize={11} fontWeight={600} fill="#92400e">
+              {r.label.length > 52 ? r.label.slice(0, 51) + "…" : r.label}
+            </text>
+          </g>
+        );
+      case "self":
+        return (
+          <g key={`r-${i}`} className="cursor-pointer" onClick={() => clickSrc(r.node)}>
+            <rect x={laneOf(r.lane) + indent - 74} y={y - 13} width={148} height={26} rx={13} fill="#f5f5f4" stroke="#d6d3d1" />
+            <text x={laneOf(r.lane) + indent} y={y + 4} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#57534e">
+              {r.label.length > 22 ? r.label.slice(0, 21) + "…" : r.label}
+            </text>
+          </g>
+        );
+      case "arrow":
+      default: {
+        const x1 = laneOf(r.lane) + indent;
+        const x2 = laneOf(r.to) + indent;
+        const color = r.kind === "throw" ? "#e11d48" : r.kind === "return" ? "#0f766e" : LANE_COLORS[r.to] ?? "#57534e";
+        const lbl = r.label.length > 58 ? r.label.slice(0, 57) + "…" : r.label;
+        return (
+          <g key={`r-${i}`} className={r.node.rel ? "cursor-pointer" : ""} onClick={() => clickSrc(r.node)}>
+            <text x={(x1 + x2) / 2} y={y - 4} textAnchor="middle" fontSize={11} fontWeight={600} fill={color}>
+              {lbl}
+            </text>
+            {r.node.rel && r.node.line && (
+              <text x={(x1 + x2) / 2} y={y + 22} textAnchor="middle" fontSize={9.5} fill="#a8a29e" fontWeight={600}>
+                {shortFile(r.node.rel)}:{r.node.line} ↗
+              </text>
+            )}
+            <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={2.2} strokeDasharray={r.kind === "return" ? "6 3" : undefined} markerEnd={`url(#${uid}-arrow)`} />
+          </g>
+        );
+      }
+    }
+  }
+
+  function clickSrc(n: FlowNode) {
+    if (!n.rel) return;
+    openSourceViewer({ file: n.rel, line: n.line ?? undefined });
+  }
+}
+
+function shortFile(rel: string): string {
+  const base = rel.split("/").pop() ?? rel;
+  return base.length > 26 ? base.slice(0, 24) + "…" : base;
+}
+
+function useSafeId(): string {
+  const [id] = useState(() => `fd${Math.random().toString(36).slice(2, 8)}`);
+  return id;
+}
+
+// ============================================================
+// the view — strictly four sections
+// ============================================================
 
 export function MasteryView() {
   const source = useCie((s) => s.source);
   const label = useCie((s) => s.label);
   const loadMastery = useCie((s) => s.loadMastery);
   const report = useCie((s) => s.report);
-  const mastery = useCie((s) => s.mastery);
-  const updateMastery = useCie((s) => s.updateMastery);
-  const resetMastery = useCie((s) => s.resetMastery);
+  const stack = useCie((s) => s.stack);
   const setPendingAsk = useCie((s) => s.setPendingAsk);
-  const sourceRoot = useCie((s) => s.sourceRoot);
-  const concepts = useCie((s) => s.concepts);
-  const deps = useCie((s) => s.deps);
-  const cochange = useCie((s) => s.cochange);
-  const overlap = useCie((s) => s.overlap);
-  const drift = useCie((s) => s.drift);
-  const setView = useCie((s) => s.setView);
-  const openChartOnCanvas = useCie((s) => s.openChartOnCanvas);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [yourDraft, setYourDraft] = useState<string | null>(null);
+  const [pickedController, setPickedController] = useState(0);
+  const [pickedFlow, setPickedFlow] = useState(0);
 
   // (re)load whenever the loaded project changes — one effect, local, explicit
   useEffect(() => {
     loadMastery();
   }, [source, label, loadMastery]);
 
-  // the CIE side of the checkpoint — derived fresh, never stored as if it were
-  const cieWords = useMemo(
-    () => (report ? summaryAnswer({ report, concepts, deps, cochange, overlap, drift, label }) : ""),
-    [report, concepts, deps, cochange, overlap, drift, label]
-  );
-
-  if (!mastery) {
-    return <div className="py-16 text-center text-sm text-stone-400" role="status">Opening your journey…</div>;
-  }
-
-  const done = (id: string) => mastery.prompts[id] != null;
-  const whenDone = (id: string) => (mastery.prompts[id] ? new Date(mastery.prompts[id]).toLocaleDateString() : "");
-
-  // ---- station progress, always honest counts, nothing inflated ----
-  const p1 = PHASE1_PROMPTS.filter((p) => done(p.id)).length;
-  const traceEntries = Object.entries(mastery.traces);
-  let youVerified = 0;
-  let totalSteps = 0;
-  for (const [, t] of traceEntries) {
-    const r = traceFlow(report, t.entryId);
-    totalSteps += r?.steps.length ?? 0;
-    youVerified += Object.keys(t.steps).length;
-  }
-  const s2frac = totalSteps > 0 ? Math.min(1, youVerified / totalSteps) : 0;
-  const s3 = (["cochange", "overlap", "deps"] as const).filter((k) => done(k)).length;
-  const s4 = mastery.exports.length > 0;
-
-  const ask = (question: string, id: string) => {
-    setPendingAsk(question);
-    if (!done(id)) updateMastery((m) => ({ ...m, prompts: { ...m.prompts, [id]: Date.now() } }));
-  };
-
-  const markSeen = (id: string) => {
-    if (!done(id)) updateMastery((m) => ({ ...m, prompts: { ...m.prompts, [id]: Date.now() } }));
-  };
-
-  const saveCheckpoint = () => {
-    updateMastery((m) => ({ ...m, yourWords: yourDraft ?? m.yourWords, prompts: { ...m.prompts, checkpoint: Date.now() } }));
-    setYourDraft(null);
-  };
-
-  const doExport = (name: "ARCHITECTURE.md" | "NOTES.md") => {
-    if (!report) return;
-    const ctx = { state: mastery, report, concepts, deps, cochange, overlap, drift, label };
-    const text = name === "ARCHITECTURE.md" ? exportArchitecture(ctx) : exportNotes(ctx);
-    downloadTextFile(name, text);
-    updateMastery((m) => ({ ...m, exports: [...m.exports, { at: Date.now(), name }], prompts: { ...m.prompts, export: Date.now() } }));
-  };
-
-  const openCochange = () => {
-    if (!cochange?.edges?.length) return;
-    const spec = buildCochangeSpec(cochange);
-    if (spec) openChartOnCanvas(spec);
-    markSeen("cochange");
-  };
-  const openOverlap = () => {
-    if (!overlap?.pairs?.length) return;
-    const spec = buildOverlapSpec(overlap);
-    if (spec) openChartOnCanvas(spec);
-    markSeen("overlap");
-  };
+  const noProject = !report;
+  const controllers = stack?.jvm?.flows ?? [];
+  const safeController = Math.min(pickedController, Math.max(0, controllers.length - 1));
+  const flowList = controllers[safeController]?.flows ?? [];
+  const safeFlow = Math.min(pickedFlow, Math.max(0, flowList.length - 1));
+  const picked = flowList[safeFlow] ?? null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5" aria-label="Master this codebase journey">
+    <div className="max-w-4xl mx-auto space-y-5" aria-label="Master this codebase">
       {/* ---- header ---- */}
       <div className="flex items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <span className="h-7 w-7 rounded-lg bg-emerald-700 text-white grid place-items-center shrink-0"><MapIcon className="h-4 w-4" /></span>
+            <span className="h-7 w-7 rounded-lg bg-emerald-700 text-white grid place-items-center shrink-0">
+              <MapIcon className="h-4 w-4" />
+            </span>
             Master this codebase
           </h2>
           <p className="text-xs text-stone-500 mt-1 truncate">
-            {label}{report ? ` · ${report.files.length} files · ${report.symbols.length} named things` : ""} — CIE guides, you verify, both remember.
+            {label}
+            {report ? ` · ${report.files.length} files · ${report.symbols.length} named things` : ""} — read from your code, tagged where inferred.
           </p>
-          {Object.keys(mastery.prompts).length > 0 && (
-            <p className="text-[11px] text-stone-400 mt-1 flex items-center gap-1">
-              <CalendarClock className="h-3 w-3 shrink-0" />
-              Your journey so far: {Object.keys(mastery.prompts).length} step(s) logged, {traceEntries.length} flow(s) traced, {mastery.corrections.length} correction(s) — picked up right where you left them.
-            </p>
-          )}
         </div>
-        {confirmReset ? (
-          <span className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-stone-500">Erase journey progress for this project?</span>
-            <button className="h-8 px-2.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700" onClick={resetMastery}>Yes, reset</button>
-            <button className="h-8 px-2.5 rounded-lg border border-stone-300 text-xs text-stone-600 hover:bg-stone-100" onClick={() => setConfirmReset(false)}>No</button>
-          </span>
-        ) : (
-          <button className="h-8 px-2.5 rounded-lg border border-stone-300 text-xs text-stone-600 hover:bg-stone-100 inline-flex items-center gap-1.5 shrink-0" onClick={() => setConfirmReset(true)}>
-            <RotateCcw className="h-3.5 w-3.5" /> Reset journey
-          </button>
-        )}
       </div>
 
-      {!report && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900 leading-relaxed">
-          No project is loaded yet. <b>Use your own</b> (a repo link with its branch, a folder on this computer, or the engine&apos;s own JSON files) — the journey turns the engine&apos;s read of your code into the five stations below. The sample project also works, loaded by default.
+      {/* ---- ① the paragraph ---- */}
+      <Section n={1} icon={<MapIcon className="h-3.5 w-3.5" />} title="What this project is" sub="Everything sourced: the stack pass + the engine's counts.">
+        <div className="p-3.5">
+          <StackParagraph stack={stack} hasReport={!!report} noProject={noProject} />
         </div>
-      )}
+      </Section>
 
-      {/* ---- the station rail ---- */}
-      <ol className="rounded-2xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden">
-        <Station n={1} title="Fast orientation" frac={report ? p1 / 4 : 0} label={report ? `${p1} of 4 prompts run` : "—"} />
-        <Station n={2} title="Deep dive" frac={s2frac} label={traceEntries.length ? `${traceEntries.length} flow(s) traced · ${youVerified}/${totalSteps} steps you-confirmed` : "no flows traced yet"} />
-        <Station n={3} title="Structure & risk" frac={report ? Math.min(1, s3 / 3) : 0} label={report ? `${s3} of 3 views opened` : "—"} />
-        <Station n={4} title="Lock it in" frac={s4 ? 1 : 0} label={s4 ? "exported — the doc exists" : "not exported yet"} />
-        <Station n={5} title="Ongoing" frac={Math.min(1, mastery.blastChecks / 4)} label={mastery.blastChecks > 0 ? `${mastery.blastChecks} blast-radius check(s) logged` : "the habit part"} last />
-      </ol>
+      {/* ---- ② the mains graph ---- */}
+      <Section n={2} icon={<Boxes className="h-3.5 w-3.5" />} title="Where it starts" sub="The boot point and everything it switches on — or, when the stack isn't parsed yet, the engine's own entry points.">
+        <MainsGraph stack={stack} hasReport={!!report} />
+      </Section>
 
-      {/* ---- Phase 1 ---- */}
-      <Phase n={1} title="Fast orientation" sub="What it is, where it starts, how it looks whole.">
-        <div className={`grid sm:grid-cols-2 gap-2 p-3 ${report ? "" : "opacity-50 pointer-events-none"}`}>
-          {PHASE1_PROMPTS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => ask(p.question, p.id)}
-              title={done(p.id) ? `Run again · first done ${whenDone(p.id)}` : p.detail}
-              className={`text-left rounded-xl border p-3 transition-colors ${done(p.id) ? "border-emerald-300 bg-emerald-50/50" : "border-stone-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40"}`}
-            >
-              <span className="flex items-center gap-2">
-                <span aria-hidden>{p.icon}</span>
-                <span className="font-semibold text-[13px] text-stone-900 flex-1">{p.title}</span>
-                {done(p.id) && <Check className="h-4 w-4 text-emerald-700 shrink-0" aria-label={`done${whenDone(p.id) ? ` ${whenDone(p.id)}` : ""}`} />}
-              </span>
-              <span className="block text-[11px] text-stone-500 mt-1">{p.detail}</span>
-            </button>
-          ))}
-        </div>
-        {/* the checkpoint — your words first, CIE's after */}
-        <div className="mx-3 mb-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 p-3">
-          <p className="text-[13px] font-bold text-stone-900 flex items-center gap-1.5"><Clipboard className="h-3.5 w-3.5 text-emerald-700 shrink-0" /> The 2-minute checkpoint — YOUR words first</p>
-          <p className="text-[11px] text-stone-500 mt-0.5">
-            Explain this project to a colleague, in your own words. CIE&apos;s version stays hidden until yours exists — then you compare, and both versions live in the notes.
-          </p>
-          <textarea
-            value={yourDraft ?? mastery.yourWords}
-            onChange={(e) => setYourDraft(e.target.value)}
-            placeholder="In your own words — what does this project do? Who is it for? What would break first?"
-            className="mt-2 w-full min-h-20 rounded-lg border border-stone-200 bg-white p-2.5 text-[13px] text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/25"
-          />
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <button type="button" onClick={saveCheckpoint} className="h-8 px-3 rounded-lg bg-stone-900 text-white text-xs font-bold hover:bg-stone-700 inline-flex items-center gap-1.5">
-              <PenLine className="h-3.5 w-3.5" /> {mastery.yourWords ? "Update my words" : "Save my words"}
-            </button>
-            {mastery.yourWords && <span className="text-[11px] text-stone-500 inline-flex items-center gap-1"><Check className="h-3 w-3 text-emerald-700" /> saved {whenDone("checkpoint")} — CIE&apos;s side revealed:</span>}
+      {/* ---- ③ the routes table ---- */}
+      <Section n={3} icon={<RouteIcon className="h-3.5 w-3.5" />} title="Every route in, one table" sub="verb · path · handler · params → returns · the file that says so.">
+        <RoutesTable stack={stack} />
+      </Section>
+
+      {/* ---- ④ the data-flow diagram ---- */}
+      <Section n={4} icon={<Workflow className="h-3.5 w-3.5" />} title="How a request flows — end to end" sub="Pick a route; follow it through service → repository → database → response, branches included.">
+        <FlowPicker controllers={controllers} controllerIdx={safeController} onController={(i) => { setPickedController(i); setPickedFlow(0); }} flowIdx={safeFlow} onFlow={setPickedFlow} />
+        {picked ? (
+          <div className="p-3 pt-0">
+            <FlowDiagram flow={picked.root} />
+            <p className="text-[10.5px] text-stone-400 mt-1 leading-relaxed">⚠ Honest limits — {picked.honest}</p>
           </div>
-          {mastery.yourWords && cieWords && (
-            <div className="mt-2 grid sm:grid-cols-2 gap-2">
-              <div className="rounded-lg bg-white border border-stone-200 p-2.5">
-                <p className="text-[10px] font-bold tracking-wide text-stone-500">YOUR WORDS</p>
-                <p className="text-[12px] text-stone-700 mt-1 whitespace-pre-wrap">{mastery.yourWords}</p>
-              </div>
-              <div className="rounded-lg bg-white border border-stone-200 p-2.5">
-                <p className="text-[10px] font-bold tracking-wide text-emerald-800">CIE&apos;S ANSWER — from the engine facts</p>
-                <div className="text-[12px] text-stone-700 mt-1"><Formatted text={cieWords} /></div>
-              </div>
-            </div>
-          )}
-        </div>
-      </Phase>
-
-      {/* ---- Phase 2 ---- */}
-      <Phase n={2} title="Deep dive into the critical flows" sub="Trace them step by step — then verify with your own debugger.">
-        <div className={`p-3 space-y-2.5 ${report ? "" : "opacity-50 pointer-events-none"}`}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => ask("Show the top flow candidates.", "flows")}
-              className="h-8 px-3 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 inline-flex items-center gap-1.5"
-            >
-              <Target className="h-3.5 w-3.5" /> Get the flow candidates
-            </button>
-            <span className="text-[11px] text-stone-500">The chat shows ranked candidates — pick one, and its trace card opens with the verify loop.</span>
-          </div>
-          {traceEntries.map(([key, t]) => {
-            const res = traceFlow(report, t.entryId);
-            const total = res?.steps.length ?? 0;
-            const you = Object.keys(t.steps).length;
-            return (
-              <div key={key} className="rounded-xl border border-stone-200 bg-white p-2.5 flex items-center gap-2 flex-wrap">
-                <span className="text-[12.5px] font-semibold text-stone-900 font-mono truncate max-w-64">{t.title}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${t.confirmedAt || (total > 0 && you >= total) ? "bg-sky-100 text-sky-800 border border-sky-200" : "bg-amber-100 text-amber-800 border border-amber-200"}`}>
-                  {t.confirmedAt || (total > 0 && you >= total) ? "✅ YOU CONFIRMED" : `${you}/${total} you-confirmed`}
-                </span>
-                <button type="button" onClick={() => setView("notes")} className="text-[11px] text-emerald-700 hover:underline font-semibold ml-auto">in the notes →</button>
-              </div>
-            );
-          })}
-        </div>
-      </Phase>
-
-      {/* ---- Phase 3 — links, not forks ---- */}
-      <Phase n={3} title="Structure — and where the risk lives" sub="The journey links to the real views; nothing is re-implemented.">
-        <div className={`grid sm:grid-cols-3 gap-2 p-3 ${report ? "" : "opacity-50 pointer-events-none"}`}>
-          <ViewChip icon={<Layers className="h-4 w-4" />} title="Fan-in / fan-out" detail="The tightest couplings — who pulls what" onClick={() => { setView("deps"); markSeen("deps"); }} />
-          <ViewChip icon={<GitMerge className="h-4 w-4" />} title="What changes together" detail={cochange?.edges?.length ? `${cochange.edges.length} pair(s) mined from ${cochange.sample_commits} commit(s)` : "needs git history — a shallow clone honestly has almost none"} onClick={openCochange} disabled={!cochange?.edges?.length} />
-          <ViewChip icon={<Waves className="h-4 w-4" />} title="Seams & overlap" detail={overlap?.pairs?.length ? `${overlap.pairs.length} overlapping pair(s) — where a port wants extracting` : "needs the concepts export"} onClick={openOverlap} disabled={!overlap?.pairs?.length} />
-        </div>
-        {report && (
-          <div className="mx-3 mb-3 rounded-xl border border-stone-200 bg-white overflow-visible relative">
-            <p className="px-3 pt-2.5 pb-1 text-[13px] font-bold text-stone-900 flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-emerald-700 shrink-0" /> Where the risk lives — the roll-up</p>
-            <p className="px-3 text-[10.5px] text-stone-400 pb-2">
-              co-change times in history × calls going out × problems listed — every column real, sources: cochange.json + report.json
-              {cochange && cochange.sample_commits <= 1 ? " · history is thin here (shallow clone or fresh repo) — the co-change column is honestly “—”" : ""}
+        ) : (
+          <div className="p-3 pt-0">
+            <p className="text-[12px] text-stone-600">
+              {stack
+                ? stack.jvm
+                  ? "No handler flows were parsed — the routes table above is where every claim stops, with its evidence."
+                  : "No data-flow parser for this stack yet — the sections above carry the honest read instead."
+                : "Connect the project (or load the sample) to get the flows."}
             </p>
-            <table className="w-full text-[12px]">
-              <thead className="text-[10px] text-stone-400 text-left">
-                <tr>
-                  <th className="py-1.5 px-3 font-bold">File (worst first)</th>
-                  <th className="py-1.5 px-3 font-bold">co-changes</th>
-                  <th className="py-1.5 px-3 font-bold">calls out</th>
-                  <th className="py-1.5 px-3 font-bold">problems</th>
-                </tr>
-              </thead>
-              <tbody>
-                {computeRisk(report, cochange).slice(0, 5).map((r) => (
-                  <tr key={r.file} className="border-t border-stone-100 hover:bg-emerald-50/50">
-                    <td className="py-1.5 px-3 font-mono text-[11px] truncate max-w-[24rem]" title={r.file}>{r.file}</td>
-                    <td className="py-1.5 px-3">{r.cochangeTimes || "—"}</td>
-                    <td className="py-1.5 px-3">{r.callsOut}</td>
-                    <td className="py-1.5 px-3">{r.findings}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="px-3 pb-2.5 pt-1">
-              <button type="button" onClick={() => markSeen("risk")} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline inline-flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> count this table as seen for station 3
-              </button>
-            </div>
           </div>
         )}
-      </Phase>
-
-      {/* ---- Phase 4 ---- */}
-      <Phase n={4} title="Lock it in" sub="Turn the journey into the doc the next hire actually reads.">
-        <div className={`p-3 space-y-2 ${report ? "" : "opacity-50 pointer-events-none"}`}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => ask("Write the 5 things a new developer should know.", "fivethings")}
-              className="h-8 px-3 rounded-lg border border-stone-300 bg-white text-xs font-bold text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1.5"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-emerald-700" /> Draft “5 things a new dev must know”
-            </button>
-            <button type="button" onClick={() => doExport("ARCHITECTURE.md")} className="h-8 px-3 rounded-lg bg-stone-900 text-white text-xs font-bold hover:bg-stone-700 inline-flex items-center gap-1.5">
-              <Download className="h-3.5 w-3.5" /> Export ARCHITECTURE.md
-            </button>
-            <button type="button" onClick={() => doExport("NOTES.md")} className="h-8 px-3 rounded-lg border border-stone-300 bg-white text-xs font-bold text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" /> Export NOTES.md
-            </button>
-          </div>
-          <p className="text-[11px] text-stone-500 flex items-start gap-1.5">
-            <PartyPopper className="h-3 w-3 mt-px shrink-0" />
-            ARCHITECTURE.md = the assembled doc (facts + your words + traced flows + corrections, diagrams as Mermaid). NOTES.md = the whole living document. Both are assembled in your browser from this journey only — nothing is uploaded. {done("fivethings") && "The “5 things” draft is pinned to the notes."}
-          </p>
-        </div>
-      </Phase>
-
-      {/* ---- Phase 5 ---- */}
-      <Phase n={5} title="Ongoing" sub="The habit: check the blast radius before you change, trace when confused, feed the corrections.">
-        <div className="p-3 space-y-2 text-[12.5px] text-stone-700">
-          <p>1. Open any code the panel shows (or a trace row) and press <b>⚡ Blast radius</b> — recorded callers, the downstream walk, history coupling, and — when the folder itself is connected {sourceRoot ? "(yours is)" : "(a connected local folder makes this part work)"} — the live engine walk with the minimum tests to run.</p>
-          <p>2. Ask the chat to <b>trace</b> anything. Every step cites its own evidence and stays marked inferred until you check it.</p>
-          <p>3. What you correct is logged, not smoothed over — the notes stay honest about machine-said vs human-verified.</p>
-          <p className="flex items-center gap-2 flex-wrap">
-            {mastery.blastChecks > 0 ? (
-              <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10.5px] font-bold">{mastery.blastChecks} blast-radius check(s) logged</span>
-            ) : (
-              <span className="text-[11px] text-stone-400">no blast-radius checks logged yet</span>
-            )}
-            <button type="button" onClick={() => setView("notes")} className="text-[11px] text-emerald-700 hover:underline font-semibold inline-flex items-center gap-1">
-              <FileText className="h-3 w-3" /> → Mastery notes
-            </button>
-          </p>
-        </div>
-      </Phase>
+      </Section>
 
       <p className="text-[10.5px] text-stone-400 px-1">
-        Progress, your words, traces and corrections live only in this browser&apos;s localStorage (keyed per project), never sent anywhere. Export is the only way out — a button you press.
+        Everything here was read from the project&apos;s own files — conditions quoted, never evaluated (CIE doesn&apos;t run the code).{" "}
+        <button type="button" onClick={() => setPendingAsk("What is this system? Summarize it in plain words.")} className="underline text-emerald-700 hover:text-emerald-900">
+          Ask CIE for the whole-system summary in chat
+        </button>{" "}
+        if you want the prose tour.
       </p>
     </div>
   );
 }
 
-// ---------- local bits ----------
-
-function Phase({ n, title, sub, children, tag }: { n: number; title: string; sub: string; children: React.ReactNode; tag?: string }) {
+function FlowPicker({
+  controllers,
+  controllerIdx,
+  onController,
+  flowIdx,
+  onFlow,
+}: {
+  controllers: { name: string; flows: { method: string; verb: string; path: string }[] }[];
+  controllerIdx: number;
+  onController: (i: number) => void;
+  flowIdx: number;
+  onFlow: (j: number) => void;
+}) {
+  if (controllers.length === 0) return null;
+  const flows = controllers[Math.min(controllerIdx, controllers.length - 1)]?.flows ?? [];
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white overflow-hidden" aria-label={`Phase ${n}: ${title}`}>
+    <div className="px-3 py-2.5 space-y-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {controllers.map((c, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onController(i)}
+            className={`h-7 px-2.5 rounded-full text-[11px] font-bold font-mono border transition-colors ${i === controllerIdx ? "bg-emerald-700 text-white border-emerald-700" : "bg-white text-stone-600 border-stone-300 hover:border-emerald-400"}`}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {flows.map((f, j) => (
+          <button
+            key={j}
+            type="button"
+            onClick={() => onFlow(j)}
+            className={`h-7 px-2.5 rounded-full text-[10.5px] font-bold font-mono border transition-colors ${j === flowIdx ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-600 border-stone-300 hover:border-stone-500"}`}
+          >
+            <span className={f.verb === "GET" ? "text-sky-600" : j === flowIdx ? "" : "text-stone-400"}>
+              {j === flowIdx ? "" : ""}
+            </span>
+            {f.verb} {f.path}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Section({ n, icon, title, sub, children }: { n: number; icon: React.ReactNode; title: string; sub: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-stone-200 bg-white overflow-hidden" aria-label={title}>
       <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-stone-100 flex-wrap">
         <span className="h-6 w-6 rounded-full bg-stone-900 text-white text-[11px] font-bold grid place-items-center shrink-0">{n}</span>
+        <span className="text-emerald-700">{icon}</span>
         <h3 className="text-[14.5px] font-bold text-stone-900">{title}</h3>
         <span className="text-[11.5px] text-stone-500 hidden md:inline">{sub}</span>
-        {tag && <span className="ml-auto rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 text-[10px] font-bold">{tag}</span>}
       </div>
       {children}
     </section>
-  );
-}
-
-function Station({ n, title, frac, label, last }: { n: number; title: string; frac: number; label: string; last?: boolean }) {
-  const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
-  const complete = pct >= 99.5;
-  return (
-    <li className="flex items-center gap-3 px-3.5 py-2">
-      <span className={`h-6 w-6 rounded-full text-[11px] font-bold grid place-items-center shrink-0 ${complete ? "bg-emerald-700 text-white" : pct > 0 ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-400"}`}>
-        {complete ? <Check className="h-3.5 w-3.5" /> : n}
-      </span>
-      <span className="font-semibold text-[13px] text-stone-900 w-36 shrink-0 truncate">{title}</span>
-      <span className="text-[11.5px] text-stone-500 flex-1 truncate">{label}</span>
-      <span className="hidden sm:block h-1.5 rounded-full bg-stone-100 w-28 overflow-hidden shrink-0" aria-hidden>
-        <span className="block h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
-      </span>
-      {!last && <span className="text-stone-200 hidden sm:block" aria-hidden>·</span>}
-    </li>
-  );
-}
-
-function ViewChip({ icon, title, detail, onClick, disabled }: { icon: React.ReactNode; title: string; detail: string; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="text-left rounded-xl border border-stone-200 bg-white p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40 disabled:opacity-50 disabled:pointer-events-none"
-    >
-      <span className="text-stone-500">{icon}</span>
-      <span className="block text-[12.5px] font-bold text-stone-900 mt-1">{title}</span>
-      <span className="block text-[11px] text-stone-500 mt-0.5">{detail}</span>
-    </button>
   );
 }

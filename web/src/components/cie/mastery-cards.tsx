@@ -13,7 +13,7 @@
 // the notes doc.
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Database, FileCode2, Flag, ListChecks, PartyPopper, Pencil, Zap } from "lucide-react";
+import { Check, Database, FileCode2, Flag, ListChecks, PartyPopper, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { Formatted } from "@/components/cie/chat-panel";
 import {
@@ -46,10 +46,6 @@ function StatusTag({ status, why }: { status: "confirmed" | "inferred"; why?: st
       {status === "confirmed" ? "✓ CONFIRMED" : "INFERRED"}
     </span>
   );
-}
-
-function openNotes() {
-  useCie.getState().setView("notes");
 }
 
 function CardShell({ title, children, note, icon }: { title: string; children: React.ReactNode; note?: string; icon: React.ReactNode }) {
@@ -112,11 +108,6 @@ function EntrypointsCard({ card }: { card: MasteryCardData }) {
       ) : (
         <p className="px-3 py-3 text-[12px] text-stone-500">Nothing to list — the honest answer sits above the card.</p>
       )}
-      <div className="px-3 pb-2 flex gap-2 flex-wrap">
-        <button type="button" onClick={openNotes} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline">
-          → Mastery notes
-        </button>
-      </div>
     </CardShell>
   );
 }
@@ -159,11 +150,6 @@ function FiveThingsCard({ card }: { card: MasteryCardData }) {
           <li key={i} className="text-[12px] text-stone-700"><Formatted text={it} /></li>
         ))}
       </ol>
-      <div className="px-3 pb-2">
-        <button type="button" onClick={openNotes} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline inline-flex items-center gap-1">
-          <Pencil className="h-3 w-3" /> Edit in Mastery notes
-        </button>
-      </div>
     </CardShell>
   );
 }
@@ -290,9 +276,6 @@ export function TraceCard({ card, chart }: { card: MasteryCardData; chart?: Chat
             >
               <Flag className="h-3 w-3" /> Something&apos;s wrong…
             </button>
-            <button type="button" onClick={openNotes} className="text-[10.5px] text-stone-500 hover:text-stone-700 font-medium">
-              keep going later
-            </button>
           </div>
         )}
         {allConfirmed && (
@@ -337,8 +320,8 @@ export function TraceCard({ card, chart }: { card: MasteryCardData; chart?: Chat
             ↗ Sequence diagram → canvas
           </button>
         )}
-        <button type="button" onClick={openNotes} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline">
-          → Mastery notes
+        <button type="button" onClick={() => useCie.getState().setView("mastery")} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline">
+          → Master view
         </button>
       </div>
     </CardShell>

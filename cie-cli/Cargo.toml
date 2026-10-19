@@ -23,6 +23,7 @@ cie-relations = { workspace = true }
 cie-adapters = { workspace = true }
 cie-store = { workspace = true }
 cie-analysis = { workspace = true }
+cie-stack = { workspace = true }
 cie-contract = { workspace = true }
 cie-ingest = { workspace = true }
 cie-concepts = { workspace = true }

@@ -47,7 +47,7 @@ import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
-const MASTER_VIEWS: StageView[] = ["mastery", "notes"];
+const MASTER_VIEWS: StageView[] = ["mastery"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   // Spreads Radix's trigger props through — a custom trigger child that
@@ -75,11 +75,6 @@ export function Topbar() {
   useEffect(() => {
     loadMastery();
   }, [source, label, loadMastery]);
-
-  // what the notes doc actually holds: traces, corrections, exports (+ that journey state exists)
-  const notesCount = mastery
-    ? Object.keys(mastery.traces).length + mastery.corrections.length + mastery.exports.length + (Object.keys(mastery.prompts).length ? 1 : 0)
-    : 0;
 
   const go = (v: StageView) => () => setView(v);
 
@@ -130,11 +125,6 @@ export function Topbar() {
         <nav className="hidden lg:flex items-center gap-0.5" aria-label="Main">
           <NavButton active={MASTER_VIEWS.includes(view)} onClick={go("mastery")} title="The guided journey over this project — CIE guides, you verify">
             <GraduationCap className="h-4 w-4" aria-hidden /> Master
-            {notesCount > 0 && (
-              <span className="ml-0.5 rounded-full bg-emerald-700 px-1.5 text-[10px] font-bold text-white" aria-label={`${notesCount} notes held`}>
-                {notesCount}
-              </span>
-            )}
           </NavButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -243,9 +233,6 @@ export function Topbar() {
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Master it</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("mastery")} className={view === "mastery" ? "bg-emerald-50" : ""}>Master this codebase</DropdownMenuItem>
-              <DropdownMenuItem onClick={go("notes")} className={view === "notes" ? "bg-emerald-50" : ""}>
-                Mastery notes{notesCount > 0 ? ` · ${notesCount}` : ""}
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Look around</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("start")} className={view === "start" ? "bg-emerald-50" : ""}>Start here</DropdownMenuItem>

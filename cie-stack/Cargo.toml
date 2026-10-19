@@ -1,0 +1,22 @@
+[package]
+name = "cie-stack"
+description = "Stack parsers behind a factory: manifest detection picks the stack, the factory hands back that stack's parser, the parser reads the code as written (Spring over java+kotlin first, others as honest stubs)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+cie-core = { workspace = true }
+cie-ingest = { workspace = true }
+cie-semantic = { workspace = true }
+regex = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-kotlin-ng = { workspace = true }
+
+[lints.rust]
+dead_code = "allow"

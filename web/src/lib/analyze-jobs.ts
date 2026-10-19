@@ -9,13 +9,15 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieDrift, CieOverlap } from "./cie-types";
+import type { TechStack } from "./stack-types";
+import { isTechStack, stackDetail } from "./stack-types";
 import { scanRepoLanguages, findDocFiles, MAX_DOCS, MAX_DOC_BYTES } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "cochange" | "overlap" | "drift";
+export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "stack" | "cochange" | "overlap" | "drift";
 export type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 export type JobState = "queued" | "running" | "awaiting_permission" | "done" | "failed";
 
@@ -56,6 +58,8 @@ export interface AnalyzeJob {
     concepts: ConceptTree | null;
     deps?: CieDeps | null;
     runtime?: CieRuntime | null;
+    /** the tech-stack artifact from `cie stack` — null when not available */
+    stack?: TechStack | null;
     cochange?: CieCochange | null;
     overlap?: CieOverlap | null;
     drift?: CieDrift | null;
@@ -90,6 +94,7 @@ export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "map", label: "Drawing the map", hint: "Sketching how all the parts of your code connect." },
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
   { key: "deps", label: "Listing the dependencies", hint: "Reading pom.xml, build.gradle, package.json, Cargo.toml and friends — names and versions as written." },
+  { key: "stack", label: "Understanding your frameworks", hint: "Reading the build files, Docker files and framework code classes directly — the engine names what runs and how every route flows, branches included." },
   { key: "cochange", label: "Checking what changes together", hint: "Mining git history for files that tend to be edited in the same commit." },
   { key: "overlap", label: "Checking for overlap", hint: "Comparing every part's symbols against every other part — what's shared, what's not." },
   { key: "drift", label: "Checking docs against code", hint: "Reading your docs' own claims and verifying each one against what the code actually does." },
@@ -833,6 +838,31 @@ async function runPipeline(job: AnalyzeJob) {
       Date.now() - t4
     );
 
+    // 5b. tech stack — the engine's `cie stack` pass reads manifests,
+    //     docker + framework code as written (rust engine, tree-sitter).
+    //     Optional by design: a missing/failing stack pass never blocks.
+    setStep(job, "stack", "running", "Reading your framework's build files and code directly…");
+    const t_stack = Date.now();
+    let stack: TechStack | null = null;
+    const stk = await run(bin, ["stack", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+    if (!stk.timedOut && stk.code === 0) {
+      try {
+        const parsed = JSON.parse(stk.stdout) as unknown;
+        if (isTechStack(parsed)) stack = parsed;
+      } catch {
+        stack = null;
+      }
+    }
+    setStep(
+      job,
+      "stack",
+      stack ? "done" : "skipped",
+      stack
+        ? stackDetail(stack)
+        : "No stack report came back — the journey's stack sections will say so honestly.",
+      Date.now() - t_stack
+    );
+
     // 6. co-change — real git history, files that tend to change together.
     //    A shallow URL clone (--depth 1) has almost no history to mine; that
     //    is recorded honestly via sample_commits, never hidden or faked.
@@ -938,6 +968,7 @@ async function runPipeline(job: AnalyzeJob) {
       viewspec,
       concepts,
       deps,
+      stack,
       runtime,
       cochange,
       overlap,

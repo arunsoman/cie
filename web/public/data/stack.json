@@ -1,0 +1,37 @@
+{
+  "v": 1,
+  "build": {
+    "tool": "unknown",
+    "modules": [],
+    "artifactName": ""
+  },
+  "languages": [
+    {
+      "family": "python",
+      "files": 7,
+      "sharedRuntime": false
+    }
+  ],
+  "frameworks": [],
+  "docker": {
+    "present": false,
+    "dockerfiles": [],
+    "compose": null,
+    "note": ""
+  },
+  "jvm": null,
+  "routes": [],
+  "mains": [],
+  "config": [],
+  "notes": [
+    "[stack] generic-stub parsed it: This stack: not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet",
+    "This stack: not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet — no route/main parser for this stack yet; the counts and manifests above are all CIE knows.",
+    "no routes parsed for this stack yet — the stub above says exactly what CIE did and didn't read."
+  ],
+  "coverage": {
+    "filesScanned": 0,
+    "manifestsRead": [],
+    "dockerfilesRead": []
+  },
+  "generatedAt": 1792421464
+}

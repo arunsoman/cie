@@ -514,6 +514,7 @@ dependencies = [
  "cie-llm",
  "cie-relations",
  "cie-semantic",
+ "cie-stack",
  "cie-store",
  "cie-stories",
  "cie-viz",
@@ -719,6 +720,21 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "cie-stack"
+version = "1.2.0"
+dependencies = [
+ "cie-core",
+ "cie-ingest",
+ "cie-semantic",
+ "regex",
+ "serde",
+ "serde_json",
+ "tree-sitter",
+ "tree-sitter-java",
+ "tree-sitter-kotlin-ng",
 ]
 
 [[package]]
