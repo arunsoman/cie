@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Boxes, CheckCircle2, FileQuestion, Map as MapIcon, Route as RouteIcon, Workflow } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { computeEntryPoints, type MasteryRow } from "@/lib/mastery";
-import type { FlowNode, TechStack } from "@/lib/stack-types";
+import type { ControllerFlow, FlowNode, HandlerFlow, TechStack } from "@/lib/stack-types";
 
 // ============================================================
 // ① the paragraph
@@ -154,6 +154,17 @@ function MainsGraph({ stack, hasReport }: { stack: TechStack | null; hasReport: 
   const mains = stack?.mains ?? [];
   const jvm = stack?.jvm ?? null;
 
+  if (jvm && mains.length === 0) {
+    // java/kotlin code parsed, but no application class found — honest box
+    return (
+      <div className="p-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] text-amber-900">
+          Java/kotlin code was parsed ({jvm.scanned} file(s)), but no class carrying <b>@SpringBootApplication</b> (or a <b>main</b> method) was found in the scanned files — the graph stays honestly empty rather than guessing where the boot lives.
+        </div>
+      </div>
+    );
+  }
+
   if (mains.length > 0 && jvm) {
     const items: { label: string; sub: string; rel?: string; line?: number }[] = [];
     const cfg = stack?.config[0];
@@ -191,14 +202,20 @@ function MainsTree({
   return (
     <div className="p-3">
       <div className="flex flex-col items-center gap-0">
-        {/* the application class — the ONE boot point */}
-        {mains.map((m) => (
-          <div key={m.rel + m.name} className="flex flex-col items-center">
-            <MainPill main={m} />
-            <span className="w-px h-4 bg-stone-300" aria-hidden />
-          </div>
-        ))}
-        {/* everything it boots */}
+        {/* the application class(es) — the boot point(s). Several mains are
+            shown together; per-service ownership is NOT inferred. */}
+        <div className="flex items-start justify-center gap-3 flex-wrap">
+          {mains.map((m) => (
+            <div key={m.rel + m.name} className="flex flex-col items-center">
+              <MainPill main={m} />
+              <span className="w-px h-4 bg-stone-300" aria-hidden />
+            </div>
+          ))}
+        </div>
+        {mains.length > 1 && (
+          <p className="text-[10.5px] text-stone-400 mb-1">{mains.length} application class(es) parsed — the facts below are repo-wide; per-service归属 not inferred.</p>
+        )}
+        {/* everything the boot point(s) switch on */}
         <div className="grid sm:grid-cols-2 gap-2 w-full max-w-xl">
           {items.map((it, i) => (
             <div key={i} className="rounded-lg border border-stone-200 bg-white p-2.5 min-w-0">
@@ -272,17 +289,18 @@ function EntryRow({ row, onClick }: { row: MasteryRow; onClick: () => void }) {
 // ③ the routes table
 // ============================================================
 
-function RoutesTable({ stack }: { stack: TechStack | null }) {
+/** one row per CONTROLLER — its routes listed as verb+path pills */
+function ControllersTable({ stack }: { stack: TechStack | null }) {
   const routes = stack?.routes ?? [];
   const openSourceViewer = useCie((s) => s.openSourceViewer);
-  if (!stack) return <p className="p-3 text-[12px] text-stone-500">No stack report loaded — no routes to table.</p>;
+  if (!stack) return <p className="p-3 text-[12px] text-stone-500">No stack report loaded — nothing to table yet.</p>;
   if (routes.length === 0) {
     return (
       <div className="p-3 space-y-1">
         <p className="text-[12px] text-stone-600">
           {stack.jvm
             ? "Spring is named in the build files, but no @RestController/@Controller endpoints were parsed in the scanned files — the table stays honestly empty rather than guessing."
-            : "No framework routes parsed for this stack yet (the stub says exactly what CIE did and didn't read)."}
+            : "No framework controllers parsed for this stack yet (the stub says exactly what CIE did and didn't read)."}
         </p>
         {stack.notes.filter((n) => !n.startsWith("[stack]") && n.includes("route")).slice(0, 1).map((n, i) => (
           <p key={i} className="text-[11px] text-stone-400">{n}</p>
@@ -290,42 +308,63 @@ function RoutesTable({ stack }: { stack: TechStack | null }) {
       </div>
     );
   }
+  // group the flat routes by owner class, in first-seen order
+  const byOwner = new Map<string, TechStack["routes"]>();
+  const order: string[] = [];
+  for (const r of routes) {
+    if (!byOwner.has(r.owner)) {
+      byOwner.set(r.owner, []);
+      order.push(r.owner);
+    }
+    byOwner.get(r.owner)!.push(r);
+  }
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
         <thead className="text-[10px] text-stone-400 text-left border-b border-stone-100">
           <tr>
-            <th className="py-1.5 px-3 font-bold">Verb</th>
-            <th className="py-1.5 px-3 font-bold">Path</th>
-            <th className="py-1.5 px-3 font-bold">Handler</th>
-            <th className="py-1.5 px-3 font-bold">Params</th>
-            <th className="py-1.5 px-3 font-bold">Returns</th>
+            <th className="py-1.5 px-3 font-bold">Controller</th>
+            <th className="py-1.5 px-3 font-bold">Routes</th>
+            <th className="py-1.5 px-3 font-bold">Endpoints (as written)</th>
             <th className="py-1.5 px-3 font-bold" />
           </tr>
         </thead>
         <tbody>
-          {routes.map((r, i) => (
-            <tr key={i} className="border-b border-stone-50 hover:bg-emerald-50/40">
-              <td className="py-1.5 px-3">
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${VERB_CLASS(r.verb)}`}>{r.verb}</span>
-              </td>
-              <td className="py-1.5 px-3 font-mono text-[11.5px] font-semibold" title={r.path}>{r.path}</td>
-              <td className="py-1.5 px-3 text-[11.5px]">
-                <span className="font-mono">{r.owner}</span>.<span className="font-semibold">{r.method}</span>()
-              </td>
-              <td className="py-1.5 px-3 text-[11px] text-stone-500" title={r.params.join(", ")}>
-                {r.params.length ? r.params.join(", ") : "—"}
-              </td>
-              <td className="py-1.5 px-3 text-[11px] font-mono text-stone-600">{r.returns || "—"}</td>
-              <td className="py-1.5 px-3">
-                <EvidenceChip rel={r.rel} line={r.line} />
-              </td>
-            </tr>
-          ))}
+          {order.map((owner) => {
+            const rs = byOwner.get(owner)!;
+            const first = rs[0];
+            return (
+              <tr key={owner} className="border-b border-stone-50 hover:bg-emerald-50/40 align-top">
+                <td className="py-2 px-3 font-mono text-[12px] font-semibold">{owner}</td>
+                <td className="py-2 px-3">
+                  <span className="rounded-full bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10.5px] font-bold text-stone-700">{rs.length}</span>
+                </td>
+                <td className="py-2 px-3">
+                  <span className="flex flex-wrap gap-1">
+                    {rs.map((r, j) => (
+                      <button
+                        key={j}
+                        type="button"
+                        onClick={() => openSourceViewer({ file: r.rel, line: r.line })}
+                        title={`${r.verb} ${r.path} → ${r.method}() (${r.rel.split("/").pop()}:${r.line})`}
+                        className="inline-flex items-center gap-1 rounded border border-stone-200 bg-white px-1.5 py-0.5 hover:border-emerald-400 hover:bg-emerald-50"
+                      >
+                        <span className={`rounded px-1 py-0 text-[9.5px] font-bold ${VERB_CLASS(r.verb)}`}>{r.verb}</span>
+                        <span className="font-mono text-[10.5px] text-stone-700">{r.path}</span>
+                      </button>
+                    ))}
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  <EvidenceChip rel={first.rel} line={first.line} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       <p className="px-3 pb-2.5 pt-1.5 text-[10.5px] text-stone-400">
-        {routes.length} route(s) as written in the annotations — every row carries its evidence; nothing inferred.
+        {order.length} controller(s), {routes.length} route(s) — read from the annotations as written; each endpoint chip opens the exact code.
       </p>
     </div>
   );
@@ -365,7 +404,7 @@ const LANE_LABELS: Record<string, string> = {
 };
 
 type FlatRow =
-  | { t: "arrow"; lane: string; to: string; label: string; sub?: string; kind: "call" | "throw" | "return" | "request"; node: FlowNode; armDepth: number }
+  | { t: "arrow"; lane: string; to: string; label: string; sub?: string; kind: "call" | "throw" | "return" | "request" | "response-back"; node: FlowNode; armDepth: number }
   | { t: "self"; lane: string; label: string; node: FlowNode; armDepth: number }
   | { t: "decision"; lane: string; label: string; node: FlowNode; armDepth: number }
   | { t: "arm"; label: string; armDepth: number };
@@ -445,16 +484,33 @@ function flattenFlow(
 const ARM_INDENT = 22;
 const ROW_H = 46;
 
-function FlowDiagram({ flow }: { flow: FlowNode }) {
+function FlowDiagram({ flow, handler }: { flow: FlowNode; handler?: { rel?: string | null; line?: number | null; name?: string } | null }) {
   const openSourceViewer = useCie((s) => s.openSourceViewer);
   const uid = useSafeId();
 
-  const rows = useMemo(() => {
+  const flattened = useMemo(() => {
     const out: FlatRow[] = [];
     const lanes = new Set<string>(["client", "controller"]);
     flattenFlow([flow], "client", 0, out, lanes);
-    return { rows: out.slice(0, 220), lanes: [...lanes] };
-  }, [flow]);
+    // the response goes back — every handler's return value IS the body;
+    // the framework sending it to the caller closes the loop. Evidence is
+    // the handler itself (the @RestController method that produced it).
+    const rows = out.slice(0, 220);
+    const responded = rows.some((r) => r.t === "arrow" && (r.kind === "return" || r.kind === "throw"));
+    if (responded) {
+      rows.push({
+        t: "arrow", lane: "response", to: "client",
+        label: "response back to the caller",
+        sub: "the framework sends the method's return value — its @-annotations say so",
+        kind: "response-back",
+        node: { id: "response-back", kind: "return", label: "response back", layer: "client", rel: handler?.rel ?? null, line: handler?.line ?? null, children: [] },
+        armDepth: 0,
+      });
+    }
+    return { rows, lanes: [...lanes] };
+  }, [flow, handler]);
+
+  const rows = flattened;
 
   const lanes = useMemo(
     () => CANON_LANES.filter((l) => rows.lanes.includes(l)),
@@ -525,7 +581,7 @@ function FlowDiagram({ flow }: { flow: FlowNode }) {
       default: {
         const x1 = laneOf(r.lane) + indent;
         const x2 = laneOf(r.to) + indent;
-        const color = r.kind === "throw" ? "#e11d48" : r.kind === "return" ? "#0f766e" : LANE_COLORS[r.to] ?? "#57534e";
+        const color = r.kind === "throw" ? "#e11d48" : r.kind === "response-back" ? "#059669" : r.kind === "return" ? "#0f766e" : LANE_COLORS[r.to] ?? "#57534e";
         const lbl = r.label.length > 58 ? r.label.slice(0, 57) + "…" : r.label;
         return (
           <g key={`r-${i}`} className={r.node.rel ? "cursor-pointer" : ""} onClick={() => clickSrc(r.node)}>
@@ -571,8 +627,6 @@ export function MasteryView() {
   const report = useCie((s) => s.report);
   const stack = useCie((s) => s.stack);
   const setPendingAsk = useCie((s) => s.setPendingAsk);
-  const [pickedController, setPickedController] = useState(0);
-  const [pickedFlow, setPickedFlow] = useState(0);
 
   // (re)load whenever the loaded project changes — one effect, local, explicit
   useEffect(() => {
@@ -581,10 +635,6 @@ export function MasteryView() {
 
   const noProject = !report;
   const controllers = stack?.jvm?.flows ?? [];
-  const safeController = Math.min(pickedController, Math.max(0, controllers.length - 1));
-  const flowList = controllers[safeController]?.flows ?? [];
-  const safeFlow = Math.min(pickedFlow, Math.max(0, flowList.length - 1));
-  const picked = flowList[safeFlow] ?? null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-5" aria-label="Master this codebase">
@@ -618,28 +668,12 @@ export function MasteryView() {
 
       {/* ---- ③ the routes table ---- */}
       <Section n={3} icon={<RouteIcon className="h-3.5 w-3.5" />} title="Every route in, one table" sub="verb · path · handler · params → returns · the file that says so.">
-        <RoutesTable stack={stack} />
+        <ControllersTable stack={stack} />
       </Section>
 
-      {/* ---- ④ the data-flow diagram ---- */}
-      <Section n={4} icon={<Workflow className="h-3.5 w-3.5" />} title="How a request flows — end to end" sub="Pick a route; follow it through service → repository → database → response, branches included.">
-        <FlowPicker controllers={controllers} controllerIdx={safeController} onController={(i) => { setPickedController(i); setPickedFlow(0); }} flowIdx={safeFlow} onFlow={setPickedFlow} />
-        {picked ? (
-          <div className="p-3 pt-0">
-            <FlowDiagram flow={picked.root} />
-            <p className="text-[10.5px] text-stone-400 mt-1 leading-relaxed">⚠ Honest limits — {picked.honest}</p>
-          </div>
-        ) : (
-          <div className="p-3 pt-0">
-            <p className="text-[12px] text-stone-600">
-              {stack
-                ? stack.jvm
-                  ? "No handler flows were parsed — the routes table above is where every claim stops, with its evidence."
-                  : "No data-flow parser for this stack yet — the sections above carry the honest read instead."
-                : "Connect the project (or load the sample) to get the flows."}
-            </p>
-          </div>
-        )}
+      {/* ---- ④ the data-flow diagram — the multi-graph viewer ---- */}
+      <Section n={4} icon={<Workflow className="h-3.5 w-3.5" />} title="How a request flows — end to end" sub="One diagram per route: controller → service → repository → database → the response back. All of them, not one at a time.">
+        <FlowsGallery controllers={controllers} stack={stack} />
       </Section>
 
       <p className="text-[10.5px] text-stone-400 px-1">
@@ -653,50 +687,65 @@ export function MasteryView() {
   );
 }
 
-function FlowPicker({
+const MAX_GRAPHS = 10;
+
+/** the multi-graph viewer: one diagram card per route, all stacked */
+function FlowsGallery({
   controllers,
-  controllerIdx,
-  onController,
-  flowIdx,
-  onFlow,
+  stack,
 }: {
-  controllers: { name: string; flows: { method: string; verb: string; path: string }[] }[];
-  controllerIdx: number;
-  onController: (i: number) => void;
-  flowIdx: number;
-  onFlow: (j: number) => void;
+  controllers: ControllerFlow[];
+  stack: TechStack | null;
 }) {
-  if (controllers.length === 0) return null;
-  const flows = controllers[Math.min(controllerIdx, controllers.length - 1)]?.flows ?? [];
+  const all: { c: ControllerFlow; f: HandlerFlow }[] = [];
+  for (const c of controllers) for (const f of c.flows) all.push({ c, f });
+
+  if (all.length === 0) {
+    return (
+      <div className="p-3">
+        <p className="text-[12px] text-stone-600">
+          {stack
+            ? stack.jvm
+              ? "No handler flows were parsed — the routes table above is where every claim stops, with its evidence."
+              : "No data-flow parser for this stack yet — the sections above carry the honest read instead. Connect a Spring/java project (the “Use your own” dialog) and every route gets a diagram here."
+            : "Connect the project (or load the sample) to get the flows."}
+        </p>
+      </div>
+    );
+  }
+
+  const shown = all.slice(0, MAX_GRAPHS);
   return (
-    <div className="px-3 py-2.5 space-y-1.5">
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {controllers.map((c, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => onController(i)}
-            className={`h-7 px-2.5 rounded-full text-[11px] font-bold font-mono border transition-colors ${i === controllerIdx ? "bg-emerald-700 text-white border-emerald-700" : "bg-white text-stone-600 border-stone-300 hover:border-emerald-400"}`}
-          >
-            {c.name}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {flows.map((f, j) => (
-          <button
-            key={j}
-            type="button"
-            onClick={() => onFlow(j)}
-            className={`h-7 px-2.5 rounded-full text-[10.5px] font-bold font-mono border transition-colors ${j === flowIdx ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-600 border-stone-300 hover:border-stone-500"}`}
-          >
-            <span className={f.verb === "GET" ? "text-sky-600" : j === flowIdx ? "" : "text-stone-400"}>
-              {j === flowIdx ? "" : ""}
-            </span>
-            {f.verb} {f.path}
-          </button>
-        ))}
-      </div>
+    <div className="p-3 space-y-3">
+      {shown.map(({ c, f }, i) => {
+        const handledBy = f.root.children[0]?.nodes[0];
+        return (
+          <div key={i} className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <div className="flex items-center gap-2 flex-wrap px-3 py-2 bg-stone-50 border-b border-stone-100">
+              <span className="h-4 w-4 rounded-full bg-stone-800 text-white text-[8.5px] font-bold grid place-items-center shrink-0">{all.length > 1 ? i + 1 : ""}</span>
+              <span className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold ${VERB_CLASS(f.verb)}`}>{f.verb}</span>
+              <span className="font-mono text-[12px] font-bold text-stone-800">{f.path}</span>
+              <span className="text-stone-300">→</span>
+              <span className="text-[11.5px] font-mono text-stone-600">
+                {c.name}.{f.method}()
+              </span>
+              <span className="ml-auto">
+                <EvidenceChip rel={handledBy?.rel ?? c.rel} line={handledBy?.line ?? undefined} />
+              </span>
+            </div>
+            <div className="px-1.5 pt-1 pb-0.5 bg-white">
+              <FlowDiagram flow={f.root} handler={handledBy ? { rel: handledBy.rel, line: handledBy.line, name: handledBy.label } : null} />
+            </div>
+            <p className="px-3 pb-2 pt-0.5 text-[10px] text-stone-400 leading-relaxed">⚠ honest limits — {f.honest}</p>
+          </div>
+        );
+      })}
+      {all.length > MAX_GRAPHS && (
+        <p className="text-[11px] text-stone-500 px-1">
+          … and {all.length - MAX_GRAPHS} more route flow(s) parsed but not drawn here — the cap is on screen space, not on what CIE read.
+        </p>
+      )}
+      <p className="text-[10.5px] text-stone-400 px-1 leading-relaxed">Each lane is one layer; every arrow carries the file:line that produced it; diamonds are decisions with the condition quoted as written (never evaluated) — CIE does not run your code.</p>
     </div>
   );
 }

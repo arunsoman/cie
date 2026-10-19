@@ -51,22 +51,23 @@ function lineOfByte(content: string, byteOffset: number): number {
   return Math.max(0, lines.length - 1);
 }
 
-// one lazy fetch of the demo source bundle, shared across opens
-let demoSourcesPromise: Promise<Record<string, string>> | null = null;
-function loadDemoSources(): Promise<Record<string, string>> {
-  if (!demoSourcesPromise) {
-    demoSourcesPromise = fetch("/data/sources.json")
+// one lazy fetch of the demo source bundle, shared across opens — per sample kind
+const demoSourcesByKind: Partial<Record<"banking" | "spring", Promise<Record<string, string>>>> = {};
+function loadDemoSources(kind: "banking" | "spring"): Promise<Record<string, string>> {
+  if (!demoSourcesByKind[kind]) {
+    const url = kind === "spring" ? "/data/spring/sources.json" : "/data/sources.json";
+    demoSourcesByKind[kind] = fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { files?: Record<string, string> }) => j.files ?? {})
       .catch(() => ({}));
   }
-  return demoSourcesPromise;
+  return demoSourcesByKind[kind];
 }
 
 const WINDOW = 120; // lines of context shown around the target
 
 export function SourcePanel() {
-  const { sourceViewer, sourceRoot, source, sourceCache, cacheSource, closeSourceViewer, setPendingAsk } = useCie();
+  const { sourceViewer, sourceRoot, source, demoKind, sourceCache, cacheSource, closeSourceViewer, setPendingAsk } = useCie();
   const [state, setState] = useState<
     | { kind: "loading" }
     | { kind: "ready"; content: string; from: string; line: number | null; truncated: boolean; totalLines: number | null }
@@ -120,7 +121,7 @@ export function SourcePanel() {
           if (!dead) setState({ kind: "unavailable", reason: "The connection to your project folder dropped. Please try again." });
         });
     } else if (source === "demo") {
-      loadDemoSources().then((files) => {
+      loadDemoSources(demoKind ?? "banking").then((files) => {
         if (dead) return;
         const content = files[req.file];
         if (content != null) finish(content, "bundled with the sample project", content.split("\n").length, false);

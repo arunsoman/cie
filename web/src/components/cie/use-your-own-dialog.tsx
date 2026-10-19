@@ -980,8 +980,8 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
 
 // ---------- mode 2: upload files (the `cie` CLI exports) ----------
 
-function UploadFiles() {
-  const { setCustom, reset } = useCie();
+function UploadFiles({ onClosed }: { onClosed: (open: boolean) => void }) {
+  const { setCustom, reset, loadSpringDemo } = useCie();
   const { toast } = useToast();
   const reportRef = useRef<HTMLInputElement>(null);
   const vizRef = useRef<HTMLInputElement>(null);
@@ -1064,6 +1064,25 @@ function UploadFiles() {
         <Button variant="outline" onClick={() => { reset(); toast({ title: "Back to the sample project" }); }}>
           Use sample
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="shrink-0">
+              More samples <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-0.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => {
+                void loadSpringDemo();
+                onClosed(false);
+                toast({ title: "Loaded: the Spring demo (Java + Kotlin)" });
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-600 mr-1" aria-hidden />
+              Spring Boot service — Java + Kotlin, the full four sections
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -1129,7 +1148,7 @@ export function UseYourOwnProjectDialog({ open, onOpenChange }: { open: boolean;
         </DialogHeader>
         {!inFlight && <SourceCards kind={kind} setKind={setKind} />}
         <div className="pt-1">
-          {kind === "upload" && !inFlight ? <UploadFiles /> : <ConnectRepo kind={kind === "upload" ? "web" : kind} onClosed={onOpenChange} />}
+          {kind === "upload" && !inFlight ? <UploadFiles onClosed={onOpenChange} /> : <ConnectRepo kind={kind === "upload" ? "web" : kind} onClosed={onOpenChange} />}
         </div>
       </DialogContent>
     </Dialog>

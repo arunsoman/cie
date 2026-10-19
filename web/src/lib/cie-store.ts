@@ -122,7 +122,9 @@ interface CieState {
   sourceRoot: string | null; // absolute root of a consented local-folder project (URL clones are deleted after analysis — null there, honestly)
   sourceCache: Record<string, string>; // fetched file contents, by repo-relative path
 
-  loadDemo: () => Promise<void>;
+  demoKind: "banking" | "spring"; // which bundled sample is loaded
+  loadDemo: (kind?: "banking" | "spring") => Promise<void>;
+  loadSpringDemo: () => Promise<void>; // the second bundled sample — the Spring/Java+Kotlin stand-in
   setCustom: (
     report: CieReport | null,
     viewspec: CieViewSpec | null,
@@ -184,6 +186,7 @@ export const useCie = create<CieState>((set, get) => ({
   overlap: null,
   drift: null,
   stack: null,
+  demoKind: "banking",
   source: null,
   label: "",
   loading: true,
@@ -207,7 +210,9 @@ export const useCie = create<CieState>((set, get) => ({
   atlasView: "containers",
   atlasFactsOnly: false,
 
-  loadDemo: async () => {
+  loadDemo: async (kind) => {
+    const demoKind = kind ?? get().demoKind ?? "banking";
+    const dir = demoKind === "spring" ? "/data/spring" : "/data";
     set({ loading: true, loadError: "" });
     try {
       // deps.json + runtime.json + stories.json are optional extras: a project
@@ -217,16 +222,16 @@ export const useCie = create<CieState>((set, get) => ({
       // cochange` there would mine the ENGINE's commit history, not the
       // sample's — honestly null beats a misleading real-looking chart.
       const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift, stack] = await Promise.all([
-        fetch("/data/report.json").then((r) => r.json()),
-        fetch("/data/viewspec.json").then((r) => r.json()),
-        fetch("/data/concepts.json").then((r) => r.json()),
-        fetch("/data/deps.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/runtime.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/stories.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/quality.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/overlap.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/drift.json").then((r) => r.json()).catch(() => null),
-        fetch("/data/stack.json").then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/report.json`).then((r) => r.json()),
+        fetch(`${dir}/viewspec.json`).then((r) => r.json()),
+        fetch(`${dir}/concepts.json`).then((r) => r.json()),
+        fetch(`${dir}/deps.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/runtime.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/stories.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/quality.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/overlap.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/drift.json`).then((r) => r.json()).catch(() => null),
+        fetch(`${dir}/stack.json`).then((r) => r.json()).catch(() => null),
       ]);
       set({
         report,
@@ -240,8 +245,12 @@ export const useCie = create<CieState>((set, get) => ({
         overlap,
         drift,
         stack,
+        demoKind,
         source: "demo",
-        label: "Sample project: a small banking app (13 files — Python, SQL and shell)",
+        label:
+          demoKind === "spring"
+            ? "Sample project: a Spring Boot service (13 files — Java + Kotlin, Docker, PostgreSQL)"
+            : "Sample project: a small banking app (13 files — Python, SQL and shell)",
         loading: false,
         chat: [],
         chatBusy: false,
@@ -305,7 +314,11 @@ export const useCie = create<CieState>((set, get) => ({
     }),
 
   reset: () => {
-    void useCie.getState().loadDemo();
+    void useCie.getState().loadDemo(useCie.getState().demoKind);
+  },
+
+  loadSpringDemo: async () => {
+    await useCie.getState().loadDemo("spring");
   },
 
   pushChat: (m) => set((s) => ({ chat: [...s.chat, m] })),
