@@ -396,9 +396,13 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     // TASK-002: revision chain continues from the persisted meta head, so a
     // process restart never reuses a RevId (§15.1 global rule 7).
+    // NOTE: the head pointer is NOT advanced here (issue #11) — meta.json may
+    // only ever name a revision whose snapshot is durably on disk. The local
+    // `rev` below is what every step in this call uses; the persisted head
+    // moves only after save_snapshot succeeds, so a crash mid-ingest leaves
+    // meta.json at the last fully-good revision and every read keeps working.
     let rev_alloc = store.allocator();
     let rev = rev_alloc.next();
-    store.commit_rev(rev)?;
     let cfg = AnalysisConfig {
         deadline_ns: deadline,
         include_coverage_gaps: opts.include_coverage_gaps,
@@ -492,6 +496,11 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // orphaned call edges survive a tombstoned deletion.
     let _purged = store.purge_tombstoned(&mut snapshot)?;
     store.save_snapshot(&snapshot)?;
+    // Issue #11: only now, with this revision's snapshot durably written, may
+    // meta.json name it current. A crash anywhere above leaves the previous
+    // revision intact and loadable (load_outcome reads this pointer); the
+    // aborted run's rev id is simply reused by the next successful ingest.
+    store.commit_rev(rev)?;
 
     let (reverse_deps, test_map, _) = rebuild_graphs(
         &extracted.store,
