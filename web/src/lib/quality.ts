@@ -330,12 +330,12 @@ export function buildCoverageHeatmapSpec(quality: CieQuality | null, container: 
     label: f.covered != null && f.statements != null ? `${f.covered} of ${f.statements} lines` : "never even imported",
     loc: { file: f.file },
   }));
-  let pct = cov.totals?.percent;
+  let pct: number | undefined = cov.totals?.percent;
   if (container) {
     const withNums = rows.filter((f) => f.statements != null && f.statements > 0);
     const stmts = withNums.reduce((s, f) => s + (f.statements ?? 0), 0);
     const covd = withNums.reduce((s, f) => s + (f.covered ?? 0), 0);
-    pct = stmts > 0 ? Math.round((covd / stmts) * 100) : null;
+    pct = stmts > 0 ? Math.round((covd / stmts) * 100) : undefined;
   }
   const scopeNote = container ? `Scoped to ${container}: ${rows.length} of the ${cov.files.length} measured file(s) shown; the percent is recomputed from just those rows.` : `Whole project: measured across ${cov.files.length} file(s).`;
   return {
