@@ -205,3 +205,19 @@ Stage Summary:
 - Issue #12 closed at both layers: large repos can no longer be misreported as "unparseable output" — the report travels as a file, the reader names truncation honestly when its own cap (not the engine) cut the data.
 - The PRD's core loop ships on existing infra: one Selection Context, four synchronized views (Containers/Components/Sequence/Data flow), breadcrumb + Facts-only, detail rail with callers/callees/tests/evidence/IDE links, every box and arrow carrying its Fact/Inference certainty and opening the exact code through the existing source panel. Nothing invented: absent records stay honestly absent.
 - All work pushed per commit (158e524, 4b54adb, 324f97e, a516997, 730306f, 0d42a68) with the one-shot PAT, URL scrubbed after each push.
+
+---
+Task ID: 14
+Agent: main (pi)
+Task: User's correction on the atlas — "the idea was to see all the charts in ONE single screen with multiple charts in a grid, and the moment I click something in the container graph all others should show only the selected container's data." Push per commit with the PAT.
+
+Work Log:
+- Commit 1 (9eb5289) chat-chart: UmlNode gains optional `selected`; DiagramSVG draws it as an emerald ring + dashed halo + SELECTED pill (no geometry invented — only restyling a box the engine already drew).
+- Commit 2 (3077673) quality.ts: buildCoverageHeatmapSpec / buildComplexitySpec / buildPerFileChurnSpec / buildHotspotSpec take an optional container (top-level folder) — rows filtered BEFORE the cap, coverage headline % recomputed from exactly the rows shown, scope named in title/tell. Default null keeps menu/chat behaviour untouched.
+- Commit 3 (3d65a6c) atlas-view.tsx rewritten tab-less: one screen, one grid — Containers (full-width input) → Components | Data flow → Sequence (full-width) → Test coverage | Complexity → Churn | Hot spots. Per-panel click handlers route into the same Selection Context; container click scopes every other panel with "scoped:" badges + SELECTED ring + "every other panel shows X only" note; second click releases (store toggle). Sequence auto-traces the top flow of the scoped container (badge says so); flow picks are scope-stamped so a pick can never survive a scope change (derived, no setState-in-effect — react-hooks rule stays green). Quality panels show an honest empty note when the scope has no rows instead of vanishing; panels hidden entirely when the project has no quality.json (spring demo). Each panel expands to fill the grid (Maximize2/Minimize2). Breadcrumb + up-one-level + Facts-only + detail rail preserved.
+- Verified: eslint clean (incl. react-hooks/preserve-manual-memoization fix: seqTrace deps now `picked`), tsc clean, next build clean.
+- E2E (agent-browser, banking demo): clicking `scripts` → breadcrumb System›scripts, all panels "scoped: scripts", Components shows only the 4 script files, Data flow "inside scripts", Sequence auto-traced scripts.collect_runtime.main (12 steps, 5 capped, disclosed), coverage/complexity/hotspots honest empty for scripts; second click releases. Clicking `(project root)` → coverage "6 of the 6 measured files, percent recomputed from just those rows", complexity/churn/hotspots scoped titles. Spring demo: only container `src`, quality panels honestly absent (no quality.json), sequence honest "no flow candidates for src". Zero console/page errors.
+- Screenshots: download/atlas-grid-unscoped-1280.png, atlas-grid-scoped-scripts-1280.png, atlas-grid-scoped-root-1280.png, atlas-grid-scoped-root-390.png.
+
+Stage Summary:
+- The atlas IS the grid dashboard now: every chart on one screen, one click in the container graph filters all the others to that container alone, released by a second click or breadcrumb. Built entirely on existing infra — same Selection Context (cie-store), same mastery.ts/atlas.ts builders, same ChatChart engines, same quality.ts builders with an added scope parameter. Three commits, each pushed with the PAT.
