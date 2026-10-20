@@ -185,36 +185,42 @@ fn function_name(node: Node, lang: LightLang, bytes: &[u8]) -> Option<String> {
 /// already assumes for that shape. `None` when nothing is found: doc
 /// extraction never guesses, it only reads what's actually there.
 fn doc_comment_of(node: Node, lang: LightLang, bytes: &[u8]) -> Option<String> {
-    let mut lines: Vec<String> = vec![];
+    // In JS/TS the comment belongs to `export function`, not its child
+    // function node. Climb only this declaration wrapper, never a scope.
+    let node = node.parent().filter(|p| p.kind() == "export_statement").unwrap_or(node);
+    let mut pieces = Vec::new();
+    let mut anchor = node.start_byte();
     let mut cur = node.prev_sibling();
     while let Some(n) = cur {
+        let gap = &bytes[n.end_byte()..anchor];
+        if gap.iter().filter(|b| **b == b'\n').count() > 1 { break; }
         if lang == LightLang::Rust && n.kind() == "attribute_item" {
+            anchor = n.start_byte();
             cur = n.prev_sibling();
             continue;
         }
-        if !n.kind().contains("comment") {
-            break;
-        }
-        let cleaned = text(n, bytes)
-            .trim()
-            .trim_start_matches("/**")
-            .trim_end_matches("*/")
-            .trim_start_matches("///")
-            .trim_start_matches("//")
-            .trim_start_matches('*')
-            .trim()
-            .to_string();
-        if !cleaned.is_empty() {
-            lines.push(cleaned);
-        }
+        if !n.kind().contains("comment") { break; }
+        let raw = text(n, bytes).trim();
+        let allowed = match lang {
+            LightLang::Rust => raw.starts_with("///") && !raw.starts_with("////"),
+            LightLang::Go => raw.starts_with("//"),
+            _ => raw.starts_with("/**") && !raw.starts_with("/***"),
+        };
+        if !allowed { break; }
+        // A trailing comment on previous code documents that code, not
+        // the next declaration. Whitespace before a doc is harmless.
+        let line_start = bytes[..n.start_byte()].iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
+        if bytes[line_start..n.start_byte()].iter().any(|b| !b.is_ascii_whitespace()) { break; }
+        let body = raw.strip_prefix("/**").and_then(|s| s.strip_suffix("*/"))
+            .or_else(|| raw.strip_prefix("///"))
+            .or_else(|| raw.strip_prefix("//")).unwrap_or(raw);
+        let cleaned = body.lines().map(|line| line.trim().strip_prefix('*').unwrap_or(line.trim()).trim())
+            .filter(|line| !line.is_empty()).collect::<Vec<_>>().join("\n");
+        if !cleaned.is_empty() { pieces.push(cleaned); }
+        anchor = n.start_byte();
         cur = n.prev_sibling();
     }
-    if lines.is_empty() {
-        None
-    } else {
-        lines.reverse();
-        Some(lines.join(" "))
-    }
+    if pieces.is_empty() { None } else { pieces.reverse(); Some(pieces.join("\n")) }
 }
 
 fn is_rust_test(node: Node, bytes: &[u8]) -> bool {

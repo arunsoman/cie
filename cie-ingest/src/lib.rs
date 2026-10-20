@@ -11,6 +11,7 @@ pub mod stack_store;
 pub mod state_model_store;
 pub mod relations_store;
 pub mod navigation;
+pub mod org_store;
 pub mod vector_store;
 
 pub use history::{
@@ -490,12 +491,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // symbol text is never re-embedded (vector_store::update_embeddings).
     let prev_rev = store.last_rev();
     let prev_vectors = if prev_rev > 0 { store.load_embeddings(prev_rev).unwrap_or(None) } else { None };
-    let embed_texts: Vec<(String, String)> = extracted
-        .store
-        .symbols
-        .iter()
-        .map(|s| (s.qual_name.clone(), s.doc.clone().unwrap_or_else(|| s.qual_name.clone())))
-        .collect();
+    let embed_texts = vector_store::symbol_texts(&extracted.store);
     let vectors = vector_store::update_embeddings(
         prev_vectors.as_ref(),
         &embed_texts,
@@ -627,6 +623,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     store.write_json(&store.root().join("revs").join(rev.to_string()).join("file-table.json"), &revision_files)?;
     let unresolved_calls = navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
     navigation::save_unresolved(&store, rev, &unresolved_calls)?;
+    org_store::save(&store, &org_store::OrgMember::new(&snapshot, &unresolved_calls))?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous
@@ -830,13 +827,23 @@ pub fn run_org_ingest(
     // RFC-0022 §6.4: outcomes are kept (not discarded per-iteration) so the
     // cross-repo resolution pass below can read every repo's symbols and
     // unresolved calls, not just the current one's.
-    let mut outcomes: Vec<(String, IngestOutcome)> = Vec::new();
+    let mut outcomes: Vec<(String, org_store::OrgMember)> = Vec::new();
     for repo in repos {
-        let mut outcome = materialize(run_ingest(repo, opts)?)?;
-        navigation::ensure_navigation(repo, &mut outcome)?;
+        let raw = run_ingest(repo, opts)?;
+        let store = Store::open(repo)?;
+        let member = match org_store::load(&store, raw.rev)? {
+            Some(member) => member,
+            None => {
+                let mut outcome = materialize(raw)?;
+                navigation::ensure_navigation(repo, &mut outcome)?;
+                let member = org_store::OrgMember::new(&outcome.snapshot, &outcome.store.unresolved);
+                org_store::save(&store, &member)?;
+                member
+            }
+        };
         let repo_name = repo.to_string_lossy().to_string();
         org.repos.push(repo_name.clone());
-        for node in &outcome.snapshot.concepts.nodes {
+        for node in &member.concepts {
             if node.kind == cie_concepts::ConceptKind::UseCase
                 || node.kind == cie_concepts::ConceptKind::Aggregate
                 || node.kind == cie_concepts::ConceptKind::Entity
@@ -847,12 +854,13 @@ pub fn run_org_ingest(
                     .push((repo_name.clone(), node.id));
             }
         }
-        outcomes.push((repo_name, outcome));
+        outcomes.push((repo_name, member));
     }
     let mut merged_id = 0u32;
     for (label, sources) in label_index {
-        if sources.len() < 2 {
-            continue; // repo-unique concepts are not merged
+        let distinct_repos: std::collections::BTreeSet<_> = sources.iter().map(|(repo, _)| repo).collect();
+        if distinct_repos.len() < 2 {
+            continue; // multiple same-label nodes in ONE repo are not an org merge
         }
         org.merged_concepts.push(cie_store::MergedConcept {
             merged_id,
@@ -871,9 +879,19 @@ pub fn run_org_ingest(
     // SIBLING repo exports a same-named symbol. Only an UNAMBIGUOUS
     // match (exactly one candidate by short name in the other repo)
     // produces an edge — never a guess among several same-named symbols.
+    // One org-wide name index retains indexed lookup after moving away
+    // from full SymbolStores. Resolution never scans all sibling symbols
+    // for every unresolved call.
+    let mut exports: BTreeMap<&str, Vec<(usize, SymbolId)>> = BTreeMap::new();
+    for (repo, (_, member)) in outcomes.iter().enumerate() {
+        for symbol in &member.symbols {
+            exports.entry(&symbol.name).or_default().push((repo, symbol.id));
+        }
+    }
+    let mut seen_edges = std::collections::BTreeSet::new();
     for (i, (from_repo, from_outcome)) in outcomes.iter().enumerate() {
-        for (&caller, callee_texts) in &from_outcome.store.unresolved {
-            let Some(caller_sym) = from_outcome.store.get(caller) else {
+        for (&caller, callee_texts) in &from_outcome.unresolved {
+            let Some(caller_sym) = from_outcome.symbols.iter().find(|s| s.id == caller) else {
                 continue;
             };
             for callee_text in callee_texts {
@@ -882,24 +900,20 @@ pub fn run_org_ingest(
                 // per-repo: two different repos each exporting exactly
                 // one same-named symbol is still two candidates overall,
                 // and must resolve to neither (never a coin-flip guess).
-                let mut candidates: Vec<(usize, SymbolId)> = vec![];
-                for (j, (_, to_outcome)) in outcomes.iter().enumerate() {
-                    if i == j {
-                        continue;
-                    }
-                    for &sym in to_outcome.store.by_name(short_name) {
-                        candidates.push((j, sym));
-                    }
-                }
+                let candidates: Vec<_> = exports.get(short_name).into_iter().flatten()
+                    .filter(|(repo, _)| *repo != i).take(2).copied().collect();
                 if let [(j, sym)] = candidates[..] {
-                    if let Some(target_sym) = outcomes[j].1.store.get(sym) {
-                        org.api_edges.push(cie_store::ApiEdge {
+                    if let Some(target_sym) = outcomes[j].1.symbols.iter().find(|s| s.id == sym) {
+                        let edge = cie_store::ApiEdge {
                             from_repo: from_repo.clone(),
                             to_repo: outcomes[j].0.clone(),
                             from_symbol: caller_sym.qual_name.clone(),
                             to_symbol: target_sym.qual_name.clone(),
                             kind: "import".into(),
-                        });
+                            match_basis: Some("globally_unique_short_name; import binding and exported visibility unverified".into()),
+                            claim_class: Some("inferred".into()),
+                        };
+                        if seen_edges.insert((i, caller, j, sym)) { org.api_edges.push(edge); }
                     }
                 }
                 // Zero or multiple candidates: stays unresolved, same as

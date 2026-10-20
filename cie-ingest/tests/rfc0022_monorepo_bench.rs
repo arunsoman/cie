@@ -14,22 +14,28 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 const REPO_COUNT: usize = 20;
-const FILES_PER_REPO: usize = 5;
+const FILES_PER_REPO: usize = 100;
 
 fn make_repos(tag: &str) -> Vec<PathBuf> {
     let mut repos = vec![];
     for r in 0..REPO_COUNT {
-        let dir = std::env::temp_dir().join(format!("cie-rfc0022-monorepo-{tag}-{r}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "cie-rfc0022-monorepo-{tag}-{r}-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         for f in 0..FILES_PER_REPO {
-            std::fs::write(
-                dir.join(format!("mod_{f}.py")),
-                format!(
-                    "def helper_{r}_{f}(x):\n    \"\"\"Does work for repo {r}, module {f}.\"\"\"\n    return x + {f}\n\ndef caller_{r}_{f}():\n    return helper_{r}_{f}(1)\n"
-                ),
-            )
-            .unwrap();
+            let mut src = format!(
+                "def helper_{r}_{f}(x):\n    \"\"\"Does work for repo {r}, module {f}.\"\"\"\n    return x + {f}\n\ndef caller_{r}_{f}():\n    return helper_{r}_{f}(1)\n"
+            );
+            if f == 0 {
+                let next = (r + 1) % REPO_COUNT;
+                src.push_str(&format!(
+                    "\ndef notify_{r}():\n    return helper_{next}_0(1)\n"
+                ));
+            }
+            std::fs::write(dir.join(format!("mod_{f}.py")), src).unwrap();
         }
         repos.push(dir);
     }
@@ -46,6 +52,11 @@ fn monorepo_incremental_reingest_stays_within_budget() {
     let first = run_org_ingest(&repos, &opts).unwrap();
     let full_wall = t0.elapsed();
     assert_eq!(first.repos.len(), REPO_COUNT);
+    assert_eq!(
+        first.api_edges.len(),
+        REPO_COUNT,
+        "the benchmark must carry real candidate links, not just an empty org"
+    );
 
     // Unchanged re-run: every repo's content hash is identical, so each
     // per-repo run_ingest should take the incremental "hashing + plan
@@ -55,6 +66,11 @@ fn monorepo_incremental_reingest_stays_within_budget() {
     let second = run_org_ingest(&repos, &opts).unwrap();
     let reingest_wall = t1.elapsed();
     assert_eq!(second.repos.len(), REPO_COUNT);
+    assert_eq!(
+        serde_json::to_value(&first).unwrap(),
+        serde_json::to_value(&second).unwrap(),
+        "a fast empty org result must not count as a successful incremental run"
+    );
 
     let ratio = reingest_wall.as_secs_f64() / full_wall.as_secs_f64();
     eprintln!(
@@ -69,8 +85,8 @@ fn monorepo_incremental_reingest_stays_within_budget() {
     // that bar survives running the SAME per-repo incremental path N
     // times in sequence, not whether it trivially should.
     assert!(
-        ratio <= 0.25,
-        "unchanged org-scale re-ingest took {:.1}% of a full ingest (budget: 25% — org-level sequential overhead is expected to be looser than the single-repo 5% bar, but should still be a clear fraction, not parity)",
+        ratio <= 0.05,
+        "unchanged org-scale re-ingest took {:.1}% of a full ingest (budget: 5% — same acceptance bar as the single-repo baseline)",
         ratio * 100.0
     );
 

@@ -54,3 +54,58 @@ fn typescript_jsdoc_block_extracted() {
     let doc = doc_of(&facts, "authorize").expect("JSDoc block found");
     assert!(doc.contains("Authorizes the caller"));
 }
+
+#[test]
+fn javascript_and_tsx_exports_keep_clean_jsdoc() {
+    for (path, lang) in [
+        ("auth.js", LightLang::JavaScript),
+        ("auth.ts", LightLang::TypeScript),
+        ("auth.tsx", LightLang::Tsx),
+    ] {
+        let src = "/**\n * Authorizes the caller.\n * @returns permission\n */\nexport function authorize() {}\n";
+        let facts = extract_light(path, src, lang);
+        assert_eq!(
+            doc_of(&facts, "authorize").as_deref(),
+            Some("Authorizes the caller.\n@returns permission"),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn detached_comments_and_ordinary_non_doc_comments_are_not_docs() {
+    for (path, lang, src) in [
+        (
+            "plain.go",
+            LightLang::Go,
+            "package main\n// A file note.\n\nfunc Plain() {}\n",
+        ),
+        (
+            "plain.rs",
+            LightLang::Rust,
+            "// Internal note.\nfn Plain() {}\n",
+        ),
+        (
+            "plain.js",
+            LightLang::JavaScript,
+            "// Internal note.\nfunction Plain() {}\n",
+        ),
+        (
+            "plain.ts",
+            LightLang::TypeScript,
+            "/** Detached doc. */\n\nfunction Plain() {}\n",
+        ),
+        ("plain.tsx", LightLang::Tsx, "function Plain() {}\n"),
+        (
+            "plain.go",
+            LightLang::Go,
+            "package main\nvar x = 1 // belongs to x\nfunc Plain() {}\n",
+        ),
+    ] {
+        assert_eq!(
+            doc_of(&extract_light(path, src, lang), "Plain"),
+            None,
+            "{path}: {src}"
+        );
+    }
+}

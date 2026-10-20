@@ -73,6 +73,11 @@ pub struct ApiEdge {
     pub from_symbol: String,
     pub to_symbol: String,
     pub kind: String,
+    /// Association evidence, not a proven import/export or runtime call.
+    #[serde(default)]
+    pub match_basis: Option<String>,
+    #[serde(default)]
+    pub claim_class: Option<String>,
 }
 
 pub struct Store {

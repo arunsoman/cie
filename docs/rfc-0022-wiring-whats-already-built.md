@@ -1,6 +1,6 @@
 # RFC-0022: Wiring what's already built — call-graph navigation, semantic search, adapter depth parity, and real multi-repo
 
-**Status:** partially implemented — §6.1/6.2/6.3/6.4's CLI/engine pieces landed and are tested; §6.1/6.2's MCP tools are blocked on RFC-0021 §6.1; several deviations and gaps from this text are recorded honestly in §13, added after implementation, not before.
+**Status:** CLI/engine implementation with follow-through — the initial implementation audit is preserved in §13; §14 records the subsequent fixes. MCP exposure remains blocked on RFC-0021 §6.1. See [implementation record](implementation/rfc-0022.md) for validation and limits.
 **Author:** the CIE maintainer (with pi)
 **Date:** 2026-10-20
 **Applies to:** `cie-relations`, `cie-semantic`, `cie-analysis`, `cie-store`, `cie-llm`, `cie-ingest`, `cie-adapter-go`/`-rust`/`-typescript`/`-javascript`, `cie-incremental`, `cie-cli`, `cie-server`
@@ -306,7 +306,7 @@ This reuses `Callee::Unresolved(String)` — the exact signal already distinguis
 
 - **Every new feature wires already-correct code into production for the first time, not new algorithm design.** `RelationGraph`, `Pdg`, `embed()`, and `HnswRsStore` are tested in isolation today; this RFC's job is the missing call site, not the logic behind it.
 - **Nothing existing is deleted or risked.** `reverse_deps`/`impact` and `concurrency.rs`'s local call graph are untouched (§4); doc-extraction is purely additive (absence stays absence); cross-repo resolution never guesses, only confirms exact exported-symbol-name matches.
-- **The embedding stage is incremental by construction** — as shipped, via content-addressed carry-forward (§13.2), not the `SymbolWorklist` diff this section originally proposed — it cannot silently regress the ~3% incremental-reingest number because it only ever re-embeds text that actually changed.
+- **The embedding stage is incremental by construction** — as shipped, via content-addressed carry-forward (§13.2), not the `SymbolWorklist` diff this section originally proposed — it avoids repeated embedding calls for unchanged text. That does not by itself guarantee an incremental wall-time ratio: hashing, artifact loading and merge costs still require measurement (§14 and the implementation record).
 - **The one real new engineering risk (monorepo scale) is measured, not assumed.** §6.4 ships a benchmark specifically to find out whether the current story holds at org scale, rather than claiming it does — though at a smaller fixture than proposed (§13.4).
 - **The rollback path is real.** Every stage in §11 is independently revertable; a reverted stage returns its consumers to exactly their current "compute fresh" or "report none" behavior.
 
@@ -360,3 +360,33 @@ Everything in §6 except the MCP tools (§11 stage 4, blocked on RFC-0021 §6.1'
 ### 13.8 Scope actually covered
 
 Only this RFC (0022) was implemented. RFC-0019's stack stage turned out to already be real in the codebase — discovered during this work, not built by it. RFC-0020 and RFC-0021 remain entirely unimplemented design documents; nothing from either has been coded. §11 stage 4 (MCP tool exposure of `cie trace`/`cie search`) stays blocked on RFC-0021 §6.1 landing first, exactly as this RFC's build order said it would.
+
+
+## 14. Follow-through after the initial audit
+
+This section supersedes §13 where the implementation has changed; §13 remains
+as the record of the earlier audit. In particular, §13.8's statement that
+RFC-0020 has no code is outdated: state-model, test-reachability, provenance,
+cross-service and bounded fault artifacts already exist in the current tree.
+
+| Earlier gap | Follow-through |
+| --- | --- |
+| Six relation kinds accepted without a production extractor (§13.1) | Trace help states exactly which four have production data. No invented statement/PDG edges. `--kind all` traverses populated kinds. |
+| No legacy-artifact fallback (§13.2) | Navigation rebuilds only from revision/hash-verified sources; search reconstructs missing embeddings. Normal repeat reads retain existing artifacts. |
+| External embedding downgrade unreachable from search (§13.3) | `search --llm-provider`, `--no-llm`, `--llm-budget-usd` expose opt-in embeddings and an executable zero-budget fallback path. Query and corpus always share the actual embedding space. |
+| Embedding provider/dimension changes | A provider/model/endpoint identity is stored. A switch rebuilds every record, including equal-dimensional model switches. Malformed/failing responses and query failures rebuild offline without dropping unchanged symbols. |
+| No direct call-count evidence (§13.7) | Counting-provider tests prove zero additional calls for unchanged text, one changed-symbol embedding, pruning and complete fallback behavior. |
+| No dedicated JavaScript test (§13.7) | JS/TS/TSX export declarations and cleaned JSDoc are tested directly, as are detached/non-doc/trailing comments. |
+| No legacy-store compatibility test (§13.7) | Real CLI tests remove navigation/embedding artifacts, then prove repair at the same revision, stable citations and unchanged cache mtimes on subsequent reads. |
+| Repeat org results silently emptied | Unresolved calls and compact org-member projections persist per revision. Repeat runs are compared with cold results, including links and concept merges. |
+| Short-name matching overstates certainty (§13.5) | Additive edge metadata states `inferred` and discloses unverified import binding/export visibility. Repeated calls produce one candidate edge; a concept merge requires at least two distinct repos. |
+| Qualified-name vector IDs can collide (§13.6) | File-scoped qualified names plus declaration ordinals distinguish same-stem modules/overloads, without invalidating vectors merely because byte offsets move. |
+| BFS bounded by depth alone | Shared engine traversal also bounds elapsed time, visited symbols and scanned edges; partial results state the limit reason. Ambiguous symbol names are rejected. |
+| Benchmark too small (§13.4) | Fixture expanded to 20 repos × 100 files. It asserts complete org-result equivalence and the original 5% gate; measurement is recorded in the implementation log. |
+
+Remaining scope: the MCP executor dependency; the six statement relation kinds;
+full language-aware cross-repo import/visibility resolution; native persistent
+HNSW loading/sharding; and broader language doc-comment adapters. Offline vector
+similarity is lexical hashing, not proof that an answer or API relationship is
+semantically correct. Provider tests exercise deterministic doubles and the
+binary's zero-budget path; they are not certification of a live paid endpoint.

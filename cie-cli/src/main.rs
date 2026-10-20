@@ -99,6 +99,9 @@ pub enum Command {
         /// Walk incoming edges (callers) instead of outgoing (callees).
         #[arg(long)]
         reverse: bool,
+        /// Traversal time budget, excluding ingest/artifact loading.
+        #[arg(long, default_value_t = 2000)]
+        budget_ms: u64,
         #[arg(long)]
         json: bool,
     },
@@ -1043,12 +1046,13 @@ fn run(cli: Cli) -> i32 {
             kind,
             depth,
             reverse,
+            budget_ms,
             json,
         } => {
             let want_kind = parse_rel_kind(&kind);
             if want_kind.is_none() && kind != "all" {
                 eprintln!(
-                    "error: unknown --kind '{kind}' (expected one of: calls, returns, control_flow, data_flow, reads, writes, throws, catches, owns, depends_on)"
+                    "error: unknown --kind '{kind}' (expected one of: all, calls, returns, control_flow, data_flow, reads, writes, throws, catches, owns, depends_on)"
                 );
                 return 1;
             }
@@ -1077,56 +1081,11 @@ fn run(cli: Cli) -> i32 {
             };
             // Resolve AFTER compatibility repair, which updates the outcome.
             let sym = outcome.store.get(symbol_id).expect("symbol remains in snapshot");
-            let Some(start) = graph.find_node(sym.id) else {
-                // The symbol exists but owns no relation edges (e.g. an
-                // unreferenced constant) — an honest empty result, not an
-                // error.
-                if json {
-                    println!("{}", serde_json::json!({ "symbol": sym.qual_name, "hops": [], "truncated": false }));
-                } else {
-                    println!("'{}' has no recorded {} relations.", sym.qual_name, kind.as_str());
-                }
-                return 0;
-            };
+            let walk = cie_ingest::navigation::trace(&graph, sym.id, want_kind, depth, reverse,
+                std::time::Duration::from_millis(budget_ms));
+            let hops = &walk.hops;
+            let truncated = walk.truncated;
 
-            let mut visited: std::collections::BTreeSet<SymbolId> = std::collections::BTreeSet::new();
-            visited.insert(sym.id);
-            let mut frontier = vec![start];
-            let mut hops: Vec<Vec<SymbolId>> = vec![];
-            for _ in 0..depth {
-                let mut next_nodes = vec![];
-                let mut hop_syms = vec![];
-                for idx in &frontier {
-                    let edges: Vec<_> = if reverse {
-                        graph.edges_to(*idx).collect()
-                    } else {
-                        graph.edges_from(*idx).collect()
-                    };
-                    for (other_idx, k) in edges {
-                        if want_kind.is_some_and(|wanted| k != wanted) {
-                            continue;
-                        }
-                        if let Some(other_sym) = graph.node_weight(other_idx) {
-                            if visited.insert(other_sym) {
-                                next_nodes.push(other_idx);
-                                hop_syms.push(other_sym);
-                            }
-                        }
-                    }
-                }
-                if next_nodes.is_empty() {
-                    break;
-                }
-                hops.push(hop_syms);
-                frontier = next_nodes;
-            }
-            // A BFS that's still growing at the depth bound is an honest
-            // "there may be more" — never silently incomplete.
-            let truncated = frontier.iter().any(|idx| {
-                let edges: Vec<_> = if reverse { graph.edges_to(*idx).collect() } else { graph.edges_from(*idx).collect() };
-                edges.iter().any(|(other, k)| want_kind.is_none_or(|wanted| *k == wanted)
-                    && graph.node_weight(*other).is_some_and(|id| !visited.contains(&id)))
-            });
 
             let describe = |id: SymbolId| -> (String, String) {
                 match outcome.store.get(id) {
@@ -1145,7 +1104,7 @@ fn run(cli: Cli) -> i32 {
                         hop.iter()
                             .map(|&id| {
                                 let (name, loc) = describe(id);
-                                serde_json::json!({ "symbol": name, "evidence": loc })
+                                serde_json::json!({ "symbol": name, "evidence": loc, "evidence_kind": "symbol_definition" })
                             })
                             .collect::<Vec<_>>()
                     })
@@ -1158,6 +1117,7 @@ fn run(cli: Cli) -> i32 {
                         "reverse": reverse,
                         "hops": hops_json,
                         "truncated": truncated,
+                        "limit_reason": walk.limit_reason,
                     })
                 );
             } else {
@@ -1176,7 +1136,7 @@ fn run(cli: Cli) -> i32 {
                     }
                 }
                 if truncated {
-                    println!("  … more beyond depth {depth} — raise --depth to see further.");
+                    println!("  … traversal incomplete ({}) — raise --depth or --budget-ms as appropriate.", walk.limit_reason.unwrap_or("budget"));
                 }
             }
             0
@@ -1206,8 +1166,7 @@ fn run(cli: Cli) -> i32 {
                 }
             };
             let provider = cie_llm::make_provider(if no_llm { cie_llm::ProviderKind::Offline } else { llm_provider.into() });
-            let texts: Vec<_> = outcome.store.symbols.iter().map(|s| (
-                s.qual_name.clone(), s.doc.clone().unwrap_or_else(|| s.qual_name.clone()))).collect();
+            let texts = cie_ingest::vector_store::symbol_texts(&outcome.store);
             let (vectors, query_vec) = cie_ingest::vector_store::prepare_search(
                 previous.as_ref(), &texts, &cie_llm::Budget::new(llm_budget_usd), provider.as_ref(), &query);
             if previous.as_ref() != Some(&vectors) {
@@ -1238,14 +1197,14 @@ fn run(cli: Cli) -> i32 {
                 }
             };
 
-            // record_id = stable_id(qual_name) (vector_store's indexing
-            // rule) — recompute the same hash over today's symbols to
-            // resolve a hit back to the symbol it came from.
+            // Rejoin through the same file-scoped keys used by ingestion;
+            // equal qualified names in separate files remain separate hits.
             let sym_by_record: std::collections::BTreeMap<[u8; 32], SymbolId> = outcome
                 .store
                 .symbols
                 .iter()
-                .map(|s| (cie_core::types::hash(s.qual_name.as_bytes()), s.id))
+                .zip(texts.iter())
+                .map(|(s, (key, _))| (cie_core::types::hash(key.as_bytes()), s.id))
                 .collect();
 
             let hits_json: Vec<_> = hits
