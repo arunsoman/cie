@@ -1,8 +1,9 @@
 /**
- * VIZ-23 (structural) + VIZ-25 — the catalog: counts hold (76 charts,
- * 68 native / 4 custom / 4 alt-engine), every entry's recommended engine
- * is capable by its declared CapabilitySet, and the provenance audit
- * passes for a spec generated from EVERY catalog shape.
+ * VIZ-23 (structural) + VIZ-25 — the catalog: counts hold (77 charts
+ * since RFC-0024 stage 0 registered C10 Component board — 68 native /
+ * 5 custom / 4 alt-engine), every entry's recommended engine is capable
+ * by its declared CapabilitySet, and the provenance audit passes for a
+ * spec generated from EVERY catalog shape.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -50,20 +51,23 @@ function specFor(entry: CatalogEntry): ViewSpec {
 }
 
 describe('catalog invariants (VIZ-23 structural)', () => {
-  it('76 charts; the Part IX custom four; non-G6 charts as Alt-engine', () => {
+  it('77 charts; the Part IX custom four + RFC-0024 board; non-G6 charts as Alt-engine', () => {
     // PRD Part VI's summary row (68/4/4) contradicts its own per-category
     // tables (A: 3 custom, F: 1 custom → natives 69). We resolve to the
     // internally consistent set the PRD names explicitly in Part IX:
     //   Custom    = { A1 UML class, A6 ports, A7 actor, F2 flame }
     //   Alt-engine = { B3 mermaid, B6 custom SVG, F1 custom SVG }
-    expect(CATALOG_SUMMARY.total).toBe(76);
-    expect(CATALOG_SUMMARY.native + CATALOG_SUMMARY.custom + CATALOG_SUMMARY.altEngine).toBe(76);
+    // RFC-0024 stage 0 registers C10 Component board as the fifth Custom
+    // — the g6 node-kind budget (process/decision/store/board-card) is
+    // spent exactly on RFC-0024's four new kinds.
+    expect(CATALOG_SUMMARY.total).toBe(77);
+    expect(CATALOG_SUMMARY.native + CATALOG_SUMMARY.custom + CATALOG_SUMMARY.altEngine).toBe(77);
     const custom = CATALOG.filter((c) => c.g6Status === 'Custom').map((c) => c.id).sort();
-    expect(custom).toEqual(['A1', 'A6', 'A7', 'F2']);
+    expect(custom).toEqual(['A1', 'A6', 'A7', 'C10', 'F2']);
     const alt = CATALOG.filter((c) => c.g6Status === 'Alt-engine').map((c) => c.id).sort();
     expect(alt).toEqual(['B3', 'B6', 'F1']);
     expect(CATALOG_SUMMARY.native).toBe(69);
-    expect(CATALOG).toHaveLength(76);
+    expect(CATALOG).toHaveLength(77);
   });
 
   it('extension budget: at most 4 custom node types, 2 layouts, 2 plugins', () => {
@@ -75,11 +79,11 @@ describe('catalog invariants (VIZ-23 structural)', () => {
     expect(CATALOG_SUMMARY.extensionBudget.customNodes).toBe(4);
   });
 
-  it('ids are unique and category counts match the PRD table', () => {
-    expect(new Set(CATALOG.map((c) => c.id)).size).toBe(76);
+  it('ids are unique and category counts match the PRD table + RFC-0024', () => {
+    expect(new Set(CATALOG.map((c) => c.id)).size).toBe(77);
     const byCat = Object.fromEntries(CATALOG.map((c) => [c.category[0]!, 0]));
     for (const c of CATALOG) byCat[c.category[0]!]! += 1;
-    expect(byCat).toEqual({ A: 13, B: 7, C: 9, D: 6, E: 10, F: 7, G: 5, H: 5, I: 7, J: 4, K: 3 });
+    expect(byCat).toEqual({ A: 13, B: 7, C: 10, D: 6, E: 10, F: 7, G: 5, H: 5, I: 7, J: 4, K: 3 });
   });
 });
 

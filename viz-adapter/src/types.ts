@@ -64,10 +64,29 @@ export interface Gap {
   why: string;
 }
 
+/**
+ * RFC-0024 patch 3 (ux-spec §2.2/§13.1) — the canonical shapes inside the
+ * open `fields` bag. `bodyLines` is the component-board's evidence-gated
+ * narration (gate: every line carries its own EvidenceRef); `alsoEvidence`
+ * carries SECOND recorded locations for paired popups (drift doc↔code,
+ * dep-edge from↔to). Both are optional; presence is validated by the gate.
+ */
+export interface BodyLine {
+  text: string;
+  line: number;
+  evidence: EvidenceRef;
+}
+
 export interface HiddenCandidate {
   id: string;
   reason: string;
   salienceWeight: number;
+  /** RFC-0024 patch 2 (G1) — human row text for the disclosure popup;
+   *  absent ⇒ the UI falls back to `id` and says so. */
+  label?: string;
+  /** RFC-0024 patch 2 — plain-words element kind of the hidden row
+   *  (container / module / symbol / edge / …); absent ⇒ `unknown`. */
+  kind?: string;
 }
 
 export interface EpistemicFooter {
@@ -186,11 +205,28 @@ export interface AuditReport {
   layout: LayoutOutcome;
 }
 
+/** RFC-0024 patch 1 — who moved the selection: a human click in the
+ *  canvas ('user') or a host call (chips, plan, conductor —
+ *  'programmatic'). Engines MUST tag every callback. */
+export type SelectionOrigin = 'user' | 'programmatic';
+
+/** RFC-0024 patch 1 — selection callback: element ids in pick order. */
+export type SelectionListener = (ids: string[], origin: SelectionOrigin) => void;
+
+/**
+ * RFC-0024 patch 1 (ux-spec §2.3/§13.1) — the selection surface on every
+ * render handle. `onSelection` subscribes (returns the unsubscribe fn);
+ * `setSelected` moves the selection (loop-guarded: re-setting an identical
+ * set never re-fires listeners, and re-entrant calls from inside a
+ * listener are coalesced, never recursed — see selection.ts).
+ */
 export interface RenderHandle {
   engineId: EngineId;
   semanticHash: string;
   renderHash: string;
   layout: LayoutOutcome;
+  onSelection(cb: SelectionListener): () => void;
+  setSelected(ids: string[], origin: SelectionOrigin): void;
   dispose(): Promise<void>;
 }
 

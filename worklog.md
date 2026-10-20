@@ -397,3 +397,20 @@ Work Log:
 
 Stage Summary:
 - Grouping is a property of the small card, never of the picture: expand = everything the scope holds, honestly told when even the expanded canvas caps (400) — the tell says so in plain words, groups never pretend to be all there is.
+---
+Task ID: 28
+Agent: main (Z.ai)
+Task: RFC-0024 stage 0 — the three contract patches + catalog kinds + gate checks (the everything-depends-on-them patches, shipped FIRST per the RFC).
+
+Work Log:
+- Synced the repo to origin/main (the local worklog-only commit was already superseded remotely; remote carried the RFC-0024 spec + a persona-atlas WIP commit).
+- Patch 1: RenderHandle gains onSelection(cb)/setSelected(ids, origin) with SelectionOrigin/SelectionListener types; the loop-guarded semantics implemented exactly once in viz-adapter/src/selection.ts (createSelectionHub): identical sets never re-fire (echo suppression counted), re-entrant listener calls coalesce into one deferred pass (depth cap 1, dropped counted).
+- Patch 2: HiddenCandidate.label/.kind + disclosure.ts hiddenRows() — G1 disclosure rows fall back to id/unknown and DISCLOSE the fallback.
+- Patch 3: fields.bodyLines[]/alsoEvidence[] typing (BodyLine), gateFields() wired INTO gate() (no bypass), new stable codes BODY_LINE_WITHOUT_EVIDENCE / ALSO_EVIDENCE_MALFORMED shared with the Rust mirror.
+- Catalog: C10 Component board registered (Custom — the g6 node-kind budget spent exactly on RFC-0024's four kinds) + the per-kind drill/filter action matrix (CATEGORY_DEFAULT_ACTIONS/actionsFor) per ux-spec §3/§8.
+- Rust gate mirror in cie-viz/src/gate.rs: two new GateCodes with identical strings + well_formed_ref + both checks inside validate() + 6 tests.
+- Repaired pre-existing breakage found on the way: cie-viz/src/produce.rs test initializer missing RevSnapshot.concepts_tier (crate did not compile before this stage).
+- Verified: viz-adapter vitest 301/301 green (274 pre-existing + 27 new), tsc clean; cargo test -p cie-viz 29/29 green. Catalog audit updated 76→77 with the C10 registration named.
+
+Stage Summary:
+- Stage 0 acceptance met: 3 new vitest suites green, existing suites green, Rust gate mirrors compile and pass. The contract now carries selection, disclosure rows, and evidence-gated narration — stages 0.5–5 build on these patches.

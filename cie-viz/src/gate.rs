@@ -21,6 +21,10 @@ pub enum GateCode {
     EdgeUnknownEndpoint,
     DuplicateElementId,
     ElementCapExceeded,
+    /// RFC-0024 patch 3 — an evidence-gated body line failed the gate.
+    BodyLineWithoutEvidence,
+    /// RFC-0024 patch 3 — a paired-popup second ref is malformed.
+    AlsoEvidenceMalformed,
 }
 
 impl GateCode {
@@ -34,6 +38,8 @@ impl GateCode {
             GateCode::EdgeUnknownEndpoint => "EDGE_UNKNOWN_ENDPOINT",
             GateCode::DuplicateElementId => "DUPLICATE_ELEMENT_ID",
             GateCode::ElementCapExceeded => "ELEMENT_CAP_EXCEEDED",
+            GateCode::BodyLineWithoutEvidence => "BODY_LINE_WITHOUT_EVIDENCE",
+            GateCode::AlsoEvidenceMalformed => "ALSO_EVIDENCE_MALFORMED",
         }
     }
 }
@@ -56,6 +62,68 @@ impl std::fmt::Display for GateViolation {
 /// producer truncates (recording hidden candidates + a gap); the gate
 /// refuses any spec that still exceeds the cap.
 pub const ELEMENT_CAP: usize = 2_000;
+
+/// RFC-0024 patch 3 — well-formed EvidenceRef inside the open `fields`
+/// bag (identical rule to the TS `isWellFormedRef`): non-empty file,
+/// finite non-negative start, end ≥ start.
+fn well_formed_ref(r: &serde_json::Value) -> bool {
+    let Some(obj) = r.as_object() else { return false };
+    let Some(file) = obj.get("file").and_then(|f| f.as_str()) else { return false };
+    if file.is_empty() {
+        return false;
+    }
+    let (Some(start), Some(end)) = (
+        obj.get("start").and_then(|v| v.as_f64()),
+        obj.get("end").and_then(|v| v.as_f64()),
+    ) else {
+        return false;
+    };
+    start.is_finite() && end.is_finite() && start >= 0.0 && end >= start
+}
+
+/// RFC-0024 patch 3 check 1 — `fields.bodyLines[]` narration is
+/// evidence-gated: every line carries its own EvidenceRef. A narration
+/// line without evidence is a fabricated fact — rejected, never drawn.
+fn check_body_lines(el: &crate::model::ViewElement, v: &mut Vec<GateViolation>) {
+    let Some(lines) = el.fields.get("bodyLines") else { return };
+    let ok = lines
+        .as_array()
+        .map(|arr| {
+            arr.iter().all(|line| {
+                line.as_object()
+                    .and_then(|o| o.get("evidence"))
+                    .map(well_formed_ref)
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+    if !ok {
+        v.push(GateViolation {
+            code: GateCode::BodyLineWithoutEvidence,
+            id: el.id.clone(),
+            detail: "fields.bodyLines must be an array of lines each carrying a well-formed evidence ref".into(),
+        });
+    }
+}
+
+/// RFC-0024 patch 3 check 2 — `fields.alsoEvidence[]` second locations
+/// for paired popups: every ref must be well-formed. A paired popup is
+/// only drawn when BOTH refs exist (ux-spec §2.2); a malformed ref would
+/// draw a blank column.
+fn check_also_evidence(el: &crate::model::ViewElement, v: &mut Vec<GateViolation>) {
+    let Some(also) = el.fields.get("alsoEvidence") else { return };
+    let ok = also
+        .as_array()
+        .map(|arr| arr.iter().all(well_formed_ref))
+        .unwrap_or(false);
+    if !ok {
+        v.push(GateViolation {
+            code: GateCode::AlsoEvidenceMalformed,
+            id: el.id.clone(),
+            detail: "fields.alsoEvidence must be an array of well-formed evidence refs".into(),
+        });
+    }
+}
 
 /// Validate a spec against every gate clause. Empty `Ok(())` means the
 /// spec may be adapted and drawn; anything else lists ALL violations
@@ -105,6 +173,10 @@ pub fn validate(spec: &ViewSpec) -> Result<(), Vec<GateViolation>> {
                 detail: "fogged element without fogReason".into(),
             });
         }
+        // RFC-0024 patch 3: evidence-gated bodyLines + well-formed
+        // alsoEvidence (the two additive checks run HERE — no bypass).
+        check_body_lines(el, &mut v);
+        check_also_evidence(el, &mut v);
     }
 
     // VIZ-I-06: the cap is enforced at the gate — an over-cap spec must
@@ -266,5 +338,93 @@ mod tests {
             .collect();
         let errs = validate(&spec(els)).unwrap_err();
         assert!(errs.iter().any(|e| e.code == GateCode::ElementCapExceeded));
+    }
+
+    // ── RFC-0024 patch 3 — the two additive checks (TS-mirrored) ─────
+
+    fn el_with_fields(id: &str, fields: BTreeMap<String, serde_json::Value>) -> ViewElement {
+        let mut e = el(id, DisplayMode::Fact);
+        e.fields = fields;
+        e
+    }
+
+    fn ref_json(file: &str, start: i64, end: i64) -> serde_json::Value {
+        serde_json::json!({ "file": file, "start": start, "end": end })
+    }
+
+    /// Evidence-gated bodyLines pass the gate.
+    #[test]
+    fn accepts_evidenced_body_lines() {
+        let mut fields = BTreeMap::new();
+        fields.insert(
+            "bodyLines".into(),
+            serde_json::json!([
+                { "text": "holds the ledger", "line": 12, "evidence": ref_json("svc/Ledger.java", 8, 9) }
+            ]),
+        );
+        let s = spec(vec![el_with_fields("board-1", fields)]);
+        assert_eq!(validate(&s), Ok(()));
+    }
+
+    /// A body line without evidence is a fabricated fact — rejected.
+    #[test]
+    fn rejects_body_line_without_evidence() {
+        let mut fields = BTreeMap::new();
+        fields.insert(
+            "bodyLines".into(),
+            serde_json::json!([{ "text": "no evidence", "line": 3 }]),
+        );
+        let s = spec(vec![el_with_fields("board-2", fields)]);
+        let errs = validate(&s).unwrap_err();
+        assert!(errs.iter().any(|e| e.code == GateCode::BodyLineWithoutEvidence));
+    }
+
+    /// A body line with an inverted byte range is rejected (same code).
+    #[test]
+    fn rejects_body_line_with_inverted_range() {
+        let mut fields = BTreeMap::new();
+        fields.insert(
+            "bodyLines".into(),
+            serde_json::json!([
+                { "text": "x", "line": 1, "evidence": ref_json("a.py", 9, 2) }
+            ]),
+        );
+        let s = spec(vec![el_with_fields("board-3", fields)]);
+        let errs = validate(&s).unwrap_err();
+        assert!(errs.iter().any(|e| e.code == GateCode::BodyLineWithoutEvidence));
+    }
+
+    /// Well-formed alsoEvidence (paired popups) passes.
+    #[test]
+    fn accepts_well_formed_also_evidence() {
+        let mut fields = BTreeMap::new();
+        fields.insert(
+            "alsoEvidence".into(),
+            serde_json::json!([ref_json("docs/adr-007.md", 210, 260)]),
+        );
+        let s = spec(vec![el_with_fields("drift-1", fields)]);
+        assert_eq!(validate(&s), Ok(()));
+    }
+
+    /// A malformed alsoEvidence ref is rejected.
+    #[test]
+    fn rejects_malformed_also_evidence() {
+        let mut fields = BTreeMap::new();
+        fields.insert(
+            "alsoEvidence".into(),
+            serde_json::json!([{ "start": 5 }]),
+        );
+        let s = spec(vec![el_with_fields("drift-2", fields)]);
+        let errs = validate(&s).unwrap_err();
+        assert!(errs.iter().any(|e| e.code == GateCode::AlsoEvidenceMalformed));
+    }
+
+    /// Elements without the RFC-0024 fields are untouched (additive only).
+    #[test]
+    fn accepts_elements_without_patch3_fields() {
+        let mut fields = BTreeMap::new();
+        fields.insert("anyBag".into(), serde_json::json!("value"));
+        let s = spec(vec![el_with_fields("plain-1", fields)]);
+        assert_eq!(validate(&s), Ok(()));
     }
 }

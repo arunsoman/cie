@@ -18,7 +18,7 @@
 export * from './types.js';
 export { VizError, NegotiationError } from './errors.js';
 export type { GateErrorCode } from './errors.js';
-export { gate, ELEMENT_CAP } from './gate.js';
+export { gate, gateFields, ELEMENT_CAP } from './gate.js';
 export {
   stableStringify,
   recomputeSemanticHash,
@@ -38,8 +38,10 @@ export {
   renderHashOf,
 } from './negotiator.js';
 export type { EngineDecision, NegotiationDisclosure, HeadlessResult } from './negotiator.js';
-export { engineBanner, layoutChip, fidelityBanner } from './disclosure.js';
-export type { EngineBanner, LayoutChip, FidelityBanner } from './disclosure.js';
+export { engineBanner, layoutChip, fidelityBanner, hiddenRows } from './disclosure.js';
+export type { EngineBanner, LayoutChip, FidelityBanner, HiddenRow } from './disclosure.js';
+export { createSelectionHub } from './selection.js';
+export type { SelectionHub } from './selection.js';
 export { textOutline, outlineSummary, renderOutline } from './outline.js';
 export {
   MODE_CHANNELS,
@@ -70,8 +72,8 @@ export type {
   LayoutQuality,
 } from './interaction.js';
 export type { OutlineEntry } from './outline.js';
-export { CATALOG, CATALOG_SUMMARY } from './catalog.js';
-export type { CatalogEntry, CatalogCategory, G6Status } from './catalog.js';
+export { CATALOG, CATALOG_SUMMARY, actionsFor, CATEGORY_DEFAULT_ACTIONS } from './catalog.js';
+export type { CatalogEntry, CatalogCategory, G6Status, ChartAction } from './catalog.js';
 
 export {
   G6Adapter,

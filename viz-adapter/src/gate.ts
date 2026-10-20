@@ -31,6 +31,9 @@ export function gate(spec: ViewSpec): void {
     if (el.displayMode === 'Fog' && !el.fogReason) {
       throw new VizError('FOG_WITHOUT_REASON', el.id);
     }
+    // RFC-0024 patch 3: evidence-gated bodyLines + well-formed
+    // alsoEvidence (the two additive checks run HERE — no bypass).
+    gateFields(el);
   }
 
   if (spec.elements.length > ELEMENT_CAP) {
@@ -40,6 +43,66 @@ export function gate(spec: ViewSpec): void {
   for (const e of spec.edges) {
     if (!e.evidence || !e.evidence.file) {
       throw new VizError('EDGE_WITHOUT_EVIDENCE', e.id);
+    }
+  }
+}
+
+/**
+ * RFC-0024 patch 3 — the two additive gate checks (ux-spec §13.1), run by
+ * every adapter alongside `gate`. Codes are stable across the Rust mirror
+ * (cie-viz/src/gate.rs).
+ *
+ * 1. `fields.bodyLines[]` — component-board narration is evidence-gated:
+ *    every line must carry a well-formed EvidenceRef (file + sane range)
+ *    of its own. A narration line without evidence is a fabricated fact —
+ *    rejected, never rendered.
+ * 2. `fields.alsoEvidence[]` — paired-popup second locations: every ref
+ *    must be well-formed. A paired popup is only drawn when BOTH refs
+ *    exist (ux-spec §2.2); a malformed ref would draw a blank column.
+ */
+
+function isWellFormedRef(r: unknown): r is { file: string; start: number; end: number } {
+  if (typeof r !== 'object' || r === null) return false;
+  const ref = r as Record<string, unknown>;
+  return (
+    typeof ref.file === 'string' &&
+    ref.file.length > 0 &&
+    typeof ref.start === 'number' &&
+    Number.isFinite(ref.start) &&
+    typeof ref.end === 'number' &&
+    Number.isFinite(ref.end) &&
+    (ref.start as number) >= 0 &&
+    (ref.end as number) >= (ref.start as number)
+  );
+}
+
+export function gateFields(el: {
+  id: string;
+  fields?: Record<string, unknown>;
+}): void {
+  const bag = el.fields ?? {};
+  const bodyLines = bag.bodyLines;
+  if (bodyLines !== undefined) {
+    if (!Array.isArray(bodyLines)) {
+      throw new VizError('BODY_LINE_WITHOUT_EVIDENCE', el.id);
+    }
+    for (const line of bodyLines) {
+      const rec = (typeof line === 'object' && line !== null ? line : {}) as Record<string, unknown>;
+      if (!isWellFormedRef(rec.evidence)) {
+        throw new VizError('BODY_LINE_WITHOUT_EVIDENCE', el.id);
+      }
+    }
+  }
+
+  const also = bag.alsoEvidence;
+  if (also !== undefined) {
+    if (!Array.isArray(also)) {
+      throw new VizError('ALSO_EVIDENCE_MALFORMED', el.id);
+    }
+    for (const ref of also) {
+      if (!isWellFormedRef(ref)) {
+        throw new VizError('ALSO_EVIDENCE_MALFORMED', el.id);
+      }
     }
   }
 }

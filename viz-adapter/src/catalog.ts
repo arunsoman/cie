@@ -20,6 +20,16 @@ export type CatalogCategory =
   | 'J Journey'
   | 'K Organizational';
 
+/**
+ * The per-kind interaction class (RFC-0024 stage 0 — the drill/filter
+ * matrix, ux-spec §3/§8): `drill` = a click may change scope (SCOPE),
+ * `filter` = a click only selects (CHIP/FOCUS/POPUP — a fact, not a
+ * scope). Popups/chips/ask are universal choreography verbs and are NOT
+ * per-kind data; the matrix only answers "does clicking this kind move
+ * the scope?". `component-board` cards are narration, never scopes.
+ */
+export type ChartAction = 'drill' | 'filter';
+
 export interface CatalogEntry {
   id: string; // A1..K3
   name: string;
@@ -29,6 +39,29 @@ export interface CatalogEntry {
   g6Status: G6Status;
   layout: string;
   cieUse: string;
+  /** drill/filter matrix — omitted ⇒ the category default below. */
+  actions?: ChartAction[];
+}
+
+/** Category defaults for the drill/filter matrix (ux-spec §3/§8).
+ *  Structural/architectural boxes are scopes; code-level/statistical
+ *  rows and cells are facts (a line is a fact, not a scope). */
+export const CATEGORY_DEFAULT_ACTIONS: Record<CatalogCategory, ChartAction[]> = {
+  'A Structural / UML': ['drill', 'filter'],
+  'B Behavioral / UML': ['filter'],
+  'C Architecture': ['drill', 'filter'],
+  'D Data': ['drill', 'filter'],
+  'E Code-level': ['filter'],
+  'F Runtime': ['filter'],
+  'G Quality': ['filter'],
+  'H Decision': ['filter'],
+  'I Epistemic': ['drill', 'filter'],
+  'J Journey': ['filter'],
+  'K Organizational': ['filter'],
+};
+
+export function actionsFor(entry: CatalogEntry): ChartAction[] {
+  return entry.actions ?? CATEGORY_DEFAULT_ACTIONS[entry.category];
 }
 
 const e = (
@@ -40,7 +73,8 @@ const e = (
   g6Status: G6Status,
   layout: string,
   cieUse: string,
-): CatalogEntry => ({ id, name, category, shape, bestEngine, g6Status, layout, cieUse });
+  actions?: ChartAction[],
+): CatalogEntry => ({ id, name, category, shape, bestEngine, g6Status, layout, cieUse, actions });
 
 export const CATALOG: CatalogEntry[] = [
   // ── A Structural / UML (13) ──────────────────────────────────────────
@@ -75,6 +109,7 @@ export const CATALOG: CatalogEntry[] = [
   e('C7', 'Service dependency', 'C Architecture', 'service → depends-on', 'g6', 'Native', 'dagre', 'CAP-9.6'),
   e('C8', 'Feature module map', 'C Architecture', 'feature+module', 'g6', 'Native', 'grid', 'CAP-14.1'),
   e('C9', 'Modular monolith', 'C Architecture', 'module → allowed/forbidden', 'g6', 'Native', 'combo-combined', 'CAP-12.2'),
+  e('C10', 'Component board', 'C Architecture', 'board-card+bodyLines (evidence-gated narration) → drill-none', 'g6', 'Custom', 'grid', 'ux-spec §3, §13; RFC-0024 stage 0', ['filter']),
   // ── D Data (6) ───────────────────────────────────────────────────────
   e('D1', 'ER diagram', 'D Data', 'entity+attribute → relation', 'g6', 'Native', 'dagre', 'CAP-7.8'),
   e('D2', 'Data flow (DFD)', 'D Data', 'process+store+external → data flow', 'g6', 'Native', 'dagre', 'CAP-2.1, CAP-7.3'),

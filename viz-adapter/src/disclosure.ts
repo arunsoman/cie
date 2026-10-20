@@ -4,7 +4,7 @@
  * renders these payloads verbatim.
  */
 
-import type { EncodingFidelity, LayoutOutcome } from './types.js';
+import type { EncodingFidelity, HiddenCandidate, LayoutOutcome } from './types.js';
 import type { NegotiationDisclosure } from './negotiator.js';
 
 /** VIZ-28 — the engine banner. */
@@ -75,4 +75,32 @@ export function fidelityBanner(f: EncodingFidelity): FidelityBanner {
         : 'Epistemic encoding unsupported on this engine — the text outline is authoritative.',
     authoritative: true,
   };
+}
+
+/**
+ * RFC-0024 patch 2 (G1) — the disclosure-ledger rows. The grouped-out box
+ * (`…and N more`) is never a scope: it opens a popup listing ITS rows, one
+ * per HiddenCandidate, each row acting as its own element. `label`/`kind`
+ * (patch 2) become the row text; absence falls back to `id`/`unknown` and
+ * the row DISCLOSES the fallback (honest fallback, never a blank row).
+ */
+export interface HiddenRow {
+  id: string;
+  label: string;
+  kind: string;
+  reason: string;
+  salienceWeight: number;
+  /** true when label/kind fell back (no patch-2 data from the producer). */
+  fallback: boolean;
+}
+
+export function hiddenRows(hidden: HiddenCandidate[]): HiddenRow[] {
+  return hidden.map((h) => ({
+    id: h.id,
+    label: h.label ?? h.id,
+    kind: h.kind ?? 'unknown',
+    reason: h.reason,
+    salienceWeight: h.salienceWeight,
+    fallback: h.label === undefined || h.kind === undefined,
+  }));
 }

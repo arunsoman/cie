@@ -508,6 +508,7 @@ mod tests {
                 wall_ns: 1_000,
             },
             evidence: CoreEvidence::new(42, "test", now),
+            concepts_tier: None,
             warnings: vec![],
             ingest_wall_ns: 1_000,
             incremental: false,

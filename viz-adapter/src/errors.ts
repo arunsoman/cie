@@ -11,7 +11,10 @@ export type GateErrorCode =
   | 'EDGE_WITHOUT_EVIDENCE'
   | 'EDGE_UNKNOWN_ENDPOINT'
   | 'DUPLICATE_ELEMENT_ID'
-  | 'ELEMENT_CAP_EXCEEDED';
+  | 'ELEMENT_CAP_EXCEEDED'
+  // RFC-0024 patch 3 gate checks (codes shared with the Rust mirror):
+  | 'BODY_LINE_WITHOUT_EVIDENCE'
+  | 'ALSO_EVIDENCE_MALFORMED';
 
 export class VizError extends Error {
   readonly code: GateErrorCode;
