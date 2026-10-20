@@ -1024,10 +1024,85 @@ async function runPipeline(job: AnalyzeJob) {
     };
     job.state = "done";
   } finally {
-    // Don't keep clones or scratch files on disk — results live in memory.
+    // Don't keep clones or scratch files on disk — results live in memory
+    // WITH one exception: the finished result itself is persisted once
+    // (persistResultToDisk below) so "launch with the last opened
+    // workspace" works after a server restart. The scratch workDir is
+    // still wiped; result.json lands in its place.
     // Local folders are never touched (read-only analysis in place; the
     // user's folder is never inside workDir).
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await persistResultToDisk(job);
+  }
+}
+
+// ---------- "launch with the last opened workspace" — disk half ----------
+//
+// The in-memory jobs map is wiped when the server restarts (and gc() prunes
+// it after 45 minutes regardless). The browser's workspace record (localStorage,
+// lib/workspace-memory.ts) keeps the JOB ID; this keeps the RESULT:
+// result.json under the jobs root, written once at job end, rehydrated on
+// demand by the result route. Stale copies are swept when a new job finishes.
+
+const PERSISTED_RESULT_TTL_MS = 7 * 24 * 60 * 60_000; // a week — long enough to survive restarts, short enough to stay honest about staleness
+
+async function persistResultToDisk(job: AnalyzeJob): Promise<void> {
+  if (!job.result) return;
+  const dir = path.join(JOBS_ROOT, job.id);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "result.json"), JSON.stringify(job.result));
+    await sweepPersistedResults();
+  } catch {
+    /* memory-only then — the launch restore falls back to the sample */
+  }
+}
+
+async function sweepPersistedResults(): Promise<void> {
+  try {
+    const now = Date.now();
+    for (const name of await fs.readdir(JOBS_ROOT)) {
+      const dir = path.join(JOBS_ROOT, name);
+      const stat = await fs.stat(dir).catch(() => null);
+      if (!stat?.isDirectory()) continue;
+      const hasResult = await fs.stat(path.join(dir, "result.json")).then(() => true).catch(() => false);
+      if (!hasResult) continue; // scratch of a running job — not ours to sweep
+      const age = now - (stat.mtimeMs || now);
+      if (age > PERSISTED_RESULT_TTL_MS) await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  } catch { /* the jobs root may not exist yet */ }
+}
+
+// Rehydrate a persisted job back into the in-memory map (and answer from it).
+// The rebuilt record is minimal on purpose — a restored job is DONE; nobody
+// polls its steps, they fetch its result.
+export async function rehydratePersistedResult(id: string): Promise<AnalyzeJob | null> {
+  if (!/^[a-f0-9-]{8,64}$/i.test(id)) return null; // job ids are UUIDs — id-shaped paths only
+  try {
+    const raw = await fs.readFile(path.join(JOBS_ROOT, id, "result.json"), "utf8");
+    const result = JSON.parse(raw) as AnalyzeJob["result"];
+    if (!result || !result.report) return null;
+    const stat = await fs.stat(path.join(JOBS_ROOT, id)).catch(() => null);
+    const createdAt = stat?.mtimeMs ?? Date.now();
+    if (Date.now() - createdAt > PERSISTED_RESULT_TTL_MS) {
+      await fs.rm(path.join(JOBS_ROOT, id), { recursive: true, force: true }).catch(() => {});
+      return null;
+    }
+    const job: AnalyzeJob = {
+      id,
+      url: "local://restored-from-persisted-result",
+      source: "local",
+      repoName: "",
+      state: "done",
+      createdAt,
+      steps: [],
+      scan: result.scan ?? undefined,
+      result,
+    };
+    jobs.set(id, job);
+    return job;
+  } catch {
+    return null;
   }
 }
 

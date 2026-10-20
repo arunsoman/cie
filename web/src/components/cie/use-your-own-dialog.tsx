@@ -16,8 +16,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieOverlap, CieDrift } from "@/lib/cie-types";
+import { isValidReport, isValidViewspec, isValidConcepts } from "@/lib/cie-types";
 import type { TechStack } from "@/lib/stack-types";
 import { isTechStack } from "@/lib/stack-types";
+import { rememberWorkspace } from "@/lib/workspace-memory";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
@@ -56,22 +58,9 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-// ---------- shared validation helpers (mirrors the server) ----------
-
-function isValidReport(o: unknown): o is CieReport {
-  const r = o as CieReport;
-  return !!r && Array.isArray(r.files) && Array.isArray(r.findings) && Array.isArray(r.symbols);
-}
-function isValidViewspec(o: unknown): o is CieViewSpec {
-  const v = o as CieViewSpec;
-  return !!v && Array.isArray(v.elements) && Array.isArray(v.edges);
-}
-function isValidConcepts(o: unknown): o is ConceptTree {
-  const c = o as ConceptTree;
-  return !!c && Array.isArray(c.nodes);
-}
-
 // ---------- job status shape (matches /api/analyze/status) ----------
+// The report/viewspec/concepts validation guards moved to lib/cie-types
+// (workspace restore must accept exactly the same exports as this dialog).
 
 type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 interface StepView {
@@ -509,6 +498,9 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
       setStatus(null);
       setUrl("");
       setBranch("");
+      // This workspace is now the "last opened" one — the dashboard reopens
+      // it on the next launch (the job's result is persisted server-side).
+      rememberWorkspace({ kind: "job", jobId: id });
       toast({ title: "Your project is ready", description: "Every page below now shows your code — and Ask CIE knows it too." });
       if (dest === "master") {
         onClosed?.(false);

@@ -1,13 +1,16 @@
 // GET /api/analyze/result?job=ID — fetch the three JSON exports of a finished job.
 
 import { NextRequest, NextResponse } from "next/server";
-import { jobs } from "@/lib/analyze-jobs";
+import { jobs, rehydratePersistedResult } from "@/lib/analyze-jobs";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("job") ?? "";
-  const job = jobs.get(id);
+  // The in-memory map first; after a server restart the persisted result
+  // (result.json — "launch with the last opened workspace", the disk half)
+  // rehydrates the job and answers from it.
+  const job = jobs.get(id) ?? (await rehydratePersistedResult(id));
   if (!job) {
     return NextResponse.json(
       { error: "We lost track of that job (it may be old). Please start again." },

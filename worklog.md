@@ -343,3 +343,17 @@ Work Log:
 
 Stage Summary:
 - Config now has one obvious, ignored-by-git home (.env.local) for the built-in AI; the Atlas keeps its C4 honesty at every tier: containers = the apps the build files name, components = the concept DAG's roles, tests = verification, never components, externals = named and cited image-only services.
+---
+Task ID: 24
+Agent: main (Z.ai)
+Task: Launch with the last opened workspace, not the default sample, every time.
+
+Work Log:
+- Found the state of the world: the dashboard always loadDemo()'d on arrival, and analyze-job results live in server MEMORY only (scratch workDir is deleted when a job ends, so nothing but the process could answer for a job id).
+- Browser half (new web/src/lib/workspace-memory.ts): localStorage cie.workspace.last records every open — samples record their kind ({kind:"sample",demo}), connect-a-repo workspaces record the job id ({kind:"job",jobId}) — written from loadDemo (cie-store) and from the dialog's showProject success path. Uploaded files are never recorded: they only exist inside the tab that uploaded them and cannot be re-fetched.
+- Server half (lib/analyze-jobs.ts): at job end, AFTER the scratch wipe, the finished result (report/viewspec/concepts/deps/stack/runtime/cochange/overlap/drift/label/scan/sourceRoot) is written once as result.json under the jobs root; rehydratePersistedResult() re-seats a done job into the in-memory map on demand; persisted copies live 7 days (a week of restarts, still honest about being a snapshot) and stale dirs are swept when a new job finishes. The result route rehydrates on an in-memory miss.
+- Launch wiring (page.tsx, minimal): on mount, restore the remembered workspace — job ids through /api/analyze/result (the same payload mapping the dialog performs; validators shared via new exports in cie-types), samples straight to their demo. If the record can't be honored, it is replaced by what actually opens: the sample project, as always.
+- Proved end to end: analyzed /tmp/spring-demo through the API (17 files, job done), result.json on disk; KILLED and relaunched the dev server (fresh memory map); the result route still answers (rehydrated); a browser relaunched with only the localStorage record opened "Your project: spring-demo (from this computer…)" with its own numbers. The bogus-job-id case falls back to the sample and re-records it; the sample-kind record reopens its demo.
+
+Stage Summary:
+- The app now reopens where you left it: last opened workspace on launch, durable across server restarts, with honest fallbacks when history can't be honored — the record only ever names something that actually opened.

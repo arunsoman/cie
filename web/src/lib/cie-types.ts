@@ -693,3 +693,20 @@ export interface CieQuality {
   metrics: QualityMetricRow[];
   how_to_collect_on_your_project: { dataset: string; this_demo: string; on_real_projects: string }[];
 }
+
+// ---------- load-time validation guards (mirrors the server) ----------
+// Shared by the connect-a-repo dialog and the launch-time workspace restore
+// (workspace-memory.ts) so both paths accept exactly the same exports.
+
+export function isValidReport(o: unknown): o is CieReport {
+  const r = o as CieReport;
+  return !!r && Array.isArray(r.files) && Array.isArray(r.findings) && Array.isArray(r.symbols);
+}
+export function isValidViewspec(o: unknown): o is CieViewSpec {
+  const v = o as CieViewSpec;
+  return !!v && Array.isArray(v.elements) && Array.isArray(v.edges);
+}
+export function isValidConcepts(o: unknown): o is ConceptTree {
+  const c = o as ConceptTree;
+  return !!c && Array.isArray(c.nodes);
+}
