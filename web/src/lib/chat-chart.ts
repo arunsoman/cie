@@ -6,7 +6,7 @@
 // modelled on US-023: magnify locally, never mutate the base chart, state
 // the source.
 
-export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap" | "sequence" | "c4";
+export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap" | "sequence" | "c4" | "mindmap";
 
 /**
  * Where a chart element lives in the source code — the link that used to be
@@ -195,10 +195,11 @@ export function engineFor(kind: ChatChartKind): string {
     case "table": return "grid";
     case "uml": return "custom-svg";
     case "flow": return "custom-svg";
-    case "tree": return "custom-svg";
+    case "tree": return "g6";
     case "heatmap": return "custom-svg";
     case "sequence": return "custom-svg";
     case "c4": return "custom-svg";
+    case "mindmap": return "custom-svg";
   }
 }
 export function layoutFor(kind: ChatChartKind): string {
@@ -209,10 +210,11 @@ export function layoutFor(kind: ChatChartKind): string {
     case "table": return "scroll-rows";
     case "uml": return "uml-boxes";
     case "flow": return "call-flow";
-    case "tree": return "concept-tree";
+    case "tree": return "compact-box";
     case "heatmap": return "coverage-grid";
     case "sequence": return "sequence-lanes";
     case "c4": return "uml-boxes";
+    case "mindmap": return "concept-mindmap";
   }
 }
 
@@ -277,7 +279,7 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
 
 /** True for the kinds whose boxes/arrows/lanes are built from the store. */
 export function isDiagramKind(kind: ChatChartKind): boolean {
-  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4";
+  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4" || kind === "mindmap";
 }
 
 /**

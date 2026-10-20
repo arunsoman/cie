@@ -17,10 +17,13 @@ import type { TechStack } from "./stack-types";
 import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
+import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
 
 export type DataSource = "demo" | "custom" | null;
+
+const CHAT_OPEN_KEY = "cie.chatOpen.v1";
 
 // Every page the middle stage can show. "chart" renders a chart the chat
 // (or a menu tap) sent to the canvas. "mastery" is the guided 5-station
@@ -29,6 +32,7 @@ export type DataSource = "demo" | "custom" | null;
 export type StageView =
   | "start"
   | "map"
+  | "mindmap"
   | "does"
   | "fixes"
   | "promises"
@@ -109,6 +113,7 @@ interface CieState {
   mapSelected: VizElement | null; // map bubble picked; the chat offers it as a referent
   llm: LlmConfig; // who answers — hydrated from localStorage after mount
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
+  chatOpen: boolean; // Ask CIE docked on the right — collapsible so a chart-heavy view can take the full width; remembered like the model settings are
   pendingAsk: string | null; // click-to-chat: a question any chart/card handed to the chat
 
   // atlas dashboard — the Selection Context (lib/atlas.ts). One click
@@ -157,6 +162,8 @@ interface CieState {
   setLlm: (cfg: LlmConfig) => void;
   hydrateLlm: () => void;
   setLlmSettingsOpen: (open: boolean) => void;
+  setChatOpen: (open: boolean) => void;
+  hydrateChatOpen: () => void;
   openSourceViewer: (req: SourceViewerRequest) => void;
   closeSourceViewer: () => void;
   cacheSource: (path: string, content: string) => void;
@@ -203,6 +210,7 @@ export const useCie = create<CieState>((set, get) => ({
   mapSelected: null,
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
+  chatOpen: true,
   pendingAsk: null,
   sourceViewer: null,
   sourceRoot: null,
@@ -276,6 +284,10 @@ export const useCie = create<CieState>((set, get) => ({
         atlasView: "containers",
         atlasFactsOnly: false,
       });
+      // This workspace is now the "last opened" one — the dashboard reopens
+      // it on the next launch (workspace-memory, a nicety that never gates
+      // a fact).
+      rememberWorkspace({ kind: "sample", demo: demoKind });
     } catch {
       set({ loading: false, loadError: "Could not load the sample data. Please refresh the page." });
     }
@@ -353,6 +365,18 @@ export const useCie = create<CieState>((set, get) => ({
   hydrateLlm: () => set({ llm: loadLlmConfig() }),
 
   setLlmSettingsOpen: (open) => set({ llmSettingsOpen: open }),
+
+  setChatOpen: (open) => {
+    try { window.localStorage.setItem(CHAT_OPEN_KEY, open ? "1" : "0"); } catch {}
+    set({ chatOpen: open });
+  },
+  // Called once after mount (localStorage is browser-only) — defaults to
+  // open, same as the server-rendered page, so there's nothing to flicker.
+  hydrateChatOpen: () => {
+    try {
+      if (window.localStorage.getItem(CHAT_OPEN_KEY) === "0") set({ chatOpen: false });
+    } catch {}
+  },
 
   openSourceViewer: (req) => set({ sourceViewer: req }),
   closeSourceViewer: () => set({ sourceViewer: null }),

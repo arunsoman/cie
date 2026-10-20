@@ -152,6 +152,82 @@ export function buildConceptTreeSpec(concepts: ConceptTree | null, focusId?: num
   };
 }
 
+/** The mindmap view: one chosen concept at the centre, and EVERY descendant
+ *  under it (not just its immediate children like buildConceptTreeSpec's
+ *  focus mode) — the full subtree, radiating outward. Capped for
+ *  readability; the footnote says so honestly when it truncates. Built
+ *  locally from concepts.json — the model never invents hierarchy nodes. */
+export function buildConceptMindmapSpec(concepts: ConceptTree | null, rootId?: number | null): ChatChartSpec | null {
+  if (!concepts?.nodes?.length) return null;
+  const byId = new Map(concepts.nodes.map((n) => [n.id, n]));
+  const root = rootId != null ? byId.get(rootId) : concepts.nodes.find((n) => n.parent === null);
+  if (!root) return null;
+
+  // BFS over `.children` — NOT always the same as the real `.parent` edge
+  // (a UseCase node, say, is pushed into its majority module's `children`
+  // even though its real primary parent is the Domain root). Track the
+  // edge each node was actually discovered through, so the mindmap stays
+  // one connected tree under the chosen centre even when its real `.parent`
+  // falls outside the kept set.
+  const CAP = 120;
+  const keep: number[] = [root.id];
+  const seen = new Set<number>([root.id]);
+  const discoveredVia = new Map<number, number>();
+  let truncated = false;
+  for (let i = 0; i < keep.length; i++) {
+    const cur = byId.get(keep[i]);
+    for (const childId of cur?.children ?? []) {
+      if (!byId.has(childId) || seen.has(childId)) continue;
+      if (keep.length >= CAP) {
+        truncated = true;
+        continue;
+      }
+      seen.add(childId);
+      discoveredVia.set(childId, keep[i]);
+      keep.push(childId);
+    }
+  }
+
+  const tree: TreeNode[] = keep.map((id) => {
+    const n = byId.get(id)!;
+    // the chosen concept is always the mindmap's own centre — its real
+    // ancestors (if any) are out of scope, same as the user's own ask
+    // ("everything UNDER this concept"). Prefer the real `.parent` edge
+    // when it's in scope; otherwise fall back to how BFS actually reached
+    // this node, so nothing renders as a second, disconnected root.
+    const parentId =
+      n.id === root.id
+        ? null
+        : n.parent != null && seen.has(n.parent)
+          ? n.parent
+          : discoveredVia.get(n.id) ?? null;
+    return {
+      id: `c${n.id}`,
+      label: cut(n.label, 28),
+      kind: n.kind,
+      parent: parentId != null ? `c${parentId}` : null,
+      note: n.behaviors?.length
+        ? `${n.behaviors.length} ${n.behaviors.length === 1 ? "behaviour" : "behaviours"}`
+        : undefined,
+      highlight: n.id === root.id,
+    };
+  });
+
+  const label = cut(root.label, 30);
+  const count = tree.length - 1;
+  return {
+    ...spec(
+      "mindmap",
+      `${label} — everything under it`,
+      count === 0
+        ? `${label} has nothing under it yet.`
+        : `${count} concept${count === 1 ? "" : "s"} under ${label}${truncated ? ` (showing the first ${CAP})` : ""} — starts collapsed to its first ring; tap a badged node to open it.`
+    ),
+    tree,
+    source: "concepts.json (the engine's concept tree)",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Repeated behavior (concepts.json's FCA pass — cie-analysis/src/fca.rs,
 // wired in cie-analysis/src/hierarchy.rs). Formal Concept Analysis groups

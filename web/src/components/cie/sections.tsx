@@ -18,8 +18,9 @@ import MapView from "@/components/cie/map-view";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, Finding } from "@/lib/cie-types";
 import { KNOWN_UNSUPPORTED } from "@/lib/language-profiles";
-import { buildCoverageHeatmapSpec } from "@/lib/quality";
+import { buildCoverageHeatmapSpec, buildConceptMindmapSpec } from "@/lib/quality";
 import { ChatChart } from "@/components/cie/chat-chart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   severityPlain,
   findingTitle,
@@ -437,6 +438,47 @@ export function ConceptsView() {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ---------- Tab: Mindmap (every concept found under one chosen concept) ----------
+
+export function MindmapView() {
+  const { concepts } = useCie();
+  const [focusId, setFocusId] = useState<number | null>(null);
+  if (!concepts?.nodes?.length) return null;
+
+  const root = concepts.nodes.find((n) => n.parent === null) ?? null;
+  const options = [...concepts.nodes]
+    .sort((a, b) => (a.id === root?.id ? -1 : b.id === root?.id ? 1 : a.label.localeCompare(b.label)))
+    .slice(0, 300);
+  const selectedId = focusId ?? root?.id ?? options[0]?.id ?? null;
+  const spec = buildConceptMindmapSpec(concepts, selectedId);
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-stone-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Mindmap</CardTitle>
+          <CardDescription>Pick any concept — everything the engine found underneath it fans out from the centre.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Select value={selectedId != null ? String(selectedId) : undefined} onValueChange={(v) => setFocusId(Number(v))}>
+            <SelectTrigger className="w-full sm:w-80">
+              <SelectValue placeholder="Pick a concept" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((n) => (
+                <SelectItem key={n.id} value={String(n.id)}>
+                  {n.kind}: {n.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {spec ? <ChatChart key={selectedId} spec={spec} /> : <p className="text-sm text-stone-500">Nothing to draw yet.</p>}
+        </CardContent>
+      </Card>
     </div>
   );
 }

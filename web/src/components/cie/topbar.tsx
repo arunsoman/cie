@@ -26,6 +26,7 @@ import {
   ListChecks,
   Map as MapIcon,
   Menu as MenuIcon,
+  Network,
   Package,
   PieChart,
   Settings2,
@@ -44,7 +45,7 @@ import { providerLabel } from "@/lib/llm-config";
 import { UseYourOwnProjectDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
-const EXPLORE_VIEWS: StageView[] = ["start", "map", "does", "fixes", "promises"];
+const EXPLORE_VIEWS: StageView[] = ["start", "map", "mindmap", "does", "fixes", "promises"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 const MASTER_VIEWS: StageView[] = ["mastery"];
@@ -143,6 +144,9 @@ export function Topbar() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={go("map")} className={view === "map" ? "bg-emerald-50" : ""}>
                 <MapIcon className="h-4 w-4 text-stone-400" /> The map of your code
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={go("mindmap")} className={view === "mindmap" ? "bg-emerald-50" : ""}>
+                <Network className="h-4 w-4 text-stone-400" /> Mindmap — everything under one concept
               </DropdownMenuItem>
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>
                 <Wand2 className="h-4 w-4 text-stone-400" /> What it does
@@ -244,6 +248,7 @@ export function Topbar() {
               <DropdownMenuLabel>Look around</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("start")} className={view === "start" ? "bg-emerald-50" : ""}>Start here</DropdownMenuItem>
               <DropdownMenuItem onClick={go("map")} className={view === "map" ? "bg-emerald-50" : ""}>The map</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("mindmap")} className={view === "mindmap" ? "bg-emerald-50" : ""}>Mindmap</DropdownMenuItem>
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>What it does</DropdownMenuItem>
               <DropdownMenuItem onClick={go("fixes")} className={view === "fixes" ? "bg-emerald-50" : ""}>Things to look at</DropdownMenuItem>
               <DropdownMenuItem onClick={go("promises")} className={view === "promises" ? "bg-emerald-50" : ""}>Promises</DropdownMenuItem>

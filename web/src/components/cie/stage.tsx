@@ -27,6 +27,7 @@ import {
   StartView,
   MapViewSection,
   MapInfoCard,
+  MindmapView,
   ConceptsView,
   FindingsView,
   PromisesView,
@@ -44,6 +45,7 @@ const CANVAS_VIEWS: StageView[] = ["map", "chart"];
 const TITLES: Record<StageView, { title: string; caption: string }> = {
   start: { title: "Start here", caption: "What CIE does with your code, in three steps." },
   map: { title: "The map of your code", caption: "Bubbles are parts of your code; lines show how they relate." },
+  mindmap: { title: "Mindmap", caption: "Pick any concept — everything found underneath it fans out from the centre." },
   does: { title: "What it does", caption: "Each code file, in plain words." },
   fixes: { title: "Things to look at", caption: "Sorted by urgency — red first." },
   promises: { title: "Promises", caption: "Things the code must always do." },
@@ -138,8 +140,12 @@ export function Stage() {
         </div>
       ) : (
         <div key="doc-stage" className="flex-1 min-h-0 overflow-y-auto" data-view={view}>
-          <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+          {/* Atlas is a chart-dense dashboard, not prose — it gets the full
+              stage width (and manages its own padding) instead of the
+              reading-width column every other doc view uses. */}
+          {view === "atlas" ? <AtlasView /> : <div className="p-4 sm:p-6 max-w-6xl mx-auto">
             {view === "start" && <StartView />}
+            {view === "mindmap" && <MindmapView />}
             {view === "does" && <ConceptsView />}
             {view === "fixes" && <FindingsView />}
             {view === "promises" && <PromisesView />}
@@ -150,8 +156,7 @@ export function Stage() {
             {view === "runtime" && <RuntimeView />}
             {view === "quality" && <QualityView />}
             {view === "mastery" && <MasteryView />}
-            {view === "atlas" && <AtlasView />}
-          </div>
+          </div>}
         </div>
       )}
 

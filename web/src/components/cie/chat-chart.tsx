@@ -19,6 +19,7 @@ import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
 import type { ChatChartSpec, UmlNode, ElementLoc } from "@/lib/chat-chart";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
+import { ConceptTreeG6 } from "./concept-tree-g6";
 
 const HEX: Record<string, string> = {
   rose: "#e11d48",
@@ -36,7 +37,7 @@ const hex = (c?: string) => HEX[c ?? ""] ?? "#78716c";
  * they hand a grounded question straight to the chat. Nothing is invented
  * by the chart itself.
  */
-function useAsk() {
+export function useAsk() {
   const setPendingAsk = useCie((s) => s.setPendingAsk);
   const openSourceViewer = useCie((s) => s.openSourceViewer);
   return (spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) => {
@@ -57,7 +58,7 @@ function useAsk() {
   };
 }
 
-const ASK_HINT = "tap any element to ask CIE about it";
+export const ASK_HINT = "tap any element to ask CIE about it";
 
 const TOOLTIP_STYLE = {
   borderRadius: 10,
@@ -393,7 +394,7 @@ const CERT_STYLE: Record<Cert, { fill: string; stroke: string; text: string; das
   Hypothesis: { fill: "#f5f5f4", stroke: "#78716c", text: "#44403c", dash: "2 3" },
 };
 
-const KIND_PLAIN: Record<string, string> = {
+export const KIND_PLAIN: Record<string, string> = {
   domain: "The big picture",
   module: "A code file",
   usecase: "Something it does",
@@ -683,14 +684,6 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
                   strokeDasharray={st.dash}
                   style={{ transition: "stroke-width 100ms" }}
                 />
-                {isSelected && (
-                  <>
-                    <rect x={b.x - 3.5} y={b.y - 3.5} width={b.w + 7} height={b.h + 7} rx={10} fill="none" stroke="#059669" strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
-                    <text x={b.x + b.w / 2} y={b.y - 8} textAnchor="middle" fontSize="8.5" fontWeight={700} fill="#047857" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
-                      SELECTED
-                    </text>
-                  </>
-                )}
                 {/* title compartment */}
                 <line x1={b.x} y1={b.y + headH} x2={b.x + b.w} y2={b.y + headH} stroke={st.stroke} strokeWidth={0.8} opacity={0.55} />
                 {b.titleLines.map((t, ti) => (
@@ -720,6 +713,22 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
               </g>
             );
           })}
+
+          {/* selected-node badge — drawn last so it paints above every box
+              and arrow (SVG's stand-in for z-index), and only while the
+              pointer is actually over that selected box. Idle, the chart
+              keeps the quiet emerald outline above and gives its full area
+              to the diagram rather than a permanently-reserved label. */}
+          {boxes
+            .filter((b) => b.node.selected && hover === b.node.id)
+            .map((b) => (
+              <g key={`sel-${b.node.id}`} pointerEvents="none">
+                <rect x={b.x - 3.5} y={b.y - 3.5} width={b.w + 7} height={b.h + 7} rx={10} fill="none" stroke="#059669" strokeWidth={1.2} strokeDasharray="3 3" />
+                <text x={b.x + b.w / 2} y={b.y - 8} textAnchor="middle" fontSize="8.5" fontWeight={700} fill="#047857" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                  SELECTED
+                </text>
+              </g>
+            ))}
         </svg>
       </div>
       {nodes.length >= 12 && (
@@ -731,140 +740,146 @@ function DiagramSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectEl
   );
 }
 
-// ---------- concept hierarchy tree (custom-svg, indented levels) ----------
-//
-// Nodes come from concepts.json via quality.ts — the model never invents
-// hierarchy nodes. Layout: an indented tree (Domain → Module → …) with elbow
-// connectors; every node answers to a click (click-to-chat), like the map.
+// ---------- mindmap (custom-svg radial — one chosen concept at the centre,
+// every descendant radiating outward by distance). Same TreeNode data and
+// source as the plain hierarchy tree (kind "tree") — different geometry:
+// this one answers "what's under X", the other "where does X sit".
 
-function TreeSVG({ spec }: { spec: ChatChartSpec }) {
+function MindmapSVG({ spec }: { spec: ChatChartSpec }) {
   const ask = useAsk();
   const nodes = spec.tree ?? [];
   if (!nodes.length) return null;
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const childrenOf = new Map<string | null, typeof nodes>();
+  const childrenOf = new Map<string, typeof nodes>();
   for (const n of nodes) {
-    const p = n.parent && byId.has(n.parent) ? n.parent : null;
-    childrenOf.set(p, [...(childrenOf.get(p) ?? []), n]);
+    if (n.parent && byId.has(n.parent)) {
+      childrenOf.set(n.parent, [...(childrenOf.get(n.parent) ?? []), n]);
+    }
   }
-  // depth per node (cycle-guarded)
-  const depth = new Map<string, number>();
-  const walk = (n: (typeof nodes)[number], d: number, seen: Set<string>) => {
+  const root = nodes.find((n) => !n.parent || !byId.has(n.parent)) ?? nodes[0];
+
+  // Progressive disclosure: only the centre starts open. A node with
+  // children renders collapsed (dashed ring + a count badge) until tapped;
+  // tapping it toggles open/closed instead of asking CIE, since there's
+  // nothing to ask about a grouping node — tapping a LEAF still asks.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([root.id]));
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const RADIUS_STEP = 128;
+  type Placed = { n: (typeof nodes)[number]; depth: number; angle: number; r: number };
+  const pos = new Map<string, Placed>();
+  const place = (n: (typeof nodes)[number], depth: number, a0: number, a1: number, seen: Set<string>) => {
     if (seen.has(n.id) || seen.size > nodes.length + 2) return;
     seen.add(n.id);
-    depth.set(n.id, d);
-    for (const c of childrenOf.get(n.id) ?? []) walk(c, d + 1, seen);
+    const angle = (a0 + a1) / 2;
+    pos.set(n.id, { n, depth, angle, r: depth * RADIUS_STEP });
+    if (!expanded.has(n.id)) return; // collapsed: its children stay off the canvas
+    const kids = childrenOf.get(n.id) ?? [];
+    if (!kids.length) return;
+    const span = (a1 - a0) / kids.length;
+    kids.forEach((k, i) => place(k, depth + 1, a0 + i * span, a0 + (i + 1) * span, seen));
   };
-  for (const r of childrenOf.get(null) ?? []) walk(r, 0, new Set());
-  for (const n of nodes) if (!depth.has(n.id)) depth.set(n.id, 0); // orphans surface at top level
+  place(root, 0, 0, Math.PI * 2, new Set());
 
-  const COL_W = 200;
-  const ROW_H = 40;
-  const maxDepth = Math.max(0, ...[...depth.values()]);
-  const W = Math.max(460, (maxDepth + 1) * COL_W + 40);
-  const H = nodes.length * ROW_H + 16;
+  const maxR = Math.max(0, ...[...pos.values()].map((p) => p.r));
+  const PAD = 110; // room for the widest label at the outer ring
+  const W = Math.max(420, (maxR + PAD) * 2);
+  const H = Math.max(360, (maxR + PAD) * 2);
+  const cx = W / 2;
+  const cy = H / 2;
+  const xy = (p: Placed) => ({ x: cx + p.r * Math.cos(p.angle), y: cy + p.r * Math.sin(p.angle) });
 
-  // ordered list: parents before children, depth-first in given order
-  const ordered: { n: (typeof nodes)[number]; d: number; y: number }[] = [];
-  let y = 12;
-  const emit = (id: string | null, seen: Set<string>) => {
-    for (const c of childrenOf.get(id) ?? []) {
-      if (seen.has(c.id)) continue;
-      seen.add(c.id);
-      const d = depth.get(c.id) ?? 0;
-      ordered.push({ n: c, d, y: y + ROW_H / 2 });
-      y += ROW_H;
-      emit(c.id, seen);
-    }
-  };
-  emit(null, new Set());
-
-  const BOX_H = 28;
-  const KIND_STYLE: Record<string, { fill: string; stroke: string; text: string }> = {
+  const BOX_H = 26;
+  const MIND_KIND_STYLE: Record<string, { fill: string; stroke: string; text: string }> = {
     Domain: { fill: "#ecfdf5", stroke: "#059669", text: "#065f46" },
+    Container: { fill: "#eff6ff", stroke: "#2563eb", text: "#1e3a8a" },
+    Subdomain: { fill: "#f0fdfa", stroke: "#0d9488", text: "#134e4a" },
+    Service: { fill: "#faf5ff", stroke: "#7c3aed", text: "#4c1d95" },
     Module: { fill: "#f5f5f4", stroke: "#78716c", text: "#44403c" },
     UseCase: { fill: "#fffbeb", stroke: "#d97706", text: "#78350f" },
     Rule: { fill: "#fef2f2", stroke: "#e11d48", text: "#881337" },
+    Invariant: { fill: "#fef2f2", stroke: "#e11d48", text: "#881337" },
   };
-  const style = (k: string) => KIND_STYLE[k] ?? { fill: "#f5f5f4", stroke: "#a8a29e", text: "#44403c" };
-
-  const posById = new Map(ordered.map((o) => [o.n.id, o]));
+  const style = (k: string) => MIND_KIND_STYLE[k] ?? { fill: "#f5f5f4", stroke: "#a8a29e", text: "#44403c" };
+  const boxW = (label: string) => Math.max(64, Math.min(170, label.length * 6.5 + 20));
 
   return (
     <div className="mt-2">
       {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
-      <div className="overflow-x-auto">
-        {/* No width/height attributes — like MapView's SVG, a bare viewBox +
-            CSS width lets the browser scale height to match, so the tree
-            actually grows to fill the canvas instead of capping at its
-            native pixel size (width="100%" + a fixed height attribute
-            would cap preserveAspectRatio's scale at 1, same bug the map
-            view had). */}
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" role="img" aria-label={`Concept hierarchy, ${nodes.length} nodes`}>
-          {/* elbow connectors: parent right edge → child left edge */}
-          {ordered.map(({ n, d, y: ny }) => {
-            if (!n.parent) return null;
-            const p = posById.get(n.parent);
-            if (!p) return null;
-            const x1 = 24 + p.d * COL_W + 176;
-            const x2 = 24 + d * COL_W;
-            const my = (p.y + ny) / 2;
-            return (
-              <path
-                key={`e-${n.id}`}
-                d={`M ${x1} ${p.y} C ${x1 + 14} ${p.y}, ${x1 + 14} ${my}, ${x2 - 6} ${my} L ${x2 - 6} ${ny}`}
-                fill="none"
-                stroke="#d6d3d1"
-                strokeWidth={1.2}
-              />
-            );
+      <div className="overflow-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" role="img" aria-label={`Mindmap of ${nodes.length} concepts around ${root.label}`}>
+          {/* spokes: parent centre -> child centre */}
+          {[...pos.entries()].map(([id, p]) => {
+            if (p.depth === 0 || !p.n.parent) return null;
+            const parentPos = pos.get(p.n.parent);
+            if (!parentPos) return null;
+            const a = xy(parentPos);
+            const b = xy(p);
+            return <line key={`e-${id}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#d6d3d1" strokeWidth={1.2} />;
           })}
-          {ordered.map(({ n, d, y: ny }) => {
+          {[...pos.values()].map((p) => {
+            const { n } = p;
+            const { x, y } = xy(p);
             const st = style(n.kind);
+            const w = boxW(n.label);
+            const kids = childrenOf.get(n.id) ?? [];
+            const isOpen = expanded.has(n.id);
             const label = `${KIND_PLAIN[n.kind] ?? n.kind}: ${n.label}${n.note ? ` — ${n.note}` : ""}`;
+            const hint = kids.length ? (isOpen ? "tap to collapse" : `tap to open — ${kids.length} more underneath`) : ASK_HINT;
+            const act = () => (kids.length ? toggle(n.id) : ask(spec, { name: n.label }));
             return (
               <g
                 key={n.id}
-                onClick={() => ask(spec, { name: n.label })}
+                onClick={act}
                 className="cursor-pointer"
                 tabIndex={0}
                 role="button"
-                aria-label={`${label} — ${ASK_HINT}`}
+                aria-label={`${label} — ${hint}`}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    ask(spec, { name: n.label });
+                    act();
                   }
                 }}
               >
-                <title>{`${label} — ${ASK_HINT}`}</title>
+                <title>{`${label} — ${hint}`}</title>
                 <rect
-                  x={24 + d * COL_W}
-                  y={ny - BOX_H / 2}
-                  width={176}
+                  x={x - w / 2}
+                  y={y - BOX_H / 2}
+                  width={w}
                   height={BOX_H}
-                  rx={7}
+                  rx={BOX_H / 2}
                   fill={st.fill}
                   stroke={n.highlight ? "#1c1917" : st.stroke}
                   strokeWidth={n.highlight ? 2.5 : 1.2}
+                  strokeDasharray={kids.length && !isOpen ? "3 2" : undefined}
                 />
-                <text x={24 + d * COL_W + 10} y={ny - 6} fontSize={9} fill={st.text} fontWeight={700}>
-                  {(KIND_PLAIN[n.kind] ?? n.kind).toUpperCase()}
+                <text x={x} y={y + 4} fontSize={10} fill={st.text} fontWeight={n.highlight ? 700 : 500} textAnchor="middle">
+                  {n.label.length > 20 ? n.label.slice(0, 19) + "…" : n.label}
                 </text>
-                <text x={24 + d * COL_W + 10} y={ny + 8} fontSize={11} fill="#1c1917" fontWeight={500}>
-                  {n.label.length > 22 ? n.label.slice(0, 21) + "…" : n.label}
-                  {n.note && <tspan dx={6} fontSize={9} fill="#78716c">{n.note}</tspan>}
-                </text>
+                {kids.length > 0 && (
+                  <g>
+                    <circle cx={x + w / 2 - 3} cy={y - BOX_H / 2 + 3} r={8} fill={isOpen ? "#ffffff" : "#1c1917"} stroke={isOpen ? "#a8a29e" : "#ffffff"} strokeWidth={1.2} />
+                    <text x={x + w / 2 - 3} y={y - BOX_H / 2 + 6} fontSize={8} fontWeight={700} fill={isOpen ? "#57534e" : "#ffffff"} textAnchor="middle">
+                      {isOpen ? "–" : kids.length}
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
         </svg>
       </div>
       <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1">
-        <MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} · scroll sideways if the tree is wider than this box
-        {nodes.some((n) => n.highlight) ? " · dark outline = what you asked about" : ""}
+        <MessageCircleQuestion className="h-3 w-3" /> tap a badged node to open what's under it (tap again to collapse) · tap a plain node to ask CIE about it · the centre is what you picked
       </p>
     </div>
   );
@@ -1025,7 +1040,8 @@ export function ChatChart({ spec, onSelectElement }: { spec: ChatChartSpec; onSe
   if (spec.kind === "donut") return <div className="mt-1"><ChatDonut spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "stat") return <div className="mt-1"><ChatStat spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "tree") return <div className="mt-1"><TreeSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "tree") return <div className="mt-1"><ConceptTreeG6 spec={spec} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "mindmap") return <div className="mt-1"><MindmapSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "heatmap") return <div className="mt-1"><Heatmap spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "c4") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "sequence") return <div className="mt-1"><SequenceSVG spec={spec} onSelectElement={onSelectElement} /><p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1"><MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} for an arrow — each one stands for real, recorded code · dashed = inferred · dashed emerald + YOU CONFIRMED = your own check</p><ChartFootnote spec={spec} /></div>;

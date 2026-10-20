@@ -9,6 +9,6 @@ web/.next/
 web/dev.log
 web/next-env.d.ts
 web/tsconfig.tsbuildinfo
-tool-results/
+tool-results/   
 skills/
 web/.env*.local

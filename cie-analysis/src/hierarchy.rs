@@ -77,7 +77,16 @@ fn app_slice<'a>(stack: &'a StackReport, dir: &'a str) -> AppSlice<'a> {
     let jvm = stack.jvm.as_ref();
     AppSlice {
         name: if dir.is_empty() {
-            "app root".to_string()
+            // a root-rooted app: call it what its manifest named it (the
+            // same name the container node carries) — "app root" only when
+            // no name survives. This string labels the components too
+            // ("mipay-server boot", not "app root boot").
+            stack
+                .apps
+                .iter()
+                .find(|a| a.dir.is_empty() && !a.name.is_empty())
+                .map(|a| a.name.clone())
+                .unwrap_or_else(|| "app root".to_string())
         } else {
             dir.rsplit('/').next().unwrap_or(dir).to_string()
         },
@@ -710,6 +719,29 @@ pub fn build_hierarchy(
                         }
                     }
                 }
+            }
+        }
+
+        // Extra DAG edges: every class this concept's member functions
+        // actually belong to (FcaSubsumption) — the precise set it cuts
+        // across, not just the one majority file above. Recorded ONLY on
+        // the UseCase's own `extra_edges` (traceable, never read by
+        // `rollup_node`) — NOT mirrored into the class's `children`: that
+        // list feeds weakest-link confidence rollup (FR-43), and an
+        // inferred (0.8-confidence) cross-cutting concept must never drag
+        // down a recorded (1.0-confidence) class/component's rolled-up
+        // certainty just because one of its methods also participates in
+        // this concept.
+        let mut linked_classes: BTreeSet<ConceptNodeId> = BTreeSet::new();
+        for s in &concept.extent {
+            let Some(sym) = store.get(*s) else { continue };
+            let Some(owner) = sym.parent else { continue };
+            let Some(&class_id) = node_of_symbol.get(&owner) else { continue };
+            if !linked_classes.insert(class_id) {
+                continue;
+            }
+            if let Some(node) = dag.get_mut(id) {
+                node.extra_edges.push((class_id, EdgeReason::FcaSubsumption));
             }
         }
     }
