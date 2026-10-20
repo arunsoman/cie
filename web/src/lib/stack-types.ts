@@ -32,6 +32,9 @@ export interface TechStack {
   apps: AppSite[];
   /** app config file facts (port, profiles, datasource) — as written */
   config: StackConfigEntry[];
+  /** RFC-0019 §6.3: compose services with an image: and NO build: — the
+   *  named external systems (C4 Context), not our apps */
+  externalDocker?: ExternalSystem[];
   /** plain notes: what the build files didn't say, plus honest caps */
   notes: string[];
   /** how much of the tree the pass actually looked at */
@@ -93,6 +96,33 @@ export interface AppSite {
   name: string;
   build: string;
   framework: string;
+  evidence: string;
+  /** RFC-0019 §6.3: how the repo says this app is containerized — compose /
+   *  its own Dockerfile / nothing, each with file:line evidence */
+  docker?: AppGovernance;
+}
+
+/** RFC-0019 §6.3: per-app docker governance, read exactly as written */
+export interface AppGovernance {
+  /** "compose" | "own-dockerfile" | "none" */
+  kind: string;
+  /** the compose service name, when compose */
+  service?: string;
+  /** exposed ports as written ("8081:8081") */
+  ports: string[];
+  /** the compose file:row, or the Dockerfile path */
+  evidence: string;
+}
+
+/** RFC-0019 §6.3: a compose service with `image:` and NO `build:` — not our
+ *  app; the named external system the C4 Context level draws */
+export interface ExternalSystem {
+  /** the compose service key */
+  name: string;
+  /** "postgres:16" as written */
+  image?: string;
+  ports: string[];
+  /** compose file:row */
   evidence: string;
 }
 

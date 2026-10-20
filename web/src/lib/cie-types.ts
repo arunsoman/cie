@@ -159,13 +159,17 @@ export interface ConceptRule {
 export interface ConceptNode {
   id: number;
   label: string;
-  kind: string; // Domain | Module | UseCase ...
+  kind: string; // Domain | Container | Subdomain | Service | Module | Entity | Value | Aggregate | UseCase | Rule | Invariant (RFC-0019 adds the C4 tiers — additive, tolerate unknown kinds)
   parent: number | null;
   children: number[];
   primary_edge: string; // PackageContainment | CallOwnership | FcaSubsumption | ClusterCohesion ...
   symbols: number[];
   behaviors: ConceptBehavior[];
   rules?: ConceptRule[];
+  /** RFC-0019: per-node certainty — 1.0 = recorded evidence, below = inference */
+  confidence?: number;
+  /** build provenance ("stack:apps" | "stack:roles" | "rule:package" | ...) */
+  provenance?: string;
   // Present on FcaSubsumption (primary_edge) nodes only: the shared
   // behavior/effect tags (cie-analysis/src/hierarchy.rs's FCA pass) that
   // put every symbol in `symbols` into this same formal concept.

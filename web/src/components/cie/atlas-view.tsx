@@ -74,10 +74,15 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, stack, quality, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
+  const { report, stack, concepts, quality, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
   const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
+
+  // RFC-0019 §6.5: when the stack artifact names the real apps, every panel
+  // scopes by the app dir that claims a file — the same boundary the C4
+  // boxes draw. Null when the artifact is absent (the path heuristic stands).
+  const apps: { dir: string }[] | null = stack?.apps?.length ? stack.apps : null;
 
   const primary = atlasSelection.primary;
   const containerRef = primary?.kind === "container" ? primary : null;
@@ -100,33 +105,34 @@ export function AtlasView() {
       ? rows.filter((r) => {
           const sym = symbolByQualName(report, r.title);
           const f = sym ? report.files[sym.loc.file] : r.file;
-          return f && containerOfPath(f) === scopeId;
+          return f && containerOfPath(f, apps) === scopeId;
         })
       : rows;
     return inContainer.slice(0, 3);
-  }, [report, scopeId]);
+  }, [report, scopeId, apps]);
 
   // ---- the panel specs, re-derived from the Selection Context ----
   const c4Spec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
-    const s = buildC4Spec(report, "Containers — how the repo itself is laid out");
+    const s = buildC4Spec(report, stack, "Containers — how the repo itself is laid out");
     if (s && containerRef) {
       s.nodes = s.nodes?.map((n) => (n.id === containerRef.id ? { ...n, selected: true } : n));
     }
     return s;
-  }, [report, containerRef]);
+  }, [report, stack, containerRef]);
 
   const compSpec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
     // zoomed into a module's symbols when one is selected; otherwise the
-    // module boxes, scoped to the selected container when there is one
-    return buildComponentSpec(report, scopeId, undefined, moduleRef ? moduleRef.id : null);
-  }, [report, scopeId, moduleRef]);
+    // component tier from the concept DAG (RFC-0019 §6.5), or the module
+    // boxes, scoped to the selected container when there is one
+    return buildComponentSpec(report, scopeId, undefined, moduleRef ? moduleRef.id : null, concepts, apps);
+  }, [report, scopeId, moduleRef, concepts, apps]);
 
   const dataflowSpec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
-    return buildDataFlowSpec(report, scopeId);
-  }, [report, scopeId]);
+    return buildDataFlowSpec(report, scopeId, undefined, apps);
+  }, [report, scopeId, apps]);
 
   // ---- flow: the chart that re-levels itself. Whatever the Selection
   // Context points at — a container, a component, a function — the flow is
@@ -134,8 +140,8 @@ export function AtlasView() {
   // into a function → that function, step by step. ----
   const flowBuild = useMemo(() => {
     if (!report) return null;
-    return buildFlowSpec(report, atlasSelection);
-  }, [report, atlasSelection]);
+    return buildFlowSpec(report, atlasSelection, apps);
+  }, [report, atlasSelection, apps]);
 
   // ---- sequence: symbol-centred trace, or the top flow of the scope ----
   const autoFlow = useMemo(() => {
@@ -165,10 +171,10 @@ export function AtlasView() {
   const hasCplx = !!quality?.complexity?.functions?.length;
   const hasChurn = !!quality?.churn?.sample?.per_file?.length;
   const hasHot = !!quality?.hotspots?.rows?.length;
-  const covSpec = useMemo(() => (hasCov ? buildCoverageHeatmapSpec(quality, scopeId) : null), [quality, scopeId, hasCov]);
-  const cplxSpec = useMemo(() => (hasCplx ? buildComplexitySpec(quality!, scopeId) : null), [quality, scopeId, hasCplx]);
-  const churnSpec = useMemo(() => (hasChurn ? buildPerFileChurnSpec(quality!, scopeId) : null), [quality, scopeId, hasChurn]);
-  const hotSpec = useMemo(() => (hasHot ? buildHotspotSpec(quality!, scopeId) : null), [quality, scopeId, hasHot]);
+  const covSpec = useMemo(() => (hasCov ? buildCoverageHeatmapSpec(quality, scopeId, apps) : null), [quality, scopeId, hasCov, apps]);
+  const cplxSpec = useMemo(() => (hasCplx ? buildComplexitySpec(quality!, scopeId, apps) : null), [quality, scopeId, hasCplx, apps]);
+  const churnSpec = useMemo(() => (hasChurn ? buildPerFileChurnSpec(quality!, scopeId, apps) : null), [quality, scopeId, hasChurn, apps]);
+  const hotSpec = useMemo(() => (hasHot ? buildHotspotSpec(quality!, scopeId, apps) : null), [quality, scopeId, hasHot, apps]);
 
   // ---- click routing: one handler per panel (each ChatChart gets its own),
   // all landing in the same Selection Context. The atlas OWNS diagram clicks
@@ -240,11 +246,11 @@ export function AtlasView() {
       openCodeFor(sel.loc, sel.label);
       return;
     }
-    const isContainer = sel.id === "(project root)" || report.files.some((f) => containerOfPath(f) === sel.id);
+    const isContainer = sel.id === "(project root)" || report.files.some((f) => containerOfPath(f, apps) === sel.id);
     if (isContainer) setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
   };
 
-  const crumbs = breadcrumbOf(atlasSelection);
+  const crumbs = breadcrumbOf(atlasSelection, apps);
   const shown = (s: ChatChartSpec | null): ChatChartSpec | null => (atlasFactsOnly && s ? filterFacts(s) : s);
   const shownC4 = shown(c4Spec);
   const shownComp = shown(compSpec);
@@ -536,6 +542,7 @@ function DetailRail({
   sourceRoot: string | null;
 }) {
   const report = useCie((s) => s.report);
+  const apps = useCie((s) => s.stack?.apps?.length ? s.stack.apps : null);
   const [ideFor, setIdeFor] = useState<"vscode" | "cursor" | "jetbrains">("vscode");
   if (!report) return null;
 
@@ -599,7 +606,7 @@ function DetailRail({
         </RailSection>
       )}
 
-      {primary.kind === "container" && <ContainerEvidence report={report} container={primary.id} />}
+      {primary.kind === "container" && <ContainerEvidence report={report} container={primary.id} apps={apps} />}
 
       {primary.kind === "store" && (
         <RailSection title="Why this store is here">
@@ -733,8 +740,8 @@ function SummaryEvidence({ report, symId }: { report: LoadedReport; symId: numbe
   );
 }
 
-function ContainerEvidence({ report, container }: { report: LoadedReport; container: string }) {
-  const files = report.files.filter((f) => containerOfPath(f) === container);
+function ContainerEvidence({ report, container, apps }: { report: LoadedReport; container: string; apps: { dir: string }[] | null }) {
+  const files = report.files.filter((f) => containerOfPath(f, apps) === container);
   const syms = files.length ? report.symbols.filter((s) => files.includes(report.files[s.loc.file])) : [];
   return (
     <RailSection title="What lives here">

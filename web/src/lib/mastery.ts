@@ -30,6 +30,7 @@
 // the store, so components on both the stage and the chat side can rely on it.
 
 import type { CieReport, ConceptTree, CieDeps, CieCochange, CieOverlap, CieQuality, CieDrift } from "./cie-types";
+import type { TechStack } from "./stack-types";
 import {
   engineFor,
   layoutFor,
@@ -449,10 +450,152 @@ export function buildSequenceSpec(title: string, steps: TraceStep[], you: Set<nu
   return s;
 }
 
-/** C4-style containers: top-level folders, how much lives in each, and the
- *  calls that cross container boundaries. Grouping is by the repo's own
- *  structure — and the cap is announced. */
-export function buildC4Spec(report: CieReport | null, title = "C4 containers — the big picture"): ChatChartSpec | null {
+/** C4-style containers. RFC-0019 §6.5: when the persisted stack artifact
+ *  names the real applications, the boxes ARE those apps — framework, build
+ *  tool and docker governance drawn from the recorded evidence, image-only
+ *  compose services drawn as the C4 Context externals they are. Cross-app
+ *  calls come from the engine's recorded cross-service matches first. With
+ *  no stack artifact the path heuristic below still draws — no project
+ *  regresses, and the tell says which lens produced the picture. */
+export function buildC4Spec(
+  report: CieReport | null,
+  stack: TechStack | null | undefined,
+  title = "C4 containers — the big picture"
+): ChatChartSpec | null {
+  const apps = stack?.apps ?? [];
+  if (report && report.files?.length && apps.length) {
+    // files claimed by each app dir, longest-prefix first; a root ("") app
+    // keeps only the files no subdir app claims
+    const dirs = apps.map((a) => a.dir).sort((a, b) => b.length - a.length);
+    const claimant = (f: string): string => {
+      for (const d of dirs) {
+        if (d && (f === d || f.startsWith(d + "/"))) return d;
+      }
+      return "";
+    };
+    const rootApp = apps.some((a) => !a.dir);
+    const fileCount = new Map<string, number>();
+    const symFile = new Map<string, number>();
+    for (const f of report.files) {
+      const d = claimant(f);
+      if (!d && !rootApp) continue; // no root app → loose files belong to no box
+      fileCount.set(d, (fileCount.get(d) ?? 0) + 1);
+    }
+    for (const s of report.symbols) {
+      const f = fileOf(report, s);
+      if (!f) continue;
+      const d = claimant(f);
+      if (!d && !rootApp) continue;
+      symFile.set(d, (symFile.get(d) ?? 0) + 1);
+    }
+
+    const dockerLine = (a: NonNullable<TechStack["apps"]>[number]): string => {
+      const g = a.docker;
+      if (!g) return "docker: —";
+      if (g.kind === "compose")
+        return `docker: compose service ${g.service ? `"${g.service}"` : ""} · ports ${g.ports.length ? g.ports.join(", ") : "(none declared)"}`;
+      if (g.kind === "own-dockerfile") return `docker: its own Dockerfile (${g.evidence})`;
+      return "docker: not containerized, as far as the repo says";
+    };
+
+    const MAX_APPS = 12;
+    const shownApps = apps.slice(0, MAX_APPS);
+    const restApps = apps.length - shownApps.length;
+    const nodes: UmlNode[] = shownApps.map((a) => {
+      const id = a.dir || "(project root)";
+      return {
+        id,
+        title: a.name || id,
+        kind: "container",
+        lines: [
+          `${fileCount.get(a.dir) ?? 0} file(s)`,
+          `${symFile.get(a.dir) ?? 0} named things`,
+          `${a.framework} · ${a.build} (${a.evidence})`,
+          dockerLine(a),
+        ],
+        certainty: "Fact" as const, // recorded: a manifest named this app
+      };
+    });
+    if (restApps > 0) {
+      nodes.push({
+        id: "…other-apps",
+        title: `…and ${restApps} more app(s)`,
+        kind: "container",
+        lines: ["smaller — grouped out of this picture, not hidden"],
+        certainty: "Inference" as const,
+      });
+    }
+    // C4 Context externals: compose services with an image and no build
+    for (const ext of stack?.externalDocker ?? []) {
+      nodes.push({
+        id: `ext:${ext.name}`,
+        title: ext.name,
+        kind: "external",
+        lines: [
+          ext.image ? `image ${ext.image} — as written` : "image: (not stated)",
+          ext.ports.length ? `ports ${ext.ports.join(", ")}` : "ports: (none declared)",
+          `named in ${ext.evidence}`,
+        ],
+        certainty: "Fact" as const,
+      });
+    }
+
+    const ids = new Set(nodes.map((n) => n.id));
+    const links: UmlLink[] = [];
+    const seenPair = new Set<string>();
+    // recorded cross-app calls first (the engine matched url literals to routes)
+    for (const cs of stack?.crossService ?? []) {
+      const from = cs.fromApp || "(project root)";
+      const to = cs.toApp || "(project root)";
+      if (!ids.has(from) || !ids.has(to) || from === to) continue;
+      const key = `${from}->${to}`;
+      if (seenPair.has(key)) continue;
+      seenPair.add(key);
+      links.push({
+        from,
+        to,
+        label: cs.matchedPath ? `calls ${cs.matchedPath} (${cs.via})` : `calls (${cs.via})`,
+        certainty: "Fact",
+      });
+    }
+    // client-counted calls for pairs the engine's literal match didn't cover
+    const g = buildCallGraph(report);
+    const crossCalls = new Map<string, Map<string, number>>();
+    for (const s of report.symbols) {
+      const from = claimant(fileOf(report, s) ?? "");
+      for (const callee of g.calleesOf.get(Number(s.id)) ?? []) {
+        const to = claimant(fileOf(report, g.byId.get(callee)) ?? "");
+        if (to === from || !fileCount.has(to)) continue;
+        let m = crossCalls.get(from);
+        if (!m) crossCalls.set(from, (m = new Map()));
+        m.set(to, (m.get(to) ?? 0) + 1);
+      }
+    }
+    for (const [from, targets] of crossCalls) {
+      if (!ids.has(from)) continue;
+      for (const [to, n] of [...targets.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)) {
+        if (!ids.has(to) || seenPair.has(`${from}->${to}`)) continue;
+        seenPair.add(`${from}->${to}`);
+        links.push({
+          from,
+          to,
+          label: n > 1 ? `calls into (${n})` : "calls into",
+          certainty: "Fact",
+        });
+      }
+    }
+
+    const s = specOf(
+      "c4",
+      title,
+      "Boxes are the applications the build files name — framework, build tool and docker governance from the recorded evidence, externals drawn where compose names an image-only service. Arrows are real recorded calls across apps."
+    );
+    s.nodes = nodes;
+    s.links = links;
+    s.source = "stack.json — the apps, their docker governance and the recorded cross-service calls; report.json for the counts";
+    return s;
+  }
+
   if (!report || !report.files?.length) return null;
   const containerOf = (f: string): string => {
     const i = f.indexOf("/");
@@ -721,7 +864,7 @@ export function tryAnswerMastery(question: string, ctx: MasteryCtx): MasteryAnsw
   }
 
   if (has(C4_WORDS)) {
-    const spec = buildC4Spec(report);
+    const spec = buildC4Spec(report, null);
     if (!spec) return null;
     return {
       answer:

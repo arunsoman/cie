@@ -318,11 +318,13 @@ export function buildDriftSpec(drift: CieDrift | null): ChatChartSpec | null {
 
 /** Optional `container` scopes the tiles to one top-level folder — the same
  *  file list, filtered before capping, with the headline percent recomputed
- *  from exactly the rows shown (never the repo total dressed up as a scope). */
-export function buildCoverageHeatmapSpec(quality: CieQuality | null, container: string | null = null): ChatChartSpec | null {
+ *  from exactly the rows shown (never the repo total dressed up as a scope).
+ *  `apps` (RFC-0019 §6.5) makes the container boundary the stack's real app
+ *  dirs when the artifact names them. */
+export function buildCoverageHeatmapSpec(quality: CieQuality | null, container: string | null = null, apps?: { dir: string }[] | null): ChatChartSpec | null {
   const cov = quality?.coverage_heatmap;
   if (!cov?.files?.length) return null;
-  const rows = container ? cov.files.filter((f) => containerOfPath(f.file) === container) : cov.files;
+  const rows = container ? cov.files.filter((f) => containerOfPath(f.file, apps) === container) : cov.files;
   if (!rows.length) return null;
   const tiles: HeatTile[] = rows.map((f) => ({
     name: cut(f.file, 22),
@@ -356,10 +358,11 @@ export function buildCoverageHeatmapSpec(quality: CieQuality | null, container: 
 // ---------------------------------------------------------------------------
 
 /** Most complex functions, worst first (real AST walk). Optional `container`
- *  filters the ranking to one top-level folder before the cap applies. */
-export function buildComplexitySpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+ *  filters the ranking to one top-level folder before the cap applies.
+ *  `apps` (RFC-0019) makes the boundary the stack's real app dirs. */
+export function buildComplexitySpec(q: CieQuality, container: string | null = null, apps?: { dir: string }[] | null): ChatChartSpec | null {
   const all = q.complexity.functions ?? [];
-  const fns = (container ? all.filter((f) => containerOfPath(f.file) === container) : all).slice(0, 8);
+  const fns = (container ? all.filter((f) => containerOfPath(f.file, apps) === container) : all).slice(0, 8);
   if (!fns.length) return null;
   const data = fns.map((f) => ({
     name: cut(f.function, 20),
@@ -386,10 +389,11 @@ export function buildDailyChurnSpec(q: CieQuality): ChatChartSpec | null {
 }
 
 /** Churn per file in the sample project — which files moved the most.
- *  Optional `container` scopes the ranking to one top-level folder. */
-export function buildPerFileChurnSpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+ *  Optional `container` scopes the ranking to one top-level folder.
+ *  `apps` (RFC-0019) makes the boundary the stack's real app dirs. */
+export function buildPerFileChurnSpec(q: CieQuality, container: string | null = null, apps?: { dir: string }[] | null): ChatChartSpec | null {
   const all = q.churn.sample.per_file ?? [];
-  const rows = (container ? all.filter((r) => containerOfPath(r.file) === container) : all).slice(0, 8);
+  const rows = (container ? all.filter((r) => containerOfPath(r.file, apps) === container) : all).slice(0, 8);
   if (!rows.length) return null;
   return {
     ...spec("hbar", container ? `Churn per file — ${container} (sample project)` : "Churn per file (sample project)", `${q.churn.tool} over the sample's own files — added + deleted lines per file.`),
@@ -448,10 +452,11 @@ export function buildRepairTableSpec(q: CieQuality): ChatChartSpec | null {
 }
 
 /** Hot spots as bars (risk 0–100 per file) — the ranked list, drawn.
- *  Optional `container` scopes the ranking to one top-level folder. */
-export function buildHotspotSpec(q: CieQuality, container: string | null = null): ChatChartSpec | null {
+ *  Optional `container` scopes the ranking to one top-level folder.
+ *  `apps` (RFC-0019) makes the boundary the stack's real app dirs. */
+export function buildHotspotSpec(q: CieQuality, container: string | null = null, apps?: { dir: string }[] | null): ChatChartSpec | null {
   const all = q.hotspots.rows ?? [];
-  const rows = (container ? all.filter((r) => containerOfPath(r.file) === container) : all).slice(0, 8);
+  const rows = (container ? all.filter((r) => containerOfPath(r.file, apps) === container) : all).slice(0, 8);
   if (!rows.length) return null;
   return {
     ...spec("hbar", container ? `Hot spots — ${container}, ranked` : "Hot spots, ranked", q.hotspots.formula),

@@ -28,6 +28,681 @@
     },
     {
       "id": "c1",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "berth-booking",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 0,
+        "end": 434
+      },
+      "claimId": "C-0001",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Container concept with 36 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 36
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c2",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking entity",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 0,
+        "end": 434
+      },
+      "claimId": "C-0002",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 26 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 26
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c3",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking boot",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 0,
+        "end": 325
+      },
+      "claimId": "C-0003",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 2 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 2
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c4",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking web",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 0,
+        "end": 810
+      },
+      "claimId": "C-0004",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 2 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 2
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c5",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking repository",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+        "start": 0,
+        "end": 207
+      },
+      "claimId": "C-0005",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 2 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 2
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c6",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking config",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+        "start": 0,
+        "end": 301
+      },
+      "claimId": "C-0006",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.6,
+        "whyShown": "Service concept with 3 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.6000000238418579,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 3
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c7",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "berth-booking service",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 0,
+        "end": 740
+      },
+      "claimId": "C-0007",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 2 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 2
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c8",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "billing",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      },
+      "claimId": "C-0008",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Container concept with 30 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 30
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c9",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "billing boot",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 0,
+        "end": 271
+      },
+      "claimId": "C-0009",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 3 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 3
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c10",
+      "elementKind": "subdomain",
+      "displayMode": "Inference",
+      "label": "billing application",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      },
+      "claimId": "C-0010",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Subdomain concept with 7 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 7
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c11",
+      "elementKind": "subdomain",
+      "displayMode": "Inference",
+      "label": "billing domain",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+        "start": 0,
+        "end": 678
+      },
+      "claimId": "C-0011",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Subdomain concept with 6 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 6
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c12",
+      "elementKind": "subdomain",
+      "displayMode": "Inference",
+      "label": "billing infrastructure",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      },
+      "claimId": "C-0012",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Subdomain concept with 14 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 14
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c13",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "search",
+      "evidence": {
+        "file": "search/src/catalog.ts",
+        "start": 0,
+        "end": 350
+      },
+      "claimId": "C-0013",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Container concept with 9 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 9
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c14",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "search core",
+      "evidence": {
+        "file": "search/src/catalog.ts",
+        "start": 0,
+        "end": 350
+      },
+      "claimId": "C-0014",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 3 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 3
+      },
+      "parentId": "c13"
+    },
+    {
+      "id": "c15",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "search web",
+      "evidence": {
+        "file": "search/src/search.ts",
+        "start": 0,
+        "end": 693
+      },
+      "claimId": "C-0015",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 1 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 1
+      },
+      "parentId": "c13"
+    },
+    {
+      "id": "c16",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "search repository",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 0,
+        "end": 645
+      },
+      "claimId": "C-0016",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 5 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 5
+      },
+      "parentId": "c13"
+    },
+    {
+      "id": "c17",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "tide-alerts",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      },
+      "claimId": "C-0017",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Container concept with 48 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 48
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c18",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "tide-alerts core",
+      "evidence": {
+        "file": "tide-alerts/src/alert.rs",
+        "start": 0,
+        "end": 924
+      },
+      "claimId": "C-0018",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 4 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 4
+      },
+      "parentId": "c17"
+    },
+    {
+      "id": "c19",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "tide-alerts web",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 214,
+        "end": 322
+      },
+      "claimId": "C-0019",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Service concept with 6 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 6
+      },
+      "parentId": "c17"
+    },
+    {
+      "id": "c20",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "tide-alerts repository",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      },
+      "claimId": "C-0020",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 45 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 45
+      },
+      "parentId": "c17"
+    },
+    {
+      "id": "c21",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "webhooks",
+      "evidence": {
+        "file": "webhooks/app/__init__.py",
+        "start": 0,
+        "end": 47
+      },
+      "claimId": "C-0021",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Container concept with 11 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 11
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c22",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "webhooks core",
+      "evidence": {
+        "file": "webhooks/app/__init__.py",
+        "start": 0,
+        "end": 47
+      },
+      "claimId": "C-0022",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 4 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 4
+      },
+      "parentId": "c21"
+    },
+    {
+      "id": "c23",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "webhooks repository",
+      "evidence": {
+        "file": "webhooks/app/store.py",
+        "start": 0,
+        "end": 316
+      },
+      "claimId": "C-0023",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 3 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 3
+      },
+      "parentId": "c21"
+    },
+    {
+      "id": "c24",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "webhooks web",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 0,
+        "end": 682
+      },
+      "claimId": "C-0024",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Service concept with 3 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 3
+      },
+      "parentId": "c21"
+    },
+    {
+      "id": "c25",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "webhooks boot",
+      "evidence": {
+        "file": "webhooks/main.py",
+        "start": 0,
+        "end": 40
+      },
+      "claimId": "C-0025",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 1 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 1
+      },
+      "parentId": "c21"
+    },
+    {
+      "id": "c26",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
@@ -36,7 +711,7 @@
         "start": 0,
         "end": 434
       },
-      "claimId": "C-0001",
+      "claimId": "C-0026",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -51,10 +726,10 @@
         "provenance": "rule:package",
         "symbols": 26
       },
-      "parentId": "c0"
+      "parentId": "c2"
     },
     {
-      "id": "c2",
+      "id": "c27",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
@@ -63,7 +738,7 @@
         "start": 0,
         "end": 325
       },
-      "claimId": "C-0002",
+      "claimId": "C-0027",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -78,10 +753,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c3"
     },
     {
-      "id": "c3",
+      "id": "c28",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
@@ -90,7 +765,7 @@
         "start": 0,
         "end": 810
       },
-      "claimId": "C-0003",
+      "claimId": "C-0028",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -105,10 +780,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c4"
     },
     {
-      "id": "c4",
+      "id": "c29",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
@@ -117,7 +792,7 @@
         "start": 0,
         "end": 207
       },
-      "claimId": "C-0004",
+      "claimId": "C-0029",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -132,10 +807,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c5"
     },
     {
-      "id": "c5",
+      "id": "c30",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
@@ -144,7 +819,7 @@
         "start": 0,
         "end": 301
       },
-      "claimId": "C-0005",
+      "claimId": "C-0030",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -159,10 +834,10 @@
         "provenance": "rule:package",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c6"
     },
     {
-      "id": "c6",
+      "id": "c31",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
@@ -171,7 +846,7 @@
         "start": 0,
         "end": 740
       },
-      "claimId": "C-0006",
+      "claimId": "C-0031",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -186,10 +861,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c7"
     },
     {
-      "id": "c7",
+      "id": "c32",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
@@ -198,7 +873,7 @@
         "start": 0,
         "end": 271
       },
-      "claimId": "C-0007",
+      "claimId": "C-0032",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -213,37 +888,37 @@
         "provenance": "rule:package",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c9"
     },
     {
-      "id": "c8",
+      "id": "c33",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-        "start": 0,
-        "end": 1078
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
       },
-      "claimId": "C-0008",
+      "claimId": "C-0033",
       "salience": {
         "factors": [
           "COVERAGE",
           "CONFIDENCE"
         ],
         "weight": 0.8,
-        "whyShown": "Module concept with 4 traced symbol(s), provenance rule:package"
+        "whyShown": "Module concept with 7 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 0.800000011920929,
         "coverage": 1.0,
         "provenance": "rule:package",
-        "symbols": 4
+        "symbols": 7
       },
-      "parentId": "c0"
+      "parentId": "c10"
     },
     {
-      "id": "c9",
+      "id": "c34",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
@@ -252,7 +927,7 @@
         "start": 0,
         "end": 678
       },
-      "claimId": "C-0009",
+      "claimId": "C-0034",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -267,10 +942,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c11"
     },
     {
-      "id": "c10",
+      "id": "c35",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
@@ -279,7 +954,7 @@
         "start": 0,
         "end": 206
       },
-      "claimId": "C-0010",
+      "claimId": "C-0035",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -294,10 +969,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c11"
     },
     {
-      "id": "c11",
+      "id": "c36",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
@@ -306,7 +981,7 @@
         "start": 0,
         "end": 410
       },
-      "claimId": "C-0011",
+      "claimId": "C-0036",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -321,37 +996,37 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c11"
     },
     {
-      "id": "c12",
+      "id": "c37",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-        "start": 0,
-        "end": 997
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
       },
-      "claimId": "C-0012",
+      "claimId": "C-0037",
       "salience": {
         "factors": [
           "COVERAGE",
           "CONFIDENCE"
         ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+        "weight": 0.8,
+        "whyShown": "Module concept with 12 traced symbol(s), provenance rule:package"
       },
       "fields": {
-        "confidence": 1.0,
+        "confidence": 0.800000011920929,
         "coverage": 1.0,
         "provenance": "rule:package",
-        "symbols": 2
+        "symbols": 12
       },
-      "parentId": "c0"
+      "parentId": "c12"
     },
     {
-      "id": "c13",
+      "id": "c38",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
@@ -360,7 +1035,7 @@
         "start": 0,
         "end": 518
       },
-      "claimId": "C-0013",
+      "claimId": "C-0038",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -375,10 +1050,10 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c12"
     },
     {
-      "id": "c14",
+      "id": "c39",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "search/src/catalog.ts",
@@ -387,7 +1062,7 @@
         "start": 0,
         "end": 350
       },
-      "claimId": "C-0014",
+      "claimId": "C-0039",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -402,10 +1077,10 @@
         "provenance": "rule:package",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c14"
     },
     {
-      "id": "c15",
+      "id": "c40",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "search/src/search.ts",
@@ -414,7 +1089,7 @@
         "start": 0,
         "end": 693
       },
-      "claimId": "C-0015",
+      "claimId": "C-0040",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -429,10 +1104,10 @@
         "provenance": "rule:package",
         "symbols": 1
       },
-      "parentId": "c0"
+      "parentId": "c15"
     },
     {
-      "id": "c16",
+      "id": "c41",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "search/src/store.ts",
@@ -441,7 +1116,7 @@
         "start": 0,
         "end": 645
       },
-      "claimId": "C-0016",
+      "claimId": "C-0041",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -456,10 +1131,10 @@
         "provenance": "rule:package",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c16"
     },
     {
-      "id": "c17",
+      "id": "c42",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "tide-alerts/src/alert.rs",
@@ -468,7 +1143,7 @@
         "start": 0,
         "end": 924
       },
-      "claimId": "C-0017",
+      "claimId": "C-0042",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -483,10 +1158,10 @@
         "provenance": "rule:package",
         "symbols": 4
       },
-      "parentId": "c0"
+      "parentId": "c18"
     },
     {
-      "id": "c18",
+      "id": "c43",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "tide-alerts/src/main.rs",
@@ -495,681 +1170,6 @@
         "start": 214,
         "end": 322
       },
-      "claimId": "C-0018",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "Module concept with 6 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 6
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c19",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "tide-alerts/src/store.rs",
-      "evidence": {
-        "file": "search/src/catalog.ts",
-        "start": 284,
-        "end": 349
-      },
-      "claimId": "C-0019",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "Module concept with 6 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 6
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c20",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "webhooks/app/__init__.py",
-      "evidence": {
-        "file": "webhooks/app/__init__.py",
-        "start": 0,
-        "end": 47
-      },
-      "claimId": "C-0020",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 1 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 1
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c21",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "webhooks/app/events.py",
-      "evidence": {
-        "file": "webhooks/app/events.py",
-        "start": 0,
-        "end": 396
-      },
-      "claimId": "C-0021",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c22",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "webhooks/app/store.py",
-      "evidence": {
-        "file": "webhooks/app/store.py",
-        "start": 0,
-        "end": 316
-      },
-      "claimId": "C-0022",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c23",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "webhooks/app/webhook.py",
-      "evidence": {
-        "file": "webhooks/app/webhook.py",
-        "start": 0,
-        "end": 682
-      },
-      "claimId": "C-0023",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c24",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "webhooks/main.py",
-      "evidence": {
-        "file": "webhooks/main.py",
-        "start": 0,
-        "end": 40
-      },
-      "claimId": "C-0024",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 1 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 1
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c25",
-      "elementKind": "entity",
-      "displayMode": "Inference",
-      "label": "Berth",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
-        "start": 139,
-        "end": 433
-      },
-      "claimId": "C-0025",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Entity concept with 25 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 25
-      },
-      "parentId": "c1"
-    },
-    {
-      "id": "c26",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BerthBookingApplication",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
-        "start": 150,
-        "end": 324
-      },
-      "claimId": "C-0026",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c2"
-    },
-    {
-      "id": "c27",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BerthController",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-        "start": 336,
-        "end": 809
-      },
-      "claimId": "C-0027",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c3"
-    },
-    {
-      "id": "c28",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BerthRepository",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
-        "start": 92,
-        "end": 206
-      },
-      "claimId": "C-0028",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c4"
-    },
-    {
-      "id": "c29",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BillingClient",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
-        "start": 143,
-        "end": 300
-      },
-      "claimId": "C-0029",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c5"
-    },
-    {
-      "id": "c30",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BookingService",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
-        "start": 142,
-        "end": 739
-      },
-      "claimId": "C-0030",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c6"
-    },
-    {
-      "id": "c31",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BillingApplication",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
-        "start": 144,
-        "end": 191
-      },
-      "claimId": "C-0031",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c7"
-    },
-    {
-      "id": "c32",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BillingService",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-        "start": 294,
-        "end": 1077
-      },
-      "claimId": "C-0032",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c8"
-    },
-    {
-      "id": "c33",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Invoice",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
-        "start": 103,
-        "end": 677
-      },
-      "claimId": "C-0033",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c9"
-    },
-    {
-      "id": "c34",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "InvoiceRepository",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-        "start": 105,
-        "end": 205
-      },
-      "claimId": "C-0034",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c10"
-    },
-    {
-      "id": "c35",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Money",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
-        "start": 105,
-        "end": 409
-      },
-      "claimId": "C-0035",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c11"
-    },
-    {
-      "id": "c36",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "BillingController",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-        "start": 499,
-        "end": 996
-      },
-      "claimId": "C-0036",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c12"
-    },
-    {
-      "id": "c37",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "PostgresInvoiceRepository",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
-        "start": 246,
-        "end": 517
-      },
-      "claimId": "C-0037",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c13"
-    },
-    {
-      "id": "c38",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Berth",
-      "evidence": {
-        "file": "search/src/store.ts",
-        "start": 59,
-        "end": 139
-      },
-      "claimId": "C-0038",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c16"
-    },
-    {
-      "id": "c39",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Berth",
-      "evidence": {
-        "file": "search/src/store.ts",
-        "start": 59,
-        "end": 139
-      },
-      "claimId": "C-0039",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c16"
-    },
-    {
-      "id": "c40",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Health",
-      "evidence": {
-        "file": "tide-alerts/src/main.rs",
-        "start": 184,
-        "end": 221
-      },
-      "claimId": "C-0040",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c18"
-    },
-    {
-      "id": "c41",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Reading",
-      "evidence": {
-        "file": "tide-alerts/src/store.rs",
-        "start": 126,
-        "end": 200
-      },
-      "claimId": "C-0041",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c19"
-    },
-    {
-      "id": "c42",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:entrypoint:entrypoint",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
-        "start": 214,
-        "end": 322
-      },
-      "claimId": "C-0042",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 0.8,
-        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
-      },
-      "fields": {
-        "confidence": 0.800000011920929,
-        "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 3
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c43",
-      "elementKind": "usecase",
-      "displayMode": "Inference",
-      "label": "Concept:lock:lock",
-      "evidence": {
-        "file": "search/src/catalog.ts",
-        "start": 284,
-        "end": 349
-      },
       "claimId": "C-0043",
       "salience": {
         "factors": [
@@ -1177,25 +1177,25 @@
           "CONFIDENCE"
         ],
         "weight": 0.8,
-        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+        "whyShown": "Module concept with 6 traced symbol(s), provenance rule:package"
       },
       "fields": {
         "confidence": 0.800000011920929,
         "coverage": 1.0,
-        "provenance": "fca:godin-v1",
-        "symbols": 3
+        "provenance": "rule:package",
+        "symbols": 6
       },
-      "parentId": "c0"
+      "parentId": "c19"
     },
     {
       "id": "c44",
-      "elementKind": "usecase",
+      "elementKind": "module",
       "displayMode": "Inference",
-      "label": "Concept:reads Input:reads Input",
+      "label": "tide-alerts/src/store.rs",
       "evidence": {
-        "file": "webhooks/app/webhook.py",
-        "start": 171,
-        "end": 504
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
       },
       "claimId": "C-0044",
       "salience": {
@@ -1204,27 +1204,756 @@
           "CONFIDENCE"
         ],
         "weight": 0.8,
-        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+        "whyShown": "Module concept with 45 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 45
+      },
+      "parentId": "c20"
+    },
+    {
+      "id": "c45",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "webhooks/app/__init__.py",
+      "evidence": {
+        "file": "webhooks/app/__init__.py",
+        "start": 0,
+        "end": 47
+      },
+      "claimId": "C-0045",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 1 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 1
+      },
+      "parentId": "c22"
+    },
+    {
+      "id": "c46",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "webhooks/app/events.py",
+      "evidence": {
+        "file": "webhooks/app/events.py",
+        "start": 0,
+        "end": 396
+      },
+      "claimId": "C-0046",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 3
+      },
+      "parentId": "c22"
+    },
+    {
+      "id": "c47",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "webhooks/app/store.py",
+      "evidence": {
+        "file": "webhooks/app/store.py",
+        "start": 0,
+        "end": 316
+      },
+      "claimId": "C-0047",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 3
+      },
+      "parentId": "c23"
+    },
+    {
+      "id": "c48",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "webhooks/app/webhook.py",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 0,
+        "end": 682
+      },
+      "claimId": "C-0048",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Module concept with 3 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 3
+      },
+      "parentId": "c24"
+    },
+    {
+      "id": "c49",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "webhooks/main.py",
+      "evidence": {
+        "file": "webhooks/main.py",
+        "start": 0,
+        "end": 40
+      },
+      "claimId": "C-0049",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 1 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 1
+      },
+      "parentId": "c25"
+    },
+    {
+      "id": "c50",
+      "elementKind": "aggregate",
+      "displayMode": "Inference",
+      "label": "Berth",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 139,
+        "end": 433
+      },
+      "claimId": "C-0050",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Aggregate concept with 25 traced symbol(s), provenance stack:aggregate"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:aggregate",
+        "symbols": 25
+      },
+      "parentId": "c26"
+    },
+    {
+      "id": "c51",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BerthBookingApplication",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 150,
+        "end": 324
+      },
+      "claimId": "C-0051",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c27"
+    },
+    {
+      "id": "c52",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BerthController",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 336,
+        "end": 809
+      },
+      "claimId": "C-0052",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c28"
+    },
+    {
+      "id": "c53",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BerthRepository",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+        "start": 92,
+        "end": 206
+      },
+      "claimId": "C-0053",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c29"
+    },
+    {
+      "id": "c54",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BillingClient",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+        "start": 143,
+        "end": 300
+      },
+      "claimId": "C-0054",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c30"
+    },
+    {
+      "id": "c55",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BookingService",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 142,
+        "end": 739
+      },
+      "claimId": "C-0055",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c31"
+    },
+    {
+      "id": "c56",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BillingApplication",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 144,
+        "end": 191
+      },
+      "claimId": "C-0056",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c32"
+    },
+    {
+      "id": "c57",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BillingService",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+        "start": 294,
+        "end": 1077
+      },
+      "claimId": "C-0057",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c33"
+    },
+    {
+      "id": "c58",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Invoice",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+        "start": 103,
+        "end": 677
+      },
+      "claimId": "C-0058",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c34"
+    },
+    {
+      "id": "c59",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "InvoiceRepository",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+        "start": 105,
+        "end": 205
+      },
+      "claimId": "C-0059",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c35"
+    },
+    {
+      "id": "c60",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Money",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
+        "start": 105,
+        "end": 409
+      },
+      "claimId": "C-0060",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c36"
+    },
+    {
+      "id": "c61",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "BillingController",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+        "start": 499,
+        "end": 996
+      },
+      "claimId": "C-0061",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c37"
+    },
+    {
+      "id": "c62",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "PostgresInvoiceRepository",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+        "start": 246,
+        "end": 517
+      },
+      "claimId": "C-0062",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c38"
+    },
+    {
+      "id": "c63",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Berth",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 59,
+        "end": 139
+      },
+      "claimId": "C-0063",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c41"
+    },
+    {
+      "id": "c64",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Berth",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 59,
+        "end": 139
+      },
+      "claimId": "C-0064",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c41"
+    },
+    {
+      "id": "c65",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Health",
+      "evidence": {
+        "file": "tide-alerts/src/main.rs",
+        "start": 184,
+        "end": 221
+      },
+      "claimId": "C-0065",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c43"
+    },
+    {
+      "id": "c66",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "Reading",
+      "evidence": {
+        "file": "tide-alerts/src/store.rs",
+        "start": 126,
+        "end": 200
+      },
+      "claimId": "C-0066",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c44"
+    },
+    {
+      "id": "c67",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:docker Managed:docker Managed",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      },
+      "claimId": "C-0067",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 43 traced symbol(s), provenance fca:godin-v1"
       },
       "fields": {
         "confidence": 0.800000011920929,
         "coverage": 1.0,
         "provenance": "fca:godin-v1",
-        "symbols": 2
+        "symbols": 43
       },
       "parentId": "c0"
     },
     {
-      "id": "c45",
+      "id": "c68",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:write File:write File",
+      "label": "Concept:docker Managed+http Route:docker Managed & http Route",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      },
+      "claimId": "C-0068",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 10 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 10
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c69",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:di Injected+docker Managed:di Injected & docker Managed",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      },
+      "claimId": "C-0069",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 5 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c70",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:docker Managed+entrypoint:docker Managed & entrypoint",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 214,
+        "end": 322
+      },
+      "claimId": "C-0070",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c71",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:docker Managed+lock:docker Managed & lock",
+      "evidence": {
+        "file": "search/src/catalog.ts",
+        "start": 284,
+        "end": 349
+      },
+      "claimId": "C-0071",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 3 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 3
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c72",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:di Injected+docker Managed+write File:di Injected & docker Managed & write File",
       "evidence": {
         "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
         "start": 378,
         "end": 754
       },
-      "claimId": "C-0045",
+      "claimId": "C-0072",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -1242,7 +1971,34 @@
       "parentId": "c0"
     },
     {
-      "id": "c46",
+      "id": "c73",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:docker Managed+http Route+reads Input:docker Managed & http Route & reads Input",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 171,
+        "end": 504
+      },
+      "claimId": "C-0073",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 2 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 2
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c74",
       "elementKind": "invariant",
       "displayMode": "Inference",
       "label": "'invoice' must be preceded by established authorization",
@@ -1251,7 +2007,7 @@
         "start": 240,
         "end": 298
       },
-      "claimId": "C-0046",
+      "claimId": "C-0074",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -1266,7 +2022,7 @@
         "provenance": "rule:contract",
         "symbols": 1
       },
-      "parentId": "c5"
+      "parentId": "c30"
     }
   ],
   "edges": [
@@ -1284,9 +2040,21 @@
     },
     {
       "id": "h2",
-      "source": "c0",
+      "source": "c1",
       "target": "c2",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 0,
+        "end": 434
+      }
+    },
+    {
+      "id": "h3",
+      "source": "c1",
+      "target": "c3",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
@@ -1295,10 +2063,10 @@
       }
     },
     {
-      "id": "h3",
-      "source": "c0",
-      "target": "c3",
-      "edgeKind": "package_containment",
+      "id": "h4",
+      "source": "c1",
+      "target": "c4",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
@@ -1307,10 +2075,10 @@
       }
     },
     {
-      "id": "h4",
-      "source": "c0",
-      "target": "c4",
-      "edgeKind": "package_containment",
+      "id": "h5",
+      "source": "c1",
+      "target": "c5",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
@@ -1319,10 +2087,10 @@
       }
     },
     {
-      "id": "h5",
-      "source": "c0",
-      "target": "c5",
-      "edgeKind": "package_containment",
+      "id": "h6",
+      "source": "c1",
+      "target": "c6",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
@@ -1331,27 +2099,15 @@
       }
     },
     {
-      "id": "h6",
-      "source": "c0",
-      "target": "c6",
-      "edgeKind": "package_containment",
+      "id": "h7",
+      "source": "c1",
+      "target": "c7",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
         "start": 0,
         "end": 740
-      }
-    },
-    {
-      "id": "h7",
-      "source": "c0",
-      "target": "c7",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
-        "start": 0,
-        "end": 271
       }
     },
     {
@@ -1361,16 +2117,40 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-        "start": 0,
-        "end": 1078
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
       }
     },
     {
       "id": "h9",
-      "source": "c0",
+      "source": "c8",
       "target": "c9",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 0,
+        "end": 271
+      }
+    },
+    {
+      "id": "h10",
+      "source": "c8",
+      "target": "c10",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      }
+    },
+    {
+      "id": "h11",
+      "source": "c8",
+      "target": "c11",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
@@ -1379,39 +2159,15 @@
       }
     },
     {
-      "id": "h10",
-      "source": "c0",
-      "target": "c10",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-        "start": 0,
-        "end": 206
-      }
-    },
-    {
-      "id": "h11",
-      "source": "c0",
-      "target": "c11",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
-        "start": 0,
-        "end": 410
-      }
-    },
-    {
       "id": "h12",
-      "source": "c0",
+      "source": "c8",
       "target": "c12",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-        "start": 0,
-        "end": 997
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
       }
     },
     {
@@ -1421,16 +2177,16 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+        "file": "search/src/catalog.ts",
         "start": 0,
-        "end": 518
+        "end": 350
       }
     },
     {
       "id": "h14",
-      "source": "c0",
+      "source": "c13",
       "target": "c14",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "search/src/catalog.ts",
@@ -1440,9 +2196,9 @@
     },
     {
       "id": "h15",
-      "source": "c0",
+      "source": "c13",
       "target": "c15",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "search/src/search.ts",
@@ -1452,9 +2208,9 @@
     },
     {
       "id": "h16",
-      "source": "c0",
+      "source": "c13",
       "target": "c16",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "search/src/store.ts",
@@ -1469,16 +2225,28 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      }
+    },
+    {
+      "id": "h18",
+      "source": "c17",
+      "target": "c18",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
         "file": "tide-alerts/src/alert.rs",
         "start": 0,
         "end": 924
       }
     },
     {
-      "id": "h18",
-      "source": "c0",
-      "target": "c18",
-      "edgeKind": "package_containment",
+      "id": "h19",
+      "source": "c17",
+      "target": "c19",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
@@ -1487,27 +2255,15 @@
       }
     },
     {
-      "id": "h19",
-      "source": "c0",
-      "target": "c19",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "search/src/catalog.ts",
-        "start": 284,
-        "end": 349
-      }
-    },
-    {
       "id": "h20",
-      "source": "c0",
+      "source": "c17",
       "target": "c20",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
-        "file": "webhooks/app/__init__.py",
-        "start": 0,
-        "end": 47
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
       }
     },
     {
@@ -1517,16 +2273,28 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "webhooks/app/events.py",
+        "file": "webhooks/app/__init__.py",
         "start": 0,
-        "end": 396
+        "end": 47
       }
     },
     {
       "id": "h22",
-      "source": "c0",
+      "source": "c21",
       "target": "c22",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/__init__.py",
+        "start": 0,
+        "end": 47
+      }
+    },
+    {
+      "id": "h23",
+      "source": "c21",
+      "target": "c23",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "webhooks/app/store.py",
@@ -1535,10 +2303,10 @@
       }
     },
     {
-      "id": "h23",
-      "source": "c0",
-      "target": "c23",
-      "edgeKind": "package_containment",
+      "id": "h24",
+      "source": "c21",
+      "target": "c24",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "webhooks/app/webhook.py",
@@ -1547,27 +2315,15 @@
       }
     },
     {
-      "id": "h24",
-      "source": "c0",
-      "target": "c24",
-      "edgeKind": "package_containment",
+      "id": "h25",
+      "source": "c21",
+      "target": "c25",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "webhooks/main.py",
         "start": 0,
         "end": 40
-      }
-    },
-    {
-      "id": "h25",
-      "source": "c1",
-      "target": "c25",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
-        "start": 139,
-        "end": 433
       }
     },
     {
@@ -1577,9 +2333,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
-        "start": 150,
-        "end": 324
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 0,
+        "end": 434
       }
     },
     {
@@ -1589,9 +2345,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-        "start": 336,
-        "end": 809
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 0,
+        "end": 325
       }
     },
     {
@@ -1601,9 +2357,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
-        "start": 92,
-        "end": 206
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 0,
+        "end": 810
       }
     },
     {
@@ -1613,9 +2369,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
-        "start": 143,
-        "end": 300
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+        "start": 0,
+        "end": 207
       }
     },
     {
@@ -1625,9 +2381,9 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
-        "start": 142,
-        "end": 739
+        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+        "start": 0,
+        "end": 301
       }
     },
     {
@@ -1637,45 +2393,45 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
-        "start": 144,
-        "end": 191
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 0,
+        "end": 740
       }
     },
     {
       "id": "h32",
-      "source": "c8",
+      "source": "c9",
       "target": "c32",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-        "start": 294,
-        "end": 1077
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 0,
+        "end": 271
       }
     },
     {
       "id": "h33",
-      "source": "c9",
+      "source": "c10",
       "target": "c33",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
-        "start": 103,
-        "end": 677
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
       }
     },
     {
       "id": "h34",
-      "source": "c10",
+      "source": "c11",
       "target": "c34",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-        "start": 105,
-        "end": 205
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+        "start": 0,
+        "end": 678
       }
     },
     {
@@ -1685,15 +2441,447 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+        "start": 0,
+        "end": 206
+      }
+    },
+    {
+      "id": "h36",
+      "source": "c11",
+      "target": "c36",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
+        "start": 0,
+        "end": 410
+      }
+    },
+    {
+      "id": "h37",
+      "source": "c12",
+      "target": "c37",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      }
+    },
+    {
+      "id": "h38",
+      "source": "c12",
+      "target": "c38",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+        "start": 0,
+        "end": 518
+      }
+    },
+    {
+      "id": "h39",
+      "source": "c14",
+      "target": "c39",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "search/src/catalog.ts",
+        "start": 0,
+        "end": 350
+      }
+    },
+    {
+      "id": "h40",
+      "source": "c15",
+      "target": "c40",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "search/src/search.ts",
+        "start": 0,
+        "end": 693
+      }
+    },
+    {
+      "id": "h41",
+      "source": "c16",
+      "target": "c41",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 0,
+        "end": 645
+      }
+    },
+    {
+      "id": "h42",
+      "source": "c18",
+      "target": "c42",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "tide-alerts/src/alert.rs",
+        "start": 0,
+        "end": 924
+      }
+    },
+    {
+      "id": "h43",
+      "source": "c19",
+      "target": "c43",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 214,
+        "end": 322
+      }
+    },
+    {
+      "id": "h44",
+      "source": "c20",
+      "target": "c44",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      }
+    },
+    {
+      "id": "h45",
+      "source": "c22",
+      "target": "c45",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/__init__.py",
+        "start": 0,
+        "end": 47
+      }
+    },
+    {
+      "id": "h46",
+      "source": "c22",
+      "target": "c46",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/events.py",
+        "start": 0,
+        "end": 396
+      }
+    },
+    {
+      "id": "h47",
+      "source": "c23",
+      "target": "c47",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/store.py",
+        "start": 0,
+        "end": 316
+      }
+    },
+    {
+      "id": "h48",
+      "source": "c24",
+      "target": "c48",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 0,
+        "end": 682
+      }
+    },
+    {
+      "id": "h49",
+      "source": "c25",
+      "target": "c49",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/main.py",
+        "start": 0,
+        "end": 40
+      }
+    },
+    {
+      "id": "h50",
+      "source": "c26",
+      "target": "c50",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 139,
+        "end": 433
+      }
+    },
+    {
+      "id": "x2-50",
+      "source": "c2",
+      "target": "c50",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 139,
+        "end": 433
+      }
+    },
+    {
+      "id": "h51",
+      "source": "c27",
+      "target": "c51",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 150,
+        "end": 324
+      }
+    },
+    {
+      "id": "x3-51",
+      "source": "c3",
+      "target": "c51",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 150,
+        "end": 324
+      }
+    },
+    {
+      "id": "h52",
+      "source": "c28",
+      "target": "c52",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 336,
+        "end": 809
+      }
+    },
+    {
+      "id": "x4-52",
+      "source": "c4",
+      "target": "c52",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 336,
+        "end": 809
+      }
+    },
+    {
+      "id": "h53",
+      "source": "c29",
+      "target": "c53",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+        "start": 92,
+        "end": 206
+      }
+    },
+    {
+      "id": "x5-53",
+      "source": "c5",
+      "target": "c53",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+        "start": 92,
+        "end": 206
+      }
+    },
+    {
+      "id": "h54",
+      "source": "c30",
+      "target": "c54",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+        "start": 143,
+        "end": 300
+      }
+    },
+    {
+      "id": "x6-54",
+      "source": "c6",
+      "target": "c54",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+        "start": 143,
+        "end": 300
+      }
+    },
+    {
+      "id": "h55",
+      "source": "c31",
+      "target": "c55",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 142,
+        "end": 739
+      }
+    },
+    {
+      "id": "x7-55",
+      "source": "c7",
+      "target": "c55",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 142,
+        "end": 739
+      }
+    },
+    {
+      "id": "h56",
+      "source": "c32",
+      "target": "c56",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 144,
+        "end": 191
+      }
+    },
+    {
+      "id": "x9-56",
+      "source": "c9",
+      "target": "c56",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+        "start": 144,
+        "end": 191
+      }
+    },
+    {
+      "id": "h57",
+      "source": "c33",
+      "target": "c57",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+        "start": 294,
+        "end": 1077
+      }
+    },
+    {
+      "id": "x10-57",
+      "source": "c10",
+      "target": "c57",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+        "start": 294,
+        "end": 1077
+      }
+    },
+    {
+      "id": "h58",
+      "source": "c34",
+      "target": "c58",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+        "start": 103,
+        "end": 677
+      }
+    },
+    {
+      "id": "x11-58",
+      "source": "c11",
+      "target": "c58",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+        "start": 103,
+        "end": 677
+      }
+    },
+    {
+      "id": "h59",
+      "source": "c35",
+      "target": "c59",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+        "start": 105,
+        "end": 205
+      }
+    },
+    {
+      "id": "x11-59",
+      "source": "c11",
+      "target": "c59",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+        "start": 105,
+        "end": 205
+      }
+    },
+    {
+      "id": "h60",
+      "source": "c36",
+      "target": "c60",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
         "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
         "start": 105,
         "end": 409
       }
     },
     {
-      "id": "h36",
-      "source": "c12",
-      "target": "c36",
+      "id": "x11-60",
+      "source": "c11",
+      "target": "c60",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
+        "start": 105,
+        "end": 409
+      }
+    },
+    {
+      "id": "h61",
+      "source": "c37",
+      "target": "c61",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1703,9 +2891,21 @@
       }
     },
     {
-      "id": "h37",
-      "source": "c13",
-      "target": "c37",
+      "id": "x12-61",
+      "source": "c12",
+      "target": "c61",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+        "start": 499,
+        "end": 996
+      }
+    },
+    {
+      "id": "h62",
+      "source": "c38",
+      "target": "c62",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1715,9 +2915,21 @@
       }
     },
     {
-      "id": "h38",
-      "source": "c16",
-      "target": "c38",
+      "id": "x12-62",
+      "source": "c12",
+      "target": "c62",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+        "start": 246,
+        "end": 517
+      }
+    },
+    {
+      "id": "h63",
+      "source": "c41",
+      "target": "c63",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1727,9 +2939,21 @@
       }
     },
     {
-      "id": "h39",
+      "id": "x16-63",
       "source": "c16",
-      "target": "c39",
+      "target": "c63",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 59,
+        "end": 139
+      }
+    },
+    {
+      "id": "h64",
+      "source": "c41",
+      "target": "c64",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1739,9 +2963,21 @@
       }
     },
     {
-      "id": "h40",
-      "source": "c18",
-      "target": "c40",
+      "id": "x16-64",
+      "source": "c16",
+      "target": "c64",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "search/src/store.ts",
+        "start": 59,
+        "end": 139
+      }
+    },
+    {
+      "id": "h65",
+      "source": "c43",
+      "target": "c65",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1751,9 +2987,21 @@
       }
     },
     {
-      "id": "h41",
+      "id": "x19-65",
       "source": "c19",
-      "target": "c41",
+      "target": "c65",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "tide-alerts/src/main.rs",
+        "start": 184,
+        "end": 221
+      }
+    },
+    {
+      "id": "h66",
+      "source": "c44",
+      "target": "c66",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -1763,9 +3011,93 @@
       }
     },
     {
-      "id": "h42",
+      "id": "x20-66",
+      "source": "c20",
+      "target": "c66",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "tide-alerts/src/store.rs",
+        "start": 126,
+        "end": 200
+      }
+    },
+    {
+      "id": "h67",
       "source": "c0",
-      "target": "c42",
+      "target": "c67",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      }
+    },
+    {
+      "id": "x44-67",
+      "source": "c44",
+      "target": "c67",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      }
+    },
+    {
+      "id": "h68",
+      "source": "c0",
+      "target": "c68",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      }
+    },
+    {
+      "id": "x37-68",
+      "source": "c37",
+      "target": "c68",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      }
+    },
+    {
+      "id": "h69",
+      "source": "c0",
+      "target": "c69",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      }
+    },
+    {
+      "id": "x33-69",
+      "source": "c33",
+      "target": "c69",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      }
+    },
+    {
+      "id": "h70",
+      "source": "c0",
+      "target": "c70",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
       "evidence": {
@@ -1775,9 +3107,9 @@
       }
     },
     {
-      "id": "x18-42",
-      "source": "c18",
-      "target": "c42",
+      "id": "x43-70",
+      "source": "c43",
+      "target": "c70",
       "edgeKind": "cluster_cohesion",
       "displayMode": "Inference",
       "evidence": {
@@ -1787,9 +3119,9 @@
       }
     },
     {
-      "id": "h43",
+      "id": "h71",
       "source": "c0",
-      "target": "c43",
+      "target": "c71",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
       "evidence": {
@@ -1799,9 +3131,9 @@
       }
     },
     {
-      "id": "x19-43",
-      "source": "c19",
-      "target": "c43",
+      "id": "x44-71",
+      "source": "c44",
+      "target": "c71",
       "edgeKind": "cluster_cohesion",
       "displayMode": "Inference",
       "evidence": {
@@ -1811,33 +3143,9 @@
       }
     },
     {
-      "id": "h44",
+      "id": "h72",
       "source": "c0",
-      "target": "c44",
-      "edgeKind": "fca_subsumption",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "webhooks/app/webhook.py",
-        "start": 171,
-        "end": 504
-      }
-    },
-    {
-      "id": "x23-44",
-      "source": "c23",
-      "target": "c44",
-      "edgeKind": "cluster_cohesion",
-      "displayMode": "Inference",
-      "evidence": {
-        "file": "webhooks/app/webhook.py",
-        "start": 171,
-        "end": 504
-      }
-    },
-    {
-      "id": "h45",
-      "source": "c0",
-      "target": "c45",
+      "target": "c72",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
       "evidence": {
@@ -1847,9 +3155,9 @@
       }
     },
     {
-      "id": "x8-45",
-      "source": "c8",
-      "target": "c45",
+      "id": "x33-72",
+      "source": "c33",
+      "target": "c72",
       "edgeKind": "cluster_cohesion",
       "displayMode": "Inference",
       "evidence": {
@@ -1859,9 +3167,33 @@
       }
     },
     {
-      "id": "h46",
-      "source": "c5",
-      "target": "c46",
+      "id": "h73",
+      "source": "c0",
+      "target": "c73",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 171,
+        "end": 504
+      }
+    },
+    {
+      "id": "x48-73",
+      "source": "c48",
+      "target": "c73",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "webhooks/app/webhook.py",
+        "start": 171,
+        "end": 504
+      }
+    },
+    {
+      "id": "h74",
+      "source": "c30",
+      "target": "c74",
       "edgeKind": "call_ownership",
       "displayMode": "Fact",
       "evidence": {
@@ -1869,23 +3201,11 @@
         "start": 240,
         "end": 298
       }
-    },
-    {
-      "id": "k14-16",
-      "source": "c14",
-      "target": "c16",
-      "edgeKind": "calls",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "search/src/catalog.ts",
-        "start": 119,
-        "end": 275
-      }
     }
   ],
   "footer": {
     "facts": 0,
-    "inferences": 47,
+    "inferences": 75,
     "hypotheses": 0,
     "fog": 0,
     "stale": 0,
@@ -1904,6 +3224,6 @@
   "layoutHint": {
     "strategy": "dagre"
   },
-  "semanticHash": "sha256:01510d506d77af22f6e7628e9075553a7d096365dc613f10a2a477f0c82eadc9",
-  "renderHash": "sha256:b4adc45224acc99b9a50c5b42d588115a0ec6c7bc363351f918107d6d38e74d4"
+  "semanticHash": "sha256:80b6cdc4cfd325dc3067a9255aeedec9a8d4a8cae04f8404cb996743cb70a456",
+  "renderHash": "sha256:3a4ec7f0b814e49c65fd16c37094ca4081848f8a7b28084f1b5ba4dda25bc1b7"
 }

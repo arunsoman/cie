@@ -3,23 +3,24 @@
     {
       "id": "c0",
       "elementKind": "domain",
-      "displayMode": "Fact",
+      "displayMode": "Inference",
       "label": "Project",
       "evidence": {
         "file": "src/main/java/com/mipay/MpayApplication.java",
         "start": 0,
         "end": 393
       },
+      "claimId": "C-0000",
       "salience": {
         "factors": [
           "COVERAGE",
           "CONFIDENCE"
         ],
-        "weight": 1.0,
+        "weight": 0.7,
         "whyShown": "Domain concept with 47 traced symbol(s), provenance rule"
       },
       "fields": {
-        "confidence": 1.0,
+        "confidence": 0.699999988079071,
         "coverage": 1.0,
         "provenance": "rule",
         "symbols": 47
@@ -27,6 +28,222 @@
     },
     {
       "id": "c1",
+      "elementKind": "container",
+      "displayMode": "Inference",
+      "label": "spring-demo",
+      "evidence": {
+        "file": "src/main/java/com/mipay/MpayApplication.java",
+        "start": 0,
+        "end": 393
+      },
+      "claimId": "C-0001",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Container concept with 47 traced symbol(s), provenance stack:apps"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:apps",
+        "symbols": 47
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c2",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root boot",
+      "evidence": {
+        "file": "src/main/java/com/mipay/MpayApplication.java",
+        "start": 0,
+        "end": 393
+      },
+      "claimId": "C-0002",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 23 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 23
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c3",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root core",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
+        "start": 0,
+        "end": 261
+      },
+      "claimId": "C-0003",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.7,
+        "whyShown": "Service concept with 6 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.699999988079071,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 6
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c4",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root config",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
+        "start": 0,
+        "end": 246
+      },
+      "claimId": "C-0004",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 2 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 2
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c5",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root service",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 0,
+        "end": 1184
+      },
+      "claimId": "C-0005",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Service concept with 8 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 8
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c6",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root entity",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 0,
+        "end": 548
+      },
+      "claimId": "C-0006",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 4 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 4
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c7",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root web",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 0,
+        "end": 976
+      },
+      "claimId": "C-0007",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Service concept with 9 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 9
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c8",
+      "elementKind": "service",
+      "displayMode": "Inference",
+      "label": "app root repository",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 0,
+        "end": 239
+      },
+      "claimId": "C-0008",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Service concept with 4 traced symbol(s), provenance stack:roles"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:roles",
+        "symbols": 4
+      },
+      "parentId": "c1"
+    },
+    {
+      "id": "c9",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "src/main/java/com/mipay/MpayApplication.java",
@@ -35,7 +252,7 @@
         "start": 0,
         "end": 393
       },
-      "claimId": "C-0001",
+      "claimId": "C-0009",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -50,10 +267,10 @@
         "provenance": "rule:package",
         "symbols": 23
       },
-      "parentId": "c0"
+      "parentId": "c2"
     },
     {
-      "id": "c2",
+      "id": "c10",
       "elementKind": "module",
       "displayMode": "Inference",
       "label": "src/main/java/com/mipay/config/CleanupScheduler.java",
@@ -61,222 +278,6 @@
         "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
         "start": 0,
         "end": 261
-      },
-      "claimId": "C-0002",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c3",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/config/SecurityConfig.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
-        "start": 0,
-        "end": 246
-      },
-      "claimId": "C-0003",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c4",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/wallet/LedgerAudit.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
-        "start": 0,
-        "end": 449
-      },
-      "claimId": "C-0004",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c5",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/wallet/TransactionService.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
-        "start": 0,
-        "end": 1184
-      },
-      "claimId": "C-0005",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c6",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/wallet/Wallet.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/Wallet.java",
-        "start": 0,
-        "end": 548
-      },
-      "claimId": "C-0006",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c7",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/wallet/WalletController.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletController.java",
-        "start": 0,
-        "end": 976
-      },
-      "claimId": "C-0007",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c8",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/java/com/mipay/wallet/WalletRepository.java",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
-        "start": 0,
-        "end": 239
-      },
-      "claimId": "C-0008",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c9",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-      "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-        "start": 0,
-        "end": 901
-      },
-      "claimId": "C-0009",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:package",
-        "symbols": 2
-      },
-      "parentId": "c0"
-    },
-    {
-      "id": "c10",
-      "elementKind": "module",
-      "displayMode": "Inference",
-      "label": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
-      "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
-        "start": 0,
-        "end": 271
       },
       "claimId": "C-0010",
       "salience": {
@@ -293,17 +294,17 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c3"
     },
     {
       "id": "c11",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+      "label": "src/main/java/com/mipay/config/SecurityConfig.java",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
         "start": 0,
-        "end": 256
+        "end": 246
       },
       "claimId": "C-0011",
       "salience": {
@@ -320,17 +321,17 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c4"
     },
     {
       "id": "c12",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+      "label": "src/main/java/com/mipay/wallet/LedgerAudit.java",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
         "start": 0,
-        "end": 350
+        "end": 449
       },
       "claimId": "C-0012",
       "salience": {
@@ -347,19 +348,46 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c3"
     },
     {
       "id": "c13",
       "elementKind": "module",
       "displayMode": "Inference",
-      "label": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+      "label": "src/main/java/com/mipay/wallet/TransactionService.java",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
         "start": 0,
-        "end": 170
+        "end": 1184
       },
       "claimId": "C-0013",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Module concept with 6 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 6
+      },
+      "parentId": "c5"
+    },
+    {
+      "id": "c14",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/java/com/mipay/wallet/Wallet.java",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 0,
+        "end": 548
+      },
+      "claimId": "C-0014",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -374,10 +402,199 @@
         "provenance": "rule:package",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c6"
     },
     {
-      "id": "c14",
+      "id": "c15",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/java/com/mipay/wallet/WalletController.java",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 0,
+        "end": 976
+      },
+      "claimId": "C-0015",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "Module concept with 7 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 7
+      },
+      "parentId": "c7"
+    },
+    {
+      "id": "c16",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/java/com/mipay/wallet/WalletRepository.java",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 0,
+        "end": 239
+      },
+      "claimId": "C-0016",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c17",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+        "start": 0,
+        "end": 901
+      },
+      "claimId": "C-0017",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c7"
+    },
+    {
+      "id": "c18",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+        "start": 0,
+        "end": 271
+      },
+      "claimId": "C-0018",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c6"
+    },
+    {
+      "id": "c19",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+        "start": 0,
+        "end": 256
+      },
+      "claimId": "C-0019",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c8"
+    },
+    {
+      "id": "c20",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+        "start": 0,
+        "end": 350
+      },
+      "claimId": "C-0020",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c5"
+    },
+    {
+      "id": "c21",
+      "elementKind": "module",
+      "displayMode": "Inference",
+      "label": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+        "start": 0,
+        "end": 170
+      },
+      "claimId": "C-0021",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Module concept with 2 traced symbol(s), provenance rule:package"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:package",
+        "symbols": 2
+      },
+      "parentId": "c3"
+    },
+    {
+      "id": "c22",
       "elementKind": "entity",
       "displayMode": "Inference",
       "label": "MpayApplication",
@@ -386,7 +603,7 @@
         "start": 208,
         "end": 392
       },
-      "claimId": "C-0014",
+      "claimId": "C-0022",
       "salience": {
         "factors": [
           "COVERAGE",
@@ -401,10 +618,10 @@
         "provenance": "rule:structure",
         "symbols": 22
       },
-      "parentId": "c1"
+      "parentId": "c9"
     },
     {
-      "id": "c15",
+      "id": "c23",
       "elementKind": "value",
       "displayMode": "Inference",
       "label": "CleanupScheduler",
@@ -412,222 +629,6 @@
         "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
         "start": 137,
         "end": 260
-      },
-      "claimId": "C-0015",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c2"
-    },
-    {
-      "id": "c16",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "SecurityConfig",
-      "evidence": {
-        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
-        "start": 180,
-        "end": 245
-      },
-      "claimId": "C-0016",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c3"
-    },
-    {
-      "id": "c17",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "LedgerAudit",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
-        "start": 130,
-        "end": 448
-      },
-      "claimId": "C-0017",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c4"
-    },
-    {
-      "id": "c18",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "TransactionService",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
-        "start": 140,
-        "end": 1183
-      },
-      "claimId": "C-0018",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c5"
-    },
-    {
-      "id": "c19",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "Wallet",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/Wallet.java",
-        "start": 128,
-        "end": 547
-      },
-      "claimId": "C-0019",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c6"
-    },
-    {
-      "id": "c20",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "WalletController",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletController.java",
-        "start": 121,
-        "end": 975
-      },
-      "claimId": "C-0020",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c7"
-    },
-    {
-      "id": "c21",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "WalletRepository",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
-        "start": 117,
-        "end": 238
-      },
-      "claimId": "C-0021",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c8"
-    },
-    {
-      "id": "c22",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "KycController",
-      "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-        "start": 266,
-        "end": 900
-      },
-      "claimId": "C-0022",
-      "salience": {
-        "factors": [
-          "COVERAGE",
-          "CONFIDENCE"
-        ],
-        "weight": 1.0,
-        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
-      },
-      "fields": {
-        "confidence": 1.0,
-        "coverage": 1.0,
-        "provenance": "rule:structure",
-        "symbols": 1
-      },
-      "parentId": "c9"
-    },
-    {
-      "id": "c23",
-      "elementKind": "value",
-      "displayMode": "Inference",
-      "label": "KycRecord",
-      "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
-        "start": 121,
-        "end": 270
       },
       "claimId": "C-0023",
       "salience": {
@@ -650,11 +651,11 @@
       "id": "c24",
       "elementKind": "value",
       "displayMode": "Inference",
-      "label": "KycRepository",
+      "label": "SecurityConfig",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
-        "start": 134,
-        "end": 255
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
+        "start": 180,
+        "end": 245
       },
       "claimId": "C-0024",
       "salience": {
@@ -677,11 +678,11 @@
       "id": "c25",
       "elementKind": "value",
       "displayMode": "Inference",
-      "label": "KycService",
+      "label": "LedgerAudit",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
-        "start": 70,
-        "end": 349
+        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
+        "start": 130,
+        "end": 448
       },
       "claimId": "C-0025",
       "salience": {
@@ -704,11 +705,11 @@
       "id": "c26",
       "elementKind": "value",
       "displayMode": "Inference",
-      "label": "RiskClient",
+      "label": "TransactionService",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
-        "start": 72,
-        "end": 169
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 140,
+        "end": 1183
       },
       "claimId": "C-0026",
       "salience": {
@@ -726,6 +727,276 @@
         "symbols": 1
       },
       "parentId": "c13"
+    },
+    {
+      "id": "c27",
+      "elementKind": "aggregate",
+      "displayMode": "Inference",
+      "label": "Wallet",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 128,
+        "end": 547
+      },
+      "claimId": "C-0027",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Aggregate concept with 1 traced symbol(s), provenance stack:aggregate"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:aggregate",
+        "symbols": 1
+      },
+      "parentId": "c14"
+    },
+    {
+      "id": "c28",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "WalletController",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 121,
+        "end": 975
+      },
+      "claimId": "C-0028",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c15"
+    },
+    {
+      "id": "c29",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "WalletRepository",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 117,
+        "end": 238
+      },
+      "claimId": "C-0029",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c16"
+    },
+    {
+      "id": "c30",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "KycController",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+        "start": 266,
+        "end": 900
+      },
+      "claimId": "C-0030",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c17"
+    },
+    {
+      "id": "c31",
+      "elementKind": "aggregate",
+      "displayMode": "Inference",
+      "label": "KycRecord",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+        "start": 121,
+        "end": 270
+      },
+      "claimId": "C-0031",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Aggregate concept with 1 traced symbol(s), provenance stack:aggregate"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "stack:aggregate",
+        "symbols": 1
+      },
+      "parentId": "c18"
+    },
+    {
+      "id": "c32",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "KycRepository",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+        "start": 134,
+        "end": 255
+      },
+      "claimId": "C-0032",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c19"
+    },
+    {
+      "id": "c33",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "KycService",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+        "start": 70,
+        "end": 349
+      },
+      "claimId": "C-0033",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c20"
+    },
+    {
+      "id": "c34",
+      "elementKind": "value",
+      "displayMode": "Inference",
+      "label": "RiskClient",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+        "start": 72,
+        "end": 169
+      },
+      "claimId": "C-0034",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 1.0,
+        "whyShown": "Value concept with 1 traced symbol(s), provenance rule:structure"
+      },
+      "fields": {
+        "confidence": 1.0,
+        "coverage": 1.0,
+        "provenance": "rule:structure",
+        "symbols": 1
+      },
+      "parentId": "c21"
+    },
+    {
+      "id": "c35",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:http Route:http Route",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 248,
+        "end": 339
+      },
+      "claimId": "C-0035",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 5 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 5
+      },
+      "parentId": "c0"
+    },
+    {
+      "id": "c36",
+      "elementKind": "usecase",
+      "displayMode": "Inference",
+      "label": "Concept:di Injected:di Injected",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 270,
+        "end": 408
+      },
+      "claimId": "C-0036",
+      "salience": {
+        "factors": [
+          "COVERAGE",
+          "CONFIDENCE"
+        ],
+        "weight": 0.8,
+        "whyShown": "UseCase concept with 4 traced symbol(s), provenance fca:godin-v1"
+      },
+      "fields": {
+        "confidence": 0.800000011920929,
+        "coverage": 1.0,
+        "provenance": "fca:godin-v1",
+        "symbols": 4
+      },
+      "parentId": "c0"
     }
   ],
   "edges": [
@@ -743,9 +1014,21 @@
     },
     {
       "id": "h2",
-      "source": "c0",
+      "source": "c1",
       "target": "c2",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/MpayApplication.java",
+        "start": 0,
+        "end": 393
+      }
+    },
+    {
+      "id": "h3",
+      "source": "c1",
+      "target": "c3",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
@@ -754,10 +1037,10 @@
       }
     },
     {
-      "id": "h3",
-      "source": "c0",
-      "target": "c3",
-      "edgeKind": "package_containment",
+      "id": "h4",
+      "source": "c1",
+      "target": "c4",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/config/SecurityConfig.java",
@@ -766,22 +1049,10 @@
       }
     },
     {
-      "id": "h4",
-      "source": "c0",
-      "target": "c4",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
-        "start": 0,
-        "end": 449
-      }
-    },
-    {
       "id": "h5",
-      "source": "c0",
+      "source": "c1",
       "target": "c5",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/TransactionService.java",
@@ -791,9 +1062,9 @@
     },
     {
       "id": "h6",
-      "source": "c0",
+      "source": "c1",
       "target": "c6",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/Wallet.java",
@@ -803,9 +1074,9 @@
     },
     {
       "id": "h7",
-      "source": "c0",
+      "source": "c1",
       "target": "c7",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/WalletController.java",
@@ -815,9 +1086,9 @@
     },
     {
       "id": "h8",
-      "source": "c0",
+      "source": "c1",
       "target": "c8",
-      "edgeKind": "package_containment",
+      "edgeKind": "cluster_cohesion",
       "displayMode": "Fact",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
@@ -827,8 +1098,104 @@
     },
     {
       "id": "h9",
-      "source": "c0",
+      "source": "c2",
       "target": "c9",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/MpayApplication.java",
+        "start": 0,
+        "end": 393
+      }
+    },
+    {
+      "id": "h10",
+      "source": "c3",
+      "target": "c10",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
+        "start": 0,
+        "end": 261
+      }
+    },
+    {
+      "id": "h11",
+      "source": "c4",
+      "target": "c11",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
+        "start": 0,
+        "end": 246
+      }
+    },
+    {
+      "id": "h12",
+      "source": "c3",
+      "target": "c12",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
+        "start": 0,
+        "end": 449
+      }
+    },
+    {
+      "id": "h13",
+      "source": "c5",
+      "target": "c13",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 0,
+        "end": 1184
+      }
+    },
+    {
+      "id": "h14",
+      "source": "c6",
+      "target": "c14",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 0,
+        "end": 548
+      }
+    },
+    {
+      "id": "h15",
+      "source": "c7",
+      "target": "c15",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 0,
+        "end": 976
+      }
+    },
+    {
+      "id": "h16",
+      "source": "c8",
+      "target": "c16",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 0,
+        "end": 239
+      }
+    },
+    {
+      "id": "h17",
+      "source": "c7",
+      "target": "c17",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -838,9 +1205,9 @@
       }
     },
     {
-      "id": "h10",
-      "source": "c0",
-      "target": "c10",
+      "id": "h18",
+      "source": "c6",
+      "target": "c18",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -850,9 +1217,9 @@
       }
     },
     {
-      "id": "h11",
-      "source": "c0",
-      "target": "c11",
+      "id": "h19",
+      "source": "c8",
+      "target": "c19",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -862,9 +1229,9 @@
       }
     },
     {
-      "id": "h12",
-      "source": "c0",
-      "target": "c12",
+      "id": "h20",
+      "source": "c5",
+      "target": "c20",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -874,9 +1241,9 @@
       }
     },
     {
-      "id": "h13",
-      "source": "c0",
-      "target": "c13",
+      "id": "h21",
+      "source": "c3",
+      "target": "c21",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -886,9 +1253,9 @@
       }
     },
     {
-      "id": "h14",
-      "source": "c1",
-      "target": "c14",
+      "id": "h22",
+      "source": "c9",
+      "target": "c22",
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
@@ -898,99 +1265,15 @@
       }
     },
     {
-      "id": "h15",
+      "id": "x2-22",
       "source": "c2",
-      "target": "c15",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
-        "start": 137,
-        "end": 260
-      }
-    },
-    {
-      "id": "h16",
-      "source": "c3",
-      "target": "c16",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
-        "start": 180,
-        "end": 245
-      }
-    },
-    {
-      "id": "h17",
-      "source": "c4",
-      "target": "c17",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
-        "start": 130,
-        "end": 448
-      }
-    },
-    {
-      "id": "h18",
-      "source": "c5",
-      "target": "c18",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
-        "start": 140,
-        "end": 1183
-      }
-    },
-    {
-      "id": "h19",
-      "source": "c6",
-      "target": "c19",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/Wallet.java",
-        "start": 128,
-        "end": 547
-      }
-    },
-    {
-      "id": "h20",
-      "source": "c7",
-      "target": "c20",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletController.java",
-        "start": 121,
-        "end": 975
-      }
-    },
-    {
-      "id": "h21",
-      "source": "c8",
-      "target": "c21",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
-      "evidence": {
-        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
-        "start": 117,
-        "end": 238
-      }
-    },
-    {
-      "id": "h22",
-      "source": "c9",
       "target": "c22",
-      "edgeKind": "package_containment",
-      "displayMode": "Fact",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-        "start": 266,
-        "end": 900
+        "file": "src/main/java/com/mipay/MpayApplication.java",
+        "start": 208,
+        "end": 392
       }
     },
     {
@@ -1000,9 +1283,21 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
-        "start": 121,
-        "end": 270
+        "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
+        "start": 137,
+        "end": 260
+      }
+    },
+    {
+      "id": "x3-23",
+      "source": "c3",
+      "target": "c23",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
+        "start": 137,
+        "end": 260
       }
     },
     {
@@ -1012,9 +1307,21 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
-        "start": 134,
-        "end": 255
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
+        "start": 180,
+        "end": 245
+      }
+    },
+    {
+      "id": "x4-24",
+      "source": "c4",
+      "target": "c24",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/config/SecurityConfig.java",
+        "start": 180,
+        "end": 245
       }
     },
     {
@@ -1024,9 +1331,21 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
-        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
-        "start": 70,
-        "end": 349
+        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
+        "start": 130,
+        "end": 448
+      }
+    },
+    {
+      "id": "x3-25",
+      "source": "c3",
+      "target": "c25",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/LedgerAudit.java",
+        "start": 130,
+        "end": 448
       }
     },
     {
@@ -1036,15 +1355,267 @@
       "edgeKind": "package_containment",
       "displayMode": "Fact",
       "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 140,
+        "end": 1183
+      }
+    },
+    {
+      "id": "x5-26",
+      "source": "c5",
+      "target": "c26",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 140,
+        "end": 1183
+      }
+    },
+    {
+      "id": "h27",
+      "source": "c14",
+      "target": "c27",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 128,
+        "end": 547
+      }
+    },
+    {
+      "id": "x6-27",
+      "source": "c6",
+      "target": "c27",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/Wallet.java",
+        "start": 128,
+        "end": 547
+      }
+    },
+    {
+      "id": "h28",
+      "source": "c15",
+      "target": "c28",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 121,
+        "end": 975
+      }
+    },
+    {
+      "id": "x7-28",
+      "source": "c7",
+      "target": "c28",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 121,
+        "end": 975
+      }
+    },
+    {
+      "id": "h29",
+      "source": "c16",
+      "target": "c29",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 117,
+        "end": 238
+      }
+    },
+    {
+      "id": "x8-29",
+      "source": "c8",
+      "target": "c29",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
+        "start": 117,
+        "end": 238
+      }
+    },
+    {
+      "id": "h30",
+      "source": "c17",
+      "target": "c30",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+        "start": 266,
+        "end": 900
+      }
+    },
+    {
+      "id": "x7-30",
+      "source": "c7",
+      "target": "c30",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+        "start": 266,
+        "end": 900
+      }
+    },
+    {
+      "id": "h31",
+      "source": "c18",
+      "target": "c31",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+        "start": 121,
+        "end": 270
+      }
+    },
+    {
+      "id": "x6-31",
+      "source": "c6",
+      "target": "c31",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+        "start": 121,
+        "end": 270
+      }
+    },
+    {
+      "id": "h32",
+      "source": "c19",
+      "target": "c32",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+        "start": 134,
+        "end": 255
+      }
+    },
+    {
+      "id": "x8-32",
+      "source": "c8",
+      "target": "c32",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+        "start": 134,
+        "end": 255
+      }
+    },
+    {
+      "id": "h33",
+      "source": "c20",
+      "target": "c33",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+        "start": 70,
+        "end": 349
+      }
+    },
+    {
+      "id": "x5-33",
+      "source": "c5",
+      "target": "c33",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+        "start": 70,
+        "end": 349
+      }
+    },
+    {
+      "id": "h34",
+      "source": "c21",
+      "target": "c34",
+      "edgeKind": "package_containment",
+      "displayMode": "Fact",
+      "evidence": {
         "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
         "start": 72,
         "end": 169
       }
+    },
+    {
+      "id": "x3-34",
+      "source": "c3",
+      "target": "c34",
+      "edgeKind": "call_ownership",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+        "start": 72,
+        "end": 169
+      }
+    },
+    {
+      "id": "h35",
+      "source": "c0",
+      "target": "c35",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 248,
+        "end": 339
+      }
+    },
+    {
+      "id": "x15-35",
+      "source": "c15",
+      "target": "c35",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 248,
+        "end": 339
+      }
+    },
+    {
+      "id": "h36",
+      "source": "c0",
+      "target": "c36",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Fact",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 270,
+        "end": 408
+      }
+    },
+    {
+      "id": "x13-36",
+      "source": "c13",
+      "target": "c36",
+      "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 270,
+        "end": 408
+      }
     }
   ],
   "footer": {
-    "facts": 1,
-    "inferences": 26,
+    "facts": 0,
+    "inferences": 37,
     "hypotheses": 0,
     "fog": 0,
     "stale": 0,
@@ -1061,8 +1632,8 @@
     }
   },
   "layoutHint": {
-    "strategy": "compact-box"
+    "strategy": "dagre"
   },
-  "semanticHash": "sha256:8ceff444c40fad6fe8c3d603f1d0f8b765f01abd4fbe9299dbb8c256393a75d4",
-  "renderHash": "sha256:04df4aca0474b5d2917be1f4f95fd661b729caa1870c8224bcefbde4160a9629"
+  "semanticHash": "sha256:7aa8e6a286173c8268c04f4481edace4b30945193f47a7f5d410c8772bccc2b7",
+  "renderHash": "sha256:c2afc2c5ac32b514b0451392be71086b2ae1f872f0a7046de35314ae5193fbed"
 }

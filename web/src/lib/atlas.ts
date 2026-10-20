@@ -43,10 +43,47 @@ export interface AtlasSelection {
 
 export const ATLAS_RESET: AtlasSelection = { primary: null, scope: "system" };
 
-/** Same grouping buildC4Spec uses — the two views must never disagree. */
-export function containerOfPath(f: string): string {
+/** Same grouping buildC4Spec uses — the two views must never disagree.
+ *  RFC-0019 §6.5: when the stack artifact names the real apps, a file's
+ *  container is the app dir that claims it (longest prefix first; a root
+ *  app keeps the leftovers) — not the first path segment. Without apps the
+ *  first-segment heuristic stands, exactly as before. */
+export function containerOfPath(f: string, apps?: { dir: string }[] | null): string {
+  if (apps && apps.length) {
+    const dirs = apps.map((a) => a.dir).sort((a, b) => b.length - a.length);
+    for (const d of dirs) {
+      if (d && (f === d || f.startsWith(d + "/"))) return d;
+    }
+    if (apps.some((a) => !a.dir)) return "(project root)";
+  }
   const i = f.indexOf("/");
   return i < 0 ? "(project root)" : f.slice(0, i);
+}
+
+/** RFC-0019 §6.5: the container's COMPONENT tier, read straight from the
+ *  concept DAG — Service / Subdomain nodes under the Container node whose
+ *  label is the container. Each carries its own certainty (recorded at 1.0,
+ *  inference below) and its file modules. Null when the DAG has no C4
+ *  tiers (old artifacts, or a container the stack never claimed) — callers
+ *  fall back to the plain module list. */
+export function dagComponentsOf(
+  concepts: ConceptTree | null | undefined,
+  container: string
+): { id: number; label: string; kind: string; confidence: number; provenance: string; modules: string[] }[] | null {
+  const nodes = concepts?.nodes;
+  if (!nodes?.length) return null;
+  const cont = nodes.find((n) => n.kind === "Container" && (n.label === container || containerOfPath(n.label) === container));
+  if (!cont) return null;
+  const comps = nodes.filter((n) => n.parent === cont.id && (n.kind === "Service" || n.kind === "Subdomain"));
+  if (!comps.length) return null;
+  return comps.map((c) => ({
+    id: c.id,
+    label: c.label,
+    kind: c.kind,
+    confidence: c.confidence ?? 1,
+    provenance: String(c.provenance ?? ""),
+    modules: nodes.filter((m) => m.parent === c.id && m.kind === "Module").map((m) => m.label),
+  }));
 }
 
 export function scopeForRef(ref: AtlasRef): AtlasScope {
@@ -60,8 +97,9 @@ export function scopeForRef(ref: AtlasRef): AtlasScope {
 }
 
 /** Breadcrumb trail: System › container › module › symbol(). Clicking any
- *  crumb resets the scope to that level (PRD §7). */
-export function breadcrumbOf(sel: AtlasSelection): { scope: AtlasScope; ref: AtlasRef | null }[] {
+ *  crumb resets the scope to that level (PRD §7). `apps` makes the
+ *  container level agree with the stack's real apps when present. */
+export function breadcrumbOf(sel: AtlasSelection, apps?: { dir: string }[] | null): { scope: AtlasScope; ref: AtlasRef | null }[] {
   const trail: { scope: AtlasScope; ref: AtlasRef | null }[] = [{ scope: "system", ref: null }];
   const p = sel.primary;
   if (!p) return trail;
@@ -69,7 +107,7 @@ export function breadcrumbOf(sel: AtlasSelection): { scope: AtlasScope; ref: Atl
   if (p.kind === "container") {
     trail.push({ scope: "container", ref: p });
   } else if (file) {
-    trail.push({ scope: "container", ref: { kind: "container", id: containerOfPath(file), label: containerOfPath(file) } });
+    trail.push({ scope: "container", ref: { kind: "container", id: containerOfPath(file, apps), label: containerOfPath(file, apps) } });
   }
   if ((p.kind === "module" || p.kind === "store") && sel.scope !== "container") {
     trail.push({ scope: "module", ref: p });
@@ -115,7 +153,9 @@ export function buildComponentSpec(
   report: CieReport,
   container: string | null,
   title?: string,
-  module?: string | null
+  module?: string | null,
+  concepts?: ConceptTree | null,
+  apps?: { dir: string }[] | null
 ): ChatChartSpec | null {
   if (!report?.files?.length) return null;
   const g = graphOf(report);
@@ -173,7 +213,75 @@ export function buildComponentSpec(
   }
 
   // level 1 — modules across the (scoped) system
-  const inContainer = (f: string): boolean => (container ? containerOfPath(f) === container : true);
+  const inContainer = (f: string): boolean =>
+    container ? containerOfPath(f, apps) === container : true;
+
+  // RFC-0019 §6.5: when the concept DAG carries this container's component
+  // tier, the boxes ARE the components — role-labelled, certainty-chipped,
+  // each naming its own file modules. Clicking a component drills into its
+  // first module (the same module routing the grid already runs). Without
+  // DAG tiers the plain module list below draws — no project regresses.
+  if (container) {
+    const comps = dagComponentsOf(concepts, container);
+    if (comps && comps.length) {
+      const MAX_COMPS = 12;
+      const shown = comps.slice(0, MAX_COMPS);
+      const restComps = comps.length - shown.length;
+      const nodes: UmlNode[] = shown.map((c) => {
+        const first = c.modules[0];
+        const lines: string[] = [
+          `${c.kind.toLowerCase()} · ${c.confidence >= 1 ? "recorded evidence" : "inferred from names/structure"}`,
+          ...c.modules.slice(0, 3).map((m) => m.split("/").pop() ?? m),
+        ];
+        const moreM = c.modules.length - 3;
+        if (moreM > 0) lines.push(`…and ${moreM} more module(s)`);
+        return {
+          id: first ?? `component:${c.id}`,
+          title: c.label,
+          kind: "module",
+          lines,
+          certainty: (c.confidence >= 1 ? "Fact" : "Inference") as "Fact" | "Inference",
+          loc: first ? { file: first } : undefined,
+        };
+      });
+      if (restComps > 0) {
+        nodes.push({
+          id: "…other-components",
+          title: `…and ${restComps} more component(s)`,
+          kind: "module",
+          lines: ["smaller — grouped out of this picture, not hidden"],
+          certainty: "Inference",
+        });
+      }
+      // cross-component calls inside this container, from the same records
+      const ids = new Set(nodes.map((n) => n.id));
+      const compOfFile = new Map<string, string>();
+      for (const c of shown) for (const m of c.modules) compOfFile.set(m, c.modules[0] ?? `component:${c.id}`);
+      const g2 = graphOf(report);
+      const links: UmlLink[] = [];
+      const seen = new Set<string>();
+      for (const s of report.symbols) {
+        const fromFile = fileOf(report, s);
+        const from = fromFile ? compOfFile.get(fromFile) : undefined;
+        if (!from || !ids.has(from)) continue;
+        for (const callee of g2.calleesOf.get(Number(s.id)) ?? []) {
+          const toFile = fileOf(report, g2.byId.get(callee));
+          const to = toFile ? compOfFile.get(toFile) : undefined;
+          if (!to || to === from || !ids.has(to)) continue;
+          const key = `${from}->${to}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          links.push({ from, to, label: "calls into", certainty: "Fact" });
+        }
+      }
+      const s1 = specOf("uml", title ?? `Components of ${container} — the concept DAG's component tier`);
+      s1.nodes = nodes;
+      s1.links = links;
+      s1.source = "concepts.json — Service/Subdomain nodes under this container, built from the persisted stack facts; report.json for the calls";
+      return s1;
+    }
+  }
+
   const files = report.files.filter(inContainer);
   const symCount = new Map<string, number>();
   const firstSym = new Map<string, SymbolInfo>();
@@ -250,11 +358,11 @@ const MAX_FLOW_MODULES = 8;
  *  them (e.g. `db` written by payments, `fs` read by the probe) plus real
  *  .sql files (schema stores). Every store and every arrow traces back to a
  *  summary record — absence stays absent. */
-export function buildDataFlowSpec(report: CieReport, container: string | null, title?: string): ChatChartSpec | null {
+export function buildDataFlowSpec(report: CieReport, container: string | null, title?: string, apps?: { dir: string }[] | null): ChatChartSpec | null {
   if (!report?.summaries?.length) return null;
   const g = graphOf(report);
 
-  const inScope = (file: string): boolean => (container ? containerOfPath(file) === container : true);
+  const inScope = (file: string): boolean => (container ? containerOfPath(file, apps) === container : true);
 
   // stores: .sql files in scope + summary-named stores that real code touches
   const storeHits = new Map<string, { readers: Set<string>; writers: Set<string> }>();
@@ -337,7 +445,7 @@ export function buildDataFlowSpec(report: CieReport, container: string | null, t
       id: f,
       title: f.split("/").pop() ?? f,
       kind: "module",
-      lines: [`${syms.length} named thing(s)`, containerOfPath(f)],
+      lines: [`${syms.length} named thing(s)`, containerOfPath(f, apps)],
       certainty: "Fact",
       loc: { file: f, byteStart: syms[0]?.loc.start },
     });
@@ -418,17 +526,17 @@ const MAX_FLOW_STEPS = 6;
 const FLOW_HONESTY =
   "Built from the engine's records: arrows are recorded calls, boxes carry each step's recorded reads, writes and effects. The order is the order they were recorded — not a traced run. Click any box to re-level this flow.";
 
-export function buildFlowSpec(report: CieReport, sel: AtlasSelection): FlowBuild {
+export function buildFlowSpec(report: CieReport, sel: AtlasSelection, apps?: { dir: string }[] | null): FlowBuild {
   const ref = sel.primary;
   if (ref?.kind === "symbol") return flowOfFunction(report, ref);
   if (ref?.kind === "module") return flowOfComponent(report, ref.id);
-  if (ref?.kind === "container") return flowOfContainer(report, ref.id);
-  return flowOfSystem(report, ref);
+  if (ref?.kind === "container") return flowOfContainer(report, ref.id, apps);
+  return flowOfSystem(report, ref, apps);
 }
 
 /** level 0 — the whole system: containers as a flow. Also the honest fallback
  *  for selections that have no call flow of their own (a store, an edge). */
-function flowOfSystem(report: CieReport, ref: AtlasRef | null): FlowBuild {
+function flowOfSystem(report: CieReport, ref: AtlasRef | null, apps?: { dir: string }[] | null): FlowBuild {
   const note =
     ref?.kind === "store"
       ? "A store has no call flow of its own — the system-level flow is shown. Click a component or a function to zoom in."
@@ -441,7 +549,7 @@ function flowOfSystem(report: CieReport, ref: AtlasRef | null): FlowBuild {
   for (const s of report.symbols) {
     const f = fileOf(report, s);
     if (!f) continue;
-    const c = containerOfPath(f);
+    const c = containerOfPath(f, apps);
     symCount.set(c, (symCount.get(c) ?? 0) + 1);
     fileCount.set(c, (fileCount.get(c) ?? 0) + 1);
   }
@@ -464,12 +572,12 @@ function flowOfSystem(report: CieReport, ref: AtlasRef | null): FlowBuild {
   for (const s of report.symbols) {
     const fromFile = fileOf(report, s);
     if (!fromFile) continue;
-    const from = containerOfPath(fromFile);
+    const from = containerOfPath(fromFile, apps);
     if (!shownSet.has(from)) continue;
     for (const callee of g.calleesOf.get(Number(s.id)) ?? []) {
       const toFile = fileOf(report, g.byId.get(callee));
       if (!toFile) continue;
-      const to = containerOfPath(toFile);
+      const to = containerOfPath(toFile, apps);
       if (to === from || !shownSet.has(to)) continue;
       const key = `${from}->${to}`;
       if (seenEdge.has(key)) continue;
@@ -491,9 +599,9 @@ function flowOfSystem(report: CieReport, ref: AtlasRef | null): FlowBuild {
 
 /** level 1 — one container: its components (files) as a flow, entry
  *  components on top, recorded calls as arrows. */
-function flowOfContainer(report: CieReport, container: string): FlowBuild {
+function flowOfContainer(report: CieReport, container: string, apps?: { dir: string }[] | null): FlowBuild {
   const g = graphOf(report);
-  const inContainer = (f: string): boolean => containerOfPath(f) === container;
+  const inContainer = (f: string): boolean => containerOfPath(f, apps) === container;
   const files = report.files.filter((f) => report.symbols.some((s) => fileOf(report, s) === f) && inContainer(f));
   if (!files.length) return { level: "container", label: container, spec: null };
   const shown = files.slice(0, MAX_FLOW_NODES);
