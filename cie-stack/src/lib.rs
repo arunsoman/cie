@@ -24,6 +24,51 @@ use std::path::Path;
 pub const MAX_FILE_BYTES: u64 = 512 * 1024;
 pub const MAX_FILES: usize = 8000;
 
+/// RFC-0019 §6.2: the files whose change invalidates the persisted stack
+/// artifact, even when no LANGUAGE file changed — a new route in the
+/// manifest, a renamed compose service, a moved build context all change
+/// what the stack lens says without touching a single source file. cie-stack
+/// owns this list because it owns the inputs; cie-ingest imports it.
+pub const STACK_INPUT_EXTS: &[&str] = &["xml", "gradle", "kts", "toml", "mod"];
+
+/// Is this repo-relative path a stack-lens INPUT (manifest, docker file, or
+/// framework config)? Name-based, not extension-based, because the decisive
+/// inputs are exactly named files at any depth (Dockerfile has no extension;
+/// docker-compose.yml is spelled out). The walk's own ignore list already
+/// keeps node_modules/target/vendor copies out.
+pub fn is_stack_input(rel: &str) -> bool {
+    let p = rel.replace('\\', "/");
+    let p = p.trim_start_matches("./");
+    let base = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
+    // manifests (any depth, exact names)
+    if matches!(
+        base.as_str(),
+        "pom.xml"
+            | "build.gradle"
+            | "build.gradle.kts"
+            | "cargo.toml"
+            | "package.json"
+            | "requirements.txt"
+            | "pyproject.toml"
+            | "go.mod"
+    ) {
+        return true;
+    }
+    // docker
+    if base == "dockerfile" || base.starts_with("dockerfile.") {
+        return true;
+    }
+    if matches!(
+        base.as_str(),
+        "docker-compose.yml" | "docker-compose.yaml" | "compose.yml" | "compose.yaml"
+    ) {
+        return true;
+    }
+    // framework config (the RFC's `application*.yml/properties` list)
+    base.starts_with("application.properties") || base.starts_with("application.yml")
+        || base.starts_with("application.yaml")
+}
+
 /// which source files matter to a stack parser (jvm code only for now)
 fn wants(rel: &str) -> bool {
     let p = rel.replace('\\', "/");

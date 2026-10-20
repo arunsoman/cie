@@ -113,12 +113,18 @@ pub const IGNORED: &[&str] = &[
     ".github",
 ];
 
+/// RFC-0019 §6.2: the walk's result — language files for the adapter lens
+/// PLUS the stack-lens inputs (manifests/docker/config) in their own bounded
+/// map, same walk, no second traversal.
+#[derive(Debug, Clone, Default)]
+pub struct Walked {
+    pub files: BTreeMap<String, (Hash, LangId)>,
+    pub stack_inputs: BTreeMap<String, Hash>,
+}
+
 /// Walk the folder and hash every analyzable source file.
-pub fn walk_and_hash(
-    root: &Path,
-    langs: Option<&Vec<LangId>>,
-) -> std::io::Result<BTreeMap<String, (Hash, LangId)>> {
-    let mut out = BTreeMap::new();
+pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Result<Walked> {
+    let mut out = Walked::default();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir)? {
@@ -131,6 +137,19 @@ pub fn walk_and_hash(
                 }
                 continue;
             }
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let bytes = std::fs::read(&path)?;
+            // stack-lens inputs ride the same walk (RFC-0019 §6.2) — never
+            // filtered by `langs`: a python-only analysis still reads the
+            // compose file that says how its service is governed.
+            if cie_stack::is_stack_input(&rel) {
+                out.stack_inputs.insert(rel, content_hash(&bytes));
+                continue;
+            }
             let lang = lang_for_path(&name);
             if lang == LangId::Unknown {
                 continue;
@@ -140,13 +159,7 @@ pub fn walk_and_hash(
                     continue;
                 }
             }
-            let bytes = std::fs::read(&path)?;
-            let rel = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace('\\', "/");
-            out.insert(rel, (content_hash(&bytes), lang));
+            out.files.insert(rel, (content_hash(&bytes), lang));
         }
     }
     Ok(out)
@@ -160,9 +173,10 @@ fn read_file(root: &Path, rel: &str) -> std::io::Result<String> {
 pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<IngestOutcome> {
     let t0 = now_ns();
     let store = Store::open(project)?;
-    let current = walk_and_hash(project, opts.langs.as_ref())?;
+    let walked = walk_and_hash(project, opts.langs.as_ref())?;
+    let current = walked.files;
     let prev_index = store.load_index()?;
-    let plan = plan_ingest(prev_index.as_ref(), &current);
+    let plan = plan_ingest(prev_index.as_ref(), &current, &walked.stack_inputs);
 
     // TASK-028: deletions leave tombstones (`file:{path}:tombstone`, §15.1)
     // so stale facts are purged explicitly; re-appearing paths clear theirs.
@@ -180,16 +194,39 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         let wall = now_ns() - t0;
         let mut index = prev_index.unwrap_or_default();
         index.last_reingest_ns = wall;
+        // RFC-0019 §6.2: the stack-inputs map persists into the index —
+        // the next plan diffs against it.
+        index.stack_inputs = plan.stack_inputs.clone();
         store.save_index(&index)?;
-        // RFC-0019 §6.1: a no-op ingest answers the stack lens from the
-        // PRIOR revision's persisted artifact — never re-parses. (Stage 2
-        // adds the manifest/docker input diff that forces a re-derive here.)
+        // RFC-0019 §6.1/§6.2: a no-op ingest answers the stack lens from
+        // the persisted artifact — EXCEPT when the stack inputs themselves
+        // changed (manifest/docker/config-only change): re-run ONLY the
+        // stack stage, refresh the head revision's artifact in place (the
+        // revision's language content is unchanged, so its identity holds),
+        // and keep the summary-reuse fast path fully intact for the adapter
+        // lens — its inputs didn't change.
         let prior_stack = if last > 0 { store.load_stack(last).ok().flatten() } else { None };
+        let stack_snapshot = if !plan.stack_inputs_changed.is_empty() {
+            let refreshed = cie_stack::stack_report_stage(project, None);
+            if last > 0 {
+                store.save_stack(last, &refreshed)?;
+                // keep the persisted snapshot's embedded copy consistent —
+                // materialize/load_outcome read THAT one, and a stale stack
+                // there would hand consumers yesterday's reading.
+                if let Some(mut snap) = store.load_snapshot(last)? {
+                    snap.stack = Some(refreshed.clone());
+                    store.save_snapshot(&snap)?;
+                }
+            }
+            Some(refreshed)
+        } else {
+            prior_stack
+        };
         let snapshot = RevSnapshot {
             rev: last,
             incremental: true,
             ingest_wall_ns: wall,
-            stack: prior_stack,
+            stack: stack_snapshot,
             ..Default::default()
         };
         return Ok(IngestOutcome {
@@ -456,6 +493,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let mut index = FileIndex {
         files: BTreeMap::new(),
         last_rev: rev,
+        stack_inputs: plan.stack_inputs.clone(),
         last_full_ingest_ns: if prev_index.is_none() {
             wall
         } else {

@@ -119,3 +119,85 @@ fn stack_store_ext_roundtrip_and_absence() {
     assert!(loaded.notes[0].contains("other artifacts are unaffected"));
     fs::remove_dir_all(&root).ok();
 }
+
+// ---- RFC-0019 stage 2: stack-input hashing + invalidation rules ----
+
+fn read_stack_generated_at(root: &PathBuf) -> Option<u64> {
+    let store = cie_store::Store::open(root).unwrap();
+    let rev = store.last_rev();
+    store
+        .load_stack(rev)
+        .ok()
+        .flatten()
+        .map(|s| s.generated_at)
+}
+
+/// A pom-only change invalidates the stack artifact — and ONLY the stack
+/// stage: the adapter lens' fast path holds (incremental re-ingest, no
+/// re-analysis).
+#[test]
+fn stack_input_change_alone_reruns_only_the_stack_stage() {
+    let root = py_project();
+    let first = run_ingest(&root, &IngestOptions::default()).unwrap();
+    let first_at = first.snapshot.stack.as_ref().unwrap().generated_at;
+    // wait a hair so generated_at (seconds) moves if the stage re-runs
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    // touch ONLY the manifest
+    write_file(&root, "requirements.txt", "flask==3.0.1\nflask-cors==4.0.0\n");
+    let second = run_ingest(&root, &IngestOptions::default()).unwrap();
+
+    assert!(
+        second.snapshot.incremental,
+        "no language work — the summary-reuse fast path holds"
+    );
+    let second_at = second
+        .snapshot
+        .stack
+        .as_ref()
+        .expect("the refreshed stack rides the outcome")
+        .generated_at;
+    assert_ne!(
+        first_at, second_at,
+        "the stack artifact re-derived on a manifest-only change"
+    );
+    // the persisted artifact + snapshot agree (materialize reads the latter)
+    let persisted_at = read_stack_generated_at(&root).expect("artifact on disk");
+    assert_eq!(persisted_at, second_at, "stack.json refreshed in place");
+
+    fs::remove_dir_all(&root).ok();
+}
+
+/// A language-only change re-derives the stack via §6.2 rule 1 (facts may
+/// change — routes/flows live in source), and the stack-inputs diff itself
+/// stays empty (the machinery must not misfire).
+#[test]
+fn language_change_rederives_stack_with_empty_input_diff() {
+    let root = py_project();
+    let first = run_ingest(&root, &IngestOptions::default()).unwrap();
+    let first_at = first.snapshot.stack.as_ref().unwrap().generated_at;
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    write_file(&root, "app.py", "def charge(a):\n    return a * 2\n");
+    let second = run_ingest(&root, &IngestOptions::default()).unwrap();
+
+    assert!(!second.snapshot.incremental, "language work → full path");
+    assert!(second.plan.stack_inputs_changed.is_empty(), "manifest untouched");
+    let second_at = second.snapshot.stack.as_ref().unwrap().generated_at;
+    assert_ne!(first_at, second_at, "rule 1: the stack re-derives");
+
+    fs::remove_dir_all(&root).ok();
+}
+
+/// A no-op (nothing changed anywhere) still answers from the store.
+#[test]
+fn noop_after_stage2_still_loads_stack_from_disk() {
+    let root = py_project();
+    let first = run_ingest(&root, &IngestOptions::default()).unwrap();
+    let first_at = first.snapshot.stack.as_ref().unwrap().generated_at;
+    let second = run_ingest(&root, &IngestOptions::default()).unwrap();
+    assert!(second.snapshot.incremental);
+    let again = second.snapshot.stack.expect("carried");
+    assert_eq!(again.generated_at, first_at, "no re-derivation on a no-op");
+    fs::remove_dir_all(&root).ok();
+}

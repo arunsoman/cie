@@ -50,6 +50,13 @@ pub struct FileIndex {
     /// Wall time of the last full ingest, for the <=5% re-ingest check.
     pub last_full_ingest_ns: u64,
     pub last_reingest_ns: u64,
+    /// RFC-0019 §6.2: the stack-lens INPUTS (manifests, docker files,
+    /// framework config) with their content hashes — the invalidation
+    /// contract's second map. Absent on pre-RFC indexes (serde default),
+    /// which makes the first post-RFC plan see every input as added and
+    /// re-derive the stack exactly once. Correct, not accidental.
+    #[serde(default)]
+    pub stack_inputs: BTreeMap<String, Hash>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -58,6 +65,13 @@ pub struct IngestPlan {
     pub changed: Vec<String>,
     pub added: Vec<String>,
     pub deleted: Vec<String>,
+    /// RFC-0019 §6.2: the CURRENT stack-lens inputs (manifests/docker/config
+    /// with hashes), carried so the pipeline can persist them into the index.
+    pub stack_inputs: BTreeMap<String, Hash>,
+    /// the stack-input diff (added ∪ changed ∪ removed) — non-empty means
+    /// the persisted stack artifact must re-derive even when no language
+    /// file changed.
+    pub stack_inputs_changed: Vec<String>,
 }
 
 impl IngestPlan {
@@ -68,18 +82,34 @@ impl IngestPlan {
     pub fn total_seen(&self) -> usize {
         self.unchanged.len() + self.changed.len() + self.added.len()
     }
+
+    /// RFC-0019 §6.2: must the persisted stack artifact re-derive? Either
+    /// language files changed (facts may change — routes/flows/DI live in
+    /// source) or the stack-inputs diff is non-empty.
+    pub fn stack_invalid(&self) -> bool {
+        self.has_work() || !self.stack_inputs_changed.is_empty()
+    }
 }
 
 /// Diff the previous index against the current on-disk hashes.
+/// `stack_inputs` is the current stack-lens input set (RFC-0019 §6.2); the
+/// plan diffs it against the prior index's `stack_inputs` map.
 pub fn plan_ingest(
     prev: Option<&FileIndex>,
     current: &BTreeMap<String, (Hash, LangId)>,
+    stack_inputs: &BTreeMap<String, Hash>,
 ) -> IngestPlan {
     let mut plan = IngestPlan::default();
+    plan.stack_inputs = stack_inputs.clone();
     let empty: BTreeMap<String, FileRecord> = BTreeMap::new();
     let prev_files: &BTreeMap<String, FileRecord> = match prev {
         Some(p) => &p.files,
         None => &empty,
+    };
+    let empty_stack: BTreeMap<String, Hash> = BTreeMap::new();
+    let prev_stack: &BTreeMap<String, Hash> = match prev {
+        Some(p) => &p.stack_inputs,
+        None => &empty_stack,
     };
     for (path, (hash, lang)) in current {
         match prev_files.get(path) {
@@ -102,6 +132,17 @@ pub fn plan_ingest(
     for path in prev_files.keys() {
         if !current.contains_key(path) {
             plan.deleted.push(path.clone());
+        }
+    }
+    // RFC-0019 §6.2: the stack-inputs diff — added ∪ changed ∪ removed.
+    for (path, hash) in stack_inputs {
+        if prev_stack.get(path) != Some(hash) {
+            plan.stack_inputs_changed.push(path.clone());
+        }
+    }
+    for path in prev_stack.keys() {
+        if !stack_inputs.contains_key(path) {
+            plan.stack_inputs_changed.push(path.clone());
         }
     }
     plan
@@ -253,12 +294,38 @@ mod tests {
         current.insert("c.go".into(), (h(4), LangId::Go)); // added
                                                            // old.rs deleted
 
-        let plan = plan_ingest(Some(&prev), &current);
+        let plan = plan_ingest(Some(&prev), &current, &BTreeMap::new());
         assert_eq!(plan.unchanged, vec!["a.py"]);
         assert!(plan.added.contains(&"b.py".to_string()));
         assert!(plan.added.contains(&"c.go".to_string()));
         assert_eq!(plan.deleted, vec!["old.rs"]);
         assert!(plan.has_work());
+    }
+
+    /// RFC-0019 §6.2: the stack-inputs diff fires on manifest change alone.
+    #[test]
+    fn plan_tracks_stack_input_diff() {
+        let mut prev = FileIndex::default();
+        prev.stack_inputs.insert("pom.xml".into(), h(1));
+        prev.stack_inputs.insert("docker-compose.yml".into(), h(2));
+        let mut cur_stack = BTreeMap::new();
+        cur_stack.insert("pom.xml".into(), h(9)); // changed
+        cur_stack.insert("Cargo.toml".into(), h(3)); // added
+        // docker-compose.yml removed
+        let current: BTreeMap<String, (Hash, LangId)> = BTreeMap::new();
+        let plan = plan_ingest(Some(&prev), &current, &cur_stack);
+        assert!(plan.stack_inputs_changed.contains(&"pom.xml".to_string()));
+        assert!(plan.stack_inputs_changed.contains(&"Cargo.toml".to_string()));
+        assert!(plan
+            .stack_inputs_changed
+            .contains(&"docker-compose.yml".to_string()));
+        assert!(!plan.has_work(), "no language work — the fast path holds");
+        assert!(plan.stack_invalid(), "…but the stack artifact re-derives");
+
+        // unchanged inputs → the persisted artifact stays valid
+        let plan = plan_ingest(Some(&prev), &current, &prev.stack_inputs.clone());
+        assert!(plan.stack_inputs_changed.is_empty());
+        assert!(!plan.stack_invalid());
     }
 
     #[test]
