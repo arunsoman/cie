@@ -268,3 +268,18 @@ Work Log:
 
 Stage Summary:
 - One repo can now be five apps in five languages with five architecture styles, and CIE still tells ONE story about it: detection finds each app, a per-language parser reads it, everything merges into one report grouped by feature (the API surface) and by service (whose route/flow/boot it is). The polyglot fixture IS the demo's default sample now — the honest-stub banking app and the Spring stand-in remain one menu click away. Every claim keeps its file-and-line evidence chip; conditions are quoted, never evaluated.
+---
+Task ID: 19
+Agent: main (Z.ai)
+Task: Follow docs/rfc-0019-stack-at-ingest-and-c4-concept-tiers.md — land the remaining stages and push every stage as it commits (new PAT). Found stage 3 (docker governance) already written in the working tree but uncommitted; stages 1–2 committed and pushed earlier.
+
+Work Log:
+- Verified the new PAT via the GitHub API; fetched origin — local main was 6 commits behind (RFC-0020 doc + implementation commits by Codex touched the same cie-stack files). Stashed the stage-3 WIP, fast-forwarded to origin/main (0421a8f), popped the stash — zero conflicts; confirmed every StackReport struct literal (types.rs unavailable(), lib.rs stack_report, factory.rs types_fresh) carries both cross_service (remote's) and external_docker (stage 3's).
+- Fixed two correctness gaps in the uncommitted stage-3 code before landing it:
+  * docker.rs parse_compose: the deeper context:/dockerfile: rows fired whenever svc.build was empty — a `context:` row under environment:/labels: would have forged a build value. Now gated by an in_build flag (set by a valueless `build:`; cleared by any 4-indent row or a new service key).
+  * lib.rs governance join: a root-level app (dir "") matched ANY Dockerfile via starts_with("") — another app's subdir Dockerfile could govern the root. Root apps now match only root-level Dockerfiles (no '/' in path); subdir apps only their own dir.
+- Tests: cargo test -p cie-stack — 10 passed: 4 in the new rfc0019_docker_governance.rs (polyglot fixture compose build+inline-ports+governance; own-dockerfile arm; compose-governed + none arm + externals ordering; malformed rows skip by name), 3 polyglot, 3 lib. cargo check clean of NEW warnings (all 5 pre-existing in node.rs/python.rs/rust.rs/cie-semantic from earlier work).
+- Commit 8cd90fa pushed with the PAT (token scrubbed from .git/config after every push).
+
+Stage Summary:
+- RFC-0019 stages 1–3 are now all on origin/main: the stack lens persists at ingest, stack-input hashing feeds the invalidation plan, and the docker reading carries build contexts, both port forms, per-app governance (compose / own-dockerfile / none, each with file:line evidence) plus image-only services as C4 Context externals. Next: stage 4 — C4 tiers (Container/Service/Subdomain) in build_hierarchy with per-node certainty, Aggregate heuristic retirement.
