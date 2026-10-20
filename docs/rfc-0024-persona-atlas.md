@@ -1,4 +1,4 @@
-# RFC-0024: The persona Atlas — implementing UX-spec rev 2 (presets, chips, popup, selected-context charts)
+    # RFC-0024: The persona Atlas — implementing UX-spec rev 2 (presets, chips, popup, selected-context charts)
 
 **Status:** approved-for-implementation (not yet taken up; nothing else covers this work)
 **Author:** the CIE maintainer (with pi)
@@ -84,13 +84,29 @@ G6 bundle optimization, mermaid/elk new engines beyond RFC-0023 stage 5, MCP exe
 | 0 | contract patches + catalog kinds + gate checks | 3 new vitest suites green; existing 274 stay green; Rust gate mirrors compile |
 | 0.5 | engine emissions (Pdg wiring, DecisionFact java+python, diff/timeline/authors verbs) | `cie viz` emits flow-chart elements on the polyglot sample; `decision` elems carry file+line; `cie diff` writes changed_files.json |
 | 1 | G6 host runtime + render bodies | tree/uml/flow/c4 kinds render canvas-side via negotiator; click→`onSelection` fires; pan/zoom/fisheye live; SVG renderer still available as harness |
-| 2 | planSheet + presets + slice + persona sub-menu | Atlas panels render FROM plans for all five presets on shahy + polyglot; switching discloses per §14.2-5; slice re-gates (gate codes printed) |
-| 3 | popup + breadcrumb + verb handlers + G5 | the §12 worked example runs click-for-click on shahy-restructure (its 7 clicks = the acceptance list); paired popup on a drift claim |
+| 2 | planSheet + presets + slice + persona sub-menu | Atlas panels render FROM plans; **each persona's hero + panel order matches §5's matrix exactly (checked per preset)** on shahy + polyglot; switching discloses per §14.2-5; per-persona scope memory restores on flip-back; slice re-gates (gate codes printed) |
+| 3 | popup + breadcrumb + verb handlers + G5 | the §12 worked example runs click-for-click on shahy-restructure (its 7 clicks = the acceptance list); paired popup on a drift claim; **each persona's signature clicks verified per §5's last column** |
 | 4 | chips + R4 pair | chip row plural/dedupe/cap; R4 activates/collapses per G5; SequenceChart entry TELL |
 | 5 | scoped answering | a chips-scoped question answers ONLY from the selection (verified against shahy: ask about account-management chips → no alerting facts in the answer); empty-chip = today's behavior; out-of-scope disclosure + one-tap whole-project chip |
 | 6 | retire bypasses | direct paths deleted; catalog 1:1 (RFC-0023 stage 6); implementation record completed |
 
-## 5. Honesty obligations carried from every upstream doc
+## 5. The persona matrix (normative implementation data — the layouts and click handling, in the RFC)
+
+**Normativity:** the ux-spec (§5–§10, §14) is the source of truth for prose; on conflict, ux-spec wins. This §7 is the RFC's *enforcement summary* — the per-persona data a builder codes against, with each preset's acceptance.
+
+| Preset | Hero (R1) | planOrder (R3 grid, in reading order) | Facts-only default | Scope default | Signature clicks (element → verb chain) | Persona acceptance (stage) |
+|---|---|---|---|---|---|---|
+| **fresher** (first-run default) | Containers (C4, system) | `entries · routes · tree · components · flow · dataflow`; R4 inert until first chip | **OFF** | system | container → `SCOPE(container)+CHIP+FOCUS`; boot/route rows → `POPUP+SCOPE/FOCUS+CHIP`; component → `SCOPE(module)+POPUP+CHIP`; tree node → `SCOPE+FOCUS+CHIP`; no-loc bar → `ASK` | hero = C4 with build/docker evidence lines; menu shows Fresher checked (2) |
+| **reviewer** | **Impact graph** + min-test-set side-table | `impact · callers · drift · test-confidence · dataflow(writes-first)` | **ON** | system + change-context picker EMPTY (honest “pick the change” until populated per §6.1) | impact box → `POPUP+CHIP` (+concept edge `FOCUS`); min-test-row → `POPUP+CHIP`; **drift row → paired popup (DOC\|CODE, per-column chips, `Open both in source`)**; write arrow → `POPUP+TELL(crosses-boundary)` | change-context diff scopes all panels by data; drift claim pops its pair (3, 5) |
+| **architect** | Dependency graph (E5) | `dep-graph · bounded-contexts · duplication · drift-board(FMEA) · timeline(I5) · risk-treemap(H5)` | **OFF** | system; full-detail caps | dep box → `SCOPE+CHIP`; **dep-edge → paired popup (FROM\|TO) + `CHIP(edge)`, `TELL` on soft boundaries**; chord ribbon → `CHIP` + shared-function list popup; timeline marker → `SCOPE(rev, n)`; treemap cell → `POPUP+CHIP` | timeline click re-renders panels AT that rev (footer attests); dep-edge pops both lines (3, 2-engine) |
+| **auditor** | Trust boundary map (I3 `ENGINE`) | `system-route-table · externals · findings(secrets/risk) · dataflow(cross-boundary) · policy-matrix(G3)` | **ON** | system; hero emphasizes image-only externals (rendering rule) | external → `FOCUS+POPUP(compose-YML lines)+CHIP`; system route row → route choreography + `TELL(external-entry)`; finding row → `POPUP(evidence line)+CHIP`; policy row → `POPUP(enforcing line)+TELL(asserted/enforced)` | image-only externals emphasized without a click; finding popup lands on quality.json line numbers (3) |
+| **consultant** | Containers (busiest container auto-focused, `TELL`-disclosed) | fresher’s six + `ownership(K1) · co-change-matrix · journeys(J1/J2)` | OFF | system → auto-focus busiest (disclosed) | ownership cell → `CHIP` + author-file list popup; co-change ribbon → `CHIP(edge)` + `supporting_commits` popup; journey step → `POPUP+FOCUS(route highlight)`; **change-context present ⇒ behaves as reviewer** | ownership popups list that author’s files; ribbon shows supporting commits (3, 2-engine) |
+
+**Agent preset:** deliberately absent from the menu and the matrix (ux-spec §9/§14.1) — no hero, no click choreography; consumes the same ChartPlans via MCP.
+
+**Shared across every preset (not repeated per row):** the §3 verb vocabulary and G1–G6 rules; auto-chip on every element-resolving click (§2.3); popup specs §2/§2.2; R4 behavior per §4 + G5; footer disclosure per G4.
+
+## 6. Honesty obligations carried from every upstream doc
 
 - No decision diamond without a recorded `DecisionFact` (prints its absence);
 - chips/scoped answers print "drawn from N files over M named things";
@@ -98,7 +114,8 @@ G6 bundle optimization, mermaid/elk new engines beyond RFC-0023 stage 5, MCP exe
 - every `…and N more` opens its ledger list; every click footer-disclosed (G4);
 - scope attestation + revision printed on every panel (ScopeAttestation);
 - the popup shows context lines styled apart from evidence lines — never fabricated.
-## 6. The retirement list — classes deleted when the implementation completes
+
+## 7. The retirement list — classes deleted when the implementation completes
 
 Everything the new path replaces, named per file, so a coder knows exactly what dies, when, and why — and what survives *demoted* (still executing, never on a bypass path). Deletion stages are the §4 stage numbers; every deletion has a verifying acceptance: **nothing is deleted before the ux-spec §12 worked example runs click-for-click against the canvas path on shahy-restructure plus all five presets render from plans.**
 
