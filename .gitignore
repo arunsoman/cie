@@ -12,3 +12,4 @@ web/tsconfig.tsbuildinfo
 tool-results/   
 skills/
 web/.env*.local
+download/

@@ -235,6 +235,8 @@ mod tests {
             id: "c9".into(),
             reason: "salience-bounded element cap".into(),
             salience_weight: 0.1,
+            label: None,
+            kind: None,
         });
         assert_ne!(a.hidden, b.hidden);
         assert_eq!(compute_semantic(&a), compute_semantic(&b));

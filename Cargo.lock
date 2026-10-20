@@ -824,6 +824,7 @@ dependencies = [
  "cie-concepts",
  "cie-core",
  "cie-incremental",
+ "cie-relations",
  "cie-semantic",
  "cie-summary",
  "serde",

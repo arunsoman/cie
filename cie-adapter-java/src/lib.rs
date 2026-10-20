@@ -26,7 +26,7 @@ use cie_adapters::{
 };
 use cie_core::types::{SourceLocation, SymbolId};
 use cie_semantic::facts::{
-    AsyncKind, AsyncSite, Callee, CallSite, ExceptionSite, ImportFact, LangFacts,
+    AsyncKind, AsyncSite, Callee, CallSite, ExceptionSite, IfSite, ImportFact, LangFacts,
     SymbolFact, SymbolKind,
 };
 use cie_semantic::LangId;
@@ -229,6 +229,30 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 handler_end: 0,
             });
         }
+        // RFC-0024 stage 0.5: decision facts (the FlowChart's diamonds).
+        // Each `if` records {symbol, line, cond} — the exact line where the
+        // condition is written — so a decision is drawn only when the
+        // engine recorded it (honest absence, never a guessed diamond).
+        "if_statement" => {
+            if let Some(cond) = node.child_by_field_name("condition") {
+                let cond_text = text_of(cond, ctx.bytes).trim().to_string();
+                let mut vars = vec![];
+                collect_identifiers(cond, ctx.bytes, &mut vars);
+                vars.sort();
+                vars.dedup();
+                ctx.facts.ifs.push(IfSite {
+                    symbol: ctx.func,
+                    line: ctx.line(node),
+                    cond: cond_text,
+                    cond_vars: vars,
+                    loc: SourceLocation::span_bytes(
+                        cie_core::types::FileId(0),
+                        node.start_byte() as u32,
+                        node.end_byte() as u32,
+                    ),
+                });
+            }
+        }
         "catch_clause" => {
             ctx.facts.exceptions.push(ExceptionSite {
                 symbol: ctx.func,
@@ -293,6 +317,19 @@ fn collect_args(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
         }
     }
     out
+}
+
+fn collect_identifiers(node: tree_sitter::Node, bytes: &[u8], out: &mut Vec<String>) {
+    if node.kind() == "identifier" {
+        let t = text_of(node, bytes).to_string();
+        if !t.is_empty() {
+            out.push(t);
+        }
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        collect_identifiers(child, bytes, out);
+    }
 }
 
 fn walk_children(ctx: &mut JavaCtx, node: tree_sitter::Node) {
@@ -424,7 +461,7 @@ fn task_015_java_adapter_facts() {
 import java.io.IOException;
 public class Auth {
     public boolean authorize(String u) throws IOException { return check(u); }
-    private boolean check(String u) { return u != null; }
+    private boolean check(String u) { if (u != null) { return true; } return false; }
     public void run(Object o) throws IOException {
         Object r = Class.forName(\"Auth\");
         try { authorize(\"u\"); } catch (IOException e) { throw new RuntimeException(e); }
@@ -467,4 +504,21 @@ public class Auth {
     );
     // Imports extracted.
     assert!(facts.imports.iter().any(|i| i.module.contains("java.io.IOException")));
+    // RFC-0024 stage 0.5: decision facts (IfSite) carry sym+line+cond —
+    // the FlowChart's diamonds draw only from these.
+    let guarded = facts
+        .ifs
+        .iter()
+        .find(|i| i.cond.contains("u != null"))
+        .expect("decision fact recorded from the method body");
+    assert!(guarded.line >= 1, "decision fact carries its line");
+    assert!(!guarded.cond_vars.is_empty(), "condition variables recorded");
+    assert_eq!(guarded.cond_vars[0], "u");
+    // The decision is attributed to check(), not the module.
+    let check_sym = facts
+        .symbols
+        .iter()
+        .find(|s| s.name == "check")
+        .expect("check symbol exists");
+    assert_eq!(guarded.symbol, check_sym.id);
 }

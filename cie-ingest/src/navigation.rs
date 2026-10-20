@@ -92,29 +92,7 @@ pub fn ensure_navigation(project: &Path, outcome: &mut IngestOutcome) -> io::Res
         outcome.store.unresolved = calls.clone();
         return Ok(graph.clone());
     }
-    let index = store
-        .load_index()?
-        .ok_or_else(|| io::Error::other("navigation unavailable: no revision file index"))?;
-    if index.last_rev != outcome.rev {
-        return Err(io::Error::other(
-            "navigation unavailable: source index belongs to another revision",
-        ));
-    }
-    let mut files = Vec::new();
-    for path in &outcome.snapshot.files {
-        let rec = index
-            .files
-            .get(path)
-            .ok_or_else(|| io::Error::other("navigation unavailable: missing source hash"))?;
-        let src = std::fs::read_to_string(project.join(path))?;
-        if content_hash(src.as_bytes()) != rec.hash {
-            return Err(io::Error::other(
-                "navigation unavailable: source changed since revision",
-            ));
-        }
-        files.push((path.clone(), rec.lang, src));
-    }
-    let extracted = cie_adapters::extract_project(&files, &default_registry());
+    let extracted = extract_revision_files(project, outcome.rev, &outcome.snapshot)?;
     let graph = {
         remap_relations(
             &cie_semantic::graph::relation_graph_from_facts(&extracted.per_file, &extracted.store),
@@ -140,6 +118,43 @@ pub fn ensure_navigation(project: &Path, outcome: &mut IngestOutcome) -> io::Res
     save_unresolved(&store, outcome.rev, &calls)?;
     outcome.store.unresolved = calls;
     Ok(graph)
+}
+
+/// RFC-0024 stage 0.5 — re-extract a revision's LangFacts from
+/// revision-verified sources. The cache-first fast path of
+/// `ensure_navigation` stays untouched; this is the shared
+/// read-verify-extract core the flow-chart producer (`cie viz --flow`)
+/// consumes: every file's content hash is checked against the revision's
+/// index, so facts are never extracted from changed sources.
+pub fn extract_revision_files(
+    project: &Path,
+    rev: RevId,
+    snapshot: &RevSnapshot,
+) -> io::Result<cie_adapters::ExtractedProject> {
+    let store = Store::open(project)?;
+    let index = store
+        .load_index()?
+        .ok_or_else(|| io::Error::other("navigation unavailable: no revision file index"))?;
+    if index.last_rev != rev {
+        return Err(io::Error::other(
+            "navigation unavailable: source index belongs to another revision",
+        ));
+    }
+    let mut files = Vec::new();
+    for path in &snapshot.files {
+        let rec = index
+            .files
+            .get(path)
+            .ok_or_else(|| io::Error::other("navigation unavailable: missing source hash"))?;
+        let src = std::fs::read_to_string(project.join(path))?;
+        if content_hash(src.as_bytes()) != rec.hash {
+            return Err(io::Error::other(
+                "navigation unavailable: source changed since revision",
+            ));
+        }
+        files.push((path.clone(), rec.lang, src));
+    }
+    Ok(cie_adapters::extract_project(&files, &default_registry()))
 }
 
 /// Preserve source coordinates across reloads without reopening current files.

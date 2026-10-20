@@ -271,6 +271,11 @@ pub enum Command {
         /// Salience-bounded element cap (default 2000, VIZ-I-06)
         #[arg(long)]
         max_elements: Option<usize>,
+        /// RFC-0024 stage 0.5: produce the flow-chart ViewSpec over the
+        /// extracted facts (process/decision/store elements; calls/data/
+        /// writes edges) instead of the concept view.
+        #[arg(long)]
+        flow: bool,
         /// Force a layout strategy (verbatim G6 name); default auto-selects
         #[arg(long)]
         layout: Option<String>,
@@ -1430,6 +1435,7 @@ fn run(cli: Cli) -> i32 {
             validate,
             engine,
             max_elements,
+            flow,
             layout,
             out,
         } => {
@@ -1496,26 +1502,45 @@ fn run(cli: Cli) -> i32 {
             let path = path.canonicalize().unwrap_or(path);
             match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
                 Ok(outcome) => {
-                    let produce_opts = cie_viz::ProduceOptions {
-                        max_elements: max_elements.unwrap_or(cie_viz::ELEMENT_CAP),
-                        layout: layout.clone(),
+                    let json_result = if flow {
+                        // RFC-0024 stage 0.5: the flow-chart ViewSpec over
+                        // revision-verified facts (`extract_revision_files`
+                        // hash-checks every source before extraction).
+                        let extracted =
+                            match cie_ingest::navigation::extract_revision_files(
+                                &path,
+                                outcome.rev,
+                                &outcome.snapshot,
+                            ) {
+                                Ok(x) => x,
+                                Err(e) => {
+                                    eprintln!("error: flow facts unavailable: {e}");
+                                    return 1;
+                                }
+                            };
+                        let flow_opts = cie_viz::flow::FlowOptions {
+                            max_elements: max_elements.unwrap_or(cie_viz::ELEMENT_CAP),
+                            layout: layout.clone(),
+                        };
+                        cie_viz::flow::flow_chart(&extracted.per_file, &extracted.store, &flow_opts)
+                            .map(|spec| serde_json::to_string_pretty(&spec).unwrap_or_default())
+                    } else {
+                        let produce_opts = cie_viz::ProduceOptions {
+                            max_elements: max_elements.unwrap_or(cie_viz::ELEMENT_CAP),
+                            layout: layout.clone(),
+                        };
+                        cie_viz::produce(&outcome.snapshot, &produce_opts)
+                            .map(|spec| serde_json::to_string_pretty(&spec).unwrap_or_default())
                     };
-                    match cie_viz::produce(&outcome.snapshot, &produce_opts) {
-                        Ok(spec) => {
-                            let json = serde_json::to_string_pretty(&spec).unwrap_or_default();
+                    match json_result {
+                        Ok(json) => {
                             match out {
                                 Some(f) => {
                                     if let Err(e) = std::fs::write(&f, json + "\n") {
                                         eprintln!("error writing {f:?}: {e}");
                                         return 1;
                                     }
-                                    println!(
-                                        "wrote {}: {} elements, {} edges, semantic {}",
-                                        f.display(),
-                                        spec.elements.len(),
-                                        spec.edges.len(),
-                                        spec.semantic_hash
-                                    );
+                                    println!("wrote {} (semantic hash in the spec)", f.display());
                                 }
                                 None => println!("{json}"),
                             }

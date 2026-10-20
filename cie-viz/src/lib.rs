@@ -33,6 +33,7 @@
 //! assert!(hash::verify_render(&spec, "")); // engine-neutral baseline
 //! ```
 
+pub mod flow;
 pub mod gate;
 pub mod hash;
 pub mod model;

@@ -414,3 +414,19 @@ Work Log:
 
 Stage Summary:
 - Stage 0 acceptance met: 3 new vitest suites green, existing suites green, Rust gate mirrors compile and pass. The contract now carries selection, disclosure rows, and evidence-gated narration — stages 0.5–5 build on these patches.
+---
+Task ID: 29
+Agent: main (Z.ai)
+Task: RFC-0024 stage 0.5 — engine emissions: flow-chart producer over facts, DecisionFact (java), relation graph on the production path.
+
+Work Log:
+- Java adapter gained if_statement → IfSite emission (DecisionFact: sym+line+cond+span; python/kotlin already emitted ifs). Test asserts the check() method's `u != null` branch records symbol+line+cond vars.
+- NEW cie-viz/src/flow.rs — flow_chart(facts, store, opts): process elements (callables in the recorded flow, file+line+qualName in fields), decision elements ONLY from recorded IfSites (module-level ifs become hidden[] ledger rows, never orphans), store elements from sinks (owning symbol's span as evidence — the no-single-line carve-out), calls/data-flow edges from relation_graph_from_facts (now on the production path), writes edges process→store; salience cap with patch-2 label/kind hidden rows; gate-validated + sealed.
+- Rust HiddenCandidate gained optional label/kind (serde-compatible); the concept producer stamps them too — G1 rows are real everywhere.
+- cie-ingest gained extract_revision_files (read-verify-extract core split out of ensure_navigation; cache-first path untouched; every source hash-checked against the revision index).
+- CLI: cie viz --flow produces the flow-chart ViewSpec.
+- Acceptance run: cargo tests green across cie-viz (34/34) + all touched crates (23 binaries, 0 failures); `cie viz samples/polyglot --flow` → 31 process / 8 decisions with file+line (BookingService.java:17 "(berth == null)", :20 "(!berth.isAvailable())", BillingService.kt:14, Invoice.kt:10 …), 1 store, 5 calls + 1 writes edges, footer 40 facts / 0 fog.
+- Note: download/ (local ZIP fallback dir) added to .gitignore so local artifacts never join commits.
+
+Stage Summary:
+- The engine now emits the data the UI cannot fake: decisions with exact lines, flow elements over facts, stores with honest evidence. The R4 FlowChart in stage 4 consumes exactly this.

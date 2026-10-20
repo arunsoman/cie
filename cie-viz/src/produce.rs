@@ -131,7 +131,8 @@ fn display_mode_for(node: &cie_concepts::ConceptNode) -> (DisplayMode, Option<St
 }
 
 /// VIZ-D-03 auto-selection over the FINAL edge set. Deterministic.
-fn auto_layout(n_elements: usize, edges: &[ViewEdge]) -> String {
+/// `pub(crate)`: the RFC-0024 flow producer reuses the same rule.
+pub(crate) fn auto_layout(n_elements: usize, edges: &[ViewEdge]) -> String {
     if n_elements == 0 || edges.is_empty() {
         return "dagre".into();
     }
@@ -211,6 +212,8 @@ pub fn from_snapshot(snap: &RevSnapshot, opts: &ProduceOptions) -> ViewSpec {
                 id: format!("c{}", node.id),
                 reason: "no resolvable symbol evidence — never drawn unevidenced".into(),
                 salience_weight: (node.coverage_ratio * node.confidence).clamp(0.0, 1.0),
+                label: Some(node.label.clone()),
+                kind: Some(node.kind.as_str().to_ascii_lowercase()),
             });
             continue;
         };
@@ -344,9 +347,11 @@ pub fn from_snapshot(snap: &RevSnapshot, opts: &ProduceOptions) -> ViewSpec {
         let mut dropped_hidden: Vec<HiddenCandidate> = dropped
             .into_iter()
             .map(|e| HiddenCandidate {
-                id: e.id,
+                id: e.id.clone(),
                 reason: "salience-bounded element cap (VIZ-I-06)".into(),
                 salience_weight: e.salience.weight,
+                label: Some(e.label.clone()),
+                kind: Some(e.element_kind.clone()),
             })
             .collect();
         dropped_hidden.extend(hidden.drain(..));

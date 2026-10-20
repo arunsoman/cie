@@ -122,6 +122,13 @@ pub struct HiddenCandidate {
     pub id: String,
     pub reason: String,
     pub salience_weight: f32,
+    /// RFC-0024 patch 2 (G1) — human row text for the disclosure popup;
+    /// absent ⇒ the UI falls back to `id` and says so.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// RFC-0024 patch 2 — plain-words element kind of the hidden row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 }
 
 /// The epistemic footer — ALWAYS present, even when all counts are zero
