@@ -469,13 +469,14 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // snapshot naming a stack artifact that isn't durably on disk.
     store.save_stack(rev, &stack)?;
 
-    let analysis = cie_analysis::analyze(
+    let analysis = cie_analysis::analyze_with_history(
         &extracted.store,
         &extracted.per_file,
         rev,
         &cfg,
         &label_fn,
         reuse_ref,
+        Some(project),
     );
 
     // Persist label cache (LLM provenance recorded per PRD §63).
@@ -681,6 +682,8 @@ pub fn run_drift(
     for (name, content) in docs {
         claims.extend(cie_drift::pipeline::extract_claims(name, content, now));
     }
+
+    cie_drift::pipeline::bind_history(project, &mut claims);
 
     // TASK-073: persist claims with (doc, span, kind, modality) provenance;
     // identical (doc, text) claims dedup onto one entry across runs.

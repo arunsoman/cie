@@ -67,6 +67,7 @@ pub fn coverage_gaps(store: &SymbolStore, map: &TestMap, rev: u64) -> Vec<Findin
         }
         seq += 1;
         findings.push(Finding {
+                introduced: None,
             id: format!("F-{rev}-T{seq:04}"),
             kind: FindingKind::CoverageGap,
             severity: FindingKind::CoverageGap.default_severity(),

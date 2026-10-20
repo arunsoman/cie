@@ -206,6 +206,7 @@ impl NamingRecord {
             .map(|a| a.as_str().to_string())
             .unwrap_or_else(|| "promised".into());
         Contract {
+                introduced: None,
             id: 0, // assigned by the registry
             obligation: ObligationKind::Naming,
             expr: format!(

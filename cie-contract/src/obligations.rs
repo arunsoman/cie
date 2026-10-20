@@ -318,6 +318,7 @@ pub fn obligations(model: &StateModel, symbols: Vec<SymbolId>) -> Vec<Contract> 
     let mut out = vec![];
     // SAFETY — distinct kind, never conflated with liveness.
     out.push(Contract {
+                introduced: None,
         id: 0, // registry assigns
         obligation: ObligationKind::Safety,
         expr: "requires(fulfill, authorized)".into(),
@@ -329,6 +330,7 @@ pub fn obligations(model: &StateModel, symbols: Vec<SymbolId>) -> Vec<Contract> 
     // refund; a refund CALL does not discharge it (FR-15 Important note).
     let refund_effective_ok = StateModelBuilder::refund_effective_is_evidenced(model);
     out.push(Contract {
+                introduced: None,
         id: 0,
         obligation: ObligationKind::Liveness,
         expr: format!(

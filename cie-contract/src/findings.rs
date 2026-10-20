@@ -103,6 +103,9 @@ impl FindingKind {
 /// A concrete finding with evidence lines, remediation and authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Finding {
+    /// Blame-derived commit metadata, not proof of semantic introduction.
+    #[serde(default)]
+    pub introduced: Option<Vec<cie_history::CommitMeta>>,
     /// Stable-ish id: `F-{rev}-{seq}`.
     pub id: String,
     pub kind: FindingKind,

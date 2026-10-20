@@ -64,6 +64,9 @@ pub struct DocSourceLocation {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Claim {
+    /// Blame-derived commit metadata, not proof of semantic introduction.
+    #[serde(default)]
+    pub introduced: Option<Vec<cie_history::CommitMeta>>,
     pub id: ClaimId,
     pub doc: String,
     pub text: String,

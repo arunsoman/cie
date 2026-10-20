@@ -105,6 +105,7 @@ fn task_041_survivors_register_as_protocol_candidates() {
 
     // the guard: a Protocol contract with Explicit authority is rejected
     let attempt = cie_contract::Contract {
+                introduced: None,
         id: 0,
         obligation: ObligationKind::Protocol,
         expr: "before(commit, begin)".into(),

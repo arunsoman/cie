@@ -8,6 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+cie-history = { workspace = true }
 cie-core = { workspace = true }
 cie-semantic = { workspace = true }
 cie-claims = { workspace = true }

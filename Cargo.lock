@@ -473,6 +473,7 @@ dependencies = [
  "cie-core",
  "cie-counterexample",
  "cie-evidence",
+ "cie-history",
  "cie-incremental",
  "cie-relations",
  "cie-semantic",
@@ -491,6 +492,7 @@ version = "1.2.0"
 dependencies = [
  "blake3",
  "cie-core",
+ "cie-history",
  "cie-llm",
  "cie-semantic",
  "cie-store",
@@ -541,6 +543,7 @@ name = "cie-contract"
 version = "1.2.0"
 dependencies = [
  "cie-core",
+ "cie-history",
  "cie-semantic",
  "cie-summary",
  "serde",
@@ -593,6 +596,7 @@ dependencies = [
  "cie-contract",
  "cie-core",
  "cie-evidence",
+ "cie-history",
  "cie-semantic",
  "cie-store",
  "cie-summary",
@@ -619,6 +623,13 @@ dependencies = [
  "cie-semantic",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "cie-history"
+version = "1.2.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -665,6 +676,7 @@ dependencies = [
  "cie-core",
  "cie-docs",
  "cie-drift",
+ "cie-history",
  "cie-incremental",
  "cie-llm",
  "cie-semantic",

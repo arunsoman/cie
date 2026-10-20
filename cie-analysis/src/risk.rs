@@ -285,6 +285,7 @@ mod tests {
 
     fn finding(sym: SymbolId, name: &str) -> Finding {
         Finding {
+                introduced: None,
             id: format!("F-test-{sym:?}"),
             kind: FindingKind::TaintFlow,
             severity: Severity::High,

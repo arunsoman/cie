@@ -239,6 +239,7 @@ mod tests {
 
     fn finding(symbol: SymbolId) -> Finding {
         Finding {
+                introduced: None,
             id: format!("F-1-{}", symbol.0),
             kind: FindingKind::HardcodedSecret,
             severity: Severity::High,
@@ -285,6 +286,7 @@ mod tests {
             ],
             findings: vec![finding(SymbolId(7)), finding(SymbolId(1))],
             contracts: vec![Contract {
+                introduced: None,
                 id: 0,
                 obligation: ObligationKind::MustAuthorize,
                 expr: "e".into(),

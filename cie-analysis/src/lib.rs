@@ -71,6 +71,18 @@ pub fn analyze(
     label_fn: hierarchy::LabelFn,
     reuse: Option<&behavior::ReusePlan>,
 ) -> AnalysisOutput {
+    analyze_with_history(store, per_file, rev, cfg, label_fn, reuse, None)
+}
+
+pub fn analyze_with_history(
+    store: &SymbolStore,
+    per_file: &[LangFacts],
+    rev: RevId,
+    cfg: &AnalysisConfig,
+    label_fn: hierarchy::LabelFn,
+    reuse: Option<&behavior::ReusePlan>,
+    history_root: Option<&std::path::Path>,
+) -> AnalysisOutput {
     let start = cie_core::types::now_ns();
 
     // L4 stage 1: behavior extraction (TASK-030: reuse where deps unchanged).
@@ -82,7 +94,7 @@ pub fn analyze(
         .collect();
 
     // Stage 2: conformance (findings + contracts).
-    let conf = conformance::run(store, per_file, &beh.summaries, rev);
+    let mut conf = conformance::run(store, per_file, &beh.summaries, rev);
 
     // Stage 3: security + performance slice.
     let mut findings = conf.findings;
@@ -110,6 +122,7 @@ pub fn analyze(
             continue;
         }
         findings.push(Finding {
+                introduced: None,
             id: format!("F-{rev}-D{:04}", findings.len() + 1),
             kind: crate::findings::FindingKind::DeadCode,
             severity: crate::findings::FindingKind::DeadCode.default_severity(),
@@ -125,6 +138,10 @@ pub fn analyze(
             rule: "arch/AR-002".into(),
             tags: vec!["architecture".into()],
         });
+    }
+
+    if let Some(root) = history_root {
+        conformance::bind_history(root, store, &mut conf.contracts, &mut findings);
     }
 
     // Stage 5: concepts + hierarchy.
@@ -183,6 +200,9 @@ pub fn analyze(
         "print/log effect classification is name-based".into(),
     ];
 
+    if history_root.is_some() {
+        evidence.assumptions.push("Commit provenance is Git blame at capture time, bounded to 64 cited lines / 5 seconds; absent bindings may be unavailable, dirty, shallow or outside the budget, never proof of no history.".into());
+    }
     AnalysisOutput {
         summary_reuse: beh.reuse,
         summaries: beh.summaries,

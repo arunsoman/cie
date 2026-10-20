@@ -319,6 +319,7 @@ pub fn us_071() -> Result<(), String> {
         rev: 1,
         docs: vec!["d.md".into()],
         claims: vec![Claim {
+                introduced: None,
             id: 1,
             doc: "d.md".into(),
             text: "charge refunds on failure".into(),

@@ -48,6 +48,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
                 };
                 seq += 1;
                 findings.push(Finding {
+                introduced: None,
                     id: format!("F-{rev}-S{seq:04}"),
                     kind: FindingKind::HardcodedSecret,
                     severity: FindingKind::HardcodedSecret.default_severity(),
@@ -86,6 +87,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
             };
             seq += 1;
             findings.push(Finding {
+                introduced: None,
                 id: format!("F-{rev}-S{seq:04}"),
                 kind: FindingKind::IgnoredErrorValue,
                 severity: FindingKind::IgnoredErrorValue.default_severity(),
@@ -123,6 +125,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
             };
             seq += 1;
             findings.push(Finding {
+                introduced: None,
                 id: format!("F-{rev}-S{seq:04}"),
                 kind: FindingKind::SwallowedException,
                 severity: FindingKind::SwallowedException.default_severity(),
@@ -204,6 +207,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
             };
             seq += 1;
             findings.push(Finding {
+                introduced: None,
                 id: format!("F-{rev}-S{seq:04}"),
                 kind,
                 severity: kind.default_severity(),
@@ -260,6 +264,7 @@ pub fn run(store: &SymbolStore, per_file: &[LangFacts], rev: RevId) -> Vec<Findi
             };
             seq += 1;
             findings.push(Finding {
+                introduced: None,
                 id: format!("F-{rev}-P{seq:04}"),
                 kind: FindingKind::NPlusOneQuery,
                 severity: FindingKind::NPlusOneQuery.default_severity(),

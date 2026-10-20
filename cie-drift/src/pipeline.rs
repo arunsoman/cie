@@ -50,6 +50,7 @@ pub fn extract_claims(doc_name: &str, text: &str, now: Ns) -> Vec<Claim> {
         if !body.is_empty() && (is_bullet || has_modality) && body.len() > 12 {
             if let Some((kind, modality, conf)) = classify_claim(body) {
                 claims.push(Claim {
+                introduced: None,
                     id,
                     doc: doc_name.to_string(),
                     text: body.chars().take(500).collect(),
@@ -730,4 +731,16 @@ fn summaries_entrypoint(id: SymbolId, store: &SymbolStore) -> bool {
             ) || s.name.starts_with("handle_")
         })
         .unwrap_or(false)
+}
+
+
+/// Bind document claims only when the extracted line still contains their text.
+/// Normalization can change line numbers; such sites remain unbound.
+pub fn bind_history(root: &std::path::Path, claims: &mut [Claim]) {
+    let sites: Vec<_> = claims.iter().filter(|c|std::fs::read_to_string(root.join(&c.doc)).ok()
+        .and_then(|s|s.lines().nth(c.loc.line.saturating_sub(1) as usize).map(|l|l.contains(&c.text))).unwrap_or(false))
+        .map(|c|(c.doc.clone(),c.loc.line as u64)).collect();
+    let history=cie_history::cited_history(root,&sites);
+    let bindings=cie_history::bind_claims_to_history(&history,&sites);
+    for c in claims { c.introduced=bindings.get(&format!("{}:{}",c.doc,c.loc.line)).cloned(); }
 }

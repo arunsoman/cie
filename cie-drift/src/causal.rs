@@ -144,6 +144,7 @@ mod tests {
 
     fn claim(id: ClaimId, text: &str) -> Claim {
         Claim {
+                introduced: None,
             id,
             doc: "docs/payment.md".into(),
             text: text.into(),

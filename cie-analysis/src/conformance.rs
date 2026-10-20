@@ -90,6 +90,7 @@ pub fn run(
         emit(
             &mut findings,
             Finding {
+                introduced: None,
                 id: String::new(),
                 kind: FindingKind::PrintOnlyAuthorization,
                 severity: FindingKind::PrintOnlyAuthorization.default_severity(),
@@ -137,6 +138,7 @@ pub fn run(
         emit(
             &mut findings,
             Finding {
+                introduced: None,
                 id: String::new(),
                 kind: FindingKind::UnconditionalSuccess,
                 severity: FindingKind::UnconditionalSuccess.default_severity(),
@@ -218,6 +220,7 @@ pub fn run(
             emit(
                 &mut findings,
                 Finding {
+                introduced: None,
                     id: String::new(),
                     kind: FindingKind::IgnoredRejection,
                     severity: FindingKind::IgnoredRejection.default_severity(),
@@ -292,6 +295,7 @@ pub fn run(
                 emit(
                     &mut findings,
                     Finding {
+                introduced: None,
                         id: String::new(),
                         kind: FindingKind::ExceptionToSuccess,
                         severity: FindingKind::ExceptionToSuccess.default_severity(),
@@ -316,6 +320,7 @@ pub fn run(
                 emit(
                     &mut findings,
                     Finding {
+                introduced: None,
                         id: String::new(),
                         kind: FindingKind::SwallowedException,
                         severity: FindingKind::SwallowedException.default_severity(),
@@ -390,6 +395,7 @@ pub fn run(
         emit(
             &mut findings,
             Finding {
+                introduced: None,
                 id: String::new(),
                 kind: FindingKind::LayeringViolation,
                 severity: FindingKind::LayeringViolation.default_severity(),
@@ -443,6 +449,7 @@ pub fn run(
             };
             if let Some(ob) = obligation {
                 contracts.push(Contract {
+                introduced: None,
                     id: cid,
                     obligation: ob,
                     expr: line.trim().chars().take(200).collect(),
@@ -461,6 +468,7 @@ pub fn run(
         }
         if is_auth_name(&sym.name) {
             contracts.push(Contract {
+                introduced: None,
                 id: cid,
                 obligation: ObligationKind::MustAuthorize,
                 expr: format!(
@@ -475,6 +483,7 @@ pub fn run(
         }
         if is_money_name(&sym.name) || is_destructive_name(&sym.name) {
             contracts.push(Contract {
+                introduced: None,
                 id: cid,
                 obligation: ObligationKind::MustAuthorize,
                 expr: format!(
@@ -495,4 +504,24 @@ pub fn run(
         findings,
         contracts,
     }
+}
+
+
+/// Bind only actual cited sites. Bounded history is optional and never changes
+/// authority. The name `introduced` is a compatibility label for Git blame.
+pub fn bind_history(root: &std::path::Path, store: &SymbolStore, contracts: &mut [Contract], findings: &mut [Finding]) {
+    let site = |id: SymbolId, line: Option<u32>| store.get(id).map(|s| (store.files.path(s.loc.file).to_string(), line.unwrap_or_else(||store.files.line(s.loc)) as u64));
+    let mut sites: Vec<_> = contracts.iter().flat_map(|c|c.symbols.iter()).filter_map(|s|site(*s,None)).collect();
+    sites.extend(findings.iter().flat_map(|f| {
+        if f.evidence_lines.is_empty() { vec![site(f.symbol,None)] }
+        else { f.evidence_lines.iter().map(|l|site(f.symbol,Some(*l))).collect() }
+    }).flatten());
+    let history=cie_history::cited_history(root,&sites);
+    let chain = |sites: Vec<(String,u64)>| {
+        let mut c: Vec<_> = sites.iter().flat_map(|(p,l)|cie_history::archaeology_chain(&history,p,*l)).collect();
+        c.sort_by(|a,b|(a.time,&a.id).cmp(&(b.time,&b.id))); c.dedup_by(|a,b|a.id==b.id);
+        (!c.is_empty()).then_some(c)
+    };
+    for c in contracts { c.introduced=chain(c.symbols.iter().filter_map(|s|site(*s,None)).collect()); }
+    for f in findings { f.introduced=chain(if f.evidence_lines.is_empty(){site(f.symbol,None).into_iter().collect()}else{f.evidence_lines.iter().filter_map(|l|site(f.symbol,Some(*l))).collect()}); }
 }

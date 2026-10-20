@@ -29,6 +29,7 @@ fn fixture_payment_paths() -> (
 ) {
     // contract: charge requires prior authorize (Explicit, docstring source)
     let contracts = vec![Contract {
+                introduced: None,
         id: 0, // registry assigns
         obligation: ObligationKind::MustAuthorize,
         expr: "requires(charge, authorized)".into(),
@@ -161,6 +162,7 @@ fn task_043_verified_upgrade_flows_through_registry() {
     // empty proof rejected (no mechanical check, no upgrade)
     let id2 = reg
         .insert(Contract {
+                introduced: None,
             id: 0,
             obligation: ObligationKind::MustAuthorize,
             expr: "requires(refund, authorized)".into(),
