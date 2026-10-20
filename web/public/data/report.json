@@ -2344,7 +2344,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2375,7 +2375,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2401,7 +2401,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2423,7 +2423,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2443,7 +2443,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2469,7 +2469,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2494,7 +2494,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2519,7 +2519,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2551,7 +2551,7 @@
     "mutation"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2579,7 +2579,7 @@
     "query"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2609,7 +2609,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2637,7 +2637,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2659,7 +2659,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2685,7 +2685,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2707,7 +2707,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2742,7 +2742,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2774,7 +2774,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2803,7 +2803,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2827,7 +2827,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2859,7 +2859,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2886,7 +2886,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2908,7 +2908,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2936,7 +2936,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2960,7 +2960,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -2991,7 +2991,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3018,7 +3018,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3053,7 +3053,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3109,7 +3109,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3133,7 +3133,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3196,7 +3196,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3288,7 +3288,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3321,7 +3321,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3402,7 +3402,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3508,7 +3508,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3536,7 +3536,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3629,7 +3629,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3658,7 +3658,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3692,7 +3692,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3733,7 +3733,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3778,7 +3778,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3812,7 +3812,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -3856,7 +3856,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4154,7 +4154,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4178,7 +4178,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4205,7 +4205,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4244,7 +4244,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4280,7 +4280,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4304,7 +4304,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4343,7 +4343,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4408,7 +4408,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4430,7 +4430,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4461,7 +4461,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4518,7 +4518,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4588,7 +4588,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4612,7 +4612,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4639,7 +4639,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4661,7 +4661,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4688,7 +4688,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4727,7 +4727,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4761,7 +4761,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4783,7 +4783,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4839,7 +4839,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4892,7 +4892,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4914,7 +4914,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4937,7 +4937,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -4981,7 +4981,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5007,7 +5007,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5029,7 +5029,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5071,7 +5071,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5125,7 +5125,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5176,7 +5176,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5333,7 +5333,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5367,7 +5367,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5400,7 +5400,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5440,7 +5440,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5488,7 +5488,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5522,7 +5522,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5542,7 +5542,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5562,7 +5562,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5582,7 +5582,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5602,7 +5602,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5624,7 +5624,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5644,7 +5644,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5664,7 +5664,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5684,7 +5684,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5704,7 +5704,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -5726,7 +5726,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6348,7 +6348,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6372,7 +6372,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6401,7 +6401,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6423,7 +6423,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6447,7 +6447,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6472,7 +6472,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6496,7 +6496,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6530,7 +6530,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6564,7 +6564,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6600,7 +6600,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6636,7 +6636,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6659,7 +6659,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6693,7 +6693,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6723,7 +6723,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6760,7 +6760,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6782,7 +6782,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6804,7 +6804,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6828,7 +6828,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6857,7 +6857,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6877,7 +6877,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6903,7 +6903,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6930,7 +6930,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6958,7 +6958,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -6980,7 +6980,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7007,7 +7007,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7029,7 +7029,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7065,7 +7065,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7092,7 +7092,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7115,7 +7115,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7166,7 +7166,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7189,7 +7189,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7223,7 +7223,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7278,7 +7278,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7305,7 +7305,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   },
   {
@@ -7336,7 +7336,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792471829762201494,
+   "compute_ns": 1792473770678727843,
    "complete": true
   }
  ],
@@ -11961,7 +11961,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -12861,7 +12861,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:apps",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13777,7 +13777,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:roles",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13867,7 +13867,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13891,7 +13891,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13914,7 +13914,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13940,7 +13940,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -13987,7 +13987,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14049,7 +14049,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14126,7 +14126,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14148,7 +14148,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14321,7 +14321,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14429,7 +14429,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14716,7 +14716,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14751,7 +14751,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14773,7 +14773,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14832,7 +14832,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -14899,7 +14899,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15122,7 +15122,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15151,7 +15151,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15192,7 +15192,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15219,7 +15219,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15269,7 +15269,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15317,7 +15317,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15364,7 +15364,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15408,7 +15408,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15450,7 +15450,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15490,7 +15490,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15529,7 +15529,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15566,7 +15566,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15602,7 +15602,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15637,7 +15637,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15673,7 +15673,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15709,7 +15709,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15743,7 +15743,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15779,7 +15779,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15814,7 +15814,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15849,7 +15849,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15882,7 +15882,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15915,7 +15915,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15950,7 +15950,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -15984,7 +15984,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16019,7 +16019,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16053,7 +16053,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16086,7 +16086,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16119,7 +16119,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16152,7 +16152,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16186,7 +16186,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16218,7 +16218,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16250,7 +16250,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16282,7 +16282,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16318,7 +16318,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16351,7 +16351,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16385,7 +16385,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16417,7 +16417,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16448,7 +16448,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16480,7 +16480,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16513,7 +16513,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16550,7 +16550,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16586,7 +16586,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16617,7 +16617,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16648,7 +16648,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16676,7 +16676,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16704,7 +16704,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16732,7 +16732,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16760,7 +16760,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16788,7 +16788,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16816,7 +16816,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16844,7 +16844,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16872,7 +16872,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16900,7 +16900,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16928,7 +16928,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16956,7 +16956,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -16984,7 +16984,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17012,7 +17012,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17040,7 +17040,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17068,7 +17068,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17096,7 +17096,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17124,7 +17124,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17152,7 +17152,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17180,7 +17180,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17208,7 +17208,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17236,7 +17236,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17264,7 +17264,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    },
    {
@@ -17292,7 +17292,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471829762200303,
+    "created_ns": 1792473770678727015,
     "compute_ns": 0
    }
   ],
@@ -17310,7 +17310,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 769839419
+  "wall_ns": 702032765
  },
  "evidence": {
   "rev": 1,
@@ -17529,10 +17529,10 @@
    "scripts.collect_quality.collect_drift: round (unresolved_name)",
    "scripts.collect_quality.collect_drift: str (unresolved_name)"
   ],
-  "generated_at_ns": 1792471829762200303
+  "generated_at_ns": 1792473770678727015
  },
  "warnings": [],
- "ingest_wall_ns": 950403787,
+ "ingest_wall_ns": 931399400,
  "incremental": false,
  "summary_cache": [
   {
@@ -23028,6 +23028,6 @@
    ],
    "dockerfilesRead": []
   },
-  "generatedAt": 1792471829
+  "generatedAt": 1792473770
  }
 }

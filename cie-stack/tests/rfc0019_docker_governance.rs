@@ -39,7 +39,7 @@ fn polyglot_compose_reads_build_contexts_and_inline_ports() {
     }
     let r = stack_report(&dir);
     let compose = r.docker.compose.as_ref().expect("the fixture has a compose");
-    assert_eq!(compose.services.len(), 5, "five services, as written");
+    assert_eq!(compose.services.len(), 6, "five build-governed services + the image-only cache");
     let berth = compose
         .services
         .iter()
@@ -48,7 +48,17 @@ fn polyglot_compose_reads_build_contexts_and_inline_ports() {
     assert_eq!(berth.build.as_deref(), Some("./berth-booking"), "build context as written");
     assert_eq!(berth.ports, vec!["8081:8081"], "inline flow ports parsed");
     assert!(berth.line > 0, "the service key row is the evidence anchor");
-    assert!(r.external_docker.is_empty(), "every service builds here — no externals");
+
+    // the image-only service is NOT one of our apps — it is a C4 Context
+    // external, named and cited as written
+    let cache = r
+        .external_docker
+        .iter()
+        .find(|e| e.name == "cache")
+        .expect("the image-only service surfaces as an external");
+    assert_eq!(cache.image.as_deref(), Some("redis:7-alpine"), "image as written");
+    assert!(cache.ports.is_empty(), "no ports declared — nothing invented");
+    assert!(cache.evidence.starts_with("docker-compose.yml:"), "cited file:row");
 
     // the governance join: every app dir matches a compose build context
     assert_eq!(r.apps.len(), 5);
@@ -57,6 +67,7 @@ fn polyglot_compose_reads_build_contexts_and_inline_ports() {
         assert_eq!(gov.kind, "compose", "{} is governed by compose", app.dir);
         assert_eq!(gov.service.as_deref(), Some(app.dir.as_str()));
         assert!(gov.evidence.starts_with("docker-compose.yml:"), "evidence cites file:row");
+        assert_ne!(app.dir, "cache", "an image-only service never becomes an app");
     }
 }
 

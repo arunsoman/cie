@@ -432,6 +432,37 @@ fn run(cli: Cli) -> i32 {
                     Some((r, rev)) => (r, Some(rev)),
                     None => (cie_stack::stack_report(&path), None),
                 };
+            // RFC-0019 §6.1 (--force amendment): a forced re-derivation
+            // PERSISTS what it derived, so the store, the head snapshot's
+            // embedded copy, and this run's output agree — the obvious
+            // "refresh the artifact" move must not be a silent no-op that
+            // only the terminal sees. No store yet → nothing to update
+            // (a bare folder stays a bare folder).
+            let mut persisted_rev: Option<u64> = None;
+            if force && path.join(".cie").exists() {
+                if let Ok(store) = cie_store::Store::open(&path) {
+                    let rev = store.last_rev();
+                    if rev > 0 {
+                        use cie_ingest::stack_store::StackStoreExt;
+                        if store.save_stack(rev, &report).is_ok() {
+                            if let Ok(Some(mut snap)) = store.load_snapshot(rev) {
+                                // skip only a literally-identical copy (a stale
+                                // note must win over a same-second timestamp)
+                                let differs = match &snap.stack {
+                                    Some(old) => serde_json::to_string(old).ok().as_deref()
+                                        != serde_json::to_string(&report).ok().as_deref(),
+                                    None => true,
+                                };
+                                if differs {
+                                    snap.stack = Some(report.clone());
+                                    let _ = store.save_snapshot(&snap);
+                                }
+                            }
+                            persisted_rev = Some(rev);
+                        }
+                    }
+                }
+            }
             if json {
                 match store_stamp {
                     // identical bytes to what ingest persisted
@@ -453,11 +484,16 @@ fn run(cli: Cli) -> i32 {
                     }
                 }
             }
-            match store_stamp {
+            match persisted_rev {
                 Some(rev) => println!(
-                    "tech stack — from the revision store (rev {rev}); the exact artifact ingest persisted. Recompute with --force:"
+                    "tech stack — recomputed with --force and PERSISTED to the revision store (rev {rev}); the head snapshot's embedded copy was synced too:"
                 ),
-                None => println!("tech stack — read from the project's own files; nothing inferred here:"),
+                None => match store_stamp {
+                    Some(rev) => println!(
+                        "tech stack — from the revision store (rev {rev}); the exact artifact ingest persisted. Recompute with --force:"
+                    ),
+                    None => println!("tech stack — read from the project's own files; nothing inferred here:"),
+                },
             }
             println!("  build      · {}", report.build.tool);
             println!("  artifact   · {}", if report.build.artifact_name.is_empty() { "(not stated)" } else { &report.build.artifact_name });

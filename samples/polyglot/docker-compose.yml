@@ -14,3 +14,8 @@ services:
   webhooks:
     build: ./webhooks
     ports: ["8085:5000"]
+  # image-only service — no in-repo source, no build context. The engine
+  # reads this as an EXTERNAL system (C4 Context), not a container of this
+  # stack: it is software the apps depend on, but CIE did not parse it.
+  cache:
+    image: redis:7-alpine

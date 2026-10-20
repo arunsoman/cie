@@ -40,6 +40,14 @@ pub const STACK_INPUT_EXTS: &[&str] = &["xml", "gradle", "kts", "toml", "mod"];
 pub fn is_stack_input(rel: &str) -> bool {
     let p = rel.replace('\\', "/");
     let p = p.trim_start_matches("./");
+    // root-only gradle settings, checked on the whole rel path first —
+    // the detector READS these (root.join in detect.rs: build.modules +
+    // tool fallback), so the hash walk must watch exactly those paths:
+    // a settings-gradle-only edit is a stack-input change, never a silent
+    // stale report (RFC-0019 §6.2 invalidation completeness)
+    if p == "settings.gradle" || p == "settings.gradle.kts" {
+        return true;
+    }
     let base = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
     // manifests (any depth, exact names)
     if matches!(
@@ -526,6 +534,22 @@ mod tests {
         assert_eq!(r.build.tool, "unknown");
         assert!(r.notes.iter().any(|n| n.contains("no route/main parser")));
         let _ = fs::remove_dir_all(&t);
+    }
+
+    // RFC-001 §6.2 invalidation completeness: the detector READS
+    // settings.gradle(.kts) (detect.rs: populates build.modules/tool), so
+    // the hash walk must watch it too — a settings-gradle-only change is a
+    // stack-input change, never a silent stale report.
+    #[test]
+    fn settings_gradle_is_a_watched_stack_input() {
+        assert!(is_stack_input("settings.gradle"));
+        assert!(is_stack_input("settings.gradle.kts"));
+        // precise: the detector reads these at the ROOT only (root.join)
+        assert!(!is_stack_input("sub/settings.gradle"));
+        assert!(!is_stack_input("settings.gradle.bak"));
+        // still: every other watched name stays watched
+        assert!(is_stack_input("berth-booking/pom.xml"));
+        assert!(is_stack_input("docker-compose.yml"));
     }
 
     // The Spring fixture lives only in /tmp (not in this repo) — run

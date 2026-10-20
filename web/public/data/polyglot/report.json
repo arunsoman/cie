@@ -956,7 +956,7 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": "a reading past 220 cm means the berth floods."
   },
   {
    "id": 62,
@@ -1307,7 +1307,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1327,7 +1327,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1351,7 +1351,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1371,7 +1371,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1393,7 +1393,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1415,7 +1415,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1435,7 +1435,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1457,7 +1457,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1477,7 +1477,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1505,7 +1505,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1527,7 +1527,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1562,7 +1562,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1584,7 +1584,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1614,7 +1614,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1641,7 +1641,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1663,7 +1663,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1691,7 +1691,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1711,7 +1711,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1731,7 +1731,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1758,7 +1758,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1780,7 +1780,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1802,7 +1802,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1824,7 +1824,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1844,7 +1844,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1864,7 +1864,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1888,7 +1888,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1912,7 +1912,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1934,7 +1934,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1962,7 +1962,7 @@
     "query"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -1984,7 +1984,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2009,7 +2009,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2037,7 +2037,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2060,7 +2060,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2095,7 +2095,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2118,7 +2118,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2146,7 +2146,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2172,7 +2172,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2198,7 +2198,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2220,7 +2220,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2240,7 +2240,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2262,7 +2262,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2295,7 +2295,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   },
   {
@@ -2321,7 +2321,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792471831746015365,
+   "compute_ns": 1792473772886906811,
    "complete": true
   }
  ],
@@ -4662,7 +4662,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -4855,7 +4855,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:apps",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5026,7 +5026,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5052,7 +5052,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5078,7 +5078,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5104,7 +5104,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5137,7 +5137,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5163,7 +5163,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5227,7 +5227,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5260,7 +5260,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5291,7 +5291,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5325,7 +5325,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5365,7 +5365,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5422,7 +5422,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5459,7 +5459,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5483,7 +5483,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5524,7 +5524,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5640,7 +5640,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5683,7 +5683,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5724,7 +5724,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5809,7 +5809,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5879,7 +5879,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5918,7 +5918,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5955,7 +5955,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -5992,7 +5992,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6016,7 +6016,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6186,7 +6186,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6211,7 +6211,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6236,7 +6236,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6261,7 +6261,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6294,7 +6294,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6319,7 +6319,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6351,7 +6351,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6383,7 +6383,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6408,7 +6408,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6433,7 +6433,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6458,7 +6458,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6494,7 +6494,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6519,7 +6519,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6554,7 +6554,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6576,7 +6576,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6616,7 +6616,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6657,7 +6657,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6698,7 +6698,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6784,7 +6784,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6806,7 +6806,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6841,7 +6841,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6876,7 +6876,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6913,7 +6913,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -6935,7 +6935,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7107,7 +7107,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:aggregate",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7134,7 +7134,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7161,7 +7161,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7188,7 +7188,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7215,7 +7215,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7242,7 +7242,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7269,7 +7269,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7296,7 +7296,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7323,7 +7323,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7350,7 +7350,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7377,7 +7377,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7404,7 +7404,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7431,7 +7431,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7458,7 +7458,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7485,7 +7485,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7512,7 +7512,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7539,7 +7539,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7610,7 +7610,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7649,7 +7649,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7683,7 +7683,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7715,7 +7715,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7747,7 +7747,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7779,7 +7779,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7811,7 +7811,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    },
    {
@@ -7839,7 +7839,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792471831746010811,
+    "created_ns": 1792473772886905928,
     "compute_ns": 0
    }
   ],
@@ -7857,7 +7857,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 259905237
+  "wall_ns": 277582895
  },
  "evidence": {
   "rev": 1,
@@ -7959,10 +7959,10 @@
    "webhooks.app.webhook.delivery_status: jsonify (unresolved_name)",
    "webhooks.app.webhook.delivery_status: events.delivery_status (dynamic_attribute)"
   ],
-  "generated_at_ns": 1792471831746010811
+  "generated_at_ns": 1792473772886905928
  },
  "warnings": [],
- "ingest_wall_ns": 497658557,
+ "ingest_wall_ns": 593465581,
  "incremental": false,
  "summary_cache": [
   {
@@ -11336,11 +11336,19 @@
        "8085:5000"
       ],
       "line": 14
+     },
+     {
+      "name": "cache",
+      "image": "redis:7-alpine",
+      "build": null,
+      "dockerfile": null,
+      "ports": [],
+      "line": 20
      }
     ],
     "skipped": []
    },
-   "note": "docker compose with 5 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
+   "note": "docker compose with 6 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
   },
   "jvm": {
    "configClasses": [
@@ -12780,7 +12788,14 @@
     "note": "application.properties, as written"
    }
   ],
-  "externalDocker": [],
+  "externalDocker": [
+   {
+    "name": "cache",
+    "image": "redis:7-alpine",
+    "ports": [],
+    "evidence": "docker-compose.yml:20"
+   }
+  ],
   "notes": [
    "[stack] composite parsed it: a composite — 5 app(s), one parser each, merged: berth-booking (spring), billing (spring), search (express), tide-alerts (axum), webhooks (flask)",
    "[node] handler flows follow the handler's module plus one hop into sibling-module functions; deeper hops are capped honestly.",
@@ -12800,6 +12815,6 @@
     "docker-compose.yml"
    ]
   },
-  "generatedAt": 1792471831
+  "generatedAt": 1792473772
  }
 }

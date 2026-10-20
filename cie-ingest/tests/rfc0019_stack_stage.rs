@@ -201,3 +201,40 @@ fn noop_after_stage2_still_loads_stack_from_disk() {
     assert_eq!(again.generated_at, first_at, "no re-derivation on a no-op");
     fs::remove_dir_all(&root).ok();
 }
+
+/// Invalidation completeness: the detector READS settings.gradle(.kts) at
+/// the repo root (it populates build.modules/tool), so a settings-gradle-only
+/// change must ride the stack-inputs diff too — never a silent stale stack.
+#[test]
+fn settings_gradle_change_invalidates_the_stack() {
+    let root = py_project();
+    let first = run_ingest(&root, &IngestOptions::default()).unwrap();
+    assert!(
+        first.snapshot.stack.as_ref().unwrap().build.modules.is_empty(),
+        "no settings file yet — nothing to include"
+    );
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    write_file(&root, "settings.gradle", "include(\"extra\")\n");
+    let second = run_ingest(&root, &IngestOptions::default()).unwrap();
+
+    assert!(
+        second
+            .plan
+            .stack_inputs_changed
+            .iter()
+            .any(|p| p.ends_with("settings.gradle")),
+        "settings.gradle rides the stack-inputs diff"
+    );
+    assert!(second.snapshot.incremental, "no language work — fast path holds");
+    let refreshed = second.snapshot.stack.expect("the refreshed stack rides the outcome");
+    assert_eq!(
+        refreshed.build.modules,
+        vec!["extra".to_string()],
+        "build.modules re-derived from the new settings"
+    );
+    let persisted_at = read_stack_generated_at(&root).expect("artifact on disk");
+    assert_eq!(persisted_at, refreshed.generated_at, "stack.json refreshed in place");
+
+    fs::remove_dir_all(&root).ok();
+}

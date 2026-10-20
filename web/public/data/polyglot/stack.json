@@ -151,11 +151,19 @@
       "8085:5000"
      ],
      "line": 14
+    },
+    {
+     "name": "cache",
+     "image": "redis:7-alpine",
+     "build": null,
+     "dockerfile": null,
+     "ports": [],
+     "line": 20
     }
    ],
    "skipped": []
   },
-  "note": "docker compose with 5 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
+  "note": "docker compose with 6 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
  },
  "jvm": {
   "configClasses": [
@@ -1595,7 +1603,14 @@
    "note": "application.properties, as written"
   }
  ],
- "externalDocker": [],
+ "externalDocker": [
+  {
+   "name": "cache",
+   "image": "redis:7-alpine",
+   "ports": [],
+   "evidence": "docker-compose.yml:20"
+  }
+ ],
  "notes": [
   "[stack] composite parsed it: a composite — 5 app(s), one parser each, merged: berth-booking (spring), billing (spring), search (express), tide-alerts (axum), webhooks (flask)",
   "[node] handler flows follow the handler's module plus one hop into sibling-module functions; deeper hops are capped honestly.",
@@ -1615,5 +1630,5 @@
    "docker-compose.yml"
   ]
  },
- "generatedAt": 1792471831
+ "generatedAt": 1792473772
 }
