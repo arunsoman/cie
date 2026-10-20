@@ -20,6 +20,7 @@ import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm
 import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
+import { PERSONA_PRESETS, loadPersonaMemory, savePersonaMemory, type PersonaId } from "./atlas-presets";
 
 export type DataSource = "demo" | "custom" | null;
 
@@ -175,6 +176,18 @@ interface CieState {
   setAtlasView: (v: "containers" | "components" | "sequence" | "dataflow") => void;
   setAtlasFactsOnly: (b: boolean) => void;
 
+  // RFC-0024 stage 2 — the persona state (ux-spec §14.2). Switch =
+  // re-plan, not re-page: scope carries when meaningful (containers
+  // survive all switches; module/symbol reset to the persona's default),
+  // the facts-only USER override beats the preset default for the
+  // session, each preset remembers its own last state in sessionStorage,
+  // and every switch is footer-disclosed.
+  persona: PersonaId;
+  personaFactsOnlyTouched: boolean; // the user manually toggled this session
+  personaDisclosure: string | null; // §14.2-5 — the last switch, footer-printed
+  setPersona: (id: PersonaId) => void;
+  markFactsOnlyTouched: () => void;
+
   // mastery journey
   loadMastery: () => void; // (re)load for the CURRENT project; call after mount / project change
   updateMastery: (fn: (m: MasteryState) => MasteryState) => void; // pure edit + persist
@@ -218,6 +231,9 @@ export const useCie = create<CieState>((set, get) => ({
   atlasSelection: ATLAS_RESET,
   atlasView: "containers",
   atlasFactsOnly: false,
+  persona: "fresher" as PersonaId, // §14.2-6: first-run default = Fresher
+  personaFactsOnlyTouched: false,
+  personaDisclosure: null,
 
   loadDemo: async (kind) => {
     const demoKind = kind ?? get().demoKind ?? "polyglot";
@@ -413,7 +429,41 @@ export const useCie = create<CieState>((set, get) => ({
     }),
   resetAtlas: () => set({ atlasSelection: ATLAS_RESET }),
   setAtlasView: (v) => set({ atlasView: v }),
-  setAtlasFactsOnly: (b) => set({ atlasFactsOnly: b }),
+  setAtlasFactsOnly: (b) => set({ atlasFactsOnly: b, personaFactsOnlyTouched: true }),
+  markFactsOnlyTouched: () => set({ personaFactsOnlyTouched: true }),
+  setPersona: (id) =>
+    set((s) => {
+      if (id === s.persona) return {};
+      const prev = PERSONA_PRESETS[s.persona];
+      const next = PERSONA_PRESETS[id];
+      // §14.2-4: each preset remembers its own last state (sessionStorage).
+      savePersonaMemory(prev.id, {
+        factsOnlyOverride: s.personaFactsOnlyTouched ? s.atlasFactsOnly : null,
+        factsOnlyValue: s.atlasFactsOnly,
+      });
+      const mem = loadPersonaMemory(id);
+      // §14.2-3: the user's manual override wins for the session; otherwise
+      // the new preset's default (or its remembered override) applies.
+      const factsOnly =
+        s.personaFactsOnlyTouched
+          ? s.atlasFactsOnly
+          : (mem?.factsOnlyOverride ?? next.defaultFactsOnly);
+      // §14.2-2: container scope survives all persona switches; module /
+      // symbol scope RESETS to the persona's default (never stay inside a
+      // function you were handed in another view). Chips (stage 4) and the
+      // change context SURVIVE every switch (G3 extended).
+      const scopeCarries =
+        s.atlasSelection.primary === null || s.atlasSelection.primary?.kind === "container";
+      const disclosure = `Atlas re-planned for: ${next.label} — facts-only ${
+        factsOnly ? "on" : "off"
+      }${scopeCarries ? "" : ", symbol scope reset"}${mem ? " (last state restored)" : ""}.`;
+      return {
+        persona: id,
+        atlasFactsOnly: factsOnly,
+        personaDisclosure: disclosure,
+        ...(scopeCarries ? {} : { atlasSelection: ATLAS_RESET }),
+      };
+    }),
 
   // mastery: keyed by the loaded project (label); load reads localStorage.
   // Switching projects drops the old state from memory so every component

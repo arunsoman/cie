@@ -41,6 +41,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
+import { AtlasPersonaMenu } from "@/components/cie/atlas-persona-menu";
 import { providerLabel } from "@/lib/llm-config";
 import { UseYourOwnProjectDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
@@ -70,7 +71,7 @@ function NavButton({ children, active, ...props }: { children: React.ReactNode; 
 }
 
 export function Topbar() {
-  const { source, label, view, setView, llm, setLlm, llmSettingsOpen, setLlmSettingsOpen, loading, clearChat, closeCanvasChart, loadMastery, mastery } = useCie();
+  const { source, label, view, setView, llm, setLlm, llmSettingsOpen, setLlmSettingsOpen, loading, clearChat, closeCanvasChart, loadMastery, mastery, persona, setPersona } = useCie();
   const [ownOpen, setOwnOpen] = useState(false);
 
   // keep the journey state ready for both views + the notes badge, whichever loads first
@@ -120,6 +121,11 @@ export function Topbar() {
           />
           <span className="truncate">{loading ? "Loading the sample project…" : label || "No project loaded"}</span>
         </button>
+
+        {/* RFC-0024 stage 2 — the persona sub-menu (ux-spec §14): the
+            top-bar control labeled with the ACTIVE persona; switching
+            re-plans the Atlas (no reload) and footer-discloses. */}
+        <AtlasPersonaMenu active={persona} onSwitch={setPersona} />
 
         <div className="flex-1 min-w-2" />
 

@@ -29,6 +29,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, Rocket, Server, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
+import { planSheet } from "@/lib/chart-plan";
+import type { AtlasPanelId } from "@/lib/atlas-presets";
 import {
   breadcrumbOf,
   buildComponentSpec,
@@ -76,7 +78,11 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
+  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure } = useCie();
+  // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
+  // re-plan, not re-page). planSheet is pure; the grid below renders
+  // plan.rows in reading order instead of a hand-coded sequence.
+  const plan = useMemo(() => planSheet(persona, { factsOnlyOverride: atlasFactsOnly }), [persona, atlasFactsOnly]);
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
   const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
@@ -425,40 +431,28 @@ export function AtlasView() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div className="lg:col-span-2">
-                <Panel id="containers" icon={Boxes} label="Containers" scopedTo={null} onToggle={() => setExpanded("containers")}>
-                  {body("containers")}
-                </Panel>
-              </div>
-              <Panel id="appentry" icon={Rocket} label="Application entry points" scopedTo={scopeId} onToggle={() => setExpanded("appentry")}>
-                {body("appentry")}
-              </Panel>
-              <Panel id="svcentry" icon={Server} label="Service entry points" scopedTo={scopeId} onToggle={() => setExpanded("svcentry")}>
-                {body("svcentry")}
-              </Panel>
-              <Panel id="components" icon={Layers} label="Components" scopedTo={scopeId} onToggle={() => setExpanded("components")}>
-                {body("components")}
-              </Panel>
-              <Panel id="dataflow" icon={Share2} label="Data flow" scopedTo={scopeId} onToggle={() => setExpanded("dataflow")}>
-                {body("dataflow")}
-              </Panel>
-              <div className="lg:col-span-2">
-                <Panel
-                  id="flow"
-                  icon={Workflow}
-                  label="Flow"
-                  scopeNote={flowBuild ? `level: ${flowBuild.label}` : null}
-                  scopedTo={null}
-                  onToggle={() => setExpanded("flow")}
-                >
-                  {body("flow")}
-                </Panel>
-              </div>
-              <div className="lg:col-span-2">
-                <Panel id="sequence" icon={Route} label="Sequence" scopedTo={scopeId} onToggle={() => setExpanded("sequence")}>
-                  {body("sequence")}
-                </Panel>
-              </div>
+              {plan.rows.map((row) => {
+                const meta = PANELS.find((p) => p.id === row.panel);
+                if (!meta) return null;
+                const wide = row.panel === "containers" || row.panel === "flow";
+                const panel = (
+                  <Panel
+                    id={meta.id}
+                    icon={meta.icon}
+                    label={meta.label}
+                    scopeNote={row.panel === "flow" && flowBuild ? `level: ${flowBuild.label}` : row.why || null}
+                    scopedTo={row.panel === "containers" || row.panel === "flow" ? null : scopeId}
+                    onToggle={() => setExpanded(meta.id)}
+                  >
+                    {body(meta.id)}
+                  </Panel>
+                );
+                return wide ? (
+                  <div key={row.panel} className="lg:col-span-2">{panel}</div>
+                ) : (
+                  <div key={row.panel}>{panel}</div>
+                );
+              })}
               {hasCov && (
                 <QualityPanel icon={ShieldCheck} label="Test coverage" scopedTo={scopeId} spec={covSpec} scopeWhat="measured coverage rows" />
               )}
@@ -471,6 +465,11 @@ export function AtlasView() {
             <p className="mt-3 flex items-center gap-1.5 text-[10.5px] text-stone-400">
               <MousePointerClick className="h-3 w-3" aria-hidden />
               click a container above — every other panel shows only that container; click it again to release · expand any panel with the ⤢ button
+            </p>
+          )}
+          {personaDisclosure && (
+            <p className="mt-1 text-[10.5px] text-stone-400" data-testid="persona-disclosure" role="status">
+              {personaDisclosure}
             </p>
           )}
         </div>
