@@ -357,3 +357,17 @@ Work Log:
 
 Stage Summary:
 - The app now reopens where you left it: last opened workspace on launch, durable across server restarts, with honest fallbacks when history can't be honored — the record only ever names something that actually opened.
+---
+Task ID: 25
+Agent: main (Z.ai)
+Task: The Atlas "Modules — each file as a box (no concept tier for this scope)" view appeared for the restored spring-demo workspace — why, and what it cost to fix properly.
+
+Work Log:
+- Traced the honest title to its cause: the restored workspace's concepts had ZERO Container/Service nodes (Domain 1, Module 13, Entity 1, Value 12) while the same folder's stack artifact saw one app (mipay-server) + two externals. The component tier is built from the stack facts during ingest's concepts stage — so the concepts tree the store served predated that stage.
+- Reproduced it: a stale .cie store in the analyzed folder — created before the stack-fed C4 tiers — was being answered by the fast path forever: run_ingest with an empty plan serves the last persisted snapshot and never re-runs the concepts stage, so "nothing changed" also meant "the engine itself moved last year and the tree never noticed".
+- Fix (engine, not the title): RevSnapshot carries `concepts_tier: Option<u8>` (serde default — old snapshots load as None), stamped CONCEPTS_TIER_VERSION on every FULL ingest. The fast path now loads the head snapshot once (a small JSON read beside the full re-hash it already does) and, when it predates the marker, lets the full pass run once — the concepts are rebuilt with the tier, the marker re-stamped, and the fast path holds again for every run after. Bump the constant whenever the concepts shape changes under an engine upgrade. Load errors fail open (serve as before).
+- Same investigation surfaced a labeling wart for root-rooted apps: the app_slice name hardcoded "app root" (so components read "app root boot/service") while the container node carried the manifest's name. app_slice now prefers the app's own manifest name (components read "mipay-server boot"); tier version bumped to 2 so existing stores rebuild their labels once.
+- Verified: fresh run → Domain/Container 1/Service 7/Module 13/Entity 1/Value 10/Aggregate 2/UseCase 3 (mipay-server family); immediate second run serves from the marker (fast path); new cie-ingest test concepts_tier_staleness.rs proves strip-marker → one full rebuild → re-stamp → no-op ingest reuses the head revision; all cie-ingest/cie-cli/cie-incremental/cie-analysis suites green; the spring-demo workspace re-analyzed through the web job and restored in the browser — Atlas now shows "Components — the concept DAG's component tier, over the whole system" for an own-repo workspace.
+
+Stage Summary:
+- "Modules — each file as a box" now appears only when it's true; a folder's cached store can no longer serve yesterday's engine's concepts as today's facts. The fast path stays fast: one extra JSON read when the plan is empty, one full pass per engine upgrade per folder, then nothing.

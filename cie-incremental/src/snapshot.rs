@@ -43,6 +43,18 @@ pub struct RevSnapshot {
     /// they were never derived from.
     #[serde(default)]
     pub stack: Option<cie_stack::types::StackReport>,
+    /// RFC-0024 (concepts-tier staleness): which concepts shape this
+    /// snapshot carries — stamped with CONCEPTS_TIER_VERSION on every FULL
+    /// ingest, i.e. once the stack-fed C4 tiers (L1 containers + L2
+    /// Service/Subdomain roles) are actually in the tree. Old snapshots
+    /// (built before that stage) load as None; the no-op ingest path spots
+    /// them and runs ONE full pass to rebuild the concepts and re-stamp, so
+    /// a folder's cached store never serves a pre-tier concepts tree
+    /// forever. Absent forever on tier-less legitimate runs is fine —
+    /// without a stack the concepts still get re-derived (the pass is one
+    /// per engine upgrade per folder, then the fast path holds again).
+    #[serde(default)]
+    pub concepts_tier: Option<u8>,
 }
 
 /// Extension trait: snapshot + file-index persistence over the generic

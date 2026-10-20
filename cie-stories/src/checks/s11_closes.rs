@@ -498,6 +498,7 @@ pub fn us_089() -> Result<(), String> {
     use cie_semantic::lang::LangId;
     let snap = |rev: u64, present: bool| RevSnapshot {
         state_model: None,
+        concepts_tier: None,
         rev,
         files: vec![],
         stack: None,

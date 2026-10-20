@@ -42,6 +42,32 @@ use cie_summary::{ReuseStats, SummaryCacheEntry};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+/// RFC-0024 (concepts-tier staleness): the concepts shape the current
+/// engine builds. Bump ONLY when a full ingest must re-run to refresh
+/// older stores' concepts trees. The tier was introduced with the
+/// stack-fed C4 tiers (RFC-0019 stage 4); snapshots carrying a smaller
+/// marker (or none — older engines) are re-derived once, then the fast
+/// path holds again.
+pub const CONCEPTS_TIER_VERSION: u8 = 2;
+
+/// RFC-0024: does the head revision's persisted snapshot predate the
+/// current concepts-tier version? True when it loads but carries a
+/// smaller (or absent) marker — the fast path then refuses to serve it
+/// and lets the full pass rebuild. Load/store errors answer false: the
+/// fast path serves what it has, exactly as before this check.
+fn head_concepts_tier_stale(store: &Store) -> bool {
+    let last = store.last_rev();
+    if last == 0 {
+        return false;
+    }
+    store
+        .load_snapshot(last)
+        .ok()
+        .flatten()
+        .map(|s| s.concepts_tier != Some(CONCEPTS_TIER_VERSION))
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Clone)]
 pub struct IngestOptions {
     pub langs: Option<Vec<LangId>>,
@@ -196,7 +222,15 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     // Fast path: nothing changed (acceptance #10). Deliberately does NOT
     // load the analysis snapshot — re-ingest wall time is hashing + plan only.
-    if !plan.has_work() {
+    // RFC-0024 exception: the head snapshot may predate the concepts-tier
+    // marker (built by an older engine — before the stack-fed C4 tiers, or
+    // by any future one with a bumped tier version). Serving it forever
+    // would hand consumers a pre-tier concepts tree though the code changed:
+    // load the head snapshot ONCE here (a cheap json read next to the full
+    // re-hash above) and, when it predates the marker, fall through to the
+    // full pass — which rebuilds the concepts (and everything else) and
+    // re-stamps; the fast path then holds again for every run after that.
+    if !plan.has_work() && !head_concepts_tier_stale(&store) {
         let last = store.last_rev();
         let wall = now_ns() - t0;
         let mut index = prev_index.unwrap_or_default();
@@ -605,6 +639,10 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         // RFC-0019 §6.1: the stack lens' reading rides with the snapshot —
         // the report/concepts consumers read ONE artifact family.
         stack: Some(stack),
+        // RFC-0024: this snapshot's concepts were built by THIS engine, so
+        // they carry the current tier shape — stamp it (the no-op path and
+        // the concepts/report lenses read it as their freshness signal).
+        concepts_tier: Some(CONCEPTS_TIER_VERSION),
         state_model: None,
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
