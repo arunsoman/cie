@@ -87,9 +87,10 @@ pub enum Command {
     Trace {
         path: PathBuf,
         symbol: String,
-        /// One of: calls, returns, control_flow, data_flow, reads, writes,
-        /// throws, catches, owns, depends_on. Defaults to calls, matching
-        /// today's informal "what calls what" expectation.
+        /// Production facts populate calls, data_flow, owns, depends_on.
+        /// Other accepted kinds (returns, control_flow, reads, writes,
+        /// throws, catches) currently have no production extractor.
+        /// Use all to traverse every populated relation kind.
         #[arg(long, default_value = "calls")]
         kind: String,
         /// Hop count bound — a BFS budget, not a timeout.
@@ -111,6 +112,18 @@ pub enum Command {
         query: String,
         #[arg(long, default_value_t = 10)]
         k: usize,
+        /// Embedding provider; external backends are explicit opt-in.
+        #[arg(long, value_enum, default_value = "offline")]
+        llm_provider: LlmChoice,
+        /// Force offline embeddings even when a provider is selected.
+        #[arg(long)]
+        no_llm: bool,
+        /// Estimated embedding spend cap, in USD; zero uses offline.
+        #[arg(long, default_value_t = 1.0, value_parser = parse_budget_usd)]
+        llm_budget_usd: f64,
+        /// KNN time budget; zero reports an explicit timeout.
+        #[arg(long, default_value_t = 2000)]
+        budget_ms: u64,
         #[arg(long)]
         json: bool,
     },
@@ -304,6 +317,12 @@ fn lang_list(spec: &Option<Vec<String>>) -> Option<Vec<LangId>> {
         .map(|v| v.iter().map(|s| LangId::parse(s)).collect())
 }
 
+fn parse_budget_usd(s: &str) -> Result<f64, String> {
+    let value: f64 = s.parse().map_err(|_| "expected a nonnegative finite USD amount")?;
+    if !value.is_finite() || value < 0.0 { return Err("expected a nonnegative finite USD amount".into()); }
+    Ok(value)
+}
+
 fn ingest_opts(
     langs: &Option<Vec<String>>,
     budget_ms: Option<u64>,
@@ -366,7 +385,6 @@ fn finding_summary(outcome: &IngestOutcome) -> String {
 }
 
 use cie_ingest::stack_store::StackStoreExt;
-use cie_ingest::relations_store::RelationGraphStoreExt;
 use cie_ingest::vector_store::EmbeddingStoreExt;
 use cie_store::hnsw::VectorStore;
 
@@ -1027,51 +1045,38 @@ fn run(cli: Cli) -> i32 {
             reverse,
             json,
         } => {
-            let Some(want_kind) = parse_rel_kind(&kind) else {
+            let want_kind = parse_rel_kind(&kind);
+            if want_kind.is_none() && kind != "all" {
                 eprintln!(
                     "error: unknown --kind '{kind}' (expected one of: calls, returns, control_flow, data_flow, reads, writes, throws, catches, owns, depends_on)"
                 );
                 return 1;
-            };
+            }
             let opts = IngestOptions::default();
             let path = path.canonicalize().unwrap_or(path);
-            let outcome = match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
+            let mut outcome = match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
                 Ok(o) => o,
                 Err(e) => {
                     eprintln!("error: {e}");
                     return 1;
                 }
             };
-            let Some(sym) = outcome
-                .store
-                .symbols
-                .iter()
-                .find(|s| s.qual_name == symbol || s.name == symbol)
-            else {
-                eprintln!("error: symbol '{symbol}' not found");
-                return 1;
+            let exact: Vec<_> = outcome.store.symbols.iter().filter(|s| s.qual_name == symbol).collect();
+            let candidates: Vec<_> = if exact.is_empty() {
+                outcome.store.symbols.iter().filter(|s| s.name == symbol).collect()
+            } else { exact };
+            let sym = match candidates.as_slice() {
+                [sym] => *sym,
+                [] => { eprintln!("error: symbol '{symbol}' not found"); return 1; }
+                _ => { eprintln!("error: ambiguous symbol '{symbol}'; use a unique qualified name"); return 1; }
             };
-            let store = match cie_store::Store::open(&path) {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    return 1;
-                }
+            let symbol_id = sym.id;
+            let graph = match cie_ingest::navigation::ensure_navigation(&path, &mut outcome) {
+                Ok(g) => g,
+                Err(e) => { eprintln!("error: {e}"); return 1; }
             };
-            // The relation-graph stage just ran inside run_ingest above, so
-            // this is a cheap read of what it persisted a moment ago, not a
-            // second parse (RFC-0022 §6.1).
-            let graph = match store.load_relations(outcome.rev) {
-                Ok(Some(g)) => g,
-                Ok(None) => {
-                    eprintln!("error: no relation graph persisted for revision {}", outcome.rev);
-                    return 1;
-                }
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    return 1;
-                }
-            };
+            // Resolve AFTER compatibility repair, which updates the outcome.
+            let sym = outcome.store.get(symbol_id).expect("symbol remains in snapshot");
             let Some(start) = graph.find_node(sym.id) else {
                 // The symbol exists but owns no relation edges (e.g. an
                 // unreferenced constant) — an honest empty result, not an
@@ -1079,7 +1084,7 @@ fn run(cli: Cli) -> i32 {
                 if json {
                     println!("{}", serde_json::json!({ "symbol": sym.qual_name, "hops": [], "truncated": false }));
                 } else {
-                    println!("'{}' has no recorded {} relations.", sym.qual_name, want_kind.as_str());
+                    println!("'{}' has no recorded {} relations.", sym.qual_name, kind.as_str());
                 }
                 return 0;
             };
@@ -1098,7 +1103,7 @@ fn run(cli: Cli) -> i32 {
                         graph.edges_from(*idx).collect()
                     };
                     for (other_idx, k) in edges {
-                        if k != want_kind {
+                        if want_kind.is_some_and(|wanted| k != wanted) {
                             continue;
                         }
                         if let Some(other_sym) = graph.node_weight(other_idx) {
@@ -1117,17 +1122,11 @@ fn run(cli: Cli) -> i32 {
             }
             // A BFS that's still growing at the depth bound is an honest
             // "there may be more" — never silently incomplete.
-            let truncated = !frontier.is_empty()
-                && depth > 0
-                && hops.len() == depth
-                && frontier.iter().any(|idx| {
-                    let edges: Vec<_> = if reverse {
-                        graph.edges_to(*idx).collect()
-                    } else {
-                        graph.edges_from(*idx).collect()
-                    };
-                    edges.iter().any(|(_, k)| *k == want_kind)
-                });
+            let truncated = frontier.iter().any(|idx| {
+                let edges: Vec<_> = if reverse { graph.edges_to(*idx).collect() } else { graph.edges_from(*idx).collect() };
+                edges.iter().any(|(other, k)| want_kind.is_none_or(|wanted| *k == wanted)
+                    && graph.node_weight(*other).is_some_and(|id| !visited.contains(&id)))
+            });
 
             let describe = |id: SymbolId| -> (String, String) {
                 match outcome.store.get(id) {
@@ -1155,7 +1154,7 @@ fn run(cli: Cli) -> i32 {
                     "{}",
                     serde_json::json!({
                         "symbol": sym.qual_name,
-                        "kind": want_kind.as_str(),
+                        "kind": kind.as_str(),
                         "reverse": reverse,
                         "hops": hops_json,
                         "truncated": truncated,
@@ -1165,7 +1164,7 @@ fn run(cli: Cli) -> i32 {
                 println!(
                     "{} {} from '{}' (depth {}):",
                     if reverse { "callers" } else { "callees" },
-                    want_kind.as_str(),
+                    kind.as_str(),
                     sym.qual_name,
                     depth
                 );
@@ -1182,7 +1181,7 @@ fn run(cli: Cli) -> i32 {
             }
             0
         }
-        Command::Search { path, query, k, json } => {
+        Command::Search { path, query, k, llm_provider, no_llm, llm_budget_usd, budget_ms, json } => {
             let opts = IngestOptions::default();
             let path = path.canonicalize().unwrap_or(path);
             let outcome = match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
@@ -1199,35 +1198,35 @@ fn run(cli: Cli) -> i32 {
                     return 1;
                 }
             };
-            let vectors = match store.load_embeddings(outcome.rev) {
-                Ok(Some(v)) if !v.records.is_empty() => v,
-                Ok(_) => {
-                    println!("nothing to search — no symbols were embedded for this revision.");
-                    return 0;
-                }
+            let previous = match store.load_embeddings(outcome.rev) {
+                Ok(v) => v,
                 Err(e) => {
                     eprintln!("error: {e}");
                     return 1;
                 }
             };
-            let index = vectors.rebuild_index();
-            let offline = cie_llm::OfflineProvider;
-            let query_vec = match cie_llm::LlmProvider::embed(&offline, &[query.as_str()]) {
-                Ok(mut v) if v.first().map(|x| x.len()) == Some(vectors.dim) => v.remove(0),
-                _ => {
-                    eprintln!("error: could not embed the query at the index's dimension ({})", vectors.dim);
-                    return 1;
+            let provider = cie_llm::make_provider(if no_llm { cie_llm::ProviderKind::Offline } else { llm_provider.into() });
+            let texts: Vec<_> = outcome.store.symbols.iter().map(|s| (
+                s.qual_name.clone(), s.doc.clone().unwrap_or_else(|| s.qual_name.clone()))).collect();
+            let (vectors, query_vec) = cie_ingest::vector_store::prepare_search(
+                previous.as_ref(), &texts, &cie_llm::Budget::new(llm_budget_usd), provider.as_ref(), &query);
+            if previous.as_ref() != Some(&vectors) {
+                if let Err(e) = store.save_embeddings(outcome.rev, &vectors) {
+                    eprintln!("error: {e}"); return 1;
                 }
-            };
-            // 2s is generous for a local HNSW query over a single repo's
-            // symbols — the budget exists so a pathological index still
-            // reports an honest timeout instead of hanging (global rule 3).
-            let hit_outcome = index.knn(&query_vec, k, 2_000_000_000);
+            }
+            if vectors.records.is_empty() {
+                if json { println!("{}", serde_json::json!({"query": query, "hits": [], "timed_out": false, "embedding_provider": vectors.provider, "fallback_reason": vectors.fallback_reason})); }
+                else { println!("nothing to search — no symbols were embedded for this revision."); }
+                return 0;
+            }
+            let index = vectors.rebuild_index();
+            let hit_outcome = index.knn(&query_vec, k, budget_ms.saturating_mul(1_000_000).min(i64::MAX as u64) as i64);
             let hits = match hit_outcome {
                 cie_store::hnsw::KnnOutcome::Neighbors(h) => h,
                 cie_store::hnsw::KnnOutcome::Unknown(_) => {
                     if json {
-                        println!("{}", serde_json::json!({ "query": query, "hits": [], "timed_out": true }));
+                        println!("{}", serde_json::json!({ "query": query, "hits": [], "timed_out": true, "embedding_provider": vectors.provider, "fallback_reason": vectors.fallback_reason }));
                     } else {
                         println!("search timed out — no results (not the same as \"nothing matched\").");
                     }
@@ -1280,8 +1279,9 @@ fn run(cli: Cli) -> i32 {
                 .collect();
 
             if json {
-                println!("{}", serde_json::json!({ "query": query, "hits": hits_json, "timed_out": false }));
+                println!("{}", serde_json::json!({ "query": query, "hits": hits_json, "timed_out": false, "embedding_provider": vectors.provider, "fallback_reason": vectors.fallback_reason }));
             } else {
+                if let Some(reason) = &vectors.fallback_reason { println!("embedding fallback: {reason} (offline)"); }
                 println!("search: \"{query}\" ({} hit{}):", hits_json.len(), if hits_json.len() == 1 { "" } else { "s" });
                 for h in &hits_json {
                     println!("  - {} ({}) [distance {:.3}]", h["symbol"], h["evidence"], h["distance"].as_f64().unwrap_or(0.0));

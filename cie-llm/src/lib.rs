@@ -36,6 +36,9 @@ pub enum ProviderKind {
 pub trait LlmProvider: Send + Sync {
     fn id(&self) -> &'static str;
     fn kind(&self) -> ProviderKind;
+    /// Embedding space identity; models/endpoints with equal dimensions are
+    /// still incompatible. Never include credentials in this identifier.
+    fn embedding_id(&self) -> String { self.id().to_owned() }
     /// Completion; `prompt` is a structured instruction.
     fn complete(&self, prompt: &str, max_tokens: u32) -> Result<String, LlmError>;
     /// Deterministic local embeddings when offline.

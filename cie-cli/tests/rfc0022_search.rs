@@ -73,3 +73,43 @@ fn hit_carries_real_evidence_and_contract_join() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn legacy_missing_embeddings_are_rebuilt_and_cached_without_rewriting() {
+    let dir = tmp_dir("legacy");
+    std::fs::write(dir.join("app.py"), "def authorize():\n    return True\n").unwrap();
+    let first = run_search(&dir, "authorize");
+    let store = cie_store::Store::open(&dir).unwrap();
+    let rev = store.last_rev();
+    let artifact = store.root().join("revs").join(rev.to_string()).join("embeddings.json");
+    let before = std::fs::metadata(&artifact).unwrap().modified().unwrap();
+    assert_eq!(first, run_search(&dir, "authorize"));
+    assert_eq!(before, std::fs::metadata(&artifact).unwrap().modified().unwrap());
+    std::fs::remove_file(&artifact).unwrap();
+    assert_eq!(first, run_search(&dir, "authorize"));
+    assert_eq!(rev, store.last_rev());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn exhausted_external_provider_budget_uses_offline_and_timeout_is_explicit() {
+    let dir = tmp_dir("budget");
+    std::fs::write(dir.join("app.py"), "def authorize():\n    return True\n").unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_cie"))
+        .args(["search", dir.to_str().unwrap(), "authorize", "--llm-provider", "ollama", "--llm-budget-usd", "0", "--json"])
+        .env("OLLAMA_HOST", "http://127.0.0.1:1")
+        .output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["embedding_provider"], "offline-v1");
+    assert!(v["fallback_reason"].as_str().unwrap().contains("budget"));
+    assert!(!v["hits"].as_array().unwrap().is_empty());
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_cie"))
+        .args(["search", dir.to_str().unwrap(), "authorize", "--budget-ms", "0", "--json"])
+        .output().unwrap();
+    assert!(out.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["timed_out"], true);
+    assert!(v["hits"].as_array().unwrap().is_empty());
+    std::fs::remove_dir_all(dir).unwrap();
+}

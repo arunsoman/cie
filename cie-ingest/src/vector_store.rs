@@ -22,12 +22,18 @@ use cie_store::Store;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PersistedVectors {
     pub dim: usize,
+    #[serde(default = "legacy_identity")]
+    pub provider: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_reason: Option<String>,
     /// hex(record_id) -> (the text that was embedded, its vector).
     pub records: BTreeMap<String, (String, Vec<f32>)>,
 }
+
+fn legacy_identity() -> String { "legacy-unknown".into() }
 
 impl PersistedVectors {
     pub fn get(&self, id: &VecRecordId) -> Option<&(String, Vec<f32>)> {
@@ -56,7 +62,7 @@ fn hex_of(id: &VecRecordId) -> String {
 }
 
 fn decode_hex(s: &str) -> Option<VecRecordId> {
-    if s.len() != 64 {
+    if s.len() != 64 || !s.is_ascii() {
         return None;
     }
     let mut out = [0u8; 32];
@@ -99,61 +105,180 @@ pub fn update_embeddings(
     budget: &cie_llm::Budget,
     provider: &dyn cie_llm::LlmProvider,
 ) -> PersistedVectors {
-    let offline = cie_llm::OfflineProvider;
-    let dim = prev.map(|p| p.dim).unwrap_or(0);
-    let mut out = PersistedVectors { dim, records: BTreeMap::new() };
-
-    let stable_id_of = |qual_name: &str| -> VecRecordId { cie_core::types::hash(qual_name.as_bytes()) };
-
-    let mut to_embed: Vec<(VecRecordId, &str, &str)> = vec![];
-    for (qual_name, text) in texts {
-        let id = stable_id_of(qual_name);
-        if let Some(existing) = prev.and_then(|p| p.get(&id)) {
-            if &existing.0 == text && prev.map(|p| p.dim) == Some(out.dim) {
-                out.insert(id, text.clone(), existing.1.clone());
+    let identity = provider.embedding_id();
+    let compatible = prev.filter(|p| p.provider == identity);
+    let mut out = PersistedVectors { dim: compatible.map_or(0, |p| p.dim), provider: identity, ..Default::default() };
+    let mut pending = Vec::new();
+    for (name, text) in texts {
+        let id = cie_core::types::hash(name.as_bytes());
+        if let Some((old_text, vector)) = compatible.and_then(|p| p.get(&id)) {
+            if old_text == text && valid_vectors(std::slice::from_ref(vector), 1, Some(out.dim)) {
+                out.insert(id, text.clone(), vector.clone());
                 continue;
             }
         }
-        to_embed.push((id, qual_name.as_str(), text.as_str()));
+        pending.push((id, text.as_str()));
     }
-
-    if to_embed.is_empty() {
-        return out;
-    }
-
-    let batch: Vec<&str> = to_embed.iter().map(|(_, _, t)| *t).collect();
-    let vectors = if budget.exceeded() {
-        offline.embed(&batch).unwrap_or_default()
-    } else {
-        match provider.embed(&batch) {
-            Ok(v) => {
-                let tokens = batch.iter().map(|t| t.len() as u64 / 4).sum::<u64>();
-                let _ = budget.charge(tokens, 0, provider.cost_per_1k());
-                v
+    if pending.is_empty() { return out; }
+    let batch: Vec<_> = pending.iter().map(|(_, text)| *text).collect();
+    let expected = (out.dim > 0).then_some(out.dim);
+    match embed_budgeted(provider, budget, &batch) {
+        Ok(vectors) if valid_vectors(&vectors, batch.len(), expected) => {
+            out.dim = vectors[0].len();
+            for ((id, text), vector) in pending.into_iter().zip(vectors) {
+                out.insert(id, text.into(), vector);
             }
-            Err(_) => offline.embed(&batch).unwrap_or_default(),
+            out
         }
-    };
-    // A fresh/empty store, or a provider switch, decides the dimension for
-    // this revision from whatever actually came back.
-    if let Some(first) = vectors.first() {
-        out.dim = first.len();
-        // A dimension change invalidates every carried-forward vector —
-        // rebuilding with a mismatched dim would corrupt the index, so a
-        // provider switch means a full re-embed, not a partial one.
-        if prev.map(|p| p.dim) != Some(out.dim) {
-            out.records.clear();
+        result => {
+            // Re-embed the ENTIRE corpus when falling back. Same-dimension
+            // vectors from distinct models must never share an index.
+            let reason = match result { Ok(_) => "provider returned invalid embedding shape", Err(_) => "provider unavailable or embedding budget exhausted" };
+            offline_corpus(prev, texts, reason)
         }
     }
-    for ((id, _, text), vector) in to_embed.iter().zip(vectors) {
-        out.insert(*id, text.to_string(), vector);
+}
+
+fn valid_vectors(vectors: &[Vec<f32>], count: usize, dim: Option<usize>) -> bool {
+    vectors.len() == count && vectors.first().is_some_and(|first| {
+        let d = dim.unwrap_or(first.len());
+        d > 0 && vectors.iter().all(|v| v.len() == d && v.iter().all(|n| n.is_finite()))
+    })
+}
+
+fn embed_budgeted(provider: &dyn LlmProvider, budget: &cie_llm::Budget, batch: &[&str]) -> Result<Vec<Vec<f32>>, cie_llm::LlmError> {
+    if provider.kind() != cie_llm::ProviderKind::Offline {
+        if budget.exceeded() { return Err(cie_llm::LlmError::BudgetExceeded); }
+        // Reserve the estimate BEFORE the external call, including a minimum
+        // token for tiny strings. The cap cannot prevent already incurred cost.
+        let tokens = batch.iter().map(|t| (t.len() as u64).div_ceil(4).max(1)).sum();
+        budget.charge(tokens, 0, provider.cost_per_1k())?;
     }
+    provider.embed(batch)
+}
+
+fn offline_corpus(prev: Option<&PersistedVectors>, texts: &[(String, String)], reason: &str) -> PersistedVectors {
+    let mut out = update_embeddings(prev, texts, &cie_llm::Budget::unlimited(), &cie_llm::OfflineProvider);
+    out.fallback_reason = Some(reason.into());
     out
+}
+
+/// Prepare corpus and query in the SAME embedding space, including on a
+/// query-time network failure. Never compare a remote index to offline text.
+pub fn prepare_search(prev: Option<&PersistedVectors>, texts: &[(String, String)], budget: &cie_llm::Budget,
+    provider: &dyn LlmProvider, query: &str) -> (PersistedVectors, Vec<f32>) {
+    let mut corpus = update_embeddings(prev, texts, budget, provider);
+    let offline = cie_llm::OfflineProvider;
+    let selected = if corpus.provider == offline.embedding_id() { &offline as &dyn LlmProvider } else { provider };
+    match embed_budgeted(selected, budget, &[query]) {
+        Ok(mut v) if valid_vectors(&v, 1, (corpus.dim > 0).then_some(corpus.dim)) => (corpus, v.remove(0)),
+        _ => {
+            corpus = offline_corpus(prev, texts, "query embedding failed; corpus rebuilt offline");
+            let query = offline.embed(&[query]).expect("offline embeddings are infallible").remove(0);
+            (corpus, query)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct CountingProvider { calls: AtomicUsize, items: AtomicUsize, dim: usize, id: &'static str, fail_at: usize, malformed: bool }
+    impl CountingProvider {
+        fn new(id: &'static str, dim: usize) -> Self { Self { calls: AtomicUsize::new(0), items: AtomicUsize::new(0), dim, id, fail_at: usize::MAX, malformed: false } }
+    }
+    impl LlmProvider for CountingProvider {
+        fn id(&self) -> &'static str { self.id }
+        fn kind(&self) -> cie_llm::ProviderKind { cie_llm::ProviderKind::Ollama }
+        fn cost_per_1k(&self) -> (f64, f64) { (0.0, 0.0) }
+        fn complete(&self, _: &str, _: u32) -> Result<String, cie_llm::LlmError> { unreachable!("embedding tests must not complete") }
+        fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, cie_llm::LlmError> {
+            let call = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+            self.items.fetch_add(texts.len(), Ordering::SeqCst);
+            if call >= self.fail_at { return Err(cie_llm::LlmError::Unsupported); }
+            if self.malformed { return Ok(vec![]); }
+            Ok(texts.iter().map(|_| vec![1.0; self.dim]).collect())
+        }
+    }
+    fn corpus() -> Vec<(String, String)> { vec![("a".into(), "first".into()), ("b".into(), "second".into())] }
+
+    #[test]
+    fn incremental_embeddings_count_actual_provider_calls_and_prune_deletions() {
+        let p = CountingProvider::new("counter", 8);
+        let budget = cie_llm::Budget::unlimited();
+        let first = update_embeddings(None, &corpus(), &budget, &p);
+        assert_eq!(p.items.load(Ordering::SeqCst), 2);
+        let second = update_embeddings(Some(&first), &corpus(), &budget, &p);
+        assert_eq!(p.calls.load(Ordering::SeqCst), 1, "no extra embed on unchanged corpus");
+        let third = update_embeddings(Some(&second), &[("a".into(), "changed".into()), ("b".into(), "second".into())], &budget, &p);
+        assert_eq!(p.items.load(Ordering::SeqCst), 3, "only one changed text embedded");
+        let fourth = update_embeddings(Some(&third), &[("b".into(), "second".into())], &budget, &p);
+        assert_eq!(fourth.records.len(), 1);
+        assert_eq!(p.calls.load(Ordering::SeqCst), 2);
+    }
+    #[test]
+    fn provider_switch_reembeds_all_even_when_dimensions_are_equal() {
+        let budget = cie_llm::Budget::unlimited();
+        let a = CountingProvider::new("model-a", 8);
+        let first = update_embeddings(None, &corpus(), &budget, &a);
+        for dim in [8, 16] {
+            let b = CountingProvider::new("model-b", dim);
+            let next = update_embeddings(Some(&first), &corpus(), &budget, &b);
+            assert_eq!(next.records.len(), 2);
+            assert_eq!(next.provider, "model-b");
+            assert_eq!(next.dim, dim);
+            assert_eq!(b.items.load(Ordering::SeqCst), 2);
+            assert_eq!(next.rebuild_index().len(), 2);
+        }
+    }
+    #[test]
+    fn partial_provider_failure_reembeds_carried_records_instead_of_losing_them() {
+        let budget = cie_llm::Budget::unlimited();
+        let mut p = CountingProvider::new("model-a", 8);
+        let first = update_embeddings(None, &corpus(), &budget, &p);
+        p.fail_at = 2;
+        let next = update_embeddings(Some(&first), &[("a".into(), "changed".into()), ("b".into(), "second".into())], &budget, &p);
+        assert_eq!(next.provider, "offline-v1");
+        assert_eq!(next.dim, 64);
+        assert_eq!(next.records.len(), 2);
+        assert!(next.fallback_reason.is_some());
+        assert_eq!(next.rebuild_index().len(), 2);
+    }
+    #[test]
+    fn budget_blocks_external_calls_and_malformed_responses_fall_back_completely() {
+        let mut p = CountingProvider::new("model-a", 8);
+        let next = update_embeddings(None, &corpus(), &cie_llm::Budget::new(0.0), &p);
+        assert_eq!(p.calls.load(Ordering::SeqCst), 0);
+        assert_eq!(next.records.len(), 2);
+        assert_eq!(next.provider, "offline-v1");
+        p.malformed = true;
+        let next = update_embeddings(None, &corpus(), &cie_llm::Budget::unlimited(), &p);
+        assert_eq!(next.provider, "offline-v1");
+        assert_eq!(next.records.len(), 2);
+    }
+    #[test]
+    fn query_failure_falls_back_with_a_matching_corpus() {
+        let mut p = CountingProvider::new("model-a", 8);
+        p.fail_at = 2;
+        let (index, query) = prepare_search(None, &corpus(), &cie_llm::Budget::unlimited(), &p, "first");
+        assert_eq!(index.provider, "offline-v1");
+        assert_eq!(query.len(), index.dim);
+        assert_eq!(index.records.len(), 2);
+        assert!(matches!(index.rebuild_index().knn(&query, 2, 1_000_000_000), cie_store::hnsw::KnnOutcome::Neighbors(_)));
+    }
+    #[test]
+    fn legacy_vectors_reembed_in_a_known_space() {
+        let p = update_embeddings(None, &corpus(), &cie_llm::Budget::unlimited(), &cie_llm::OfflineProvider);
+        let mut json = serde_json::to_value(&p).unwrap();
+        json.as_object_mut().unwrap().remove("provider");
+        let old: PersistedVectors = serde_json::from_value(json).unwrap();
+        assert_eq!(old.provider, "legacy-unknown");
+        let repaired = update_embeddings(Some(&old), &corpus(), &cie_llm::Budget::unlimited(), &cie_llm::OfflineProvider);
+        assert_eq!(repaired.provider, "offline-v1");
+        assert_eq!(repaired.rebuild_index().len(), 2);
+    }
 
     #[test]
     fn unchanged_text_is_carried_forward_not_reembedded() {

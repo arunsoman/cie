@@ -84,3 +84,29 @@ fn a_call_with_no_matching_export_anywhere_stays_unresolved() {
     std::fs::remove_dir_all(&a).ok();
     std::fs::remove_dir_all(&b).ok();
 }
+
+#[test]
+fn unchanged_org_reload_preserves_edges_and_merged_concepts() {
+    let a = tmp_dir("reload-a");
+    let b = tmp_dir("reload-b");
+    std::fs::write(a.join("caller.py"), "import svc\n\ndef trigger():\n    return svc.deliver(1)\n").unwrap();
+    std::fs::write(b.join("service.py"), "def deliver(x):\n    return x\n").unwrap();
+    let repos = [a.clone(), b.clone()];
+    let opts = IngestOptions::default();
+    let first = run_org_ingest(&repos, &opts).unwrap();
+    assert_eq!(first.api_edges.len(), 1);
+    let second = run_org_ingest(&repos, &opts).unwrap();
+    assert_eq!(serde_json::to_value(&first).unwrap(), serde_json::to_value(&second).unwrap());
+    // A pre-RFC store has neither navigation artifact. It must repair
+    // them without changing the revision or losing the unresolved call.
+    for repo in &repos {
+        let store = cie_store::Store::open(repo).unwrap();
+        let rev = store.last_rev();
+        for name in ["relations.json", "unresolved.json"] {
+            std::fs::remove_file(store.root().join("revs").join(rev.to_string()).join(name)).unwrap();
+        }
+    }
+    let repaired = run_org_ingest(&repos, &opts).unwrap();
+    assert_eq!(serde_json::to_value(&first).unwrap(), serde_json::to_value(&repaired).unwrap());
+    for repo in repos { std::fs::remove_dir_all(repo).unwrap(); }
+}

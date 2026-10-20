@@ -34,6 +34,10 @@ impl LlmProvider for OpenAiProvider {
         ProviderKind::OpenAi
     }
 
+    fn embedding_id(&self) -> String {
+        cie_core::types::hash_hex(&cie_core::types::hash((format!("openai:{}:{}", self.base_url, std::env::var("OPENAI_EMBED_MODEL").unwrap_or_else(|_| "text-embedding-3-small".into()))).as_bytes()))
+    }
+
     fn complete(&self, prompt: &str, max_tokens: u32) -> Result<String, LlmError> {
         let resp = ureq::post(&format!("{}/v1/chat/completions", self.base_url))
             .set("Authorization", &format!("Bearer {}", self.api_key))

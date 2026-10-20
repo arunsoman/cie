@@ -107,3 +107,51 @@ fn unknown_symbol_is_a_clean_error() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn cached_navigation_is_read_and_missing_legacy_artifacts_are_repaired() {
+    let dir = tmp_dir("compat");
+    write_chain(&dir);
+    let first = run_trace(&dir, &["main", "--json"]);
+    let store = cie_store::Store::open(&dir).unwrap();
+    let rev = store.last_rev();
+    let artifact = store.root().join("revs").join(rev.to_string()).join("relations.json");
+    let before = std::fs::metadata(&artifact).unwrap().modified().unwrap();
+    assert_eq!(first, run_trace(&dir, &["main", "--json"]));
+    assert_eq!(before, std::fs::metadata(&artifact).unwrap().modified().unwrap());
+    std::fs::remove_file(&artifact).unwrap();
+    assert_eq!(first, run_trace(&dir, &["main", "--json"]));
+    assert!(artifact.exists());
+    assert_eq!(rev, store.last_rev());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn depth_zero_reports_unvisited_edges_and_cycles_do_not_claim_more_work() {
+    let dir = tmp_dir("truncation");
+    write_chain(&dir);
+    let zero = run_trace(&dir, &["main", "--depth", "0", "--json"]);
+    assert_eq!(zero["truncated"], true);
+    assert_eq!(zero["hops"].as_array().unwrap().len(), 0);
+    std::fs::write(dir.join("app.py"), "def a():\n    return b()\n\ndef b():\n    return a()\n").unwrap();
+    let cycle = run_trace(&dir, &["a", "--depth", "1", "--json"]);
+    assert_eq!(cycle["truncated"], false, "only the visited root remains");
+    let all = run_trace(&dir, &["a", "--kind", "all", "--json"]);
+    assert!(!all["hops"].as_array().unwrap().is_empty());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn ambiguous_short_names_require_a_qualified_name() {
+    let dir = tmp_dir("ambiguous");
+    for name in ["one.py", "two.py"] {
+        std::fs::write(dir.join(name), "def helper():\n    return 1\n").unwrap();
+    }
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_cie"))
+        .args(["trace", dir.to_str().unwrap(), "helper", "--json"]).output().unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("ambiguous"));
+    let qualified = run_trace(&dir, &["one.helper", "--json"]);
+    assert_eq!(qualified["symbol"], "one.helper");
+    std::fs::remove_dir_all(dir).unwrap();
+}

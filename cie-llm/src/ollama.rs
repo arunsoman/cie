@@ -29,6 +29,10 @@ impl LlmProvider for OllamaProvider {
         ProviderKind::Ollama
     }
 
+    fn embedding_id(&self) -> String {
+        cie_core::types::hash_hex(&cie_core::types::hash((format!("ollama:{}:{}", self.base_url, self.model)).as_bytes()))
+    }
+
     fn complete(&self, prompt: &str, max_tokens: u32) -> Result<String, LlmError> {
         let resp = ureq::post(&format!("{}/api/generate", self.base_url))
             .timeout(std::time::Duration::from_secs(120))

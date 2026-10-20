@@ -10,6 +10,7 @@ pub mod pipeline;
 pub mod stack_store;
 pub mod state_model_store;
 pub mod relations_store;
+pub mod navigation;
 pub mod vector_store;
 
 pub use history::{
@@ -480,7 +481,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &extracted.per_file,
         &extracted.store,
     );
-    store.save_relations(rev, &relations)?;
+    // Saved after the tombstone compaction below, in the snapshot ID space.
 
     // RFC-0022 §6.2: embed()/HnswRsStore both existed, tested, with zero
     // production call sites between them. `last_rev()` reads the head
@@ -620,6 +621,12 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     snapshot.state_model = cie_contract::obligations::to_view(&model);
     use state_model_store::StateModelStoreExt;
     store.save_state_model(rev, &model)?;
+    let relations = navigation::remap_relations(&relations, &extracted.store, &snapshot);
+    store.save_relations(rev, &relations)?;
+    let revision_files = navigation::snapshot_files(&snapshot, &extracted.store.files);
+    store.write_json(&store.root().join("revs").join(rev.to_string()).join("file-table.json"), &revision_files)?;
+    let unresolved_calls = navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
+    navigation::save_unresolved(&store, rev, &unresolved_calls)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous
@@ -636,7 +643,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // same silently-wrong lookup the purge fix just eliminated for reloads.
     // With no purge, nothing moved and the extracted store stays authoritative.
     let (mut sym_store, reverse_deps, test_map) = if purged > 0 {
-        let st = SymbolStore::build(snapshot.symbols.clone());
+        let st = SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files);
         let (rd, tm, _) = rebuild_graphs(&st, &snapshot.summaries);
         (st, rd, tm)
     } else {
@@ -677,7 +684,8 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
     let snapshot = store
         .load_snapshot(rev)?
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "snapshot missing"))?;
-    let sym_store = SymbolStore::build(snapshot.symbols.clone());
+    let mut sym_store = SymbolStore::build_with_files(snapshot.symbols.clone(), navigation::load_files(&store, &snapshot, project)?);
+    sym_store.unresolved = navigation::load_unresolved(&store, rev)?.unwrap_or_default();
     let (reverse_deps, test_map, _) = rebuild_graphs(&sym_store, &snapshot.summaries);
     Ok(IngestOutcome {
         rev: snapshot.rev,
@@ -824,7 +832,8 @@ pub fn run_org_ingest(
     // unresolved calls, not just the current one's.
     let mut outcomes: Vec<(String, IngestOutcome)> = Vec::new();
     for repo in repos {
-        let outcome = run_ingest(repo, opts)?;
+        let mut outcome = materialize(run_ingest(repo, opts)?)?;
+        navigation::ensure_navigation(repo, &mut outcome)?;
         let repo_name = repo.to_string_lossy().to_string();
         org.repos.push(repo_name.clone());
         for node in &outcome.snapshot.concepts.nodes {
