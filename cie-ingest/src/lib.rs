@@ -755,7 +755,8 @@ fn drift_cache_key(store: &Store, docs: &[(String, String)]) -> std::io::Result<
         docs_bytes.extend_from_slice(content.as_bytes());
     }
     let docs_hash = content_hash(&docs_bytes);
-    let mut key_bytes = code_hash.to_vec();
+    let mut key_bytes = b"rfc0020-history-v1".to_vec();
+    key_bytes.extend_from_slice(&code_hash);
     key_bytes.extend_from_slice(&docs_hash);
     Ok(cie_core::types::hash_hex(&content_hash(&key_bytes)))
 }

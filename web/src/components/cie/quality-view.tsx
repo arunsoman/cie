@@ -6,6 +6,7 @@
 // same data can be pulled from any repo). Every card hands its question to
 // Ask CIE. An absent metric renders an honest empty state, never a guess.
 
+import { FindingProvenance } from "./rfc0020-evidence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Gauge, MessageCircleQuestion, HeartPulse } from "lucide-react";
@@ -79,10 +80,10 @@ function MetricCard({ m, onAsk }: { m: QualityMetricRow; onAsk: (m: QualityMetri
 }
 
 export function QualityView() {
-  const { quality, setPendingAsk, setView } = useCie();
+  const { report, quality, setPendingAsk, setView } = useCie();
   if (!quality) {
     return (
-      <Card className="border-stone-200">
+      <><FindingProvenance report={report}/><Card className="border-stone-200">
         <CardContent className="p-6 text-sm text-stone-600">
           <p className="font-semibold text-stone-900 flex items-center gap-2">
             <HeartPulse className="h-4 w-4 text-emerald-700" /> No quality data collected for this project.
@@ -94,7 +95,7 @@ export function QualityView() {
             is guessed.
           </p>
         </CardContent>
-      </Card>
+      </Card></>
     );
   }
 
@@ -103,6 +104,7 @@ export function QualityView() {
 
   return (
     <div className="space-y-5">
+      <FindingProvenance report={report}/>
       <Card className="border-stone-200 bg-stone-50/60">
         <CardContent className="p-5 flex items-start gap-3 text-sm text-stone-700 leading-relaxed">
           <Gauge className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />

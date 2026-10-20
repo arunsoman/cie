@@ -1,1 +1,1060 @@
-{"nodes":[{"id":0,"label":"Project","kind":"Domain","parent":null,"children":[1,2,3,4,5,6,7,8,9,10,11,12,13],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46],"behaviors":[{"summary":2,"kind":"Main","confidence":1},{"summary":5,"kind":"NightlyCleanup","confidence":1},{"summary":10,"kind":"LedgerAudit","confidence":1},{"summary":11,"kind":"Record","confidence":1},{"summary":14,"kind":"TransactionService","confidence":1},{"summary":15,"kind":"TopUp","confidence":1},{"summary":16,"kind":"Balance","confidence":1},{"summary":19,"kind":"GetId","confidence":1},{"summary":20,"kind":"SetId","confidence":1},{"summary":21,"kind":"GetOwner","confidence":1},{"summary":22,"kind":"GetBalanceMinor","confidence":1},{"summary":23,"kind":"GetCurrency","confidence":1},{"summary":26,"kind":"WalletController","confidence":1},{"summary":27,"kind":"TopUp","confidence":1},{"summary":28,"kind":"Balance","confidence":1},{"summary":29,"kind":"History","confidence":1},{"summary":32,"kind":"FindByOwner","confidence":1},{"summary":35,"kind":"Status","confidence":1},{"summary":40,"kind":"FindByUserId","confidence":1},{"summary":43,"kind":"StateOf","confidence":1},{"summary":46,"kind":"Flag","confidence":1}],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule","created_ns":1792421148504628500,"compute_ns":0},{"id":1,"label":"src/main/java/com/mipay/MpayApplication.java","kind":"Module","parent":0,"children":[14],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[0,1,2,5,10,11,14,15,16,19,20,21,22,23,26,27,28,29,32,35,40,43,46],"behaviors":[{"summary":2,"kind":"Main","confidence":1},{"summary":5,"kind":"NightlyCleanup","confidence":1},{"summary":10,"kind":"LedgerAudit","confidence":1},{"summary":11,"kind":"Record","confidence":1},{"summary":14,"kind":"TransactionService","confidence":1},{"summary":15,"kind":"TopUp","confidence":1},{"summary":16,"kind":"Balance","confidence":1},{"summary":19,"kind":"GetId","confidence":1},{"summary":20,"kind":"SetId","confidence":1},{"summary":21,"kind":"GetOwner","confidence":1},{"summary":22,"kind":"GetBalanceMinor","confidence":1},{"summary":23,"kind":"GetCurrency","confidence":1},{"summary":26,"kind":"WalletController","confidence":1},{"summary":27,"kind":"TopUp","confidence":1},{"summary":28,"kind":"Balance","confidence":1},{"summary":29,"kind":"History","confidence":1},{"summary":32,"kind":"FindByOwner","confidence":1},{"summary":35,"kind":"Status","confidence":1},{"summary":40,"kind":"FindByUserId","confidence":1},{"summary":43,"kind":"StateOf","confidence":1},{"summary":46,"kind":"Flag","confidence":1}],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":2,"label":"src/main/java/com/mipay/config/CleanupScheduler.java","kind":"Module","parent":0,"children":[15],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[3,4],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":3,"label":"src/main/java/com/mipay/config/SecurityConfig.java","kind":"Module","parent":0,"children":[16],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[6,7],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":4,"label":"src/main/java/com/mipay/wallet/LedgerAudit.java","kind":"Module","parent":0,"children":[17],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[8,9],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":5,"label":"src/main/java/com/mipay/wallet/TransactionService.java","kind":"Module","parent":0,"children":[18],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[12,13],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":6,"label":"src/main/java/com/mipay/wallet/Wallet.java","kind":"Module","parent":0,"children":[19],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[17,18],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":7,"label":"src/main/java/com/mipay/wallet/WalletController.java","kind":"Module","parent":0,"children":[20],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[24,25],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":8,"label":"src/main/java/com/mipay/wallet/WalletRepository.java","kind":"Module","parent":0,"children":[21],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[30,31],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":9,"label":"src/main/kotlin/com/mipay/kyc/KycController.kt","kind":"Module","parent":0,"children":[22],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[33,34],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":10,"label":"src/main/kotlin/com/mipay/kyc/KycRecord.kt","kind":"Module","parent":0,"children":[23],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[36,37],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":11,"label":"src/main/kotlin/com/mipay/kyc/KycRepository.kt","kind":"Module","parent":0,"children":[24],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[38,39],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":12,"label":"src/main/kotlin/com/mipay/kyc/KycService.kt","kind":"Module","parent":0,"children":[25],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[41,42],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":13,"label":"src/main/kotlin/com/mipay/kyc/RiskClient.kt","kind":"Module","parent":0,"children":[26],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[44,45],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:package","created_ns":1792421148504628500,"compute_ns":0},{"id":14,"label":"MpayApplication","kind":"Entity","parent":1,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[1,2,5,10,11,14,15,16,19,20,21,22,23,26,27,28,29,32,35,40,43,46],"behaviors":[{"summary":2,"kind":"Main","confidence":1},{"summary":5,"kind":"NightlyCleanup","confidence":1},{"summary":10,"kind":"LedgerAudit","confidence":1},{"summary":11,"kind":"Record","confidence":1},{"summary":14,"kind":"TransactionService","confidence":1},{"summary":15,"kind":"TopUp","confidence":1},{"summary":16,"kind":"Balance","confidence":1},{"summary":19,"kind":"GetId","confidence":1},{"summary":20,"kind":"SetId","confidence":1},{"summary":21,"kind":"GetOwner","confidence":1},{"summary":22,"kind":"GetBalanceMinor","confidence":1},{"summary":23,"kind":"GetCurrency","confidence":1},{"summary":26,"kind":"WalletController","confidence":1},{"summary":27,"kind":"TopUp","confidence":1},{"summary":28,"kind":"Balance","confidence":1},{"summary":29,"kind":"History","confidence":1},{"summary":32,"kind":"FindByOwner","confidence":1},{"summary":35,"kind":"Status","confidence":1},{"summary":40,"kind":"FindByUserId","confidence":1},{"summary":43,"kind":"StateOf","confidence":1},{"summary":46,"kind":"Flag","confidence":1}],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":15,"label":"CleanupScheduler","kind":"Value","parent":2,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[4],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":16,"label":"SecurityConfig","kind":"Value","parent":3,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[7],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":17,"label":"LedgerAudit","kind":"Value","parent":4,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[9],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":18,"label":"TransactionService","kind":"Value","parent":5,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[13],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":19,"label":"Wallet","kind":"Value","parent":6,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[18],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":20,"label":"WalletController","kind":"Value","parent":7,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[25],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":21,"label":"WalletRepository","kind":"Value","parent":8,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[31],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":22,"label":"KycController","kind":"Value","parent":9,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[34],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":23,"label":"KycRecord","kind":"Value","parent":10,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[37],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":24,"label":"KycRepository","kind":"Value","parent":11,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[39],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":25,"label":"KycService","kind":"Value","parent":12,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[42],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0},{"id":26,"label":"RiskClient","kind":"Value","parent":13,"children":[],"extra_edges":[],"primary_edge":"PackageContainment","symbols":[45],"behaviors":[],"rules":[],"finding_ids":[],"intent":[],"coverage_ratio":1,"coverage_complete":true,"confidence":1,"provenance":"rule:structure","created_ns":1792421148504628500,"compute_ns":0}],"unattached_behaviors":[],"unattached_rules":[],"dirty":[]}
+{
+ "nodes": [
+  {
+   "id": 0,
+   "label": "Project",
+   "kind": "Domain",
+   "parent": null,
+   "children": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "Main",
+     "confidence": 1.0
+    },
+    {
+     "summary": 5,
+     "kind": "NightlyCleanup",
+     "confidence": 1.0
+    },
+    {
+     "summary": 10,
+     "kind": "LedgerAudit",
+     "confidence": 1.0
+    },
+    {
+     "summary": 11,
+     "kind": "Record",
+     "confidence": 1.0
+    },
+    {
+     "summary": 14,
+     "kind": "TransactionService",
+     "confidence": 1.0
+    },
+    {
+     "summary": 15,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 16,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 19,
+     "kind": "GetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 20,
+     "kind": "SetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 21,
+     "kind": "GetOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 22,
+     "kind": "GetBalanceMinor",
+     "confidence": 1.0
+    },
+    {
+     "summary": 23,
+     "kind": "GetCurrency",
+     "confidence": 1.0
+    },
+    {
+     "summary": 26,
+     "kind": "WalletController",
+     "confidence": 1.0
+    },
+    {
+     "summary": 27,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 28,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 29,
+     "kind": "History",
+     "confidence": 1.0
+    },
+    {
+     "summary": 32,
+     "kind": "FindByOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 35,
+     "kind": "Status",
+     "confidence": 1.0
+    },
+    {
+     "summary": 40,
+     "kind": "FindByUserId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 43,
+     "kind": "StateOf",
+     "confidence": 1.0
+    },
+    {
+     "summary": 46,
+     "kind": "Flag",
+     "confidence": 1.0
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 1,
+   "label": "src/main/java/com/mipay/MpayApplication.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    14
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    0,
+    1,
+    2,
+    5,
+    10,
+    11,
+    14,
+    15,
+    16,
+    19,
+    20,
+    21,
+    22,
+    23,
+    26,
+    27,
+    28,
+    29,
+    32,
+    35,
+    40,
+    43,
+    46
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "Main",
+     "confidence": 1.0
+    },
+    {
+     "summary": 5,
+     "kind": "NightlyCleanup",
+     "confidence": 1.0
+    },
+    {
+     "summary": 10,
+     "kind": "LedgerAudit",
+     "confidence": 1.0
+    },
+    {
+     "summary": 11,
+     "kind": "Record",
+     "confidence": 1.0
+    },
+    {
+     "summary": 14,
+     "kind": "TransactionService",
+     "confidence": 1.0
+    },
+    {
+     "summary": 15,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 16,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 19,
+     "kind": "GetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 20,
+     "kind": "SetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 21,
+     "kind": "GetOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 22,
+     "kind": "GetBalanceMinor",
+     "confidence": 1.0
+    },
+    {
+     "summary": 23,
+     "kind": "GetCurrency",
+     "confidence": 1.0
+    },
+    {
+     "summary": 26,
+     "kind": "WalletController",
+     "confidence": 1.0
+    },
+    {
+     "summary": 27,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 28,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 29,
+     "kind": "History",
+     "confidence": 1.0
+    },
+    {
+     "summary": 32,
+     "kind": "FindByOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 35,
+     "kind": "Status",
+     "confidence": 1.0
+    },
+    {
+     "summary": 40,
+     "kind": "FindByUserId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 43,
+     "kind": "StateOf",
+     "confidence": 1.0
+    },
+    {
+     "summary": 46,
+     "kind": "Flag",
+     "confidence": 1.0
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 2,
+   "label": "src/main/java/com/mipay/config/CleanupScheduler.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    15
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    3,
+    4
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 3,
+   "label": "src/main/java/com/mipay/config/SecurityConfig.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    16
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    6,
+    7
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 4,
+   "label": "src/main/java/com/mipay/wallet/LedgerAudit.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    17
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    8,
+    9
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 5,
+   "label": "src/main/java/com/mipay/wallet/TransactionService.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    18
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    12,
+    13
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 6,
+   "label": "src/main/java/com/mipay/wallet/Wallet.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    19
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    17,
+    18
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 7,
+   "label": "src/main/java/com/mipay/wallet/WalletController.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    20
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    24,
+    25
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 8,
+   "label": "src/main/java/com/mipay/wallet/WalletRepository.java",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    21
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    30,
+    31
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 9,
+   "label": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    22
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    33,
+    34
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 10,
+   "label": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    23
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    36,
+    37
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 11,
+   "label": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    24
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    38,
+    39
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 12,
+   "label": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    25
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    41,
+    42
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 13,
+   "label": "src/main/kotlin/com/mipay/kyc/RiskClient.kt",
+   "kind": "Module",
+   "parent": 0,
+   "children": [
+    26
+   ],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    44,
+    45
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:package",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 14,
+   "label": "MpayApplication",
+   "kind": "Entity",
+   "parent": 1,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    1,
+    2,
+    5,
+    10,
+    11,
+    14,
+    15,
+    16,
+    19,
+    20,
+    21,
+    22,
+    23,
+    26,
+    27,
+    28,
+    29,
+    32,
+    35,
+    40,
+    43,
+    46
+   ],
+   "behaviors": [
+    {
+     "summary": 2,
+     "kind": "Main",
+     "confidence": 1.0
+    },
+    {
+     "summary": 5,
+     "kind": "NightlyCleanup",
+     "confidence": 1.0
+    },
+    {
+     "summary": 10,
+     "kind": "LedgerAudit",
+     "confidence": 1.0
+    },
+    {
+     "summary": 11,
+     "kind": "Record",
+     "confidence": 1.0
+    },
+    {
+     "summary": 14,
+     "kind": "TransactionService",
+     "confidence": 1.0
+    },
+    {
+     "summary": 15,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 16,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 19,
+     "kind": "GetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 20,
+     "kind": "SetId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 21,
+     "kind": "GetOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 22,
+     "kind": "GetBalanceMinor",
+     "confidence": 1.0
+    },
+    {
+     "summary": 23,
+     "kind": "GetCurrency",
+     "confidence": 1.0
+    },
+    {
+     "summary": 26,
+     "kind": "WalletController",
+     "confidence": 1.0
+    },
+    {
+     "summary": 27,
+     "kind": "TopUp",
+     "confidence": 1.0
+    },
+    {
+     "summary": 28,
+     "kind": "Balance",
+     "confidence": 1.0
+    },
+    {
+     "summary": 29,
+     "kind": "History",
+     "confidence": 1.0
+    },
+    {
+     "summary": 32,
+     "kind": "FindByOwner",
+     "confidence": 1.0
+    },
+    {
+     "summary": 35,
+     "kind": "Status",
+     "confidence": 1.0
+    },
+    {
+     "summary": 40,
+     "kind": "FindByUserId",
+     "confidence": 1.0
+    },
+    {
+     "summary": 43,
+     "kind": "StateOf",
+     "confidence": 1.0
+    },
+    {
+     "summary": 46,
+     "kind": "Flag",
+     "confidence": 1.0
+    }
+   ],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 15,
+   "label": "CleanupScheduler",
+   "kind": "Value",
+   "parent": 2,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    4
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 16,
+   "label": "SecurityConfig",
+   "kind": "Value",
+   "parent": 3,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    7
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 17,
+   "label": "LedgerAudit",
+   "kind": "Value",
+   "parent": 4,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    9
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 18,
+   "label": "TransactionService",
+   "kind": "Value",
+   "parent": 5,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    13
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 19,
+   "label": "Wallet",
+   "kind": "Value",
+   "parent": 6,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    18
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 20,
+   "label": "WalletController",
+   "kind": "Value",
+   "parent": 7,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    25
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 21,
+   "label": "WalletRepository",
+   "kind": "Value",
+   "parent": 8,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    31
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 22,
+   "label": "KycController",
+   "kind": "Value",
+   "parent": 9,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    34
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 23,
+   "label": "KycRecord",
+   "kind": "Value",
+   "parent": 10,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    37
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 24,
+   "label": "KycRepository",
+   "kind": "Value",
+   "parent": 11,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    39
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 25,
+   "label": "KycService",
+   "kind": "Value",
+   "parent": 12,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    42
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  },
+  {
+   "id": 26,
+   "label": "RiskClient",
+   "kind": "Value",
+   "parent": 13,
+   "children": [],
+   "extra_edges": [],
+   "primary_edge": "PackageContainment",
+   "symbols": [
+    45
+   ],
+   "behaviors": [],
+   "rules": [],
+   "finding_ids": [],
+   "intent": [],
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "confidence": 1.0,
+   "provenance": "rule:structure",
+   "created_ns": 1792469688826939816,
+   "compute_ns": 0
+  }
+ ],
+ "unattached_behaviors": [],
+ "unattached_rules": [],
+ "dirty": []
+}

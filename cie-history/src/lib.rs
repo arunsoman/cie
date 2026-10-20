@@ -74,7 +74,11 @@ pub struct HistoryUnavailable {
 pub trait GitHistoryProvider: Send + Sync {
     fn name(&self) -> &'static str;
     fn available(&self, root: &Path) -> bool;
-    fn ingest(&self, root: &Path, opts: &HistoryOptions) -> Result<HistoryFacts, HistoryUnavailable>;
+    fn ingest(
+        &self,
+        root: &Path,
+        opts: &HistoryOptions,
+    ) -> Result<HistoryFacts, HistoryUnavailable>;
 }
 
 /// Knobs for one history ingest pass.
@@ -110,7 +114,11 @@ impl GitHistoryProvider for SystemGit {
         git_ok(root)
     }
 
-    fn ingest(&self, root: &Path, opts: &HistoryOptions) -> Result<HistoryFacts, HistoryUnavailable> {
+    fn ingest(
+        &self,
+        root: &Path,
+        opts: &HistoryOptions,
+    ) -> Result<HistoryFacts, HistoryUnavailable> {
         if !git_ok(root) {
             return Err(HistoryUnavailable {
                 reason: "git binary unavailable or directory is not a git repository".into(),
@@ -138,7 +146,11 @@ impl GitHistoryProvider for SystemGit {
 
 impl SystemGit {
     /// Commit list (newest-first), honoring `max_commits` + `path_filter`.
-    pub fn commits(&self, root: &Path, opts: &HistoryOptions) -> Result<Vec<CommitMeta>, HistoryUnavailable> {
+    pub fn commits(
+        &self,
+        root: &Path,
+        opts: &HistoryOptions,
+    ) -> Result<Vec<CommitMeta>, HistoryUnavailable> {
         let mut args = vec![
             "log".to_string(),
             "--no-color".to_string(),
@@ -151,8 +163,12 @@ impl SystemGit {
             args.push("--".to_string());
             args.push(p.clone());
         }
-        let out = git(root, &args.iter().map(String::as_str).collect::<Vec<_>>())
-            .ok_or_else(|| HistoryUnavailable { reason: "git log failed".into() })?;
+        let out =
+            git(root, &args.iter().map(String::as_str).collect::<Vec<_>>()).ok_or_else(|| {
+                HistoryUnavailable {
+                    reason: "git log failed".into(),
+                }
+            })?;
         Ok(parse_log(&out))
     }
 }
@@ -211,9 +227,7 @@ pub fn parse_blame(path: &str, out: &str) -> Vec<BlameLine> {
     for l in out.lines() {
         // Header line: `<40-hex sha> <orig> <final> [<group>]`
         let bytes = l.as_bytes();
-        if bytes.len() >= 44 && bytes[..40].iter().all(u8::is_ascii_hexdigit)
-            && bytes[40] == b' '
-        {
+        if bytes.len() >= 44 && bytes[..40].iter().all(u8::is_ascii_hexdigit) && bytes[40] == b' ' {
             let rest = &l[41..];
             let mut it = rest.split(' ');
             let orig: u64 = match it.next().and_then(|v| v.parse().ok()) {
@@ -297,7 +311,10 @@ pub fn git_ok(root: &Path) -> bool {
 }
 
 fn numstat_of(root: &Path, commit: &str) -> Vec<FileTouch> {
-    let out = match git(root, &["show", "--numstat", "--format=", "--no-color", commit]) {
+    let out = match git(
+        root,
+        &["show", "--numstat", "--format=", "--no-color", commit],
+    ) {
         Some(o) => o,
         None => return Vec::new(),
     };
@@ -356,12 +373,32 @@ mod tests {
         let history = HistoryFacts {
             head: "def456".into(),
             commits: vec![
-                CommitMeta { id: "def456def456def456def456def456def456def456".into(), author: "Bob".into(), time: 200, subject: "second".into() },
-                CommitMeta { id: "abc123abc123abc123abc123abc123abc123abc123".into(), author: "Ada".into(), time: 100, subject: "first".into() },
+                CommitMeta {
+                    id: "def456def456def456def456def456def456def456".into(),
+                    author: "Bob".into(),
+                    time: 200,
+                    subject: "second".into(),
+                },
+                CommitMeta {
+                    id: "abc123abc123abc123abc123abc123abc123abc123".into(),
+                    author: "Ada".into(),
+                    time: 100,
+                    subject: "first".into(),
+                },
             ],
             blames: vec![
-                BlameLine { path: "src/a.py".into(), line: 9, commit: "def456def456def456def456def456def456def456".into(), orig_line: 7 },
-                BlameLine { path: "src/a.py".into(), line: 12, commit: "abc123abc123abc123abc123abc123abc123abc123".into(), orig_line: 8 },
+                BlameLine {
+                    path: "src/a.py".into(),
+                    line: 9,
+                    commit: "def456def456def456def456def456def456def456".into(),
+                    orig_line: 7,
+                },
+                BlameLine {
+                    path: "src/a.py".into(),
+                    line: 12,
+                    commit: "abc123abc123abc123abc123abc123abc123abc123".into(),
+                    orig_line: 8,
+                },
             ],
             blamed_paths: vec!["src/a.py".into()],
             touches: vec![],
@@ -370,9 +407,12 @@ mod tests {
         assert_eq!(chain.len(), 1);
         assert_eq!(chain[0].author, "Ada");
         assert_eq!(chain[0].time, 100); // older commit only
-        // unblamed path → empty chain, not fabricated
+                                        // unblamed path → empty chain, not fabricated
         assert!(archaeology_chain(&history, "src/other.py", 1).is_empty());
-        let bound = bind_claims_to_history(&history, &[("src/a.py".into(), 12), ("src/none.py".into(), 3)]);
+        let bound = bind_claims_to_history(
+            &history,
+            &[("src/a.py".into(), 12), ("src/none.py".into(), 3)],
+        );
         assert_eq!(bound.len(), 1);
         assert!(bound.contains_key("src/a.py:12"));
     }
@@ -389,31 +429,75 @@ mod tests {
             // fine and this assertion is skipped rather than falsified.
             return;
         }
-        let err = provider.ingest(&tmp, &HistoryOptions::default()).unwrap_err();
+        let err = provider
+            .ingest(&tmp, &HistoryOptions::default())
+            .unwrap_err();
         assert!(err.reason.contains("git"));
     }
 }
 
-
 /// RFC-0020: at most 64 cited lines and 5 seconds; never a full-tree blame.
 /// Omitted/dirty/shallow/unavailable sites remain unbound. No network access.
 pub fn cited_history(root: &Path, sites: &[(String, u64)]) -> HistoryFacts {
-    use std::time::{Instant, Duration};
+    use std::time::{Duration, Instant};
     let deadline = Instant::now() + Duration::from_secs(5);
     let mut h = HistoryFacts::default();
-    if bounded_git(root, &["rev-parse", "--is-shallow-repository"], deadline).as_deref().map(str::trim) != Some("false") { return h; }
-    h.head = bounded_git(root, &["rev-parse", "HEAD"], deadline).unwrap_or_default().trim().into();
+    if bounded_git(root, &["rev-parse", "--is-shallow-repository"], deadline)
+        .as_deref()
+        .map(str::trim)
+        != Some("false")
+    {
+        return h;
+    }
+    h.head = bounded_git(root, &["rev-parse", "HEAD"], deadline)
+        .unwrap_or_default()
+        .trim()
+        .into();
     let unique: std::collections::BTreeSet<_> = sites.iter().cloned().collect();
     for (path, line) in unique.into_iter().take(64) {
-        if line == 0 || path.starts_with('-') || Path::new(&path).components().any(|c| !matches!(c, std::path::Component::Normal(_))) { continue; }
-        let Ok(base) = root.canonicalize() else { continue };
-        if !root.join(&path).canonicalize().map(|p| p.starts_with(&base)).unwrap_or(false) { continue; }
+        if line == 0
+            || path.starts_with('-')
+            || Path::new(&path)
+                .components()
+                .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        {
+            continue;
+        }
+        let Ok(base) = root.canonicalize() else {
+            continue;
+        };
+        if !root
+            .join(&path)
+            .canonicalize()
+            .map(|p| p.starts_with(&base))
+            .unwrap_or(false)
+        {
+            continue;
+        }
         let range = format!("{line},{line}");
-        let Some(out) = bounded_git(root, &["blame", "--line-porcelain", "-L", &range, "--", &path], deadline) else { continue };
+        let Some(out) = bounded_git(
+            root,
+            &["blame", "--line-porcelain", "-L", &range, "--", &path],
+            deadline,
+        ) else {
+            continue;
+        };
         h.blamed_paths.push(path.clone());
-        for b in parse_blame(&path, &out).into_iter().filter(|b|b.commit.chars().any(|c|c!='0')) {
+        for b in parse_blame(&path, &out)
+            .into_iter()
+            .filter(|b| b.commit.chars().any(|c| c != '0'))
+        {
             if !h.commits.iter().any(|c| c.id == b.commit) {
-                if let Some(log) = bounded_git(root, &["show", "--no-patch", "--format=%x01%H%x02%an%x02%at%x02%s", &b.commit], deadline) {
+                if let Some(log) = bounded_git(
+                    root,
+                    &[
+                        "show",
+                        "--no-patch",
+                        "--format=%x01%H%x02%an%x02%at%x02%s",
+                        &b.commit,
+                    ],
+                    deadline,
+                ) {
                     h.commits.extend(parse_log(&log));
                 }
             }
@@ -425,15 +509,44 @@ pub fn cited_history(root: &Path, sites: &[(String, u64)]) -> HistoryFacts {
 fn bounded_git(root: &Path, args: &[&str], deadline: std::time::Instant) -> Option<String> {
     use std::io::Read;
     use std::process::Stdio;
-    if std::time::Instant::now() >= deadline { return None; }
-    let mut child = Command::new("git").args(["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "log.showSignature=false"])
-        .args(args).env("GIT_TERMINAL_PROMPT", "0").env("GIT_NO_LAZY_FETCH", "1").env("GIT_OPTIONAL_LOCKS", "0")
-        .current_dir(root).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
+    if std::time::Instant::now() >= deadline {
+        return None;
+    }
+    let mut child = Command::new("git")
+        .args([
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "log.showSignature=false",
+        ])
+        .args(args)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_NO_LAZY_FETCH", "1")
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .current_dir(root)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
     let stdout = child.stdout.take()?;
-    let reader = std::thread::spawn(move || { let mut bytes = Vec::new(); stdout.take(1024*1024).read_to_end(&mut bytes).ok()?; String::from_utf8(bytes).ok() });
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.take(1024 * 1024).read_to_end(&mut bytes).ok()?;
+        String::from_utf8(bytes).ok()
+    });
     loop {
-        if let Some(status) = child.try_wait().ok()? { let text = reader.join().ok()??; return status.success().then_some(text); }
-        if std::time::Instant::now() >= deadline { let _=child.kill(); let _=child.wait(); let _=reader.join(); return None; }
+        if let Some(status) = child.try_wait().ok()? {
+            let text = reader.join().ok()??;
+            return status.success().then_some(text);
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = reader.join();
+            return None;
+        }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
 }

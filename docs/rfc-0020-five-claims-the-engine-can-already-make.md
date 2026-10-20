@@ -1,6 +1,7 @@
 # RFC-0020: Five claims the engine can already make, if anything exports them
 
 **Status:** ready for implementation (vetted 2026-10-20 — every file:line claim independently verified against the code; ONE insertion-point design error found and fixed in §6.2/§7, see §13)
+**Implementation:** six scoped stages completed 2026-10-20; see [implementation record and validation boundaries](implementation/rfc-0020.md). The original design and vetting history are retained below.
 **Author:** the CIE maintainer (with pi)
 **Date:** 2026-10-20
 **Applies to:** `cie-contract`, `cie-evidence`, `cie-ingest`, `cie-analysis`, `cie-fault`, `cie-stack`, `cie-cli`, the web app

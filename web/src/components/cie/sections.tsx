@@ -13,6 +13,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { CommitProvenance, ObligationEvidence, StateTransitionEvidence, DriftProvenance, FaultEvidence } from "./rfc0020-evidence";
 import MapView from "@/components/cie/map-view";
 import { useCie } from "@/lib/cie-store";
 import type { CieReport, Finding } from "@/lib/cie-types";
@@ -454,6 +455,7 @@ function FindingCard({ f, file }: { f: Finding; file: string }) {
         </div>
         <p className="font-semibold text-stone-900">{findingTitle(f)}</p>
         <p className="text-sm text-stone-600 leading-relaxed">{f.message}</p>
+        <CommitProvenance commits={f.introduced}/>
         {f.remediation && (
           <p className="text-sm text-emerald-900 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-relaxed">
             <span className="font-semibold">How to fix: </span>{f.remediation}
@@ -532,7 +534,7 @@ export function FindingsView() {
 // ---------- Tab: Promises (contracts) ----------
 
 export function PromisesView() {
-  const { report } = useCie();
+  const { report, openSourceViewer } = useCie();
   if (!report) return null;
   return (
     <div className="space-y-4">
@@ -543,6 +545,7 @@ export function PromisesView() {
           tells you who has to keep them — so nothing important gets forgotten.
         </CardContent>
       </Card>
+      <StateTransitionEvidence report={report} onOpen={id=>{const s=report.symbols.find(s=>s.id===id);if(s)openSourceViewer({file:report.files[s.loc.file],byteStart:s.loc.start,byteEnd:s.loc.end,elName:s.qual_name});}}/>
       {report.contracts.map((c) => {
         const a = authorityPlain(c.authority);
         const keepers = c.symbols.map((id) => report.symbols.find((s) => s.id === id)?.qual_name).filter(Boolean);
@@ -563,6 +566,7 @@ export function PromisesView() {
                   <span className="font-mono text-xs bg-stone-100 rounded px-1.5 py-0.5">{keepers.join(", ")}</span>
                 </p>
               )}
+              <ObligationEvidence contract={c} report={report} onOpen={id=>{const s=report.symbols.find(s=>s.id===id);if(s)openSourceViewer({file:report.files[s.loc.file],byteStart:s.loc.start,byteEnd:s.loc.end,elName:s.qual_name});}}/>
               {a.hint && <p className="text-xs text-stone-400">{a.hint}</p>}
             </CardContent>
           </Card>
@@ -575,7 +579,7 @@ export function PromisesView() {
 // ---------- Tab: Can I trust this? (evidence) ----------
 
 export function TrustView() {
-  const { report, viewspec, repoScan } = useCie();
+  const { report, viewspec, repoScan, drift, openSourceViewer } = useCie();
   if (!report) return null;
   const ev = report.evidence;
   return (
@@ -589,6 +593,9 @@ export function TrustView() {
         </CardContent>
       </Card>
 
+      <StateTransitionEvidence report={report} onOpen={id=>{const s=report.symbols.find(s=>s.id===id);if(s)openSourceViewer({file:report.files[s.loc.file],byteStart:s.loc.start,byteEnd:s.loc.end,elName:s.qual_name});}}/>
+      <DriftProvenance claims={drift?.claims}/>
+      <FaultEvidence report={report}/>
       {/* language honesty — only exists for connect-a-repo flows */}
       {repoScan && (
         <Card className={repoScan.unsupported.length ? "border-amber-200" : "border-emerald-200"}>

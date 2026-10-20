@@ -29,7 +29,10 @@ export interface SummaryInfo {
   has_loops?: boolean;
 }
 
+export interface CommitMeta { id: string; author: string; time: number; subject: string }
+
 export interface Finding {
+  introduced?: CommitMeta[] | null;
   id: string;
   kind: string;
   severity: "Critical" | "High" | "Medium" | "Low" | string;
@@ -41,6 +44,8 @@ export interface Finding {
 }
 
 export interface Contract {
+  introduced?: CommitMeta[] | null;
+  verified_by?: number[];
   id: number;
   // Serde externally-tagged enum ObligationKind: named variants serialize as
   // plain strings ("MustAuthorize"), Custom carries the rule in the code's
@@ -74,7 +79,14 @@ export interface TransitionView {
   evidence: { symbol: number; effect: string; external_write: boolean; reads: string[]; writes: string[] }[];
 }
 export interface StateModelView { transitions: TransitionView[]; domain_note: string }
+export interface FaultAnalysis {
+  revision: number; status: "Unknown" | "Simulated"; unknown_reason: string | null;
+  property: string | null; execution_performed: false; runtime_observed: false;
+  notes: string[]; lineage: { edges: { id: string; from: string; to: string }[] };
+  experiments: { property_violated: boolean; outcome: string | Record<string, unknown>; provenance: string[]; content_hash: string }[];
+}
 export interface CieReport {
+  fault_analysis?: FaultAnalysis | null;
   state_model?: StateModelView | null;
   rev: number;
   files: string[];
@@ -216,6 +228,7 @@ export interface DriftDocLoc {
 }
 
 export interface DriftClaim {
+  introduced?: CommitMeta[] | null;
   id: number;
   doc: string;
   text: string;

@@ -1,6 +1,6 @@
 //! RFC-0020: filtered static state model, pinned to its analysis revision.
-use cie_core::types::RevId;
 use cie_contract::obligations::StateModel;
+use cie_core::types::RevId;
 use cie_store::Store;
 
 /// Extension trait: per-revision stack artifact persistence over the
@@ -38,4 +38,3 @@ impl StateModelStoreExt for Store {
         )
     }
 }
-

@@ -234,6 +234,8 @@ export const useCie = create<CieState>((set, get) => ({
         fetch(`${dir}/drift.json`).then((r) => r.json()).catch(() => null),
         fetch(`${dir}/stack.json`).then((r) => r.json()).catch(() => null),
       ]);
+      const fault=await fetch(`${dir}/fault.json`).then(r=>r.ok?r.json():null).catch(()=>null);
+      if(report && fault?.revision===report.rev && fault.execution_performed===false && fault.runtime_observed===false) report.fault_analysis=fault;
       set({
         report,
         viewspec,
@@ -250,10 +252,10 @@ export const useCie = create<CieState>((set, get) => ({
         source: "demo",
         label:
           demoKind === "spring"
-            ? "Sample project: a Spring Boot service (13 files — Java + Kotlin, Docker, PostgreSQL)"
+            ? `Sample project: a Spring Boot service (${report.files.length} indexed files — Java + Kotlin)`
             : demoKind === "polyglot"
-              ? "Sample project: a five-service harbor system (37 files — Java, Kotlin, Rust, TypeScript and Python, one compose file)"
-              : "Sample project: a small banking app (13 files — Python, SQL and shell)",
+              ? `Sample project: a five-service harbor system (${report.files.length} indexed files — Java, Kotlin, Rust, TypeScript and Python)`
+              : `Sample project: a small banking app (${report.files.length} indexed files — Python, SQL and shell)`,
         loading: false,
         chat: [],
         chatBusy: false,

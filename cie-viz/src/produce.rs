@@ -514,6 +514,7 @@ mod tests {
             summary_cache: vec![],
             summary_reuse: None,
             state_model: None,
+            stack: None,
         }
     }
 

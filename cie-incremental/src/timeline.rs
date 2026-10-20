@@ -202,6 +202,7 @@ mod tests {
 
     fn snap(rev: RevId, symbols: Vec<SymbolFact>) -> RevSnapshot {
         RevSnapshot {
+            state_model: None,
             rev,
             files: vec![],
             stack: None,

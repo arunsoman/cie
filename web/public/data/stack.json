@@ -1,18 +1,26 @@
 {
+ "crossService": [],
  "v": 1,
  "build": {
-  "tool": "unknown",
+  "tool": "python",
   "modules": [],
   "artifactName": ""
  },
  "languages": [
   {
    "family": "python",
-   "files": 7,
+   "files": 12,
    "sharedRuntime": false
   }
  ],
- "frameworks": [],
+ "frameworks": [
+  {
+   "id": "python-unknown",
+   "name": "python-unknown",
+   "evidence": "requirements.txt",
+   "modules": []
+  }
+ ],
  "docker": {
   "present": false,
   "dockerfiles": [],
@@ -22,18 +30,28 @@
  "jvm": null,
  "routes": [],
  "mains": [],
+ "flows": [],
+ "apps": [
+  {
+   "dir": "",
+   "name": "",
+   "build": "python",
+   "framework": "python-unknown",
+   "evidence": "requirements.txt"
+  }
+ ],
  "config": [],
  "notes": [
-  "[stack] generic-stub parsed it: This stack: not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet",
-  "This stack: not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet — no route/main parser for this stack yet; the counts and manifests above are all CIE knows.",
+  "[stack] stub parsed it: the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet",
+  "the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet — no route/main parser for this stack yet; the counts and manifests above are all CIE knows.",
   "no routes parsed for this stack yet — the stub above says exactly what CIE did and didn't read."
  ],
  "coverage": {
-  "filesScanned": 0,
-  "manifestsRead": [],
+  "filesScanned": 12,
+  "manifestsRead": [
+   "requirements.txt"
+  ],
   "dockerfilesRead": []
  },
- "generatedAt": 1792421464,
- "flows": [],
- "apps": []
+ "generatedAt": 1792469687
 }

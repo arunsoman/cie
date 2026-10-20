@@ -20,6 +20,7 @@
 // (dashed / "inferred"), and the Facts-only switch filters the whole
 // dashboard at once.
 
+import { CrossServiceEvidence } from "./rfc0020-evidence";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, quality, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
+  const { report, stack, quality, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot } = useCie();
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
   const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
@@ -294,6 +295,7 @@ export function AtlasView() {
   return (
     <div className="flex h-full w-full">
       <div className="flex flex-col flex-1 min-w-0">
+        <CrossServiceEvidence stack={stack} scope={scopeId} onOpen={(file,line,label)=>openSourceViewer({file,line,elName:label,chartTitle:"Cross-service calls"})}/>
         {/* breadcrumb + filter bar (PRD §7) */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-2 border-b border-stone-200/80 bg-white/70">
           <Home className="h-3.5 w-3.5 text-stone-400" aria-hidden />
@@ -684,6 +686,7 @@ function SymbolRelatives({
         )}
       </RailSection>
       <RailSection title={`Tests that reach here (${tests.length})`}>
+        <p className="text-[11px] text-stone-500">Static reachability, not executed coverage. Engine obligation bindings use a six-edge bound; older/unbound symbols use the legacy filename heuristic.</p>
         {tests.length ? (
           <ul className="space-y-1">
             {tests.slice(0, 4).map((c) => (
@@ -698,7 +701,7 @@ function SymbolRelatives({
             ))}
           </ul>
         ) : (
-          <p className="text-[11px] text-stone-500">No test file reaches this symbol through recorded calls — a gap worth knowing, stated plainly.</p>
+          <p className="text-[11px] text-stone-500">No test reaches this symbol in the recorded graph and available depth bound.</p>
         )}
       </RailSection>
       <SummaryEvidence report={report} symId={id} />

@@ -1,1 +1,114 @@
-null
+{
+ "rev": 1,
+ "docs": [
+  "README.md"
+ ],
+ "claims": [],
+ "mappings": [],
+ "verifications": [],
+ "reverse_drift": [
+  {
+   "symbol": 5,
+   "qual_name": "CleanupScheduler.nightlyCleanup",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 10,
+   "qual_name": "LedgerAudit.LedgerAudit",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 11,
+   "qual_name": "LedgerAudit.record",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 14,
+   "qual_name": "TransactionService.TransactionService",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 15,
+   "qual_name": "TransactionService.topUp",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 16,
+   "qual_name": "TransactionService.balance",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 19,
+   "qual_name": "Wallet.getId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 20,
+   "qual_name": "Wallet.setId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 21,
+   "qual_name": "Wallet.getOwner",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 22,
+   "qual_name": "Wallet.getBalanceMinor",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 23,
+   "qual_name": "Wallet.getCurrency",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 26,
+   "qual_name": "WalletController.WalletController",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 27,
+   "qual_name": "WalletController.topUp",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 28,
+   "qual_name": "WalletController.balance",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 29,
+   "qual_name": "WalletController.history",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 32,
+   "qual_name": "WalletRepository.findByOwner",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 35,
+   "qual_name": "KycController.status",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 40,
+   "qual_name": "KycRepository.findByUserId",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 43,
+   "qual_name": "KycService.stateOf",
+   "reason": "no document claim maps to this symbol"
+  },
+  {
+   "symbol": 46,
+   "qual_name": "RiskClient.flag",
+   "reason": "no document claim maps to this symbol"
+  }
+ ],
+ "aggregate": {},
+ "complete": true,
+ "generated_ns": 1792470029896151647
+}

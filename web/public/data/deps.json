@@ -1,41 +1,41 @@
 {
-  "table": {
-    "deps": [
-      {
-        "ecosystem": "pypi",
-        "licence": null,
-        "name": "coverage",
-        "scope": "runtime",
-        "source": "requirements.txt",
-        "version_req": ">=7.4"
-      },
-      {
-        "ecosystem": "pypi",
-        "licence": null,
-        "name": "pytest",
-        "scope": "runtime",
-        "source": "requirements.txt",
-        "version_req": ">=8.0"
-      }
-    ],
-    "files_scanned": 1,
-    "unparsed": []
-  },
-  "usage": [
-    {
-      "ecosystem": "pypi",
-      "imported_by": [],
-      "name": "coverage",
-      "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
-      "resolved": false
-    },
-    {
-      "ecosystem": "pypi",
-      "imported_by": [],
-      "name": "pytest",
-      "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
-      "resolved": false
-    }
+ "table": {
+  "deps": [
+   {
+    "ecosystem": "pypi",
+    "licence": null,
+    "name": "coverage",
+    "scope": "runtime",
+    "source": "requirements.txt",
+    "version_req": ">=7.4"
+   },
+   {
+    "ecosystem": "pypi",
+    "licence": null,
+    "name": "pytest",
+    "scope": "runtime",
+    "source": "requirements.txt",
+    "version_req": ">=8.0"
+   }
   ],
-  "what_if": null
+  "files_scanned": 1,
+  "unparsed": []
+ },
+ "usage": [
+  {
+   "ecosystem": "pypi",
+   "imported_by": [],
+   "name": "coverage",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  },
+  {
+   "ecosystem": "pypi",
+   "imported_by": [],
+   "name": "pytest",
+   "note": "no import matched this name — entry-point or indirect usage is invisible to static analysis; NOT proof of being unused",
+   "resolved": false
+  }
+ ],
+ "what_if": null
 }

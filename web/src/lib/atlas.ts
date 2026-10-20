@@ -826,6 +826,11 @@ export function calleesOfSym(report: CieReport, symbolId: number): RelativeSymbo
  *  that reach here"). File names starting with test_ or ending _test are
  *  the convention CIE treats as tests — said plainly, not guessed deeper. */
 export function testsReaching(report: CieReport, symbolId: number): RelativeSymbol[] {
+  const obligations=report.contracts.filter(c=>c.symbols.includes(symbolId));
+  if(obligations.length && obligations.every(c=>c.verified_by!==undefined)) {
+    const ids=[...new Set(obligations.flatMap(c=>c.verified_by||[]))];
+    return ids.flatMap(id=>{const s=report.symbols.find(s=>s.id===id);return s?[{id,qualName:s.qual_name||s.name,file:fileOf(report,s),byteStart:s.loc.start,byteEnd:s.loc.end}]:[];});
+  }
   const isTest = (f: string): boolean => f.startsWith("test_") || f.endsWith("_test") || f.includes("/test_") || f.includes(".test.");
   return callersOf(report, symbolId).filter((c) => isTest(c.file));
 }

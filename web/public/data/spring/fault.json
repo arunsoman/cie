@@ -1,0 +1,17 @@
+{
+ "revision": 1,
+ "status": "Unknown",
+ "unknown_reason": "NoEvidencedStateModel: no evidenced state model for this revision",
+ "property": null,
+ "lineage": {
+  "edges": []
+ },
+ "experiments": [],
+ "execution_performed": false,
+ "runtime_observed": false,
+ "notes": [
+  "Static payment-template hypothesis simulation only; no live faults, captured execution, provider effects or recovery guarantee.",
+  "Property selection: first evidenced transition by (from, event). Other obligations are not checked by this run.",
+  "The planner's balance_update success marker is internal bookkeeping, not an extracted event. Experiment at_ns values are logical sequence counters, not observed wall-clock times."
+ ]
+}

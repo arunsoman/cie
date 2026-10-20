@@ -160,6 +160,15 @@ impl SnapshotStoreExt for Store {
         }
         for c in &mut snap.contracts {
             c.symbols = c.symbols.iter().filter_map(|s| remap(*s)).collect();
+            c.verified_by = c.verified_by.iter().filter_map(|s| remap(*s)).collect();
+        }
+        if let Some(model) = &mut snap.state_model {
+            for t in &mut model.transitions {
+                t.evidence = t.evidence.iter().filter_map(|p| remap(p.symbol).map(|id| {let mut p=p.clone();p.symbol=id;p})).collect();
+                t.provenance = t.evidence.iter().map(|p|format!("symbol {}: {}",p.symbol.0,p.effect)).collect::<Vec<_>>().join("; ");
+            }
+            model.transitions.retain(|t|!t.evidence.is_empty());
+            if model.transitions.is_empty() {snap.state_model=None;}
         }
         for node in &mut snap.concepts.nodes {
             node.symbols = node.symbols.iter().filter_map(|s| remap(*s)).collect();
@@ -311,7 +320,9 @@ mod tests {
             ..Default::default()
         };
 
+        snap.contracts[0].verified_by=vec![SymbolId(7),SymbolId(1)];
         let purged = store.purge_tombstoned(&mut snap).unwrap();
+        assert_eq!(snap.contracts[0].verified_by,vec![SymbolId(2)]);
         assert_eq!(purged, 2, "one symbol + one dead summary counted");
 
         // Files shrank, order preserved.

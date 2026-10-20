@@ -817,6 +817,12 @@ async function runPipeline(job: AnalyzeJob) {
       );
       return;
     }
+    if(report.state_model?.transitions.length) {
+      const fault=await run(bin,["fault",repoDir,"--json","--budget-ms","500"],{timeoutMs:CIE_TIMEOUT_MS});
+      if(!fault.timedOut && fault.code===0) {
+        try { const value=JSON.parse(fault.stdout); if(value.revision===report.rev && value.execution_performed===false && value.runtime_observed===false) report.fault_analysis=value; } catch { /* absent evidence is not a successful experiment */ }
+      }
+    }
     setStep(job, "read", "done", `${report.symbols.length} named things found.`, Date.now() - t1);
 
     // 3. viewspec (the map)

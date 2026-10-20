@@ -1,1518 +1,1552 @@
 {
-  "v": 1,
-  "build": {
-    "tool": "unknown",
-    "modules": [],
-    "artifactName": ""
+ "crossService": [
+  {
+   "fromApp": "berth-booking",
+   "toApp": "billing",
+   "via": "feign",
+   "matchedPath": "/invoices/{id}",
+   "fromEvidence": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java:4",
+   "toEvidence": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt:25",
+   "matchBasis": "literal service identity + declared HTTP verb/path"
+  }
+ ],
+ "v": 1,
+ "build": {
+  "tool": "unknown",
+  "modules": [],
+  "artifactName": ""
+ },
+ "languages": [
+  {
+   "family": "jvm-mixed",
+   "files": 14,
+   "sharedRuntime": true
   },
-  "languages": [
-    {
-      "family": "jvm-mixed",
-      "files": 13,
-      "sharedRuntime": true
-    },
-    {
-      "family": "rust",
-      "files": 3,
-      "sharedRuntime": false
-    },
-    {
-      "family": "javascript",
-      "files": 3,
-      "sharedRuntime": false
-    },
-    {
-      "family": "python",
-      "files": 5,
-      "sharedRuntime": false
-    }
-  ],
-  "frameworks": [
-    {
-      "id": "spring",
-      "name": "Spring Boot",
-      "evidence": "berth-booking/pom.xml",
-      "modules": []
-    },
-    {
-      "id": "spring",
-      "name": "Spring Boot",
-      "evidence": "billing/build.gradle.kts",
-      "modules": []
-    },
-    {
-      "id": "express",
-      "name": "express",
-      "evidence": "search/package.json",
-      "modules": []
-    },
-    {
-      "id": "axum",
-      "name": "axum",
-      "evidence": "tide-alerts/Cargo.toml",
-      "modules": []
-    },
-    {
-      "id": "flask",
-      "name": "Flask",
-      "evidence": "webhooks/requirements.txt",
-      "modules": []
-    }
-  ],
-  "docker": {
-    "present": true,
-    "dockerfiles": [
-      {
-        "path": "berth-booking/Dockerfile",
-        "baseImage": "eclipse-temurin:21-jre",
-        "exposedPorts": []
-      },
-      {
-        "path": "billing/Dockerfile",
-        "baseImage": "eclipse-temurin:21-jre",
-        "exposedPorts": []
-      },
-      {
-        "path": "search/Dockerfile",
-        "baseImage": "node:20-slim",
-        "exposedPorts": []
-      },
-      {
-        "path": "tide-alerts/Dockerfile",
-        "baseImage": "rust:1.78",
-        "exposedPorts": []
-      },
-      {
-        "path": "webhooks/Dockerfile",
-        "baseImage": "python:3.12-slim",
-        "exposedPorts": []
-      }
-    ],
-    "compose": {
-      "path": "docker-compose.yml",
-      "services": [
-        {
-          "name": "berth-booking",
-          "image": null,
-          "ports": []
-        },
-        {
-          "name": "billing",
-          "image": null,
-          "ports": []
-        },
-        {
-          "name": "tide-alerts",
-          "image": null,
-          "ports": []
-        },
-        {
-          "name": "search",
-          "image": null,
-          "ports": []
-        },
-        {
-          "name": "webhooks",
-          "image": null,
-          "ports": []
-        }
-      ]
-    },
-    "note": "docker compose with 5 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
+  {
+   "family": "rust",
+   "files": 3,
+   "sharedRuntime": false
   },
-  "jvm": {
-    "configClasses": [],
-    "services": [
-      {
-        "name": "BookingService",
-        "rel": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
-        "line": 6,
-        "lang": "java",
-        "injections": [
-          {
-            "field": "berthRepository",
-            "type": "BerthRepository"
-          }
-        ]
-      },
-      {
-        "name": "BillingService",
-        "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-        "line": 9,
-        "lang": "kotlin",
-        "injections": [
-          {
-            "field": "invoiceRepository",
-            "type": "InvoiceRepository"
-          }
-        ]
-      }
-    ],
-    "repositories": [
-      {
-        "name": "BerthRepository",
-        "rel": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
-        "line": 5,
-        "lang": "java",
-        "extends": "JpaRepository<Berth, Long>",
-        "entity": "Berth"
-      },
-      {
-        "name": "InvoiceRepository",
-        "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-        "line": 4,
-        "lang": "kotlin",
-        "extends": "",
-        "entity": null
-      },
-      {
-        "name": "PostgresInvoiceRepository",
-        "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
-        "line": 8,
-        "lang": "kotlin",
-        "extends": "",
-        "entity": null
-      }
-    ],
-    "entities": [
-      {
-        "name": "Berth",
-        "rel": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
-        "line": 7,
-        "lang": "java",
-        "table": null,
-        "props": [
-          {
-            "name": "occupied",
-            "type": "boolean"
-          },
-          {
-            "name": "pricePerNight",
-            "type": "double"
-          },
-          {
-            "name": "lengthMeters",
-            "type": "int"
-          },
-          {
-            "name": "berthCode",
-            "type": "String"
-          },
-          {
-            "name": "id",
-            "type": "Long"
-          }
-        ]
-      }
-    ],
-    "scheduledIn": [],
-    "listeners": [],
-    "outbound": [],
-    "scanned": 13,
-    "javaFiles": 5,
-    "kotlinFiles": 8
+  {
+   "family": "javascript",
+   "files": 3,
+   "sharedRuntime": false
   },
-  "routes": [
+  {
+   "family": "python",
+   "files": 5,
+   "sharedRuntime": false
+  }
+ ],
+ "frameworks": [
+  {
+   "id": "spring",
+   "name": "Spring Boot",
+   "evidence": "berth-booking/pom.xml",
+   "modules": []
+  },
+  {
+   "id": "spring",
+   "name": "Spring Boot",
+   "evidence": "billing/build.gradle.kts",
+   "modules": []
+  },
+  {
+   "id": "express",
+   "name": "express",
+   "evidence": "search/package.json",
+   "modules": []
+  },
+  {
+   "id": "axum",
+   "name": "axum",
+   "evidence": "tide-alerts/Cargo.toml",
+   "modules": []
+  },
+  {
+   "id": "flask",
+   "name": "Flask",
+   "evidence": "webhooks/requirements.txt",
+   "modules": []
+  }
+ ],
+ "docker": {
+  "present": true,
+  "dockerfiles": [
+   {
+    "path": "berth-booking/Dockerfile",
+    "baseImage": "eclipse-temurin:21-jre",
+    "exposedPorts": []
+   },
+   {
+    "path": "billing/Dockerfile",
+    "baseImage": "eclipse-temurin:21-jre",
+    "exposedPorts": []
+   },
+   {
+    "path": "search/Dockerfile",
+    "baseImage": "node:20-slim",
+    "exposedPorts": []
+   },
+   {
+    "path": "tide-alerts/Dockerfile",
+    "baseImage": "rust:1.78",
+    "exposedPorts": []
+   },
+   {
+    "path": "webhooks/Dockerfile",
+    "baseImage": "python:3.12-slim",
+    "exposedPorts": []
+   }
+  ],
+  "compose": {
+   "path": "docker-compose.yml",
+   "services": [
     {
-      "verb": "GET",
-      "path": "/berths/{code}",
-      "owner": "BerthController",
-      "method": "status",
-      "service": "berth-booking",
-      "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-      "line": 23,
-      "params": [
-        "@PathVariable String code"
-      ],
-      "returns": "Berth",
-      "evidence": "@GetMapping(\"/{code}\")"
+     "name": "berth-booking",
+     "image": null,
+     "ports": []
     },
     {
-      "verb": "POST",
-      "path": "/berths/{code}/book",
-      "owner": "BerthController",
-      "method": "book",
-      "service": "berth-booking",
-      "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-      "line": 18,
-      "params": [
-        "@PathVariable String code"
-      ],
-      "returns": "Berth",
-      "evidence": "@PostMapping(\"/{code}/book\")"
+     "name": "billing",
+     "image": null,
+     "ports": []
     },
     {
-      "verb": "GET",
-      "path": "/invoices/{id}",
-      "owner": "BillingController",
-      "method": "get",
-      "service": "billing",
-      "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-      "line": 25,
-      "params": [
-        "id: Long"
-      ],
-      "returns": "Invoice?",
-      "evidence": "@GetMapping(\"/{id}\")"
+     "name": "tide-alerts",
+     "image": null,
+     "ports": []
     },
     {
-      "verb": "POST",
-      "path": "/invoices/{id}/settle",
-      "owner": "BillingController",
-      "method": "settle",
-      "service": "billing",
-      "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-      "line": 20,
-      "params": [
-        "id: Long"
-      ],
-      "returns": "Invoice",
-      "evidence": "@PostMapping(\"/{id}/settle\")"
+     "name": "search",
+     "image": null,
+     "ports": []
     },
     {
-      "verb": "POST",
-      "path": "/invoices/{id}/lines",
-      "owner": "BillingController",
-      "method": "addLine",
-      "service": "billing",
-      "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-      "line": 15,
-      "params": [
-        "id: Long",
-        "amountMinor: Int"
-      ],
-      "returns": "Invoice",
-      "evidence": "@PostMapping(\"/{id}/lines\")"
-    },
-    {
-      "verb": "GET",
-      "path": "/berths/search",
-      "owner": "search",
-      "method": "handler",
-      "service": "search",
-      "rel": "search/src/search.ts",
-      "line": 7,
-      "params": [],
-      "returns": "the handler's response",
-      "evidence": "search:7 GET \"/berths/search\""
-    },
-    {
-      "verb": "POST",
-      "path": "/berths/:code/book",
-      "owner": "search",
-      "method": "handler",
-      "service": "search",
-      "rel": "search/src/search.ts",
-      "line": 16,
-      "params": [
-        "code"
-      ],
-      "returns": "the handler's response",
-      "evidence": "search:16 POST \"/berths/:code/book\""
-    },
-    {
-      "verb": "GET",
-      "path": "/alerts/:berth/check",
-      "owner": "tide-alerts",
-      "method": "check",
-      "service": "tide-alerts",
-      "rel": "tide-alerts/src/main.rs",
-      "line": 22,
-      "params": [
-        "berth"
-      ],
-      "returns": "the handler's response",
-      "evidence": "tide-alerts:22 .route(\"/alerts/:berth/check\", get(…))"
-    },
-    {
-      "verb": "GET",
-      "path": "/alerts/:berth",
-      "owner": "tide-alerts",
-      "method": "current_alert",
-      "service": "tide-alerts",
-      "rel": "tide-alerts/src/main.rs",
-      "line": 21,
-      "params": [
-        "berth"
-      ],
-      "returns": "the handler's response",
-      "evidence": "tide-alerts:21 .route(\"/alerts/:berth\", get(…))"
-    },
-    {
-      "verb": "GET",
-      "path": "/health",
-      "owner": "tide-alerts",
-      "method": "health",
-      "service": "tide-alerts",
-      "rel": "tide-alerts/src/main.rs",
-      "line": 20,
-      "params": [],
-      "returns": "the handler's response",
-      "evidence": "tide-alerts:20 .route(\"/health\", get(…))"
-    },
-    {
-      "verb": "POST",
-      "path": "/webhook/<event>",
-      "owner": "webhooks",
-      "method": "deliver",
-      "service": "webhooks",
-      "rel": "webhooks/app/webhook.py",
-      "line": 6,
-      "params": [
-        "event"
-      ],
-      "returns": "the handler's response",
-      "evidence": "webhooks:6 @post \"/webhook/<event>\""
-    },
-    {
-      "verb": "GET",
-      "path": "/webhook/<event>/status",
-      "owner": "webhooks",
-      "method": "delivery_status",
-      "service": "webhooks",
-      "rel": "webhooks/app/webhook.py",
-      "line": 18,
-      "params": [
-        "event"
-      ],
-      "returns": "the handler's response",
-      "evidence": "webhooks:18 @get \"/webhook/<event>/status\""
+     "name": "webhooks",
+     "image": null,
+     "ports": []
     }
+   ]
+  },
+  "note": "docker compose with 5 service(s): berth-booking, billing, tide-alerts, search · 5 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
+ },
+ "jvm": {
+  "configClasses": [
+   {
+    "name": "BillingClient",
+    "rel": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+    "line": 4,
+    "lang": "java",
+    "kind": "feign"
+   }
   ],
-  "mains": [
-    {
-      "name": "BerthBookingApplication",
-      "rel": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
-      "line": 6,
-      "kind": "spring-boot",
-      "lang": "java"
-    },
-    {
-      "name": "BillingApplication",
-      "rel": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
-      "line": 6,
-      "kind": "spring-boot",
-      "lang": "kotlin"
-    },
-    {
-      "name": "search",
-      "rel": "search/src/search.ts",
-      "line": 24,
-      "kind": "express-listen",
-      "lang": "javascript"
-    },
-    {
-      "name": "tide-alerts",
-      "rel": "tide-alerts/src/main.rs",
-      "line": 18,
-      "kind": "axum-serve",
-      "lang": "rust"
-    },
-    {
-      "name": "webhooks",
-      "rel": "webhooks/main.py",
-      "line": 3,
-      "kind": "flask-run",
-      "lang": "python"
-    }
-  ],
-  "flows": [
-    {
-      "name": "berth-booking/BerthController",
-      "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-      "basePath": "/berths",
-      "flows": [
-        {
-          "method": "status",
-          "verb": "GET",
-          "path": "/berths/{code}",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /berths/{code}",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 23,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "BerthController.status(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-                    "line": 23,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "re-1",
-                            "kind": "return",
-                            "label": "responds bookingService.occupy(code)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": null,
-                            "line": 25,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "book",
-          "verb": "POST",
-          "path": "/berths/{code}/book",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /berths/{code}/book",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 18,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "BerthController.book(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
-                    "line": 18,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "re-1",
-                            "kind": "return",
-                            "label": "responds bookingService.occupy(code)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": null,
-                            "line": 20,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    },
-    {
-      "name": "billing/BillingController",
-      "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-      "basePath": "/invoices",
-      "flows": [
-        {
-          "method": "get",
-          "verb": "GET",
-          "path": "/invoices/{id}",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /invoices/{id}",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 25,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "BillingController.get(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-                    "line": 25,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "c-2",
-                            "kind": "action",
-                            "label": "billingService.get(…)",
-                            "layer": "service",
-                            "type": "BillingService",
-                            "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-                            "line": 21,
-                            "children": [
-                              {
-                                "label": "into BillingService",
-                                "nodes": [
-                                  {
-                                    "id": "c-1",
-                                    "kind": "action",
-                                    "label": "invoiceRepository.byId(…)",
-                                    "layer": "repository",
-                                    "type": "InvoiceRepository",
-                                    "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                    "line": 6,
-                                    "children": [
-                                      {
-                                        "label": "into InvoiceRepository",
-                                        "nodes": [
-                                          {
-                                            "id": "db-0",
-                                            "kind": "action",
-                                            "label": "database read via InvoiceRepository",
-                                            "layer": "database",
-                                            "type": null,
-                                            "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                            "line": 6,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "settle",
-          "verb": "POST",
-          "path": "/invoices/{id}/settle",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /invoices/{id}/settle",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 20,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "BillingController.settle(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-                    "line": 20,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "c-3",
-                            "kind": "action",
-                            "label": "billingService.settle(…)",
-                            "layer": "service",
-                            "type": "BillingService",
-                            "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-                            "line": 25,
-                            "children": [
-                              {
-                                "label": "into BillingService",
-                                "nodes": [
-                                  {
-                                    "id": "c-1",
-                                    "kind": "action",
-                                    "label": "invoice.settle(…)",
-                                    "layer": "other",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 28,
-                                    "children": []
-                                  },
-                                  {
-                                    "id": "c-2",
-                                    "kind": "action",
-                                    "label": "invoiceRepository.save(…)",
-                                    "layer": "repository",
-                                    "type": "InvoiceRepository",
-                                    "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                    "line": 5,
-                                    "children": [
-                                      {
-                                        "label": "into InvoiceRepository",
-                                        "nodes": [
-                                          {
-                                            "id": "db-1",
-                                            "kind": "action",
-                                            "label": "database write via InvoiceRepository",
-                                            "layer": "database",
-                                            "type": null,
-                                            "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                            "line": 5,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "addLine",
-          "verb": "POST",
-          "path": "/invoices/{id}/lines",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /invoices/{id}/lines",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 15,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "BillingController.addLine(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
-                    "line": 15,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "c-5",
-                            "kind": "action",
-                            "label": "billingService.addLine(…)",
-                            "layer": "service",
-                            "type": "BillingService",
-                            "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
-                            "line": 11,
-                            "children": [
-                              {
-                                "label": "into BillingService",
-                                "nodes": [
-                                  {
-                                    "id": "if-2",
-                                    "kind": "decision",
-                                    "label": "if (amountMinor <= 0)",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 14,
-                                    "children": [
-                                      {
-                                        "label": "if (amountMinor <= 0)",
-                                        "nodes": [
-                                          {
-                                            "id": "th-1",
-                                            "kind": "throw",
-                                            "label": "throws IllegalArgumentException(\"line amount must be positive\")",
-                                            "layer": "response",
-                                            "type": null,
-                                            "rel": null,
-                                            "line": 15,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "id": "c-3",
-                                    "kind": "action",
-                                    "label": "invoice.addLine(…)",
-                                    "layer": "other",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 17,
-                                    "children": []
-                                  },
-                                  {
-                                    "id": "c-4",
-                                    "kind": "action",
-                                    "label": "invoiceRepository.save(…)",
-                                    "layer": "repository",
-                                    "type": "InvoiceRepository",
-                                    "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                    "line": 5,
-                                    "children": [
-                                      {
-                                        "label": "into InvoiceRepository",
-                                        "nodes": [
-                                          {
-                                            "id": "db-3",
-                                            "kind": "action",
-                                            "label": "database write via InvoiceRepository",
-                                            "layer": "database",
-                                            "type": null,
-                                            "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
-                                            "line": 5,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    },
-    {
-      "name": "search/search",
-      "rel": "search/src/search.ts",
-      "basePath": "/",
-      "flows": [
-        {
-          "method": "handler",
-          "verb": "GET",
-          "path": "/berths/search",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /berths/search",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 7,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "search.handler(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "search/src/search.ts",
-                    "line": 7,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n4",
-                            "kind": "action",
-                            "label": "searchBerths()",
-                            "layer": "service",
-                            "type": null,
-                            "rel": "search/src/catalog.ts",
-                            "line": 4,
-                            "children": [
-                              {
-                                "label": "body",
-                                "nodes": [
-                                  {
-                                    "id": "n2",
-                                    "kind": "decision",
-                                    "label": "if ((minLength <= 0))",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": "search/src/catalog.ts",
-                                    "line": 5,
-                                    "children": [
-                                      {
-                                        "label": "if ((minLength <= 0))",
-                                        "nodes": [
-                                          {
-                                            "id": "n1",
-                                            "kind": "throw",
-                                            "label": "throw new Error(\"length must be positive\");",
-                                            "layer": "response",
-                                            "type": null,
-                                            "rel": "search/src/catalog.ts",
-                                            "line": 6,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "id": "n3",
-                                    "kind": "return",
-                                    "label": "return query(minLength);",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": "search/src/catalog.ts",
-                                    "line": 8,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n5",
-                            "kind": "return",
-                            "label": "responds res.json(searchBerths(minLength));",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "search/src/search.ts",
-                            "line": 10,
-                            "children": []
-                          },
-                          {
-                            "id": "n6",
-                            "kind": "return",
-                            "label": "responds res.status(400).json({ error: String(e) });",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "search/src/search.ts",
-                            "line": 12,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "handler",
-          "verb": "POST",
-          "path": "/berths/:code/book",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /berths/:code/book",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 16,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "search.handler(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "search/src/search.ts",
-                    "line": 16,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n2",
-                            "kind": "action",
-                            "label": "bookByCode()",
-                            "layer": "service",
-                            "type": null,
-                            "rel": "search/src/catalog.ts",
-                            "line": 11,
-                            "children": [
-                              {
-                                "label": "body",
-                                "nodes": [
-                                  {
-                                    "id": "n1",
-                                    "kind": "return",
-                                    "label": "return save(code);",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": "search/src/catalog.ts",
-                                    "line": 12,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n3",
-                            "kind": "return",
-                            "label": "responds res.json(bookByCode(req.params.code));",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "search/src/search.ts",
-                            "line": 18,
-                            "children": []
-                          },
-                          {
-                            "id": "n4",
-                            "kind": "return",
-                            "label": "responds res.status(409).json({ error: String(e) });",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "search/src/search.ts",
-                            "line": 20,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    },
-    {
-      "name": "tide-alerts/tide-alerts",
-      "rel": "tide-alerts/src/main.rs",
-      "basePath": "/",
-      "flows": [
-        {
-          "method": "health",
-          "verb": "GET",
-          "path": "/health",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /health",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 20,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "tide-alerts.health(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "tide-alerts/src/main.rs",
-                    "line": 13,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n1",
-                            "kind": "return",
-                            "label": "responds Json(Health { status: \"ok\".into() })",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "tide-alerts/src/main.rs",
-                            "line": 14,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "current_alert",
-          "verb": "GET",
-          "path": "/alerts/:berth",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /alerts/:berth",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 21,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "tide-alerts.current_alert(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "tide-alerts/src/alert.rs",
-                    "line": 14,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n2",
-                            "kind": "action",
-                            "label": "level_for()",
-                            "layer": "service",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 6,
-                            "children": [
-                              {
-                                "label": "body",
-                                "nodes": [
-                                  {
-                                    "id": "n1",
-                                    "kind": "decision",
-                                    "label": "if (berth.starts_with(\"premium\"))",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": "tide-alerts/src/alert.rs",
-                                    "line": 7,
-                                    "children": [
-                                      {
-                                        "label": "if (berth.starts_with(\"premium\"))",
-                                        "nodes": []
-                                      },
-                                      {
-                                        "label": "else",
-                                        "nodes": []
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n5",
-                            "kind": "decision",
-                            "label": "if (water > 220)",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 16,
-                            "children": [
-                              {
-                                "label": "if (water > 220)",
-                                "nodes": [
-                                  {
-                                    "id": "n3",
-                                    "kind": "return",
-                                    "label": "responds format!(\"flood risk at {} — level {} cm\", berth, water)",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": "tide-alerts/src/alert.rs",
-                                    "line": 17,
-                                    "children": []
-                                  }
-                                ]
-                              },
-                              {
-                                "label": "else",
-                                "nodes": [
-                                  {
-                                    "id": "n4",
-                                    "kind": "return",
-                                    "label": "responds format!(\"no alert at {} — level {} cm\", berth, water)",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": "tide-alerts/src/alert.rs",
-                                    "line": 19,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "check",
-          "verb": "GET",
-          "path": "/alerts/:berth/check",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /alerts/:berth/check",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 22,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "tide-alerts.check(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "tide-alerts/src/alert.rs",
-                    "line": 23,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n2",
-                            "kind": "action",
-                            "label": "level_for()",
-                            "layer": "service",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 6,
-                            "children": [
-                              {
-                                "label": "body",
-                                "nodes": [
-                                  {
-                                    "id": "n1",
-                                    "kind": "decision",
-                                    "label": "if (berth.starts_with(\"premium\"))",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": "tide-alerts/src/alert.rs",
-                                    "line": 7,
-                                    "children": [
-                                      {
-                                        "label": "if (berth.starts_with(\"premium\"))",
-                                        "nodes": []
-                                      },
-                                      {
-                                        "label": "else",
-                                        "nodes": []
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n3",
-                            "kind": "action",
-                            "label": "store::save",
-                            "layer": "database",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 26,
-                            "children": []
-                          },
-                          {
-                            "id": "n4",
-                            "kind": "decision",
-                            "label": "if (water <= 200)",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 27,
-                            "children": [
-                              {
-                                "label": "if (water <= 200)",
-                                "nodes": []
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n5",
-                            "kind": "return",
-                            "label": "responds format!(\"{} recorded — {} cm\", berth, water)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "tide-alerts/src/alert.rs",
-                            "line": 30,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    },
-    {
-      "name": "webhooks/webhooks",
-      "rel": "webhooks/app/webhook.py",
-      "basePath": "/",
-      "flows": [
-        {
-          "method": "deliver",
-          "verb": "POST",
-          "path": "/webhook/<event>",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /webhook/<event>",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 6,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "webhooks.deliver(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "webhooks/app/webhook.py",
-                    "line": 7,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n1",
-                            "kind": "decision",
-                            "label": "if event not in SUBSCRIBED:",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 1,
-                            "children": [
-                              {
-                                "label": "if event not in SUBSCRIBED:",
-                                "nodes": []
-                              }
-                            ]
-                          },
-                          {
-                            "id": "n2",
-                            "kind": "throw",
-                            "label": "raise ValueError(\"event is not subscribed \" + event)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 2,
-                            "children": []
-                          },
-                          {
-                            "id": "n3",
-                            "kind": "action",
-                            "label": "store.record",
-                            "layer": "database",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 3,
-                            "children": []
-                          },
-                          {
-                            "id": "n4",
-                            "kind": "return",
-                            "label": "return store.record(event, target)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 3,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "delivery_status",
-          "verb": "GET",
-          "path": "/webhook/<event>/status",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /webhook/<event>/status",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 18,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "webhooks.delivery_status(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "webhooks/app/webhook.py",
-                    "line": 13,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "n1",
-                            "kind": "action",
-                            "label": "store.status",
-                            "layer": "database",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 1,
-                            "children": []
-                          },
-                          {
-                            "id": "n2",
-                            "kind": "return",
-                            "label": "return store.status(event, target)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": "webhooks/app/webhook.py",
-                            "line": 1,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    }
-  ],
-  "apps": [
-    {
-      "dir": "berth-booking",
-      "name": "berth-booking",
-      "build": "maven",
-      "framework": "spring",
-      "evidence": "berth-booking/pom.xml"
-    },
-    {
-      "dir": "billing",
-      "name": "billing",
-      "build": "gradle",
-      "framework": "spring",
-      "evidence": "billing/build.gradle.kts"
-    },
-    {
-      "dir": "search",
-      "name": "search",
-      "build": "npm",
-      "framework": "express",
-      "evidence": "search/package.json"
-    },
-    {
-      "dir": "tide-alerts",
-      "name": "tide-alerts",
-      "build": "cargo",
-      "framework": "axum",
-      "evidence": "tide-alerts/Cargo.toml"
-    },
-    {
-      "dir": "webhooks",
-      "name": "webhooks",
-      "build": "python",
-      "framework": "flask",
-      "evidence": "webhooks/requirements.txt"
-    }
-  ],
-  "config": [
-    {
-      "rel": "berth-booking/src/main/resources/application.properties",
-      "service": "",
-      "port": 8081,
-      "profiles": "prod",
-      "datasource": "jdbc:postgresql://booking-db:5432/berths",
-      "note": "application.properties, as written"
-    },
-    {
-      "rel": "billing/src/main/resources/application.properties",
-      "service": "",
-      "port": 8083,
-      "profiles": "prod",
-      "datasource": "jdbc:postgresql://billing-db:5432/billing",
-      "note": "application.properties, as written"
-    }
-  ],
-  "notes": [
-    "[stack] composite parsed it: a composite — 5 app(s), one parser each, merged: berth-booking (spring), billing (spring), search (express), tide-alerts (axum), webhooks (flask)",
-    "[node] handler flows follow the handler's module plus one hop into sibling-module functions; deeper hops are capped honestly.",
-    "[rust] handler flows follow the handler's module plus plain-fn hops inside the crate; `?` propagation is quoted, not drawn; deeper hops capped honestly.",
-    "[python] handler flows follow the handler's module plus one hop into imported functions (as written, not evaluated).",
-    "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
-  ],
-  "coverage": {
-    "filesScanned": 31,
-    "manifestsRead": [],
-    "dockerfilesRead": [
-      "berth-booking/Dockerfile",
-      "billing/Dockerfile",
-      "search/Dockerfile",
-      "tide-alerts/Dockerfile",
-      "webhooks/Dockerfile",
-      "docker-compose.yml"
+  "services": [
+   {
+    "name": "BookingService",
+    "rel": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+    "line": 6,
+    "lang": "java",
+    "injections": [
+     {
+      "field": "berthRepository",
+      "type": "BerthRepository"
+     }
     ]
+   },
+   {
+    "name": "BillingService",
+    "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+    "line": 9,
+    "lang": "kotlin",
+    "injections": [
+     {
+      "field": "invoiceRepository",
+      "type": "InvoiceRepository"
+     }
+    ]
+   }
+  ],
+  "repositories": [
+   {
+    "name": "BerthRepository",
+    "rel": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+    "line": 5,
+    "lang": "java",
+    "extends": "JpaRepository<Berth, Long>",
+    "entity": "Berth"
+   },
+   {
+    "name": "InvoiceRepository",
+    "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+    "line": 4,
+    "lang": "kotlin",
+    "extends": "",
+    "entity": null
+   },
+   {
+    "name": "PostgresInvoiceRepository",
+    "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+    "line": 8,
+    "lang": "kotlin",
+    "extends": "",
+    "entity": null
+   }
+  ],
+  "entities": [
+   {
+    "name": "Berth",
+    "rel": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+    "line": 7,
+    "lang": "java",
+    "table": null,
+    "props": [
+     {
+      "name": "occupied",
+      "type": "boolean"
+     },
+     {
+      "name": "pricePerNight",
+      "type": "double"
+     },
+     {
+      "name": "lengthMeters",
+      "type": "int"
+     },
+     {
+      "name": "berthCode",
+      "type": "String"
+     },
+     {
+      "name": "id",
+      "type": "Long"
+     }
+    ]
+   }
+  ],
+  "scheduledIn": [],
+  "listeners": [],
+  "outbound": [
+   {
+    "line": 4,
+    "target": "billing",
+    "targetKind": "name",
+    "requests": [
+     {
+      "verb": "GET",
+      "path": "/invoices/{id}"
+     }
+    ],
+    "kind": "feign",
+    "cls": "BillingClient",
+    "rel": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java"
+   }
+  ],
+  "scanned": 14,
+  "javaFiles": 6,
+  "kotlinFiles": 8
+ },
+ "routes": [
+  {
+   "verb": "GET",
+   "path": "/berths/{code}",
+   "owner": "BerthController",
+   "method": "status",
+   "service": "berth-booking",
+   "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+   "line": 23,
+   "params": [
+    "@PathVariable String code"
+   ],
+   "returns": "Berth",
+   "evidence": "@GetMapping(\"/{code}\")"
   },
-  "generatedAt": 1792428972
+  {
+   "verb": "POST",
+   "path": "/berths/{code}/book",
+   "owner": "BerthController",
+   "method": "book",
+   "service": "berth-booking",
+   "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+   "line": 18,
+   "params": [
+    "@PathVariable String code"
+   ],
+   "returns": "Berth",
+   "evidence": "@PostMapping(\"/{code}/book\")"
+  },
+  {
+   "verb": "GET",
+   "path": "/invoices/{id}",
+   "owner": "BillingController",
+   "method": "get",
+   "service": "billing",
+   "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+   "line": 25,
+   "params": [
+    "id: Long"
+   ],
+   "returns": "Invoice?",
+   "evidence": "@GetMapping(\"/{id}\")"
+  },
+  {
+   "verb": "POST",
+   "path": "/invoices/{id}/settle",
+   "owner": "BillingController",
+   "method": "settle",
+   "service": "billing",
+   "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+   "line": 20,
+   "params": [
+    "id: Long"
+   ],
+   "returns": "Invoice",
+   "evidence": "@PostMapping(\"/{id}/settle\")"
+  },
+  {
+   "verb": "POST",
+   "path": "/invoices/{id}/lines",
+   "owner": "BillingController",
+   "method": "addLine",
+   "service": "billing",
+   "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+   "line": 15,
+   "params": [
+    "id: Long",
+    "amountMinor: Int"
+   ],
+   "returns": "Invoice",
+   "evidence": "@PostMapping(\"/{id}/lines\")"
+  },
+  {
+   "verb": "GET",
+   "path": "/berths/search",
+   "owner": "search",
+   "method": "handler",
+   "service": "search",
+   "rel": "search/src/search.ts",
+   "line": 7,
+   "params": [],
+   "returns": "the handler's response",
+   "evidence": "search:7 GET \"/berths/search\""
+  },
+  {
+   "verb": "POST",
+   "path": "/berths/:code/book",
+   "owner": "search",
+   "method": "handler",
+   "service": "search",
+   "rel": "search/src/search.ts",
+   "line": 16,
+   "params": [
+    "code"
+   ],
+   "returns": "the handler's response",
+   "evidence": "search:16 POST \"/berths/:code/book\""
+  },
+  {
+   "verb": "GET",
+   "path": "/alerts/:berth/check",
+   "owner": "tide-alerts",
+   "method": "check",
+   "service": "tide-alerts",
+   "rel": "tide-alerts/src/main.rs",
+   "line": 22,
+   "params": [
+    "berth"
+   ],
+   "returns": "the handler's response",
+   "evidence": "tide-alerts:22 .route(\"/alerts/:berth/check\", get(…))"
+  },
+  {
+   "verb": "GET",
+   "path": "/alerts/:berth",
+   "owner": "tide-alerts",
+   "method": "current_alert",
+   "service": "tide-alerts",
+   "rel": "tide-alerts/src/main.rs",
+   "line": 21,
+   "params": [
+    "berth"
+   ],
+   "returns": "the handler's response",
+   "evidence": "tide-alerts:21 .route(\"/alerts/:berth\", get(…))"
+  },
+  {
+   "verb": "GET",
+   "path": "/health",
+   "owner": "tide-alerts",
+   "method": "health",
+   "service": "tide-alerts",
+   "rel": "tide-alerts/src/main.rs",
+   "line": 20,
+   "params": [],
+   "returns": "the handler's response",
+   "evidence": "tide-alerts:20 .route(\"/health\", get(…))"
+  },
+  {
+   "verb": "POST",
+   "path": "/webhook/<event>",
+   "owner": "webhooks",
+   "method": "deliver",
+   "service": "webhooks",
+   "rel": "webhooks/app/webhook.py",
+   "line": 6,
+   "params": [
+    "event"
+   ],
+   "returns": "the handler's response",
+   "evidence": "webhooks:6 @post \"/webhook/<event>\""
+  },
+  {
+   "verb": "GET",
+   "path": "/webhook/<event>/status",
+   "owner": "webhooks",
+   "method": "delivery_status",
+   "service": "webhooks",
+   "rel": "webhooks/app/webhook.py",
+   "line": 18,
+   "params": [
+    "event"
+   ],
+   "returns": "the handler's response",
+   "evidence": "webhooks:18 @get \"/webhook/<event>/status\""
+  }
+ ],
+ "mains": [
+  {
+   "name": "BerthBookingApplication",
+   "rel": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+   "line": 6,
+   "kind": "spring-boot",
+   "lang": "java"
+  },
+  {
+   "name": "BillingApplication",
+   "rel": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+   "line": 6,
+   "kind": "spring-boot",
+   "lang": "kotlin"
+  },
+  {
+   "name": "search",
+   "rel": "search/src/search.ts",
+   "line": 24,
+   "kind": "express-listen",
+   "lang": "javascript"
+  },
+  {
+   "name": "tide-alerts",
+   "rel": "tide-alerts/src/main.rs",
+   "line": 18,
+   "kind": "axum-serve",
+   "lang": "rust"
+  },
+  {
+   "name": "webhooks",
+   "rel": "webhooks/main.py",
+   "line": 3,
+   "kind": "flask-run",
+   "lang": "python"
+  }
+ ],
+ "flows": [
+  {
+   "name": "berth-booking/BerthController",
+   "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+   "basePath": "/berths",
+   "flows": [
+    {
+     "method": "status",
+     "verb": "GET",
+     "path": "/berths/{code}",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /berths/{code}",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 23,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "BerthController.status(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+          "line": 23,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "re-1",
+              "kind": "return",
+              "label": "responds bookingService.occupy(code)",
+              "layer": "response",
+              "type": null,
+              "rel": null,
+              "line": 25,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "book",
+     "verb": "POST",
+     "path": "/berths/{code}/book",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /berths/{code}/book",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 18,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "BerthController.book(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+          "line": 18,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "re-1",
+              "kind": "return",
+              "label": "responds bookingService.occupy(code)",
+              "layer": "response",
+              "type": null,
+              "rel": null,
+              "line": 20,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  },
+  {
+   "name": "billing/BillingController",
+   "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+   "basePath": "/invoices",
+   "flows": [
+    {
+     "method": "get",
+     "verb": "GET",
+     "path": "/invoices/{id}",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /invoices/{id}",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 25,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "BillingController.get(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+          "line": 25,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "c-2",
+              "kind": "action",
+              "label": "billingService.get(…)",
+              "layer": "service",
+              "type": "BillingService",
+              "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+              "line": 21,
+              "children": [
+               {
+                "label": "into BillingService",
+                "nodes": [
+                 {
+                  "id": "c-1",
+                  "kind": "action",
+                  "label": "invoiceRepository.byId(…)",
+                  "layer": "repository",
+                  "type": "InvoiceRepository",
+                  "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                  "line": 6,
+                  "children": [
+                   {
+                    "label": "into InvoiceRepository",
+                    "nodes": [
+                     {
+                      "id": "db-0",
+                      "kind": "action",
+                      "label": "database read via InvoiceRepository",
+                      "layer": "database",
+                      "type": null,
+                      "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                      "line": 6,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "settle",
+     "verb": "POST",
+     "path": "/invoices/{id}/settle",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /invoices/{id}/settle",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 20,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "BillingController.settle(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+          "line": 20,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "c-3",
+              "kind": "action",
+              "label": "billingService.settle(…)",
+              "layer": "service",
+              "type": "BillingService",
+              "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+              "line": 25,
+              "children": [
+               {
+                "label": "into BillingService",
+                "nodes": [
+                 {
+                  "id": "c-1",
+                  "kind": "action",
+                  "label": "invoice.settle(…)",
+                  "layer": "other",
+                  "type": null,
+                  "rel": null,
+                  "line": 28,
+                  "children": []
+                 },
+                 {
+                  "id": "c-2",
+                  "kind": "action",
+                  "label": "invoiceRepository.save(…)",
+                  "layer": "repository",
+                  "type": "InvoiceRepository",
+                  "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                  "line": 5,
+                  "children": [
+                   {
+                    "label": "into InvoiceRepository",
+                    "nodes": [
+                     {
+                      "id": "db-1",
+                      "kind": "action",
+                      "label": "database write via InvoiceRepository",
+                      "layer": "database",
+                      "type": null,
+                      "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                      "line": 5,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "addLine",
+     "verb": "POST",
+     "path": "/invoices/{id}/lines",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /invoices/{id}/lines",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 15,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "BillingController.addLine(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+          "line": 15,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "c-5",
+              "kind": "action",
+              "label": "billingService.addLine(…)",
+              "layer": "service",
+              "type": "BillingService",
+              "rel": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+              "line": 11,
+              "children": [
+               {
+                "label": "into BillingService",
+                "nodes": [
+                 {
+                  "id": "if-2",
+                  "kind": "decision",
+                  "label": "if (amountMinor <= 0)",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": null,
+                  "line": 14,
+                  "children": [
+                   {
+                    "label": "if (amountMinor <= 0)",
+                    "nodes": [
+                     {
+                      "id": "th-1",
+                      "kind": "throw",
+                      "label": "throws IllegalArgumentException(\"line amount must be positive\")",
+                      "layer": "response",
+                      "type": null,
+                      "rel": null,
+                      "line": 15,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "id": "c-3",
+                  "kind": "action",
+                  "label": "invoice.addLine(…)",
+                  "layer": "other",
+                  "type": null,
+                  "rel": null,
+                  "line": 17,
+                  "children": []
+                 },
+                 {
+                  "id": "c-4",
+                  "kind": "action",
+                  "label": "invoiceRepository.save(…)",
+                  "layer": "repository",
+                  "type": "InvoiceRepository",
+                  "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                  "line": 5,
+                  "children": [
+                   {
+                    "label": "into InvoiceRepository",
+                    "nodes": [
+                     {
+                      "id": "db-3",
+                      "kind": "action",
+                      "label": "database write via InvoiceRepository",
+                      "layer": "database",
+                      "type": null,
+                      "rel": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+                      "line": 5,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  },
+  {
+   "name": "search/search",
+   "rel": "search/src/search.ts",
+   "basePath": "/",
+   "flows": [
+    {
+     "method": "handler",
+     "verb": "GET",
+     "path": "/berths/search",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /berths/search",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 7,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "search.handler(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "search/src/search.ts",
+          "line": 7,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n4",
+              "kind": "action",
+              "label": "searchBerths()",
+              "layer": "service",
+              "type": null,
+              "rel": "search/src/catalog.ts",
+              "line": 4,
+              "children": [
+               {
+                "label": "body",
+                "nodes": [
+                 {
+                  "id": "n2",
+                  "kind": "decision",
+                  "label": "if ((minLength <= 0))",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": "search/src/catalog.ts",
+                  "line": 5,
+                  "children": [
+                   {
+                    "label": "if ((minLength <= 0))",
+                    "nodes": [
+                     {
+                      "id": "n1",
+                      "kind": "throw",
+                      "label": "throw new Error(\"length must be positive\");",
+                      "layer": "response",
+                      "type": null,
+                      "rel": "search/src/catalog.ts",
+                      "line": 6,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "id": "n3",
+                  "kind": "return",
+                  "label": "return query(minLength);",
+                  "layer": "response",
+                  "type": null,
+                  "rel": "search/src/catalog.ts",
+                  "line": 8,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "n5",
+              "kind": "return",
+              "label": "responds res.json(searchBerths(minLength));",
+              "layer": "response",
+              "type": null,
+              "rel": "search/src/search.ts",
+              "line": 10,
+              "children": []
+             },
+             {
+              "id": "n6",
+              "kind": "return",
+              "label": "responds res.status(400).json({ error: String(e) });",
+              "layer": "response",
+              "type": null,
+              "rel": "search/src/search.ts",
+              "line": 12,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "handler",
+     "verb": "POST",
+     "path": "/berths/:code/book",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /berths/:code/book",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 16,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "search.handler(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "search/src/search.ts",
+          "line": 16,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n2",
+              "kind": "action",
+              "label": "bookByCode()",
+              "layer": "service",
+              "type": null,
+              "rel": "search/src/catalog.ts",
+              "line": 11,
+              "children": [
+               {
+                "label": "body",
+                "nodes": [
+                 {
+                  "id": "n1",
+                  "kind": "return",
+                  "label": "return save(code);",
+                  "layer": "response",
+                  "type": null,
+                  "rel": "search/src/catalog.ts",
+                  "line": 12,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "n3",
+              "kind": "return",
+              "label": "responds res.json(bookByCode(req.params.code));",
+              "layer": "response",
+              "type": null,
+              "rel": "search/src/search.ts",
+              "line": 18,
+              "children": []
+             },
+             {
+              "id": "n4",
+              "kind": "return",
+              "label": "responds res.status(409).json({ error: String(e) });",
+              "layer": "response",
+              "type": null,
+              "rel": "search/src/search.ts",
+              "line": 20,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  },
+  {
+   "name": "tide-alerts/tide-alerts",
+   "rel": "tide-alerts/src/main.rs",
+   "basePath": "/",
+   "flows": [
+    {
+     "method": "health",
+     "verb": "GET",
+     "path": "/health",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /health",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 20,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "tide-alerts.health(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "tide-alerts/src/main.rs",
+          "line": 13,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n1",
+              "kind": "return",
+              "label": "responds Json(Health { status: \"ok\".into() })",
+              "layer": "response",
+              "type": null,
+              "rel": "tide-alerts/src/main.rs",
+              "line": 14,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "current_alert",
+     "verb": "GET",
+     "path": "/alerts/:berth",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /alerts/:berth",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 21,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "tide-alerts.current_alert(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "tide-alerts/src/alert.rs",
+          "line": 14,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n2",
+              "kind": "action",
+              "label": "level_for()",
+              "layer": "service",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 6,
+              "children": [
+               {
+                "label": "body",
+                "nodes": [
+                 {
+                  "id": "n1",
+                  "kind": "decision",
+                  "label": "if (berth.starts_with(\"premium\"))",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": "tide-alerts/src/alert.rs",
+                  "line": 7,
+                  "children": [
+                   {
+                    "label": "if (berth.starts_with(\"premium\"))",
+                    "nodes": []
+                   },
+                   {
+                    "label": "else",
+                    "nodes": []
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "n5",
+              "kind": "decision",
+              "label": "if (water > 220)",
+              "layer": "decision",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 16,
+              "children": [
+               {
+                "label": "if (water > 220)",
+                "nodes": [
+                 {
+                  "id": "n3",
+                  "kind": "return",
+                  "label": "responds format!(\"flood risk at {} — level {} cm\", berth, water)",
+                  "layer": "response",
+                  "type": null,
+                  "rel": "tide-alerts/src/alert.rs",
+                  "line": 17,
+                  "children": []
+                 }
+                ]
+               },
+               {
+                "label": "else",
+                "nodes": [
+                 {
+                  "id": "n4",
+                  "kind": "return",
+                  "label": "responds format!(\"no alert at {} — level {} cm\", berth, water)",
+                  "layer": "response",
+                  "type": null,
+                  "rel": "tide-alerts/src/alert.rs",
+                  "line": 19,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "check",
+     "verb": "GET",
+     "path": "/alerts/:berth/check",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /alerts/:berth/check",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 22,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "tide-alerts.check(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "tide-alerts/src/alert.rs",
+          "line": 23,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n2",
+              "kind": "action",
+              "label": "level_for()",
+              "layer": "service",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 6,
+              "children": [
+               {
+                "label": "body",
+                "nodes": [
+                 {
+                  "id": "n1",
+                  "kind": "decision",
+                  "label": "if (berth.starts_with(\"premium\"))",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": "tide-alerts/src/alert.rs",
+                  "line": 7,
+                  "children": [
+                   {
+                    "label": "if (berth.starts_with(\"premium\"))",
+                    "nodes": []
+                   },
+                   {
+                    "label": "else",
+                    "nodes": []
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "n3",
+              "kind": "action",
+              "label": "store::save",
+              "layer": "database",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 26,
+              "children": []
+             },
+             {
+              "id": "n4",
+              "kind": "decision",
+              "label": "if (water <= 200)",
+              "layer": "decision",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 27,
+              "children": [
+               {
+                "label": "if (water <= 200)",
+                "nodes": []
+               }
+              ]
+             },
+             {
+              "id": "n5",
+              "kind": "return",
+              "label": "responds format!(\"{} recorded — {} cm\", berth, water)",
+              "layer": "response",
+              "type": null,
+              "rel": "tide-alerts/src/alert.rs",
+              "line": 30,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  },
+  {
+   "name": "webhooks/webhooks",
+   "rel": "webhooks/app/webhook.py",
+   "basePath": "/",
+   "flows": [
+    {
+     "method": "deliver",
+     "verb": "POST",
+     "path": "/webhook/<event>",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /webhook/<event>",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 6,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "webhooks.deliver(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "webhooks/app/webhook.py",
+          "line": 7,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n1",
+              "kind": "decision",
+              "label": "if event not in SUBSCRIBED:",
+              "layer": "decision",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 1,
+              "children": [
+               {
+                "label": "if event not in SUBSCRIBED:",
+                "nodes": []
+               }
+              ]
+             },
+             {
+              "id": "n2",
+              "kind": "throw",
+              "label": "raise ValueError(\"event is not subscribed \" + event)",
+              "layer": "response",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 2,
+              "children": []
+             },
+             {
+              "id": "n3",
+              "kind": "action",
+              "label": "store.record",
+              "layer": "database",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 3,
+              "children": []
+             },
+             {
+              "id": "n4",
+              "kind": "return",
+              "label": "return store.record(event, target)",
+              "layer": "response",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 3,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "delivery_status",
+     "verb": "GET",
+     "path": "/webhook/<event>/status",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /webhook/<event>/status",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 18,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "webhooks.delivery_status(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "webhooks/app/webhook.py",
+          "line": 13,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "n1",
+              "kind": "action",
+              "label": "store.status",
+              "layer": "database",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 1,
+              "children": []
+             },
+             {
+              "id": "n2",
+              "kind": "return",
+              "label": "return store.status(event, target)",
+              "layer": "response",
+              "type": null,
+              "rel": "webhooks/app/webhook.py",
+              "line": 1,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the handler's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  }
+ ],
+ "apps": [
+  {
+   "dir": "berth-booking",
+   "name": "berth-booking",
+   "build": "maven",
+   "framework": "spring",
+   "evidence": "berth-booking/pom.xml"
+  },
+  {
+   "dir": "billing",
+   "name": "billing",
+   "build": "gradle",
+   "framework": "spring",
+   "evidence": "billing/build.gradle.kts"
+  },
+  {
+   "dir": "search",
+   "name": "search",
+   "build": "npm",
+   "framework": "express",
+   "evidence": "search/package.json"
+  },
+  {
+   "dir": "tide-alerts",
+   "name": "tide-alerts",
+   "build": "cargo",
+   "framework": "axum",
+   "evidence": "tide-alerts/Cargo.toml"
+  },
+  {
+   "dir": "webhooks",
+   "name": "webhooks",
+   "build": "python",
+   "framework": "flask",
+   "evidence": "webhooks/requirements.txt"
+  }
+ ],
+ "config": [
+  {
+   "rel": "berth-booking/src/main/resources/application.properties",
+   "service": "",
+   "port": 8081,
+   "profiles": "prod",
+   "datasource": "jdbc:postgresql://booking-db:5432/berths",
+   "note": "application.properties, as written"
+  },
+  {
+   "rel": "billing/src/main/resources/application.properties",
+   "service": "",
+   "port": 8083,
+   "profiles": "prod",
+   "datasource": "jdbc:postgresql://billing-db:5432/billing",
+   "note": "application.properties, as written"
+  }
+ ],
+ "notes": [
+  "[stack] composite parsed it: a composite — 5 app(s), one parser each, merged: berth-booking (spring), billing (spring), search (express), tide-alerts (axum), webhooks (flask)",
+  "[node] handler flows follow the handler's module plus one hop into sibling-module functions; deeper hops are capped honestly.",
+  "[rust] handler flows follow the handler's module plus plain-fn hops inside the crate; `?` propagation is quoted, not drawn; deeper hops capped honestly.",
+  "[python] handler flows follow the handler's module plus one hop into imported functions (as written, not evaluated).",
+  "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
+ ],
+ "coverage": {
+  "filesScanned": 32,
+  "manifestsRead": [],
+  "dockerfilesRead": [
+   "berth-booking/Dockerfile",
+   "billing/Dockerfile",
+   "search/Dockerfile",
+   "tide-alerts/Dockerfile",
+   "webhooks/Dockerfile",
+   "docker-compose.yml"
+  ]
+ },
+ "generatedAt": 1792469689
 }

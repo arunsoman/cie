@@ -1,1 +1,39 @@
-{"min_shared":2,"pairs":[{"a":"MpayApplication","b":"src/main/java/com/mipay/MpayApplication.java","only_a":[],"only_b":["src.main.java.com.mipay.MpayApplication"],"shared":["MpayApplication","MpayApplication.main","CleanupScheduler.nightlyCleanup","LedgerAudit.LedgerAudit","LedgerAudit.record","TransactionService.TransactionService","TransactionService.topUp","TransactionService.balance","Wallet.getId","Wallet.setId","Wallet.getOwner","Wallet.getBalanceMinor","Wallet.getCurrency","WalletController.WalletController","WalletController.topUp","WalletController.balance","WalletController.history","WalletRepository.findByOwner","KycController.status","KycRepository.findByUserId","KycService.stateOf","RiskClient.flag"],"similarity":0.9565217391304348}],"unmapped":[]}
+{
+ "min_shared": 2,
+ "pairs": [
+  {
+   "a": "MpayApplication",
+   "b": "src/main/java/com/mipay/MpayApplication.java",
+   "only_a": [],
+   "only_b": [
+    "src.main.java.com.mipay.MpayApplication"
+   ],
+   "shared": [
+    "MpayApplication",
+    "MpayApplication.main",
+    "CleanupScheduler.nightlyCleanup",
+    "LedgerAudit.LedgerAudit",
+    "LedgerAudit.record",
+    "TransactionService.TransactionService",
+    "TransactionService.topUp",
+    "TransactionService.balance",
+    "Wallet.getId",
+    "Wallet.setId",
+    "Wallet.getOwner",
+    "Wallet.getBalanceMinor",
+    "Wallet.getCurrency",
+    "WalletController.WalletController",
+    "WalletController.topUp",
+    "WalletController.balance",
+    "WalletController.history",
+    "WalletRepository.findByOwner",
+    "KycController.status",
+    "KycRepository.findByUserId",
+    "KycService.stateOf",
+    "RiskClient.flag"
+   ],
+   "similarity": 0.9565217391304348
+  }
+ ],
+ "unmapped": []
+}

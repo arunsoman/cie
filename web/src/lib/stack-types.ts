@@ -8,7 +8,9 @@
 // This module is the CLIENT contract only (types + guard). The JSON is
 // camelCase, matching serde's rename_all.
 
+export interface CrossServiceCall { fromApp: string; toApp: string; via: string; matchedPath: string; fromEvidence: string; toEvidence: string; matchBasis: string }
 export interface TechStack {
+  crossService?: CrossServiceCall[];
   v: 1;
   /** what the build files say, in plain words */
   build: BuildInfo;
@@ -203,6 +205,7 @@ export interface JvmListener {
 }
 
 export interface JvmOutbound {
+  line?: number; target?: string | null; targetKind?: string; requests?: { verb: string; path: string }[];
   /** "rest-template" | "web-client" | "feign" | "kafka-producer" */
   kind: string;
   cls: string;

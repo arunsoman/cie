@@ -1,0 +1,235 @@
+{
+ "revision": 1,
+ "status": "Simulated",
+ "unknown_reason": null,
+ "property": "In the static model, authorized can reach refund_requested via charge without duplicate modeled effects",
+ "lineage": {
+  "edges": [
+   {
+    "id": "static:pending:authorize:authorized [1:print,123:crypto]",
+    "kind": "StateUpdate",
+    "from": "pending",
+    "to": "authorized"
+   },
+   {
+    "id": "static:authorized:charge:refund_requested [21:db_write,21:print,131:time]",
+    "kind": "StateUpdate",
+    "from": "authorized",
+    "to": "refund_requested"
+   },
+   {
+    "id": "static:refund_requested:refund_called:refund_pending [23:print]",
+    "kind": "StateUpdate",
+    "from": "refund_requested",
+    "to": "refund_pending"
+   }
+  ]
+ },
+ "experiments": [
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:authorized:charge:refund_requested [21:db_write,21:print,131:time]",
+      "kind": "StateUpdate",
+      "from": "authorized",
+      "to": "refund_requested"
+     }
+    }
+   ],
+   "property_violated": true,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:authorized:charge:refund_requested [21:db_write,21:print,131:time]:state_update)"
+   ],
+   "content_hash": "c0e061bb260bdbe377c88d1bea84de98aacad6408171ec882628e68a0f4839c8",
+   "at_ns": 1
+  },
+  {
+   "faults": [
+    {
+     "Duplicate": {
+      "id": "static:authorized:charge:refund_requested [21:db_write,21:print,131:time]",
+      "kind": "StateUpdate",
+      "from": "authorized",
+      "to": "refund_requested"
+     }
+    }
+   ],
+   "property_violated": true,
+   "outcome": "Completed",
+   "provenance": [
+    "duplicate(static:authorized:charge:refund_requested [21:db_write,21:print,131:time]:state_update)"
+   ],
+   "content_hash": "fcae4d94f7b0bbb373a3f347b4ed02f0d59587460304240bfab7f7c603a0a5bb",
+   "at_ns": 4
+  },
+  {
+   "faults": [
+    {
+     "Duplicate": {
+      "id": "static:refund_requested:refund_called:refund_pending [23:print]",
+      "kind": "StateUpdate",
+      "from": "refund_requested",
+      "to": "refund_pending"
+     }
+    }
+   ],
+   "property_violated": true,
+   "outcome": "Completed",
+   "provenance": [
+    "duplicate(static:refund_requested:refund_called:refund_pending [23:print]:state_update)"
+   ],
+   "content_hash": "72b7aaaed8af63cf5737b0941eab7a2e0c1b60361d265ec22b69904fd0204415",
+   "at_ns": 5
+  },
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:pending:authorize:authorized [1:print,123:crypto]",
+      "kind": "StateUpdate",
+      "from": "pending",
+      "to": "authorized"
+     }
+    },
+    {
+     "Drop": {
+      "id": "static:authorized:charge:refund_requested [21:db_write,21:print,131:time]",
+      "kind": "StateUpdate",
+      "from": "authorized",
+      "to": "refund_requested"
+     }
+    }
+   ],
+   "property_violated": true,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:pending:authorize:authorized [1:print,123:crypto]:state_update)",
+    "drop(static:authorized:charge:refund_requested [21:db_write,21:print,131:time]:state_update)"
+   ],
+   "content_hash": "7c624d36c215021b3d5fbce8be4032ae3d9cec19488b51a4ecd37bd7edfdfcda",
+   "at_ns": 7
+  },
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:authorized:charge:refund_requested [21:db_write,21:print,131:time]",
+      "kind": "StateUpdate",
+      "from": "authorized",
+      "to": "refund_requested"
+     }
+    },
+    {
+     "Drop": {
+      "id": "static:refund_requested:refund_called:refund_pending [23:print]",
+      "kind": "StateUpdate",
+      "from": "refund_requested",
+      "to": "refund_pending"
+     }
+    }
+   ],
+   "property_violated": true,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:authorized:charge:refund_requested [21:db_write,21:print,131:time]:state_update)",
+    "drop(static:refund_requested:refund_called:refund_pending [23:print]:state_update)"
+   ],
+   "content_hash": "86a2e8d0a43e849bc41eb59f1ec15d7717ee0eec6051d8833595c5b247a88188",
+   "at_ns": 9
+  },
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:pending:authorize:authorized [1:print,123:crypto]",
+      "kind": "StateUpdate",
+      "from": "pending",
+      "to": "authorized"
+     }
+    }
+   ],
+   "property_violated": false,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:pending:authorize:authorized [1:print,123:crypto]:state_update)"
+   ],
+   "content_hash": "a2f2989f6f593ee64e29e3fbcaaedba352d2c8ea431943ecfee8b218a622463f",
+   "at_ns": 0
+  },
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:refund_requested:refund_called:refund_pending [23:print]",
+      "kind": "StateUpdate",
+      "from": "refund_requested",
+      "to": "refund_pending"
+     }
+    }
+   ],
+   "property_violated": false,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:refund_requested:refund_called:refund_pending [23:print]:state_update)"
+   ],
+   "content_hash": "b540c8c47b632e891603944e8a0c057f6a43d48a0478b14a418325548a2cf58b",
+   "at_ns": 2
+  },
+  {
+   "faults": [
+    {
+     "Duplicate": {
+      "id": "static:pending:authorize:authorized [1:print,123:crypto]",
+      "kind": "StateUpdate",
+      "from": "pending",
+      "to": "authorized"
+     }
+    }
+   ],
+   "property_violated": false,
+   "outcome": "Completed",
+   "provenance": [
+    "duplicate(static:pending:authorize:authorized [1:print,123:crypto]:state_update)"
+   ],
+   "content_hash": "ec56b56ef72c02cb17f6508de0352ad8c36e8e190e30ff4a309b57f9386dce78",
+   "at_ns": 3
+  },
+  {
+   "faults": [
+    {
+     "Drop": {
+      "id": "static:pending:authorize:authorized [1:print,123:crypto]",
+      "kind": "StateUpdate",
+      "from": "pending",
+      "to": "authorized"
+     }
+    },
+    {
+     "Drop": {
+      "id": "static:refund_requested:refund_called:refund_pending [23:print]",
+      "kind": "StateUpdate",
+      "from": "refund_requested",
+      "to": "refund_pending"
+     }
+    }
+   ],
+   "property_violated": false,
+   "outcome": "Completed",
+   "provenance": [
+    "drop(static:pending:authorize:authorized [1:print,123:crypto]:state_update)",
+    "drop(static:refund_requested:refund_called:refund_pending [23:print]:state_update)"
+   ],
+   "content_hash": "f628c5832b89b81ff7619eb16c647de5acd94de8054df871dbb6e5d801ac56f4",
+   "at_ns": 8
+  }
+ ],
+ "execution_performed": false,
+ "runtime_observed": false,
+ "notes": [
+  "Static payment-template hypothesis simulation only; no live faults, captured execution, provider effects or recovery guarantee.",
+  "Property selection: first evidenced transition by (from, event). Other obligations are not checked by this run.",
+  "The planner's balance_update success marker is internal bookkeeping, not an extracted event. Experiment at_ns values are logical sequence counters, not observed wall-clock times."
+ ]
+}

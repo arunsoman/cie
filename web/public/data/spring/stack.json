@@ -1,811 +1,777 @@
 {
-  "v": 1,
-  "build": {
-    "tool": "maven",
-    "modules": [],
-    "artifactName": "mipay-server"
-  },
-  "languages": [
-    {
-      "family": "jvm-mixed",
-      "files": 13,
-      "sharedRuntime": true
-    }
+ "crossService": [],
+ "v": 1,
+ "build": {
+  "tool": "maven",
+  "modules": [],
+  "artifactName": "spring-demo"
+ },
+ "languages": [
+  {
+   "family": "jvm-mixed",
+   "files": 13,
+   "sharedRuntime": true
+  }
+ ],
+ "frameworks": [
+  {
+   "id": "spring-boot",
+   "name": "Spring Boot 3.2.5",
+   "evidence": "pom.xml",
+   "modules": [
+    "spring-demo",
+    "spring-boot-starter-parent",
+    "spring-boot-starter-web",
+    "spring-boot-starter-data-jpa"
+   ]
+  }
+ ],
+ "docker": {
+  "present": false,
+  "dockerfiles": [],
+  "compose": null,
+  "note": ""
+ },
+ "jvm": {
+  "configClasses": [
+   {
+    "name": "MpayApplication",
+    "rel": "src/main/java/com/mipay/MpayApplication.java",
+    "line": 7,
+    "lang": "java",
+    "kind": "messaging"
+   },
+   {
+    "name": "SecurityConfig",
+    "rel": "src/main/java/com/mipay/config/SecurityConfig.java",
+    "line": 6,
+    "lang": "java",
+    "kind": "configuration"
+   }
   ],
-  "frameworks": [
-    {
-      "id": "spring-boot",
-      "name": "Spring Boot 3.2.5",
-      "evidence": "pom.xml",
-      "modules": [
-        "spring-boot-starter-parent",
-        "spring-boot-starter-web",
-        "spring-boot-starter-data-jpa",
-        "spring-boot-starter-security",
-        "spring-kafka"
-      ]
-    }
-  ],
-  "docker": {
-    "present": true,
-    "dockerfiles": [
-      {
-        "path": "Dockerfile",
-        "baseImage": "eclipse-temurin:21-jre",
-        "exposedPorts": [
-          8080
-        ]
-      }
-    ],
-    "compose": {
-      "path": "docker-compose.yml",
-      "services": [
-        {
-          "name": "api",
-          "image": "mipay/server:1.4.2",
-          "ports": [
-            "8080:8080"
-          ]
-        },
-        {
-          "name": "db",
-          "image": "postgres:16",
-          "ports": [
-            "5432:5432"
-          ]
-        }
-      ]
-    },
-    "note": "docker compose with 2 service(s): api, db · 1 Dockerfile(s) (base image eclipse-temurin:21-jre) · read as written; CIE doesn't build or run containers."
-  },
-  "jvm": {
-    "configClasses": [
-      {
-        "name": "MpayApplication",
-        "rel": "src/main/java/com/mipay/MpayApplication.java",
-        "line": 7,
-        "lang": "java",
-        "kind": "messaging"
-      },
-      {
-        "name": "SecurityConfig",
-        "rel": "src/main/java/com/mipay/config/SecurityConfig.java",
-        "line": 6,
-        "lang": "java",
-        "kind": "configuration"
-      }
-    ],
-    "services": [
-      {
-        "name": "TransactionService",
-        "rel": "src/main/java/com/mipay/wallet/TransactionService.java",
-        "line": 6,
-        "lang": "java",
-        "injections": [
-          {
-            "field": "wallets",
-            "type": "WalletRepository"
-          },
-          {
-            "field": "audit",
-            "type": "LedgerAudit"
-          }
-        ]
-      },
-      {
-        "name": "KycService",
-        "rel": "src/main/kotlin/com/mipay/kyc/KycService.kt",
-        "line": 5,
-        "lang": "kotlin",
-        "injections": [
-          {
-            "field": "kycRepository",
-            "type": "KycRepository"
-          }
-        ]
-      }
-    ],
-    "repositories": [
-      {
-        "name": "WalletRepository",
-        "rel": "src/main/java/com/mipay/wallet/WalletRepository.java",
-        "line": 6,
-        "lang": "java",
-        "extends": "JpaRepository<Wallet, Long>",
-        "entity": "Wallet"
-      },
-      {
-        "name": "KycRepository",
-        "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
-        "line": 6,
-        "lang": "kotlin",
-        "extends": "JpaRepository<KycRecord, Long>",
-        "entity": "KycRecord"
-      }
-    ],
-    "entities": [
-      {
-        "name": "Wallet",
-        "rel": "src/main/java/com/mipay/wallet/Wallet.java",
-        "line": 7,
-        "lang": "java",
-        "table": "wallets",
-        "props": [
-          {
-            "name": "currency",
-            "type": "String"
-          },
-          {
-            "name": "balanceMinor",
-            "type": "Long"
-          },
-          {
-            "name": "owner",
-            "type": "String"
-          },
-          {
-            "name": "id",
-            "type": "Long"
-          }
-        ]
-      },
-      {
-        "name": "KycRecord",
-        "rel": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
-        "line": 7,
-        "lang": "kotlin",
-        "table": "kyc_records",
-        "props": []
-      }
-    ],
-    "scheduledIn": [
-      {
-        "cls": "CleanupScheduler",
-        "method": "nightlyCleanup",
-        "trigger": "cron = \"0 0 3 * * *\"",
-        "rel": "src/main/java/com/mipay/config/CleanupScheduler.java",
-        "line": 9
-      }
-    ],
-    "listeners": [],
-    "outbound": [
-      {
-        "kind": "kafka-producer",
-        "cls": "LedgerAudit",
-        "rel": "src/main/java/com/mipay/wallet/LedgerAudit.java"
-      }
-    ],
-    "scanned": 13,
-    "javaFiles": 8,
-    "kotlinFiles": 5
-  },
-  "routes": [
-    {
-      "verb": "GET",
-      "path": "/wallet",
-      "owner": "WalletController",
-      "method": "history",
-      "service": "",
-      "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-      "line": 30,
-      "params": [
-        "@RequestParam String owner"
-      ],
-      "returns": "String",
-      "evidence": "@RequestMapping(\"/wallet\")"
-    },
-    {
-      "verb": "GET",
-      "path": "/wallet/{owner}/balance",
-      "owner": "WalletController",
-      "method": "balance",
-      "service": "",
-      "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-      "line": 25,
-      "params": [
-        "@PathVariable String owner"
-      ],
-      "returns": "Long",
-      "evidence": "@GetMapping(\"/{owner}/balance\")"
-    },
-    {
-      "verb": "POST",
-      "path": "/wallet/topup",
-      "owner": "WalletController",
-      "method": "topUp",
-      "service": "",
-      "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-      "line": 16,
-      "params": [
-        "@RequestParam String owner",
-        "@RequestParam Long amountMinor"
-      ],
-      "returns": "String",
-      "evidence": "@PostMapping(\"/topup\")"
-    },
-    {
-      "verb": "GET",
-      "path": "/kyc/{userId}/status",
-      "owner": "KycController",
-      "method": "status",
-      "service": "",
-      "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-      "line": 15,
-      "params": [
-        "userId: String"
-      ],
-      "returns": "String",
-      "evidence": "@GetMapping(\"/{userId}/status\")"
-    }
-  ],
-  "mains": [
-    {
-      "name": "MpayApplication",
-      "rel": "src/main/java/com/mipay/MpayApplication.java",
-      "line": 7,
-      "kind": "spring-boot",
-      "lang": "java"
-    }
-  ],
-  "flows": [
-    {
-      "name": "WalletController",
-      "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-      "basePath": "/wallet",
-      "flows": [
-        {
-          "method": "history",
-          "verb": "GET",
-          "path": "/wallet",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /wallet",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 30,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "WalletController.history(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-                    "line": 30,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "re-1",
-                            "kind": "return",
-                            "label": "responds service.balance(owner) + \" minor units moved\"",
-                            "layer": "response",
-                            "type": null,
-                            "rel": null,
-                            "line": 32,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "balance",
-          "verb": "GET",
-          "path": "/wallet/{owner}/balance",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /wallet/{owner}/balance",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 25,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "WalletController.balance(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-                    "line": 25,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "re-1",
-                            "kind": "return",
-                            "label": "responds service.balance(owner)",
-                            "layer": "response",
-                            "type": null,
-                            "rel": null,
-                            "line": 27,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        },
-        {
-          "method": "topUp",
-          "verb": "POST",
-          "path": "/wallet/topup",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "POST /wallet/topup",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 16,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "WalletController.topUp(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "src/main/java/com/mipay/wallet/WalletController.java",
-                    "line": 16,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "c-8",
-                            "kind": "action",
-                            "label": "service.topUp(…)",
-                            "layer": "service",
-                            "type": "TransactionService",
-                            "rel": "src/main/java/com/mipay/wallet/TransactionService.java",
-                            "line": 17,
-                            "children": [
-                              {
-                                "label": "into TransactionService",
-                                "nodes": [
-                                  {
-                                    "id": "c-1",
-                                    "kind": "action",
-                                    "label": "…orElseThrow(…)",
-                                    "layer": "other",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 19,
-                                    "children": []
-                                  },
-                                  {
-                                    "id": "if-5",
-                                    "kind": "decision",
-                                    "label": "if ((amountMinor <= 0))",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 20,
-                                    "children": [
-                                      {
-                                        "label": "if ((amountMinor <= 0))",
-                                        "nodes": [
-                                          {
-                                            "id": "th-2",
-                                            "kind": "throw",
-                                            "label": "throws new IllegalArgumentException(\"amount must be positive\")",
-                                            "layer": "response",
-                                            "type": null,
-                                            "rel": null,
-                                            "line": 21,
-                                            "children": []
-                                          }
-                                        ]
-                                      },
-                                      {
-                                        "label": "else",
-                                        "nodes": [
-                                          {
-                                            "id": "c-3",
-                                            "kind": "action",
-                                            "label": "wallet.setBalanceMinor(…)",
-                                            "layer": "other",
-                                            "type": null,
-                                            "rel": null,
-                                            "line": 23,
-                                            "children": []
-                                          },
-                                          {
-                                            "id": "c-4",
-                                            "kind": "action",
-                                            "label": "wallets.save(…)",
-                                            "layer": "repository",
-                                            "type": "WalletRepository",
-                                            "rel": null,
-                                            "line": 24,
-                                            "children": [
-                                              {
-                                                "label": "into WalletRepository",
-                                                "nodes": [
-                                                  {
-                                                    "id": "db-3",
-                                                    "kind": "action",
-                                                    "label": "database write via WalletRepository (entity Wallet)",
-                                                    "layer": "database",
-                                                    "type": "Wallet",
-                                                    "rel": "src/main/java/com/mipay/wallet/WalletRepository.java",
-                                                    "line": 6,
-                                                    "children": []
-                                                  }
-                                                ]
-                                              }
-                                            ]
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "id": "c-6",
-                                    "kind": "action",
-                                    "label": "audit.record(…)",
-                                    "layer": "other",
-                                    "type": "LedgerAudit",
-                                    "rel": null,
-                                    "line": 26,
-                                    "children": []
-                                  },
-                                  {
-                                    "id": "re-7",
-                                    "kind": "return",
-                                    "label": "responds \"ok\"",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 27,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "if-10",
-                            "kind": "decision",
-                            "label": "if ((result.isEmpty()))",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": null,
-                            "line": 19,
-                            "children": [
-                              {
-                                "label": "if ((result.isEmpty()))",
-                                "nodes": [
-                                  {
-                                    "id": "th-9",
-                                    "kind": "throw",
-                                    "label": "throws new IllegalStateException(\"empty result\")",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 20,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "re-11",
-                            "kind": "return",
-                            "label": "responds result",
-                            "layer": "response",
-                            "type": null,
-                            "rel": null,
-                            "line": 22,
-                            "children": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    },
-    {
-      "name": "KycController",
-      "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-      "basePath": "/kyc",
-      "flows": [
-        {
-          "method": "status",
-          "verb": "GET",
-          "path": "/kyc/{userId}/status",
-          "root": {
-            "id": "root",
-            "kind": "request",
-            "label": "GET /kyc/{userId}/status",
-            "layer": "client",
-            "type": null,
-            "rel": null,
-            "line": 15,
-            "children": [
-              {
-                "label": "handled by",
-                "nodes": [
-                  {
-                    "id": "c0",
-                    "kind": "action",
-                    "label": "KycController.status(…)",
-                    "layer": "controller",
-                    "type": null,
-                    "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
-                    "line": 15,
-                    "children": [
-                      {
-                        "label": "body",
-                        "nodes": [
-                          {
-                            "id": "o-1",
-                            "kind": "action",
-                            "label": "val state = kycService.stateOf(userId)",
-                            "layer": "other",
-                            "type": null,
-                            "rel": null,
-                            "line": 17,
-                            "children": []
-                          },
-                          {
-                            "id": "c-5",
-                            "kind": "action",
-                            "label": "kycService.stateOf(…)",
-                            "layer": "service",
-                            "type": "KycService",
-                            "rel": "src/main/kotlin/com/mipay/kyc/KycService.kt",
-                            "line": 9,
-                            "children": [
-                              {
-                                "label": "into KycService",
-                                "nodes": [
-                                  {
-                                    "id": "o-2",
-                                    "kind": "action",
-                                    "label": "val record = kycRepository.findByUserId(userId)",
-                                    "layer": "other",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 10,
-                                    "children": []
-                                  },
-                                  {
-                                    "id": "c-3",
-                                    "kind": "action",
-                                    "label": "kycRepository.findByUserId(…)",
-                                    "layer": "repository",
-                                    "type": "KycRepository",
-                                    "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
-                                    "line": 8,
-                                    "children": [
-                                      {
-                                        "label": "into KycRepository",
-                                        "nodes": [
-                                          {
-                                            "id": "db-2",
-                                            "kind": "action",
-                                            "label": "database read via KycRepository (entity KycRecord)",
-                                            "layer": "database",
-                                            "type": "KycRecord",
-                                            "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
-                                            "line": 8,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "id": "if-4",
-                                    "kind": "decision",
-                                    "label": "if (record != null)",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 11,
-                                    "children": [
-                                      {
-                                        "label": "if (record != null)",
-                                        "nodes": []
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "if-9",
-                            "kind": "decision",
-                            "label": "if (state == \"PENDING\")",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": null,
-                            "line": 18,
-                            "children": [
-                              {
-                                "label": "if (state == \"PENDING\")",
-                                "nodes": [
-                                  {
-                                    "id": "c-6",
-                                    "kind": "action",
-                                    "label": "riskClient.flag(…)",
-                                    "layer": "other",
-                                    "type": "RiskClient",
-                                    "rel": null,
-                                    "line": 19,
-                                    "children": []
-                                  }
-                                ]
-                              },
-                              {
-                                "label": "else",
-                                "nodes": [
-                                  {
-                                    "id": "if-8",
-                                    "kind": "decision",
-                                    "label": "if (state == \"BLOCKED\")",
-                                    "layer": "decision",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 20,
-                                    "children": [
-                                      {
-                                        "label": "if (state == \"BLOCKED\")",
-                                        "nodes": [
-                                          {
-                                            "id": "th-7",
-                                            "kind": "throw",
-                                            "label": "throws IllegalStateException(\"user blocked\")",
-                                            "layer": "response",
-                                            "type": null,
-                                            "rel": null,
-                                            "line": 21,
-                                            "children": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "id": "sw-13",
-                            "kind": "decision",
-                            "label": "when (state)",
-                            "layer": "decision",
-                            "type": null,
-                            "rel": null,
-                            "line": 23,
-                            "children": [
-                              {
-                                "label": "\"CLEAR\"",
-                                "nodes": [
-                                  {
-                                    "id": "re-10",
-                                    "kind": "return",
-                                    "label": "responds \"verified\"",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 24,
-                                    "children": []
-                                  }
-                                ]
-                              },
-                              {
-                                "label": "\"PENDING\"",
-                                "nodes": [
-                                  {
-                                    "id": "re-11",
-                                    "kind": "return",
-                                    "label": "responds \"pending review\"",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 25,
-                                    "children": []
-                                  }
-                                ]
-                              },
-                              {
-                                "label": "else",
-                                "nodes": [
-                                  {
-                                    "id": "re-12",
-                                    "kind": "return",
-                                    "label": "responds \"unknown $state\"",
-                                    "layer": "response",
-                                    "type": null,
-                                    "rel": null,
-                                    "line": 26,
-                                    "children": []
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
-        }
-      ]
-    }
-  ],
-  "apps": [
-    {
-      "dir": "",
-      "name": "mipay-server",
-      "build": "maven",
-      "framework": "spring",
-      "evidence": "pom.xml"
-    }
-  ],
-  "config": [
-    {
-      "rel": "src/main/resources/application.properties",
-      "service": "",
-      "port": 8080,
-      "profiles": "prod",
-      "datasource": "jdbc:postgresql://db:5432/mipay",
-      "note": "application.properties, as written"
-    }
-  ],
-  "notes": [
-    "[stack] spring-jvm parsed it: Spring over the JVM (java + kotlin read as one family)",
-    "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
-  ],
-  "coverage": {
-    "filesScanned": 16,
-    "manifestsRead": [
-      "pom.xml"
-    ],
-    "dockerfilesRead": [
-      "Dockerfile",
-      "docker-compose.yml"
+  "services": [
+   {
+    "name": "TransactionService",
+    "rel": "src/main/java/com/mipay/wallet/TransactionService.java",
+    "line": 6,
+    "lang": "java",
+    "injections": [
+     {
+      "field": "wallets",
+      "type": "WalletRepository"
+     },
+     {
+      "field": "audit",
+      "type": "LedgerAudit"
+     }
     ]
+   },
+   {
+    "name": "KycService",
+    "rel": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+    "line": 5,
+    "lang": "kotlin",
+    "injections": [
+     {
+      "field": "kycRepository",
+      "type": "KycRepository"
+     }
+    ]
+   }
+  ],
+  "repositories": [
+   {
+    "name": "WalletRepository",
+    "rel": "src/main/java/com/mipay/wallet/WalletRepository.java",
+    "line": 6,
+    "lang": "java",
+    "extends": "JpaRepository<Wallet, Long>",
+    "entity": "Wallet"
+   },
+   {
+    "name": "KycRepository",
+    "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+    "line": 6,
+    "lang": "kotlin",
+    "extends": "JpaRepository<KycRecord, Long>",
+    "entity": "KycRecord"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Wallet",
+    "rel": "src/main/java/com/mipay/wallet/Wallet.java",
+    "line": 7,
+    "lang": "java",
+    "table": "wallets",
+    "props": [
+     {
+      "name": "currency",
+      "type": "String"
+     },
+     {
+      "name": "balanceMinor",
+      "type": "Long"
+     },
+     {
+      "name": "owner",
+      "type": "String"
+     },
+     {
+      "name": "id",
+      "type": "Long"
+     }
+    ]
+   },
+   {
+    "name": "KycRecord",
+    "rel": "src/main/kotlin/com/mipay/kyc/KycRecord.kt",
+    "line": 7,
+    "lang": "kotlin",
+    "table": "kyc_records",
+    "props": []
+   }
+  ],
+  "scheduledIn": [
+   {
+    "cls": "CleanupScheduler",
+    "method": "nightlyCleanup",
+    "trigger": "cron = \"0 0 3 * * *\"",
+    "rel": "src/main/java/com/mipay/config/CleanupScheduler.java",
+    "line": 9
+   }
+  ],
+  "listeners": [],
+  "outbound": [
+   {
+    "line": 6,
+    "target": null,
+    "targetKind": "",
+    "requests": [],
+    "kind": "kafka-producer",
+    "cls": "LedgerAudit",
+    "rel": "src/main/java/com/mipay/wallet/LedgerAudit.java"
+   }
+  ],
+  "scanned": 13,
+  "javaFiles": 8,
+  "kotlinFiles": 5
+ },
+ "routes": [
+  {
+   "verb": "GET",
+   "path": "/wallet",
+   "owner": "WalletController",
+   "method": "history",
+   "service": "",
+   "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+   "line": 30,
+   "params": [
+    "@RequestParam String owner"
+   ],
+   "returns": "String",
+   "evidence": "@RequestMapping(\"/wallet\")"
   },
-  "generatedAt": 1792428527
+  {
+   "verb": "GET",
+   "path": "/wallet/{owner}/balance",
+   "owner": "WalletController",
+   "method": "balance",
+   "service": "",
+   "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+   "line": 25,
+   "params": [
+    "@PathVariable String owner"
+   ],
+   "returns": "Long",
+   "evidence": "@GetMapping(\"/{owner}/balance\")"
+  },
+  {
+   "verb": "POST",
+   "path": "/wallet/topup",
+   "owner": "WalletController",
+   "method": "topUp",
+   "service": "",
+   "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+   "line": 16,
+   "params": [
+    "@RequestParam String owner",
+    "@RequestParam Long amountMinor"
+   ],
+   "returns": "String",
+   "evidence": "@PostMapping(\"/topup\")"
+  },
+  {
+   "verb": "GET",
+   "path": "/kyc/{userId}/status",
+   "owner": "KycController",
+   "method": "status",
+   "service": "",
+   "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+   "line": 15,
+   "params": [
+    "userId: String"
+   ],
+   "returns": "String",
+   "evidence": "@GetMapping(\"/{userId}/status\")"
+  }
+ ],
+ "mains": [
+  {
+   "name": "MpayApplication",
+   "rel": "src/main/java/com/mipay/MpayApplication.java",
+   "line": 7,
+   "kind": "spring-boot",
+   "lang": "java"
+  }
+ ],
+ "flows": [
+  {
+   "name": "WalletController",
+   "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+   "basePath": "/wallet",
+   "flows": [
+    {
+     "method": "history",
+     "verb": "GET",
+     "path": "/wallet",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /wallet",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 30,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "WalletController.history(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+          "line": 30,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "re-1",
+              "kind": "return",
+              "label": "responds service.balance(owner) + \" minor units moved\"",
+              "layer": "response",
+              "type": null,
+              "rel": null,
+              "line": 32,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "balance",
+     "verb": "GET",
+     "path": "/wallet/{owner}/balance",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /wallet/{owner}/balance",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 25,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "WalletController.balance(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+          "line": 25,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "re-1",
+              "kind": "return",
+              "label": "responds service.balance(owner)",
+              "layer": "response",
+              "type": null,
+              "rel": null,
+              "line": 27,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    },
+    {
+     "method": "topUp",
+     "verb": "POST",
+     "path": "/wallet/topup",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "POST /wallet/topup",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 16,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "WalletController.topUp(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "src/main/java/com/mipay/wallet/WalletController.java",
+          "line": 16,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "c-8",
+              "kind": "action",
+              "label": "service.topUp(…)",
+              "layer": "service",
+              "type": "TransactionService",
+              "rel": "src/main/java/com/mipay/wallet/TransactionService.java",
+              "line": 17,
+              "children": [
+               {
+                "label": "into TransactionService",
+                "nodes": [
+                 {
+                  "id": "c-1",
+                  "kind": "action",
+                  "label": "…orElseThrow(…)",
+                  "layer": "other",
+                  "type": null,
+                  "rel": null,
+                  "line": 19,
+                  "children": []
+                 },
+                 {
+                  "id": "if-5",
+                  "kind": "decision",
+                  "label": "if ((amountMinor <= 0))",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": null,
+                  "line": 20,
+                  "children": [
+                   {
+                    "label": "if ((amountMinor <= 0))",
+                    "nodes": [
+                     {
+                      "id": "th-2",
+                      "kind": "throw",
+                      "label": "throws new IllegalArgumentException(\"amount must be positive\")",
+                      "layer": "response",
+                      "type": null,
+                      "rel": null,
+                      "line": 21,
+                      "children": []
+                     }
+                    ]
+                   },
+                   {
+                    "label": "else",
+                    "nodes": [
+                     {
+                      "id": "c-3",
+                      "kind": "action",
+                      "label": "wallet.setBalanceMinor(…)",
+                      "layer": "other",
+                      "type": null,
+                      "rel": null,
+                      "line": 23,
+                      "children": []
+                     },
+                     {
+                      "id": "c-4",
+                      "kind": "action",
+                      "label": "wallets.save(…)",
+                      "layer": "repository",
+                      "type": "WalletRepository",
+                      "rel": null,
+                      "line": 24,
+                      "children": [
+                       {
+                        "label": "into WalletRepository",
+                        "nodes": [
+                         {
+                          "id": "db-3",
+                          "kind": "action",
+                          "label": "database write via WalletRepository (entity Wallet)",
+                          "layer": "database",
+                          "type": "Wallet",
+                          "rel": "src/main/java/com/mipay/wallet/WalletRepository.java",
+                          "line": 6,
+                          "children": []
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "id": "c-6",
+                  "kind": "action",
+                  "label": "audit.record(…)",
+                  "layer": "other",
+                  "type": "LedgerAudit",
+                  "rel": null,
+                  "line": 26,
+                  "children": []
+                 },
+                 {
+                  "id": "re-7",
+                  "kind": "return",
+                  "label": "responds \"ok\"",
+                  "layer": "response",
+                  "type": null,
+                  "rel": null,
+                  "line": 27,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "if-10",
+              "kind": "decision",
+              "label": "if ((result.isEmpty()))",
+              "layer": "decision",
+              "type": null,
+              "rel": null,
+              "line": 19,
+              "children": [
+               {
+                "label": "if ((result.isEmpty()))",
+                "nodes": [
+                 {
+                  "id": "th-9",
+                  "kind": "throw",
+                  "label": "throws new IllegalStateException(\"empty result\")",
+                  "layer": "response",
+                  "type": null,
+                  "rel": null,
+                  "line": 20,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "re-11",
+              "kind": "return",
+              "label": "responds result",
+              "layer": "response",
+              "type": null,
+              "rel": null,
+              "line": 22,
+              "children": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  },
+  {
+   "name": "KycController",
+   "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+   "basePath": "/kyc",
+   "flows": [
+    {
+     "method": "status",
+     "verb": "GET",
+     "path": "/kyc/{userId}/status",
+     "root": {
+      "id": "root",
+      "kind": "request",
+      "label": "GET /kyc/{userId}/status",
+      "layer": "client",
+      "type": null,
+      "rel": null,
+      "line": 15,
+      "children": [
+       {
+        "label": "handled by",
+        "nodes": [
+         {
+          "id": "c0",
+          "kind": "action",
+          "label": "KycController.status(…)",
+          "layer": "controller",
+          "type": null,
+          "rel": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+          "line": 15,
+          "children": [
+           {
+            "label": "body",
+            "nodes": [
+             {
+              "id": "o-1",
+              "kind": "action",
+              "label": "val state = kycService.stateOf(userId)",
+              "layer": "other",
+              "type": null,
+              "rel": null,
+              "line": 17,
+              "children": []
+             },
+             {
+              "id": "c-5",
+              "kind": "action",
+              "label": "kycService.stateOf(…)",
+              "layer": "service",
+              "type": "KycService",
+              "rel": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+              "line": 9,
+              "children": [
+               {
+                "label": "into KycService",
+                "nodes": [
+                 {
+                  "id": "o-2",
+                  "kind": "action",
+                  "label": "val record = kycRepository.findByUserId(userId)",
+                  "layer": "other",
+                  "type": null,
+                  "rel": null,
+                  "line": 10,
+                  "children": []
+                 },
+                 {
+                  "id": "c-3",
+                  "kind": "action",
+                  "label": "kycRepository.findByUserId(…)",
+                  "layer": "repository",
+                  "type": "KycRepository",
+                  "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+                  "line": 8,
+                  "children": [
+                   {
+                    "label": "into KycRepository",
+                    "nodes": [
+                     {
+                      "id": "db-2",
+                      "kind": "action",
+                      "label": "database read via KycRepository (entity KycRecord)",
+                      "layer": "database",
+                      "type": "KycRecord",
+                      "rel": "src/main/kotlin/com/mipay/kyc/KycRepository.kt",
+                      "line": 8,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "id": "if-4",
+                  "kind": "decision",
+                  "label": "if (record != null)",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": null,
+                  "line": 11,
+                  "children": [
+                   {
+                    "label": "if (record != null)",
+                    "nodes": []
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "if-9",
+              "kind": "decision",
+              "label": "if (state == \"PENDING\")",
+              "layer": "decision",
+              "type": null,
+              "rel": null,
+              "line": 18,
+              "children": [
+               {
+                "label": "if (state == \"PENDING\")",
+                "nodes": [
+                 {
+                  "id": "c-6",
+                  "kind": "action",
+                  "label": "riskClient.flag(…)",
+                  "layer": "other",
+                  "type": "RiskClient",
+                  "rel": null,
+                  "line": 19,
+                  "children": []
+                 }
+                ]
+               },
+               {
+                "label": "else",
+                "nodes": [
+                 {
+                  "id": "if-8",
+                  "kind": "decision",
+                  "label": "if (state == \"BLOCKED\")",
+                  "layer": "decision",
+                  "type": null,
+                  "rel": null,
+                  "line": 20,
+                  "children": [
+                   {
+                    "label": "if (state == \"BLOCKED\")",
+                    "nodes": [
+                     {
+                      "id": "th-7",
+                      "kind": "throw",
+                      "label": "throws IllegalStateException(\"user blocked\")",
+                      "layer": "response",
+                      "type": null,
+                      "rel": null,
+                      "line": 21,
+                      "children": []
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "sw-13",
+              "kind": "decision",
+              "label": "when (state)",
+              "layer": "decision",
+              "type": null,
+              "rel": null,
+              "line": 23,
+              "children": [
+               {
+                "label": "\"CLEAR\"",
+                "nodes": [
+                 {
+                  "id": "re-10",
+                  "kind": "return",
+                  "label": "responds \"verified\"",
+                  "layer": "response",
+                  "type": null,
+                  "rel": null,
+                  "line": 24,
+                  "children": []
+                 }
+                ]
+               },
+               {
+                "label": "\"PENDING\"",
+                "nodes": [
+                 {
+                  "id": "re-11",
+                  "kind": "return",
+                  "label": "responds \"pending review\"",
+                  "layer": "response",
+                  "type": null,
+                  "rel": null,
+                  "line": 25,
+                  "children": []
+                 }
+                ]
+               },
+               {
+                "label": "else",
+                "nodes": [
+                 {
+                  "id": "re-12",
+                  "kind": "return",
+                  "label": "responds \"unknown $state\"",
+                  "layer": "response",
+                  "type": null,
+                  "rel": null,
+                  "line": 26,
+                  "children": []
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "honest": "every branch is the method's own if/else/switch as written; conditions quoted, never evaluated (CIE doesn't run the code)."
+    }
+   ]
+  }
+ ],
+ "apps": [
+  {
+   "dir": "",
+   "name": "spring-demo",
+   "build": "maven",
+   "framework": "spring",
+   "evidence": "pom.xml"
+  }
+ ],
+ "config": [],
+ "notes": [
+  "[stack] spring-jvm parsed it: Spring over the JVM (java + kotlin read as one family)",
+  "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
+ ],
+ "coverage": {
+  "filesScanned": 13,
+  "manifestsRead": [
+   "pom.xml"
+  ],
+  "dockerfilesRead": []
+ },
+ "generatedAt": 1792469688
 }

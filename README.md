@@ -35,6 +35,12 @@ cie drift docs/prd.md --code examples/bankapp
 # Blast radius + minimum test set for a change (CAP-10.3, CAP-17.3)
 cie impact examples/bankapp --symbol auth.good_auth
 
+# Static evidenced payment/recovery template (RFC-0020)
+cie state-model examples/bankapp --json
+
+# Bounded static-model fault hypotheses; does not execute the application
+cie fault examples/bankapp --json --max-faults 2 --budget-ms 500
+
 # Time-travel report (FR-23)
 cie report examples/bankapp --as-of-rev 1
 ```
@@ -126,3 +132,5 @@ docs/PRD-v1.0.md       # full product specification
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+RFC-0020 exports and their evidence boundaries are documented in [the implementation record](docs/implementation/rfc-0020.md).
