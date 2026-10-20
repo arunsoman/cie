@@ -53,7 +53,7 @@ function lineOfByte(content: string, byteOffset: number): number {
 
 // one lazy fetch of the demo source bundle, shared across opens — per sample kind
 const demoSourcesByKind: Partial<Record<"banking" | "spring" | "polyglot", Promise<Record<string, string>>>> = {};
-function loadDemoSources(kind: "banking" | "spring" | "polyglot"): Promise<Record<string, string>> {
+export function loadDemoSources(kind: "banking" | "spring" | "polyglot"): Promise<Record<string, string>> {
   if (!demoSourcesByKind[kind]) {
     const url = kind === "spring" ? "/data/spring/sources.json" : kind === "polyglot" ? "/data/polyglot/sources.json" : "/data/sources.json";
     demoSourcesByKind[kind] = fetch(url)

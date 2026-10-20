@@ -445,3 +445,17 @@ Work Log:
 
 Stage Summary:
 - There is now exactly ONE render path (negotiator → gate → host) and the page draws uml/flow/c4 on the G6 canvas with the patch-1 selection surface live — the SVG painter only answers the parity harness.
+---
+Task ID: 31
+Agent: main (Z.ai)
+Task: RFC-0024 stage 3 — code popup + verb-composed clicks + the G1 disclosure ledger.
+
+Work Log:
+- NEW code-popup.tsx: single (§2) + paired (§2.2) variants, Esc/Enter semantics, evidence-highlight + ±8 context styling, path:line copy, actions row; reuses /api/fs/file + the demo-sources loader (exported from source-panel).
+- atlas-view: the four ad-hoc handlers + sequence/flow clicks now compose SCOPE+POPUP (popup-first; the full panel is the popup's Enter path); grouped-out boxes open the G1 disclosure popup (ledger rows act as their own elements).
+- ChatChartSpec gained hidden[] (G1); buildComponentSpec names every grouped-out module and per-box line-cap overflow; the component panel's "…and N more" now opens a clickable ledger.
+- Stage 2 grid renders plan rows; disclosure prints; the popup layer floats above the grid (never claims space).
+- Verified: tsc clean, next build compiles.
+
+Stage Summary:
+- Clicks speak the closed verb vocabulary: SCOPE/POPUP/G1-ledger; jump-to-source is replaced (retired at stage 6 in name only — the popup owns first response now).

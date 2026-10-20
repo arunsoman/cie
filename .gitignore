@@ -13,3 +13,4 @@ tool-results/
 skills/
 web/.env*.local
 download/
+scripts/askpass.sh

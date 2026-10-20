@@ -476,6 +476,33 @@ export function buildComponentSpec(
   s1.nodes = nodes;
   s1.links = links;
   s1.source = "report.json — the file table, named things, and recorded calls";
+  // RFC-0024 stage 3 (G1): the disclosure ledger — every grouped-out thing
+  // NAMED, so the `…and N more` box opens a clickable popup, never a scope.
+  const hiddenRows: NonNullable<ChatChartSpec["hidden"]> = [];
+  if (rest > 0) {
+    for (const f of ordered.slice(shown.length)) {
+      hiddenRows.push({
+        id: `m-${f}`,
+        label: f.split("/").pop() ?? f,
+        kind: "module",
+        reason: "grouped out of the summary card (expand for the full detail)",
+        loc: { file: f },
+      });
+    }
+  }
+  for (const f of shown) {
+    const syms = byModule.get(f) ?? [];
+    for (const s of syms.slice(lineCap)) {
+      hiddenRows.push({
+        id: `s-${s.id}`,
+        label: `${s.name}()`,
+        kind: "symbol",
+        reason: "beyond the per-box line cap",
+        loc: { file: f, byteStart: s.loc.start, byteEnd: s.loc.end },
+      });
+    }
+  }
+  if (hiddenRows.length) s1.hidden = hiddenRows;
   if (detail === "full" && rest === 0) {
     s1.tell = `${ordered.length} module(s) drawn — the whole scope; nothing grouped out`;
   }

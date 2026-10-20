@@ -30,7 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, Rocket, Server, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { planSheet } from "@/lib/chart-plan";
-import type { AtlasPanelId } from "@/lib/atlas-presets";
+import { CodePopup, type PopupRequest } from "./code-popup";
 import {
   breadcrumbOf,
   buildComponentSpec,
@@ -78,7 +78,7 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure } = useCie();
+  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure, setPendingAsk } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders
   // plan.rows in reading order instead of a hand-coded sequence.
@@ -214,27 +214,55 @@ export function AtlasView() {
   // all landing in the same Selection Context. The atlas OWNS diagram clicks
   // when a handler is passed (the chat fallback is suppressed), so a symbol
   // or module click also opens the exact code alongside. ----
-  const openCodeFor = (loc: ElementLoc | undefined | null, label: string) => {
-    if (loc?.file) openSourceViewer({ file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, elName: label, chartTitle: "Atlas" });
+  // ---- RFC-0024 stage 3: the verb-composed click path (§3 vocabulary).
+  // POPUP first (ux-spec §5 retirement: jump-to-source is REPLACED — the
+  // popup is the preview, the full panel is its Enter/button path); SCOPE
+  // per the plan's drill/filter row; the unresolved-names bucket stays
+  // evidence, never a scope (G2); the grouped-out box opens the G1
+  // disclosure popup (the ledger rows), never a scope.
+  const [popup, setPopup] = useState<PopupRequest | null>(null);
+  const [disclosure, setDisclosure] = useState<{ title: string; rows: NonNullable<ChatChartSpec["hidden"]> } | null>(null);
+  const openPopup = (loc: ElementLoc | undefined | null, label: string, kind?: string, certainty?: PopupRequest["certainty"]) => {
+    if (!loc?.file) return;
+    setPopup({
+      primary: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line },
+      label,
+      kind,
+      certainty: certainty ?? "Fact",
+      onAsk: () => {
+        setPopup(null);
+        setPendingAsk(`what does ${label} do, and what evidence supports that?`);
+      },
+    });
+  };
+  const openLedger = (title: string, spec: ChatChartSpec | null | undefined) => {
+    const rows = spec?.hidden ?? [];
+    if (rows.length) setDisclosure({ title, rows });
   };
   const onContainersClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
-    if (sel.id.startsWith("…")) return; // the grouped-out box is not a scope
+    if (sel.id.startsWith("…")) {
+      openLedger("Grouped-out containers", shownC4);
+      return; // G1: the grouped-out box is a ledger, not a scope
+    }
     setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
   };
   const onComponentsClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
-    if (sel.id.startsWith("…")) return;
+    if (sel.id.startsWith("…")) {
+      openLedger("Grouped-out modules", shownComp);
+      return;
+    }
     if (!report) return;
     const isFile = report.files.includes(sel.id);
     if (isFile) {
       setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
-      openCodeFor(sel.loc, sel.label); // editor opens the module's own file
+      openPopup(sel.loc, sel.label, "module"); // POPUP; SCOPE above
     } else {
       // a symbol box (module zoom) — select the symbol, sequence follows
       const sym = symbolByQualName(report, sel.id);
       setAtlasSelection({ kind: "symbol", id: sel.id, label: sel.label, loc: sel.loc ?? locOfSym(report, sym) });
-      openCodeFor(sel.loc ?? locOfSym(report, sym), sel.label); // editor at the exact symbol
+      openPopup(sel.loc ?? locOfSym(report, sym), sel.label, "symbol");
     }
   };
   const onDataflowClick = (sel: DiagramSelection) => {
@@ -246,7 +274,7 @@ export function AtlasView() {
     }
     if (report.files.includes(sel.id)) {
       setAtlasSelection({ kind: "module", id: sel.id, label: sel.id.split("/").pop() ?? sel.id, loc: sel.loc });
-      openCodeFor(sel.loc, sel.label);
+      openPopup(sel.loc, sel.label, "module");
       return;
     }
     return; // the unresolved bucket is evidence, not a scope
@@ -262,17 +290,17 @@ export function AtlasView() {
     if (!report) return;
     const qual = sel.id.replace(/\(\)$/, "");
     const sym = symbolByQualName(report, qual);
-    openCodeFor(sel.loc ?? locOfSym(report, sym), qual);
+    openPopup(sel.loc ?? locOfSym(report, sym), qual, "call");
   };
   const onFlowClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
     if (!report) return;
     if (sel.id.startsWith("…") || sel.id.startsWith("fl-")) {
-      openCodeFor(sel.loc, sel.label);
+      openPopup(sel.loc, sel.label, "flow step");
       return;
     }
     const sym = symbolByQualName(report, sel.id);
-    openCodeFor(sel.loc ?? (sym ? locOfSym(report, sym) : undefined), sel.label);
+    openPopup(sel.loc ?? (sym ? locOfSym(report, sym) : undefined), sel.label, "flow step");
   };
   // entry-point rows: always open the exact source line; when the engine's
   // own symbol index carries a matching function IN THE SAME FILE (never
@@ -488,6 +516,63 @@ export function AtlasView() {
               sourceRoot={sourceRoot}
             />
           </ScrollArea>
+        </div>
+      )}
+
+      {/* RFC-0024 stage 3 — the popup layer floats above all regions; it
+          never claims grid space (§1). POPUP replaced jump-to-source. */}
+      {popup && (
+        <CodePopup
+          req={popup}
+          onClose={() => setPopup(null)}
+          onOpenFull={(loc) => {
+            setPopup(null);
+            openSourceViewer({
+              file: loc.file,
+              byteStart: loc.byteStart,
+              byteEnd: loc.byteEnd,
+              line: loc.line,
+              elName: popup.label,
+              chartTitle: "Atlas",
+            });
+          }}
+        />
+      )}
+
+      {/* G1 — the disclosure popup: the grouped-out box opens its ledger
+          list; a row click acts as its own element (POPUP when located). */}
+      {disclosure && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-900/10 p-4" role="dialog" aria-modal="true" aria-label={disclosure.title}>
+          <div className="w-full max-w-[480px] max-h-[70vh] overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl flex flex-col">
+            <div className="flex items-center justify-between border-b border-stone-100 px-3 py-2">
+              <p className="text-xs font-semibold text-stone-900">{disclosure.title}</p>
+              <button type="button" onClick={() => setDisclosure(null)} aria-label="Close (Esc)" className="rounded p-1 text-stone-400 hover:bg-stone-100">✕</button>
+            </div>
+            <div className="overflow-auto p-1.5">
+              {disclosure.rows.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    setDisclosure(null);
+                    if (r.loc?.file) {
+                      openPopup(r.loc, r.label, r.kind, "Fact");
+                    } else {
+                      setPendingAsk(`what is ${r.label} in this project?`);
+                    }
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-stone-50"
+                >
+                  <span className="rounded bg-stone-100 px-1 py-0.5 text-[9px] font-semibold text-stone-500">{r.kind}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-stone-800">{r.label}</span>
+                  <span className="text-[10px] text-stone-400">{r.reason}</span>
+                </button>
+              ))}
+            </div>
+            <p className="border-t border-stone-100 px-3 py-1.5 text-[10px] text-stone-400">
+              {disclosure.rows.length} row(s) grouped out of the summary card — grouped out of the picture, not hidden; each row acts as its own element.
+            </p>
+          </div>
         </div>
       )}
     </div>

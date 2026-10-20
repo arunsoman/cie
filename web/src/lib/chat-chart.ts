@@ -108,6 +108,11 @@ export interface ChatChartSpec {
   participants?: string[]; // kind "sequence" — the lanes (files), in first-appearance order
   msgs?: SequenceMsg[]; // kind "sequence" — the arrows (calls), with each step's state
   source?: string; // honesty note: which export the diagram was built from
+  // RFC-0024 stage 3 (G1) — the disclosure ledger: every element grouped
+  // out of this spec (per-box `…and n more` symbols, grouped-out boxes),
+  // named so the disclosure popup can list them as clickable rows. The
+  // grouped-out box is never a scope; it opens THIS list.
+  hidden?: { id: string; label: string; kind: string; reason: string; loc?: ElementLoc }[];
 }
 
 // ---------- mastery journey card vocabulary (lib/mastery.ts builds them;
