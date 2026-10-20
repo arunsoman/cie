@@ -283,3 +283,21 @@ Work Log:
 
 Stage Summary:
 - RFC-0019 stages 1–3 are now all on origin/main: the stack lens persists at ingest, stack-input hashing feeds the invalidation plan, and the docker reading carries build contexts, both port forms, per-app governance (compose / own-dockerfile / none, each with file:line evidence) plus image-only services as C4 Context externals. Next: stage 4 — C4 tiers (Container/Service/Subdomain) in build_hierarchy with per-node certainty, Aggregate heuristic retirement.
+---
+Task ID: 20
+Agent: main (Z.ai)
+Task: RFC-0019 stage 4 — the C4 tiers in the concept hierarchy (Containers, components, evidence-based aggregates), pushed per commit.
+
+Work Log:
+- Rebased onto two fresh upstream RFC-0020 commits (web evidence work; one file overlapped — cie-ingest/src/lib.rs, merged clean), re-verified compile + tests before pushing.
+- cie-concepts: ConceptKind gains Container (serde-additive; the six-key persistence roundtrips it untouched).
+- cie-analysis depends on cie-stack (no cycle). build_hierarchy gains stack: Option<&StackReport>; analyze/analyze_with_history pass it through; ingest hands the artifact it persisted moments earlier; the CLI test passes None.
+- C4::build: L1 Container per AppSite (PackageContainment, stack:apps, recorded; docker governance as intent attr). L2 one component per role home (ClusterCohesion, stack:roles): DDD domain/application/infrastructure → Subdomain (0.7); recorded rels (routes/mains/jvm layers) → Service 1.0; name-suffix roles → Service 0.7; leftovers → core. Modules re-parent under components; classes keep the Module chain + a CallOwnership extra edge to the component. Priority order DDD > recorded > naming > core; apps claim files longest-prefix-first; a root app keeps only unclaimed files.
+- Aggregate rule replaced: repo-named entity (JpaRepository<Invoice, Long> → Invoice) OR (non-role class reachable from a route handler AND reaching a recorded repository ≤3 hops) → Aggregate (stack:aggregate); recorded framework-role classes never; money-words only outside stack reach.
+- FCA intents gain http-route / db-write / di-injected / docker-managed.
+- Tests: rfc0019_c4_tiers.rs (two-app synthetic store, with/without stack). Fixed two bugs found by the tests: recorded-role lists speak repo-relative rels while the matcher compared app-relative (routes fell to naming inference); container confidence rolls up as the subtree's weakest link (0.7) — recorded-ness is carried by provenance/intent, asserted accordingly.
+- Real-fixture proof: samples/polyglot → 75 nodes: 5 Containers, billing's 3 Subdomains, berth-booking's five recorded spring layers at 1.0, Invoice the one evidence-based Aggregate; report.json carries the tiered DAG; cie stack reads store-first; mermaid/dot renderers untouched (kind-additive). Fixture .cie cache cleaned after runs.
+- Commit eb345bf rebased to 85cd3ac, pushed; token scrubbed.
+
+Stage Summary:
+- The hierarchy's reserved rooms are occupied: the DAG now reads Project → Container → Component → Module → class with per-node certainty and evidence-based aggregates. Old artifacts build the exact pre-RFC shape (stack: None), so nothing regresses. Next: stage 5 — consumers re-source (atlas/components views from the DAG, TS types, sample regeneration).
