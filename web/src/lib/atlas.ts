@@ -228,6 +228,86 @@ export function buildComponentSpec(
     return s2;
   }
 
+  // level 1, system scope — when the concept DAG carries the component tier
+  // (RFC-0019 stage 4), the system picture draws THE CONCEPTS, not files:
+  // one box per Service/Subdomain across the whole system, each naming its
+  // container and its own file modules. Class/function names belong to the
+  // level-2 zoom (inside one module), not here. Without the tier (no
+  // concepts, no Service/Subdomain under any container) the file fallback
+  // below stands — retitled honestly, it is a MODULES picture.
+  if (!container && concepts) {
+    const all = concepts.nodes;
+    const contLabel = new Map<number, string>();
+    for (const n of all) if (n.kind === "Container") contLabel.set(n.id, n.label);
+    const tier = all
+      .filter((n) => (n.kind === "Service" || n.kind === "Subdomain") && n.parent != null && contLabel.has(n.parent))
+      .sort((a, b) => (contLabel.get(a.parent!) ?? "").localeCompare(contLabel.get(b.parent!) ?? "") || a.label.localeCompare(b.label));
+    if (tier.length) {
+      const MAX_COMPS = 12;
+      const shown = tier.slice(0, MAX_COMPS);
+      const restT = tier.length - shown.length;
+      const nodeOf = (c: (typeof tier)[number]) => {
+        const cont = contLabel.get(c.parent!) ?? "?";
+        const mods = all.filter((m) => m.parent === c.id && m.kind === "Module").map((m) => m.label);
+        const first = mods[0];
+        const lines = [
+          `in ${cont}`, `${c.kind.toLowerCase()} · ${(c.confidence ?? 1) >= 1 ? "recorded evidence" : "inferred from names/structure"}`,
+          ...mods.slice(0, 3).map((m) => m.split("/").pop() ?? m),
+        ];
+        const moreM = mods.length - 3;
+        if (moreM > 0) lines.push(`…and ${moreM} more module(s)`);
+        return {
+          id: first ?? `component:${c.id}`,
+          title: c.label,
+          kind: "module" as const,
+          lines,
+          certainty: ((c.confidence ?? 1) >= 1 ? "Fact" : "Inference") as "Fact" | "Inference",
+          loc: first ? { file: first } : undefined,
+        };
+      };
+      const nodes: UmlNode[] = shown.map(nodeOf);
+      if (restT > 0) {
+        nodes.push({
+          id: "…other-components",
+          title: `…and ${restT} more component(s)`,
+          kind: "module",
+          lines: ["smaller — grouped out of this picture, not hidden"],
+          certainty: "Inference",
+        });
+      }
+      // recorded calls BETWEEN components, wherever they land (cross-module,
+      // even cross-container): symbol's owning file → its component's first
+      // module (the same ids the boxes key on)
+      const ids = new Set(nodes.map((n) => n.id));
+      const compOfFile = new Map<string, string>();
+      for (const c of tier) {
+        const mods = all.filter((m) => m.parent === c.id && m.kind === "Module").map((m) => m.label);
+        for (const m of mods) compOfFile.set(m, mods[0] ?? `component:${c.id}`);
+      }
+      const links: UmlLink[] = [];
+      const seen = new Set<string>();
+      for (const s of report.symbols) {
+        const fromFile = fileOf(report, s);
+        const from = fromFile ? compOfFile.get(fromFile) : undefined;
+        if (!from || !ids.has(from)) continue;
+        for (const callee of g.calleesOf.get(Number(s.id)) ?? []) {
+          const toFile = fileOf(report, g.byId.get(callee));
+          const to = toFile ? compOfFile.get(toFile) : undefined;
+          if (!to || to === from || !ids.has(to)) continue;
+          const key = `${from}->${to}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          links.push({ from, to, label: "calls into", certainty: "Fact" });
+        }
+      }
+      const s0 = specOf("uml", title ?? "Components — the concept DAG's component tier, over the whole system");
+      s0.nodes = nodes;
+      s0.links = links;
+      s0.source = "concepts.json — every container's Service/Subdomain tier; report.json for the calls";
+      return s0;
+    }
+  }
+
   // level 1 — modules across the (scoped) system
   const inContainer = (f: string): boolean =>
     container ? containerOfPath(f, apps) === container : true;
@@ -371,7 +451,7 @@ export function buildComponentSpec(
       links.push({ from, to, label: "calls into", certainty: "Fact" });
     }
   }
-  const s1 = specOf("uml", title ?? "Components — each file as a box, calls as arrows");
+  const s1 = specOf("uml", title ?? "Modules — each file as a box, calls as arrows (no concept tier for this scope)");
   s1.nodes = nodes;
   s1.links = links;
   s1.source = "report.json — the file table, named things, and recorded calls";
