@@ -177,3 +177,40 @@ Default scope: system first, then the busiest container by file count (computabl
 - Persona presets are **ChartPlan templates** consumed by the viz-manager's `planSheet` (RFC-0023 §8): panels per persona, default scope, default preferences, reading order.
 - Everything marked **(A)** ships today's renderer unchanged; **(B)** lands with RFC-0023 stage 1–3; **(C)** lists the engine addition needed (one line each, no hand-waving).
 - The fresher preset is the **first preset to build** — it is 100% Tier A plus two small overlays, and it doubles as the acceptance harness for the preset machinery.
+
+---
+
+## 12. The click contract — what happens when the user clicks each chart element
+
+Every chart element is clickable and every click goes somewhere real — a scope change, the exact source file, or a pre-written question. Three surfaces implement clicks today: the **chat canvas** (all kinds, via `useAsk`), the **Atlas panels** (drill routing), and the **Map view** (referent selection). The table is the contract; receipts in parentheses.
+
+### 12.1 The universal rule (today)
+
+> **A fact with a location opens the location; a fact without one becomes the question.**
+> `useAsk` (`chat-chart.tsx:40-54`): if the element carries `loc.file`, the click opens the source viewer at the exact bytes (`openSourceViewer`); otherwise it pre-writes a chat question about that element (`setPendingAsk`). This one rule drives bars, donuts, stats, trees, heatmaps and sequence arrows — every chart asks "do I know where this lives?" and acts honestly on the answer.
+
+### 12.2 Per element
+
+| Element clicked | What happens today | Under RFC-0023 |
+|---|---|---|
+| **Container box (C4)** | scopes ALL panels to that app (`onContainersClick` → `setAtlasSelection`, atlas-view.tsx:214-218) | drill-down → conductor re-slices; ALSO adds to chat context |
+| **Grouped-out box (`…and N more`)** | deliberately refuses to become a scope (id starts with `…`, :216) — grouping is honest, clickable nowhere | expands/cycles into the grouped set (disclosed) |
+| **Component box** (concept tier or file-box) | scopes + **opens the module's own file** (drill + territory at once, :224-227) | drill + context chip |
+| **Symbol box** (inside a module zoom) | selects the symbol, opens source at the exact symbol, Sequence/Flow re-centre on it (:229-231) | chip + recentre disclosed |
+| **Dataflow store node** (`store:`) | selects the store — its feeds/writes become the story (:237-240) | chip + filter action |
+| **Dataflow file** | module scope + source open (:241-244) | drill + chip |
+| **Dataflow unresolved bucket** | click lands nowhere on purpose — "the unresolved bucket is evidence, not a scope" (:246) | unchanged (the honesty rule carries) |
+| **Flow box** | opens the source panel at the symbol (:261-270) | chip |
+| **Route row (Service entry table)** | opens the exact line; if the same-file symbol matches the engine's index, selects it so Sequence/Flow re-centre — never guessed across files (:271-273) | chip |
+| **Entry-point row** | opens the boot file (`onPick`, AmsApplication etc.) | chip |
+| **hbar row / donut slice / stat card** | `ask(spec, {name, value, loc})` → source open (with loc) or chat question (:205, :276, :292, :320) | chip first, then source/question |
+| **Table row** | ask with the row's file loc (:360) | chip |
+| **Heatmap tile** | ask with tile name + `%` value + loc (:916) | chip |
+| **Sequence arrow** | with a location → opens the real code ("arrows always open the real code", :1003); without → chat question | chip + edge context |
+| **Tree node (G6 concept)** | asks CIE about that concept (`concept-tree-g6.tsx:96-99` → `ask`) | chip prefilled with the concept id |
+| **Map bubble (ViewSpec map)** | becomes the **referent chip** — the "these" of the next message; info card shows its certainty + evidence; removable via chip ✕ (`sections.tsx:316-334`, chat-panel.tsx:466-486) | plural chips (one per click, dedupe, cap) |
+| **UML/flow/C4 arrow (edge)** | nothing — nodes own the click contract today | edge click adds the edge + both endpoints to chat context; never a silent no-op |
+
+### 12.3 The RFC-0023 upgrade, in one line
+
+Today each surface has its own click vocabulary (Atlas = scope drill; canvas = source-vs-question; map = referent chip). RFC-0023 unifies them through `RenderHandle.onSelection`: **every click, in any chart, single or multi, does three composable things — add to the chat's context window (removable chips), perform the element's action (drill-down or filter per chart type), and disclose both** — with a loop-guard so engine↔app selection echoes can't bounce (§4.1). The two honesty rules that already exist stay normative: the grouped-out box is not a scope, and the unresolved bucket is not a scope.
