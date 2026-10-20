@@ -37,6 +37,7 @@ cie-claims = { workspace = true }
 cie-drift = { workspace = true }
 cie-stack = { workspace = true }
 cie-contract = { workspace = true }
+cie-relations = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }

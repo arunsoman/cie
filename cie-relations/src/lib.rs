@@ -223,6 +223,16 @@ impl RelationGraph {
         self.inner.node_weight(idx).copied()
     }
 
+    /// RFC-0022 §6.1: reverse lookup from a `SymbolId` back to its node —
+    /// every real consumer (`cie trace`, a future MCP tool) starts from a
+    /// symbol id, not a `NodeIndex`, so this is the missing half of
+    /// `node_weight`. Linear in node count; fine for a single trace call,
+    /// not meant for a hot loop (callers that need many lookups should
+    /// build their own index from `node_indices()` once).
+    pub fn find_node(&self, sym: SymbolId) -> Option<NodeIndex<u32>> {
+        self.node_indices().find(|&idx| self.node_weight(idx) == Some(sym))
+    }
+
     pub fn node_indices(&self) -> impl Iterator<Item = NodeIndex<u32>> + '_ {
         self.inner.node_indices()
     }

@@ -9,6 +9,8 @@ pub mod history;
 pub mod pipeline;
 pub mod stack_store;
 pub mod state_model_store;
+pub mod relations_store;
+pub mod vector_store;
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -29,6 +31,8 @@ use cie_llm::persist::LabelStoreExt;
 use cie_llm::{Budget, Labeler, OfflineProvider, ProviderKind};
 use cie_semantic::facts::SymbolStore;
 use stack_store::StackStoreExt;
+use relations_store::RelationGraphStoreExt;
+use vector_store::EmbeddingStoreExt;
 use cie_semantic::lang_for_path;
 use cie_semantic::LangId;
 use cie_store::Store;
@@ -469,6 +473,51 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // snapshot naming a stack artifact that isn't durably on disk.
     store.save_stack(rev, &stack)?;
 
+    // RFC-0022 §6.1: the one real call-graph substrate, built and persisted
+    // for the first time outside a test. Same crash-safety rule as the
+    // stack artifact above — written before save_snapshot.
+    let relations = cie_semantic::graph::relation_graph_from_facts(
+        &extracted.per_file,
+        &extracted.store,
+    );
+    store.save_relations(rev, &relations)?;
+
+    // RFC-0022 §6.2: embed()/HnswRsStore both existed, tested, with zero
+    // production call sites between them. `last_rev()` reads the head
+    // BEFORE this ingest's commit_rev below, so it's genuinely the prior
+    // successful revision's embeddings to carry forward — unchanged
+    // symbol text is never re-embedded (vector_store::update_embeddings).
+    let prev_rev = store.last_rev();
+    let prev_vectors = if prev_rev > 0 { store.load_embeddings(prev_rev).unwrap_or(None) } else { None };
+    let embed_texts: Vec<(String, String)> = extracted
+        .store
+        .symbols
+        .iter()
+        .map(|s| (s.qual_name.clone(), s.doc.clone().unwrap_or_else(|| s.qual_name.clone())))
+        .collect();
+    let vectors = vector_store::update_embeddings(
+        prev_vectors.as_ref(),
+        &embed_texts,
+        &budget,
+        provider_box.as_ref(),
+    );
+    store.save_embeddings(rev, &vectors)?;
+
+    // RFC-0022 §6.4 (prerequisite): `SymbolStore.unresolved` was declared
+    // ("symbols whose call resolution is still pending") but nothing in
+    // the workspace ever wrote to it — confirmed by grep before this
+    // change. Populating it for real, from each unresolved call site's
+    // own `callee_text`, is what makes the cross-repo resolution pass in
+    // `run_org_ingest` possible without inventing a parallel data path.
+    let mut unresolved_calls: BTreeMap<SymbolId, Vec<String>> = BTreeMap::new();
+    for facts in &extracted.per_file {
+        for c in &facts.calls {
+            if let cie_semantic::facts::Callee::Unresolved(_) = &c.callee {
+                unresolved_calls.entry(c.caller).or_default().push(c.callee_text.clone());
+            }
+        }
+    }
+
     let analysis = cie_analysis::analyze_with_history(
         &extracted.store,
         &extracted.per_file,
@@ -586,7 +635,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // lookups) would resolve remapped ids against the pre-purge table: the
     // same silently-wrong lookup the purge fix just eliminated for reloads.
     // With no purge, nothing moved and the extracted store stays authoritative.
-    let (sym_store, reverse_deps, test_map) = if purged > 0 {
+    let (mut sym_store, reverse_deps, test_map) = if purged > 0 {
         let st = SymbolStore::build(snapshot.symbols.clone());
         let (rd, tm, _) = rebuild_graphs(&st, &snapshot.summaries);
         (st, rd, tm)
@@ -597,6 +646,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         );
         (extracted.store, rd, tm)
     };
+    sym_store.unresolved = unresolved_calls;
 
     Ok(IngestOutcome {
         rev,
@@ -769,9 +819,14 @@ pub fn run_org_ingest(
 ) -> std::io::Result<cie_store::OrgGraph> {
     let mut org = cie_store::OrgGraph::default();
     let mut label_index: BTreeMap<String, Vec<(String, u32)>> = BTreeMap::new();
+    // RFC-0022 §6.4: outcomes are kept (not discarded per-iteration) so the
+    // cross-repo resolution pass below can read every repo's symbols and
+    // unresolved calls, not just the current one's.
+    let mut outcomes: Vec<(String, IngestOutcome)> = Vec::new();
     for repo in repos {
         let outcome = run_ingest(repo, opts)?;
-        org.repos.push(repo.to_string_lossy().to_string());
+        let repo_name = repo.to_string_lossy().to_string();
+        org.repos.push(repo_name.clone());
         for node in &outcome.snapshot.concepts.nodes {
             if node.kind == cie_concepts::ConceptKind::UseCase
                 || node.kind == cie_concepts::ConceptKind::Aggregate
@@ -780,9 +835,10 @@ pub fn run_org_ingest(
                 label_index
                     .entry(node.label.to_ascii_lowercase())
                     .or_default()
-                    .push((repo.to_string_lossy().to_string(), node.id));
+                    .push((repo_name.clone(), node.id));
             }
         }
+        outcomes.push((repo_name, outcome));
     }
     let mut merged_id = 0u32;
     for (label, sources) in label_index {
@@ -797,6 +853,52 @@ pub fn run_org_ingest(
         });
         merged_id += 1;
     }
+
+    // RFC-0022 §6.4: `OrgGraph.api_edges` was declared and never
+    // constructed anywhere (confirmed before this change) — this is the
+    // real constructor. Each repo's `SymbolStore.unresolved` (just made
+    // real above, in `run_ingest`) names the call text CIE couldn't
+    // resolve within that repo; a second pass here checks whether a
+    // SIBLING repo exports a same-named symbol. Only an UNAMBIGUOUS
+    // match (exactly one candidate by short name in the other repo)
+    // produces an edge — never a guess among several same-named symbols.
+    for (i, (from_repo, from_outcome)) in outcomes.iter().enumerate() {
+        for (&caller, callee_texts) in &from_outcome.store.unresolved {
+            let Some(caller_sym) = from_outcome.store.get(caller) else {
+                continue;
+            };
+            for callee_text in callee_texts {
+                let short_name = callee_text.rsplit('.').next().unwrap_or(callee_text);
+                // Ambiguity is checked ACROSS every sibling repo, not
+                // per-repo: two different repos each exporting exactly
+                // one same-named symbol is still two candidates overall,
+                // and must resolve to neither (never a coin-flip guess).
+                let mut candidates: Vec<(usize, SymbolId)> = vec![];
+                for (j, (_, to_outcome)) in outcomes.iter().enumerate() {
+                    if i == j {
+                        continue;
+                    }
+                    for &sym in to_outcome.store.by_name(short_name) {
+                        candidates.push((j, sym));
+                    }
+                }
+                if let [(j, sym)] = candidates[..] {
+                    if let Some(target_sym) = outcomes[j].1.store.get(sym) {
+                        org.api_edges.push(cie_store::ApiEdge {
+                            from_repo: from_repo.clone(),
+                            to_repo: outcomes[j].0.clone(),
+                            from_symbol: caller_sym.qual_name.clone(),
+                            to_symbol: target_sym.qual_name.clone(),
+                            kind: "import".into(),
+                        });
+                    }
+                }
+                // Zero or multiple candidates: stays unresolved, same as
+                // within a single repo today — never a guessed edge.
+            }
+        }
+    }
+
     Ok(org)
 }
 

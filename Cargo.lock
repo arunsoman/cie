@@ -681,6 +681,7 @@ dependencies = [
  "cie-history",
  "cie-incremental",
  "cie-llm",
+ "cie-relations",
  "cie-semantic",
  "cie-stack",
  "cie-store",

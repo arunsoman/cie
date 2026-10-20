@@ -81,6 +81,39 @@ pub enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Multi-hop call/data/control navigation over the persisted relation
+    /// graph (RFC-0022 §6.1, TASK-007/009) — the first production use of
+    /// `cie-relations::RelationGraph`, previously built only in a test.
+    Trace {
+        path: PathBuf,
+        symbol: String,
+        /// One of: calls, returns, control_flow, data_flow, reads, writes,
+        /// throws, catches, owns, depends_on. Defaults to calls, matching
+        /// today's informal "what calls what" expectation.
+        #[arg(long, default_value = "calls")]
+        kind: String,
+        /// Hop count bound — a BFS budget, not a timeout.
+        #[arg(long, default_value_t = 3)]
+        depth: usize,
+        /// Walk incoming edges (callers) instead of outgoing (callees).
+        #[arg(long)]
+        reverse: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Hybrid semantic search over symbol text (RFC-0022 §6.2) — the
+    /// first production use of `cie-llm::embed()`/`cie-store::hnsw`,
+    /// previously implemented three times and called by nothing. Each
+    /// hit is re-attached to its concept labels and contracts, the join
+    /// a plain vector index can't do on its own.
+    Search {
+        path: PathBuf,
+        query: String,
+        #[arg(long, default_value_t = 10)]
+        k: usize,
+        #[arg(long)]
+        json: bool,
+    },
     /// Co-change coupling report from git history (US-087)
     Cochange {
         path: PathBuf,
@@ -288,6 +321,26 @@ fn ingest_opts(
     }
 }
 
+/// RFC-0022 §6.1: the CLI-facing counterpart to `RelKind::as_str()` — no
+/// parser existed on the type itself, so `cie trace --kind <name>` needs
+/// one at the call site.
+fn parse_rel_kind(s: &str) -> Option<cie_relations::RelKind> {
+    use cie_relations::RelKind::*;
+    Some(match s {
+        "calls" => Calls,
+        "returns" => Returns,
+        "control_flow" => ControlFlow,
+        "data_flow" => DataFlow,
+        "reads" => Reads,
+        "writes" => Writes,
+        "throws" => Throws,
+        "catches" => Catches,
+        "owns" => Owns,
+        "depends_on" => DependsOn,
+        _ => return None,
+    })
+}
+
 fn finding_summary(outcome: &IngestOutcome) -> String {
     let s = &outcome.snapshot;
     let mut counts = std::collections::BTreeMap::new();
@@ -313,6 +366,9 @@ fn finding_summary(outcome: &IngestOutcome) -> String {
 }
 
 use cie_ingest::stack_store::StackStoreExt;
+use cie_ingest::relations_store::RelationGraphStoreExt;
+use cie_ingest::vector_store::EmbeddingStoreExt;
+use cie_store::hnsw::VectorStore;
 
 fn main() {
     let cli = Cli::parse();
@@ -926,6 +982,290 @@ fn run(cli: Cli) -> i32 {
                     1
                 }
             }
+        }
+        Command::Trace {
+            path,
+            symbol,
+            kind,
+            depth,
+            reverse,
+            json,
+        } => {
+            let Some(want_kind) = parse_rel_kind(&kind) else {
+                eprintln!(
+                    "error: unknown --kind '{kind}' (expected one of: calls, returns, control_flow, data_flow, reads, writes, throws, catches, owns, depends_on)"
+                );
+                return 1;
+            };
+            let opts = IngestOptions::default();
+            let path = path.canonicalize().unwrap_or(path);
+            let outcome = match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
+                Ok(o) => o,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let Some(sym) = outcome
+                .store
+                .symbols
+                .iter()
+                .find(|s| s.qual_name == symbol || s.name == symbol)
+            else {
+                eprintln!("error: symbol '{symbol}' not found");
+                return 1;
+            };
+            let store = match cie_store::Store::open(&path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            // The relation-graph stage just ran inside run_ingest above, so
+            // this is a cheap read of what it persisted a moment ago, not a
+            // second parse (RFC-0022 §6.1).
+            let graph = match store.load_relations(outcome.rev) {
+                Ok(Some(g)) => g,
+                Ok(None) => {
+                    eprintln!("error: no relation graph persisted for revision {}", outcome.rev);
+                    return 1;
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let Some(start) = graph.find_node(sym.id) else {
+                // The symbol exists but owns no relation edges (e.g. an
+                // unreferenced constant) — an honest empty result, not an
+                // error.
+                if json {
+                    println!("{}", serde_json::json!({ "symbol": sym.qual_name, "hops": [], "truncated": false }));
+                } else {
+                    println!("'{}' has no recorded {} relations.", sym.qual_name, want_kind.as_str());
+                }
+                return 0;
+            };
+
+            let mut visited: std::collections::BTreeSet<SymbolId> = std::collections::BTreeSet::new();
+            visited.insert(sym.id);
+            let mut frontier = vec![start];
+            let mut hops: Vec<Vec<SymbolId>> = vec![];
+            for _ in 0..depth {
+                let mut next_nodes = vec![];
+                let mut hop_syms = vec![];
+                for idx in &frontier {
+                    let edges: Vec<_> = if reverse {
+                        graph.edges_to(*idx).collect()
+                    } else {
+                        graph.edges_from(*idx).collect()
+                    };
+                    for (other_idx, k) in edges {
+                        if k != want_kind {
+                            continue;
+                        }
+                        if let Some(other_sym) = graph.node_weight(other_idx) {
+                            if visited.insert(other_sym) {
+                                next_nodes.push(other_idx);
+                                hop_syms.push(other_sym);
+                            }
+                        }
+                    }
+                }
+                if next_nodes.is_empty() {
+                    break;
+                }
+                hops.push(hop_syms);
+                frontier = next_nodes;
+            }
+            // A BFS that's still growing at the depth bound is an honest
+            // "there may be more" — never silently incomplete.
+            let truncated = !frontier.is_empty()
+                && depth > 0
+                && hops.len() == depth
+                && frontier.iter().any(|idx| {
+                    let edges: Vec<_> = if reverse {
+                        graph.edges_to(*idx).collect()
+                    } else {
+                        graph.edges_from(*idx).collect()
+                    };
+                    edges.iter().any(|(_, k)| *k == want_kind)
+                });
+
+            let describe = |id: SymbolId| -> (String, String) {
+                match outcome.store.get(id) {
+                    Some(s) => (
+                        s.qual_name.clone(),
+                        format!("{}:{}", outcome.store.files.path(s.loc.file), outcome.store.files.line(s.loc)),
+                    ),
+                    None => (format!("{id}"), String::new()),
+                }
+            };
+
+            if json {
+                let hops_json: Vec<_> = hops
+                    .iter()
+                    .map(|hop| {
+                        hop.iter()
+                            .map(|&id| {
+                                let (name, loc) = describe(id);
+                                serde_json::json!({ "symbol": name, "evidence": loc })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "symbol": sym.qual_name,
+                        "kind": want_kind.as_str(),
+                        "reverse": reverse,
+                        "hops": hops_json,
+                        "truncated": truncated,
+                    })
+                );
+            } else {
+                println!(
+                    "{} {} from '{}' (depth {}):",
+                    if reverse { "callers" } else { "callees" },
+                    want_kind.as_str(),
+                    sym.qual_name,
+                    depth
+                );
+                for (i, hop) in hops.iter().enumerate() {
+                    println!("  hop {}:", i + 1);
+                    for &id in hop {
+                        let (name, loc) = describe(id);
+                        println!("    - {name} ({loc})");
+                    }
+                }
+                if truncated {
+                    println!("  … more beyond depth {depth} — raise --depth to see further.");
+                }
+            }
+            0
+        }
+        Command::Search { path, query, k, json } => {
+            let opts = IngestOptions::default();
+            let path = path.canonicalize().unwrap_or(path);
+            let outcome = match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
+                Ok(o) => o,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let store = match cie_store::Store::open(&path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let vectors = match store.load_embeddings(outcome.rev) {
+                Ok(Some(v)) if !v.records.is_empty() => v,
+                Ok(_) => {
+                    println!("nothing to search — no symbols were embedded for this revision.");
+                    return 0;
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let index = vectors.rebuild_index();
+            let offline = cie_llm::OfflineProvider;
+            let query_vec = match cie_llm::LlmProvider::embed(&offline, &[query.as_str()]) {
+                Ok(mut v) if v.first().map(|x| x.len()) == Some(vectors.dim) => v.remove(0),
+                _ => {
+                    eprintln!("error: could not embed the query at the index's dimension ({})", vectors.dim);
+                    return 1;
+                }
+            };
+            // 2s is generous for a local HNSW query over a single repo's
+            // symbols — the budget exists so a pathological index still
+            // reports an honest timeout instead of hanging (global rule 3).
+            let hit_outcome = index.knn(&query_vec, k, 2_000_000_000);
+            let hits = match hit_outcome {
+                cie_store::hnsw::KnnOutcome::Neighbors(h) => h,
+                cie_store::hnsw::KnnOutcome::Unknown(_) => {
+                    if json {
+                        println!("{}", serde_json::json!({ "query": query, "hits": [], "timed_out": true }));
+                    } else {
+                        println!("search timed out — no results (not the same as \"nothing matched\").");
+                    }
+                    return 0;
+                }
+                cie_store::hnsw::KnnOutcome::Error(e) => {
+                    eprintln!("error: {e:?}");
+                    return 1;
+                }
+            };
+
+            // record_id = stable_id(qual_name) (vector_store's indexing
+            // rule) — recompute the same hash over today's symbols to
+            // resolve a hit back to the symbol it came from.
+            let sym_by_record: std::collections::BTreeMap<[u8; 32], SymbolId> = outcome
+                .store
+                .symbols
+                .iter()
+                .map(|s| (cie_core::types::hash(s.qual_name.as_bytes()), s.id))
+                .collect();
+
+            let hits_json: Vec<_> = hits
+                .iter()
+                .filter_map(|h| {
+                    let sym_id = *sym_by_record.get(&h.record_id)?;
+                    let sym = outcome.store.get(sym_id)?;
+                    let concepts: Vec<String> = outcome
+                        .snapshot
+                        .concepts
+                        .nodes
+                        .iter()
+                        .filter(|n| n.symbols.contains(&sym_id))
+                        .map(|n| n.label.clone())
+                        .collect();
+                    let contracts: Vec<String> = outcome
+                        .snapshot
+                        .contracts
+                        .iter()
+                        .filter(|c| c.symbols.contains(&sym_id))
+                        .map(|c| c.expr.clone())
+                        .collect();
+                    Some(serde_json::json!({
+                        "symbol": sym.qual_name,
+                        "distance": h.distance,
+                        "evidence": format!("{}:{}", outcome.store.files.path(sym.loc.file), outcome.store.files.line(sym.loc)),
+                        "concepts": concepts,
+                        "contracts": contracts,
+                    }))
+                })
+                .collect();
+
+            if json {
+                println!("{}", serde_json::json!({ "query": query, "hits": hits_json, "timed_out": false }));
+            } else {
+                println!("search: \"{query}\" ({} hit{}):", hits_json.len(), if hits_json.len() == 1 { "" } else { "s" });
+                for h in &hits_json {
+                    println!("  - {} ({}) [distance {:.3}]", h["symbol"], h["evidence"], h["distance"].as_f64().unwrap_or(0.0));
+                    let concepts = h["concepts"].as_array().cloned().unwrap_or_default();
+                    if !concepts.is_empty() {
+                        println!(
+                            "      concepts: {}",
+                            concepts.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+                        );
+                    }
+                    let contracts = h["contracts"].as_array().cloned().unwrap_or_default();
+                    if !contracts.is_empty() {
+                        println!(
+                            "      contracts: {}",
+                            contracts.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+                        );
+                    }
+                }
+            }
+            0
         }
         Command::Overlap {
             path,

@@ -175,6 +175,48 @@ fn function_name(node: Node, lang: LightLang, bytes: &[u8]) -> Option<String> {
     }
 }
 
+/// A function/type's doc comment, read from its preceding comment
+/// sibling(s) — generic across every `LightLang` grammar's `comment`/
+/// `line_comment` node kinds, so one fix covers Go/Rust/JS/TS/Tsx at
+/// once (RFC-0022 §6.3). Contiguous preceding comments (consecutive `//`
+/// lines, or one `/** */`/`///` block) collapse into one string, oldest
+/// first. Rust attributes (`#[...]`) between the comment and the decl are
+/// skipped, not treated as a stop — the same tolerance `is_rust_test`
+/// already assumes for that shape. `None` when nothing is found: doc
+/// extraction never guesses, it only reads what's actually there.
+fn doc_comment_of(node: Node, lang: LightLang, bytes: &[u8]) -> Option<String> {
+    let mut lines: Vec<String> = vec![];
+    let mut cur = node.prev_sibling();
+    while let Some(n) = cur {
+        if lang == LightLang::Rust && n.kind() == "attribute_item" {
+            cur = n.prev_sibling();
+            continue;
+        }
+        if !n.kind().contains("comment") {
+            break;
+        }
+        let cleaned = text(n, bytes)
+            .trim()
+            .trim_start_matches("/**")
+            .trim_end_matches("*/")
+            .trim_start_matches("///")
+            .trim_start_matches("//")
+            .trim_start_matches('*')
+            .trim()
+            .to_string();
+        if !cleaned.is_empty() {
+            lines.push(cleaned);
+        }
+        cur = n.prev_sibling();
+    }
+    if lines.is_empty() {
+        None
+    } else {
+        lines.reverse();
+        Some(lines.join(" "))
+    }
+}
+
 fn is_rust_test(node: Node, bytes: &[u8]) -> bool {
     // #[test] attribute precedes the function inside the same item list.
     let mut sibling = node;
@@ -304,7 +346,7 @@ fn push_light_symbol(
             Some(ctx.module)
         },
         rev: 0,
-        doc: None,
+        doc: doc_comment_of(node, ctx.lang, ctx.bytes),
     });
     id
 }
