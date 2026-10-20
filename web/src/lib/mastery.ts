@@ -758,6 +758,9 @@ const SUMMARY_WORDS = /\bwhat (is|does) (this|it)\b|\bsummar(y|ise|ize)\b|\bexpl
 export interface MasteryCtx {
   report: CieReport | null;
   concepts: ConceptTree | null;
+  /** the engine's stack artifact; the C4 intent draws the real app
+   *  containers + externals from it when present (RFC-0019) */
+  stack?: TechStack | null;
   deps?: CieDeps | null;
   cochange?: CieCochange | null;
   overlap?: CieOverlap | null;
@@ -864,7 +867,10 @@ export function tryAnswerMastery(question: string, ctx: MasteryCtx): MasteryAnsw
   }
 
   if (has(C4_WORDS)) {
-    const spec = buildC4Spec(report, null);
+    // with the stack artifact the containers ARE the named apps, image-only
+    // compose services draw as externals, and cross-service calls link them;
+    // without it the file-table fallback stands (first-segment grouping)
+    const spec = buildC4Spec(report, ctx.stack ?? null);
     if (!spec) return null;
     return {
       answer:

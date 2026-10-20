@@ -330,3 +330,16 @@ Work Log:
 
 Stage Summary:
 - All three audit findings are closed: the invalidation watch list is complete against what the stack reader actually reads, --force is a two-sided operation (derive AND persist, snapshot synced), and the bundles now demonstrate all of the stack lens' C4 forms — build-governed containers, docker:none stubs, external image-only systems, and cited cross-service calls.
+---
+Task ID: 23
+Agent: main (Z.ai)
+Task: Two walkthrough findings from the rebuilt UI: built-in AI config from .env.local, and the Atlas Components panel drawing class files as components.
+
+Work Log:
+- The "Built-in AI" provider failed with "Configuration file not found" — z-ai-web-dev-sdk's create() reads only .z-ai-config files. web/src/app/api/chat/route.ts now prefers server env (ZAI_API_KEY + ZAI_BASE_URL from .env.local) and constructs the SDK directly when both are set, falling back to the file path otherwise (runtime constructor takes the config; its TS surface keeps it private, so a narrow documented cast bridges without forking the SDK). Verified with a bogus base URL: the failure signature changed from "config not found" to a fetch error at the completion call — the env branch executes end to end. .env.local carries commented placeholders for both keys.
+- The Atlas Components panel fell back to one box per class FILE (tests on any repo with tests appeared as components) because the call site passed none of buildComponentSpec's concept/apps params. Wired atlas-view.tsx to pass concepts + the stack's real app dirs: with the concept DAG the boxes ARE the component tier (Service/Subdomain under the container, each naming its file modules, certainty-chipped); the files-as-modules fallback now stays for DAG-less containers, with test-looking files (test dirs, test_*/..._test, .test/.spec, FooTest/FooTests/FooIT, _test.rs) excluded and an honest tell saying how many sit out and why. Scopes holding ONLY tests render a single honest box, never test boxes posing as components.
+- Same wiring fixed the old two-arg buildC4Spec call (string passed as the stack param — a live TS arity bug): Atlas containers now draw from stack.json's real apps with docker governance lines, and image-only compose services (cache · redis:7-alpine, docker-compose.yml:20) draw as the C4 Context externals they are; the chat's C4 intent passes the stack into MasteryCtx too (chat-panel).
+- Verified live on :3000 (release binary via CIE_BIN): containers show all five apps + the cache external; berth-booking's Components panel draws the DAG tier ("the concept DAG's component tier", service · recorded evidence — Berth.java); tsc --noEmit clean.
+
+Stage Summary:
+- Config now has one obvious, ignored-by-git home (.env.local) for the built-in AI; the Atlas keeps its C4 honesty at every tier: containers = the apps the build files name, components = the concept DAG's roles, tests = verification, never components, externals = named and cited image-only services.

@@ -127,8 +127,23 @@ export async function POST(req: NextRequest) {
     } else if (llm.provider === "openai") {
       reply = await chatOpenAi(llm.openai, messages, TIMEOUT_OPENAI);
     } else {
+      // .env.local can drive the built-in Z.ai path directly — server
+      // env first (ZAI_API_KEY, ZAI_BASE_URL), the SDK's own .z-ai-config
+      // file second. No SDK fork: the runtime constructor takes the config
+      // object, the type surface just keeps it private, so a narrow cast
+      // is the honest bridge; fail is as honest as the file path's.
       const { default: ZAI } = await import("z-ai-web-dev-sdk");
-      const zai = await ZAI.create();
+      type ZaiLike = {
+        chat: { completions: { create: (body: unknown) => Promise<{ choices?: { message?: { content?: string } } [] }> } };
+      };
+      const envKey = process.env.ZAI_API_KEY || process.env.ZAI_APIKEY;
+      const envBase = process.env.ZAI_BASE_URL || process.env.ZAI_BASEURL;
+      const zai = envKey
+        ? new (ZAI as unknown as new (cfg: { baseUrl: string; apiKey: string }) => ZaiLike)({
+            baseUrl: envBase || "https://api.z.ai/api/paas/v4",
+            apiKey: envKey,
+          })
+        : ((await ZAI.create()) as unknown as ZaiLike);
       const completion = await zai.chat.completions.create({
         messages,
         thinking: { type: "disabled" },

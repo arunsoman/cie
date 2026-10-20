@@ -90,7 +90,7 @@ export function Formatted({ text }: { text: string }) {
 
 export function ChatPanel() {
   const {
-    report, viewspec, concepts, label, chat, chatBusy, pushChat, setChatBusy, clearChat,
+    report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
     stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
     pendingTrace, setPendingTrace, updateMastery, loadMastery,
@@ -198,7 +198,7 @@ export function ChatPanel() {
     // ---- fast path 2: the journey's canonical prompts are answered
     // locally, from the loaded exports — instant, cited, interactive cards
     // (entry points / flows / trace with the verify loop / 5 things). ----
-    const masteryCtx: MasteryCtx = { report, concepts, deps, cochange, overlap, drift, label };
+    const masteryCtx: MasteryCtx = { report, concepts, stack, deps, cochange, overlap, drift, label };
     const masteryAns = tryAnswerMastery(question, masteryCtx);
     if (masteryAns) {
       // every answered journey prompt keeps its chart in the MESSAGE; the

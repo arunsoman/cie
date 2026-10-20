@@ -149,6 +149,22 @@ const MAX_SYMBOL_LINES = 4;
  *    top-level folder name, or "(project root)") when given.
  *  Returns null only when there is genuinely nothing to draw — said plainly
  *  by the caller, never papered over with an invented picture. */
+/** Test files verify components — they are not components. The old fallback
+ *  drew one box per class FILE, so test classes posed as components on any
+ *  repo with tests (the concept DAG's module tier never had this problem:
+ *  the engine's walk skips the test dirs it finds). Same shapes the engines
+ *  use: test-dir paths, py tests (test_ prefix, ..._test suffix), js/ts
+ *  .test/.spec, Java/Kotlin FooTest/FooTests/FooIT. */
+function looksLikeTest(f: string): boolean {
+  const p = f.toLowerCase();
+  if (/(?:^|\/)(tests?|__tests__|selftest)(?:\/|$)/.test(p)) return true;
+  const base = p.split("/").pop() ?? "";
+  return /(^test_|_test\.|\.test\.|\.spec\.)/.test(base) ||
+    /^(?:test|tests|it|spec|specs)\.(?:java|kt|rs|ts|tsx|js|go|py)$/.test(base) ||
+    /(?:test|tests|it|spec|specs)\.(?:java|kt)$/.test(base) ||
+    /_test\.rs$/.test(base);
+}
+
 export function buildComponentSpec(
   report: CieReport,
   container: string | null,
@@ -293,11 +309,26 @@ export function buildComponentSpec(
     symCount.set(f, (symCount.get(f) ?? 0) + 1);
     if (!firstSym.has(f)) firstSym.set(f, s);
   }
-  const modules = files.filter((f) => symCount.has(f));
+  const testFiles = files.filter((f) => symCount.has(f) && looksLikeTest(f));
+  const modules = files.filter((f) => symCount.has(f) && !looksLikeTest(f));
   const ordered = modules
     .slice()
     .sort((a, b) => (symCount.get(b) ?? 0) - (symCount.get(a) ?? 0) || a.localeCompare(b));
-  if (!ordered.length) return null; // nothing indexed in this scope — the caller says so honestly
+  if (!ordered.length && !testFiles.length) return null; // nothing indexed in this scope — the caller says so honestly
+  if (!ordered.length && testFiles.length) {
+    // scope holds only tests — say so, never draw test files as components
+    const sOnly = specOf("uml", title ?? "Components");
+    sOnly.nodes = [{
+      id: "no-production-modules",
+      title: "no production modules in this scope",
+      kind: "module",
+      lines: ["only test file(s) are indexed here"],
+      certainty: "Fact" as const,
+    }];
+    sOnly.source = "report.json — the file table";
+    sOnly.tell = `${testFiles.length} test file(s) indexed — tests verify components; they are not components.`;
+    return sOnly;
+  }
   const shown = ordered.slice(0, MAX_MODULE_BOXES);
   const rest = ordered.length - shown.length;
 
@@ -344,6 +375,11 @@ export function buildComponentSpec(
   s1.nodes = nodes;
   s1.links = links;
   s1.source = "report.json — the file table, named things, and recorded calls";
+  if (testFiles.length) {
+    s1.tell =
+      `${testFiles.length} test file(s) sit out of this picture on purpose — tests verify components; they are not components. ` +
+      `Their code stays fully readable in Master and the source panel.`;
+  }
   return s1;
 }
 
