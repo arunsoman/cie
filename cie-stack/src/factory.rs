@@ -245,6 +245,7 @@ fn types_fresh(reference: &StackReport) -> StackReport {
         flows: vec![],
         apps: vec![],
         config: vec![],
+        external_docker: vec![],
         notes: vec![],
         coverage: crate::types::Coverage {
             files_scanned: 0,

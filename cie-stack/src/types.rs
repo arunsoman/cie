@@ -27,6 +27,9 @@ pub struct StackReport {
     pub apps: Vec<AppSite>,
     /// application.properties / application.yml style entries, as written
     pub config: Vec<ConfigEntry>,
+    /// RFC-0019 §6.3: compose services that ship an `image:` but no `build:`
+    /// — not our apps; the named external systems (C4 Context, L1)
+    pub external_docker: Vec<ExternalSystem>,
     pub notes: Vec<String>,
     pub coverage: Coverage,
     pub generated_at: u64,
@@ -80,6 +83,10 @@ pub struct Dockerfile {
 pub struct ComposeFile {
     pub path: String,
     pub services: Vec<ComposeService>,
+    /// RFC-0019 §6.3: rows skipped by the reader — duplicate keys, and
+    /// services naming neither an image nor a build. Honest by name.
+    #[serde(default)]
+    pub skipped: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,7 +94,16 @@ pub struct ComposeFile {
 pub struct ComposeService {
     pub name: String,
     pub image: Option<String>,
+    /// RFC-0019 §6.3: the build context (dir), e.g. "./billing" — the one
+    /// field that ties a compose service to an app directory
+    pub build: Option<String>,
+    /// build.dockerfile when named explicitly (otherwise the default
+    /// <context>/Dockerfile)
+    pub dockerfile: Option<String>,
+    /// list rows AND inline flow entries, as written ("8081:8081")
     pub ports: Vec<String>,
+    /// the compose row the service key sits on (1-based) — evidence anchor
+    pub line: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +316,21 @@ pub struct MainSite {
 
 // ---- the per-APPLICATION roll-up (one service, one paragraph line each) ----
 
+/// RFC-0019 §6.3: how the repo says this app is containerized — compose
+/// / its own Dockerfile / nothing (as far as the repo says)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppGovernance {
+    /// "compose" | "own-dockerfile" | "none"
+    pub kind: String,
+    /// the compose service name, when compose
+    pub service: Option<String>,
+    /// exposed ports, read exactly as written
+    pub ports: Vec<String>,
+    /// the compose file:row, or the Dockerfile path
+    pub evidence: String,
+}
+
 /// one detected application: its dir, the language as detected from its OWN
 /// manifest, and the HTTP framework named in that manifest
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -314,6 +345,22 @@ pub struct AppSite {
     /// "spring" | "express" | "axum" | "flask" | "fastapi" | "unknown" …
     pub framework: String,
     /// the manifest file that named it
+    pub evidence: String,
+    /// RFC-0019 §6.3: compose / own-dockerfile / none — as far as the repo says
+    pub docker: Option<AppGovernance>,
+}
+
+/// RFC-0019 §6.3: a compose service with `image:` and NO `build:` — not our
+/// app; the named external system the C4 Context level draws
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalSystem {
+    /// the compose service key
+    pub name: String,
+    /// "postgres:16" as written
+    pub image: Option<String>,
+    pub ports: Vec<String>,
+    /// compose file:row
     pub evidence: String,
 }
 impl StackReport {
@@ -353,6 +400,7 @@ impl StackReport {
                 manifests_read: vec![],
                 dockerfiles_read: vec![],
             },
+            external_docker: vec![],
             generated_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs())

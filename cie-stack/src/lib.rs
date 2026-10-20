@@ -180,6 +180,7 @@ pub fn stack_report(root: &Path) -> types::StackReport {
         flows: vec![],
         apps: vec![],
         config: vec![],
+        external_docker: vec![],
         notes: vec![],
         coverage: types::Coverage {
             files_scanned: files_seen as u32,
@@ -266,8 +267,96 @@ pub fn stack_report(root: &Path) -> types::StackReport {
             build: a.build.clone(),
             framework: a.framework.clone(),
             evidence: a.evidence.clone(),
+            docker: None, // the governance join fills this below
         })
         .collect();
+
+    // RFC-0019 §6.3: the governance join — "how does the repo say this app
+    // is containerized?" — matched per app, in the RFC's order:
+    //   1. a compose service whose `build:` context IS this app's dir
+    //      → compose governance, evidence = compose file:row
+    //   2. else a Dockerfile under the app's dir → own-dockerfile
+    //   3. else none — and the report says so in plain words
+    // Image-only compose services (image:, no build:) are NOT our apps:
+    // they surface as the C4 Context externals list.
+    let norm_dir = |s: &str| s.trim().trim_start_matches("./").trim_end_matches('/').to_string();
+    if let Some(compose) = &report.docker.compose {
+        for s in &compose.services {
+            if s.image.is_some() && s.build.is_none() {
+                report.external_docker.push(types::ExternalSystem {
+                    name: s.name.clone(),
+                    image: s.image.clone(),
+                    ports: s.ports.clone(),
+                    evidence: format!("{}:{}", compose.path, s.line),
+                });
+            }
+        }
+        for name in &compose.skipped {
+            report
+                .notes
+                .push(format!("compose reader skipped the `{name}` row (duplicate key, or a service naming neither image nor build) — nothing was guessed from it."));
+        }
+    }
+    for app in &mut report.apps {
+        let app_dir = norm_dir(&app.dir);
+        let mut joined = false;
+        if let Some(compose) = &report.docker.compose {
+            if !app_dir.is_empty() {
+                if let Some(svc) = compose.services.iter().find(|s| {
+                    s.build.as_deref().map(|b| norm_dir(b) == app_dir).unwrap_or(false)
+                }) {
+                    app.docker = Some(types::AppGovernance {
+                        kind: "compose".into(),
+                        service: Some(svc.name.clone()),
+                        ports: svc.ports.clone(),
+                        evidence: format!("{}:{}", compose.path, svc.line),
+                    });
+                    joined = true;
+                }
+            }
+        }
+        if !joined {
+            let prefix = if app.dir.is_empty() {
+                String::new()
+            } else {
+                format!("{}/", app_dir)
+            };
+            // a root-level app is governed by a root-level Dockerfile only;
+            // a subdir app by one under its OWN dir — never another app's file
+            let in_app = |p: &str| {
+                if app_dir.is_empty() {
+                    !p.contains('/')
+                } else {
+                    p.starts_with(&prefix)
+                }
+            };
+            if let Some(df) = report.docker.dockerfiles.iter().find(|d| in_app(&d.path)) {
+                app.docker = Some(types::AppGovernance {
+                    kind: "own-dockerfile".into(),
+                    service: None,
+                    ports: df.exposed_ports.iter().map(|p| p.to_string()).collect(),
+                    evidence: df.path.clone(),
+                });
+                joined = true;
+            }
+        }
+        if !joined {
+            app.docker = Some(types::AppGovernance {
+                kind: "none".into(),
+                service: None,
+                ports: vec![],
+                evidence: String::new(),
+            });
+            let label = if app.dir.is_empty() {
+                "the repo root".to_string()
+            } else {
+                app.dir.clone()
+            };
+            report.notes.push(format!(
+                "{label} is not containerized as far as the repo says — no compose row names it and no Dockerfile sits under its directory."
+            ));
+        }
+    }
 
     // jvm counts live in the deep stack for the "one family" framing
     if let Some(jvm) = &mut report.jvm {

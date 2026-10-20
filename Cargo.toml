@@ -147,3 +147,8 @@ cie-server = { path = "cie-server" }
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+
+[profile.dev]
+debug = 0
+[profile.test]
+debug = 0
