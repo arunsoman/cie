@@ -17,6 +17,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
 import type { ChatChartSpec, UmlNode, ElementLoc } from "@/lib/chat-chart";
+import type { ViewSpec } from "viz-adapter";
+import { recomputeSemanticHash, recomputeRenderHash } from "viz-adapter";
+import { renderViaNegotiator } from "@/lib/viz/g6-engine";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
 import { ConceptTreeG6 } from "./concept-tree-g6";
@@ -1033,17 +1036,196 @@ function SequenceSVG({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectE
     </svg>
   );}
 
+// ---------- the G6 canvas path (RFC-0024 stage 1) ----------
+
+/**
+ * ChatChartSpec → gate-clean ViewSpec: the client-side conversion keeps
+ * the producer's discipline — a box without a recorded location is a
+ * hidden[] ledger row (G1), never an unevidenced element (the gate would
+ * refuse it anyway); every narration line rides the box's recorded span;
+ * edges are grounded in their source box's span (VIZ-H-02). Sealed with
+ * the adapter's own hash functions so the negotiator path is byte-honest.
+ */
+function toViewSpec(spec: ChatChartSpec): { view: ViewSpec; metaById: Map<string, UmlNode> } {
+  const nodes = spec.nodes ?? [];
+  const links = spec.links ?? [];
+  const metaById = new Map<string, UmlNode>();
+  const elements: ViewSpec["elements"] = [];
+  const hidden: ViewSpec["hidden"] = [];
+
+  const evOf = (n: UmlNode): ViewSpec["elements"][number]["evidence"] | null => {
+    if (!n.loc?.file) return null;
+    return {
+      file: n.loc.file,
+      start: n.loc.byteStart ?? 0,
+      end: n.loc.byteEnd ?? Math.max(n.loc.byteStart ?? 0, 1),
+    };
+  };
+
+  for (const n of nodes) {
+    const ev = evOf(n);
+    if (!ev) {
+      // G1: the grouped-out box never pretends to be an element — it is a
+      // ledger row with patch-2 label/kind, clickable in the disclosure popup.
+      hidden.push({
+        id: n.id,
+        reason: "no recorded source location for this box",
+        salienceWeight: 0.4,
+        label: n.title,
+        kind: n.kind,
+      });
+      continue;
+    }
+    metaById.set(n.id, n);
+    const fields: Record<string, unknown> = { kind: n.kind };
+    if (n.lines?.length) {
+      // Patch-3 gate rule: narration lines are evidence-gated — each line
+      // cites the box's own recorded span (grounded, never fabricated).
+      fields.bodyLines = n.lines.map((text) => ({
+        text,
+        line: n.loc?.line ?? 0,
+        evidence: ev,
+      }));
+    }
+    if (n.more) fields.more = n.more;
+    elements.push({
+      id: n.id,
+      elementKind: n.kind,
+      displayMode: "Fact",
+      label: n.title,
+      evidence: ev,
+      salience: { factors: ["STORE_RECORD"], weight: n.selected ? 1 : 0.6, whyShown: "box built from the loaded store" },
+      fields,
+      parentId: undefined,
+    });
+  }
+
+  const edges: ViewSpec["edges"] = [];
+  links.forEach((l, i) => {
+    const src = metaById.get(l.from);
+    const dst = metaById.get(l.to);
+    if (!src || !dst) return; // an edge into a hidden box is not drawn
+    edges.push({
+      id: `l-${i}`,
+      source: l.from,
+      target: l.to,
+      edgeKind: l.label ?? "relates",
+      displayMode: "Fact",
+      evidence: {
+        file: src.loc!.file,
+        start: src.loc!.byteStart ?? 0,
+        end: src.loc!.byteEnd ?? Math.max(src.loc!.byteStart ?? 0, 1),
+      },
+    });
+  });
+
+  const facts = elements.length;
+  const view: ViewSpec = {
+    elements,
+    edges,
+    footer: { facts, inferences: 0, hypotheses: 0, fog: 0, stale: 0, caption: hidden.length ? `${hidden.length} box(es) grouped out — open the ledger.` : "Display categories, not a confidence score." },
+    gaps: hidden.length ? [{ id: "gap-grouped-boxes", area: "boxes", why: `${hidden.length} box(es) without a recorded location are listed in hidden[]` }] : [],
+    hidden,
+    scope: { revision: 0, environments: [], coverage: { analyzed: true } },
+    layoutHint: { strategy: "dagre" },
+    semanticHash: "",
+    renderHash: "",
+  };
+  view.semanticHash = recomputeSemanticHash(view);
+  view.renderHash = recomputeRenderHash(view, "");
+  return { view, metaById };
+}
+
+/** The canvas body for uml/flow/c4: negotiator → gate → G6 host. Click
+ *  fires the patch-1 selection surface and keeps today's ask/source
+ *  behavior (the popup replaces jump-to-source at stage 3). */
+function DiagramG6({ spec }: { spec: ChatChartSpec }) {
+  const ask = useAsk();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [note, setNote] = useState<string>("negotiating engine…");
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const { view, metaById } = toViewSpec(spec);
+    if (!view.elements.length) return;
+    let disposed = false;
+    let offSelection: (() => void) | null = null;
+    let handle: Awaited<ReturnType<typeof renderViaNegotiator>>["handle"] | null = null;
+
+    void (async () => {
+      try {
+        const result = await renderViaNegotiator(host, view, {});
+        if (disposed) {
+          void result.handle.dispose();
+          return;
+        }
+        handle = result.handle;
+        setNote(`${result.disclosure.headline} · ${result.handle.layout.actual}`);
+        offSelection = result.handle.onSelection((ids) => {
+          const id = ids[ids.length - 1];
+          if (!id) return;
+          const n = metaById.get(id);
+          if (!n) return;
+          ask(spec, { name: n.title, loc: n.loc });
+        });
+      } catch (err) {
+        setNote(`engine declined: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      offSelection?.();
+      void handle?.dispose();
+    };
+  }, [spec, ask]);
+
+  const nodes = spec.nodes ?? [];
+  return (
+    <div>
+      {spec.title && <p className="text-sm font-semibold text-stone-900 mb-0.5 break-words">{spec.title}</p>}
+      {spec.tell && <p className="text-xs text-stone-500 mb-1.5">{spec.tell}</p>}
+      <div ref={hostRef} className="w-full min-h-[240px] rounded-lg border border-stone-200/70" role="img" aria-label={`${spec.kind} diagram, ${nodes.length} boxes`} />
+      <p className="text-[10px] text-stone-400 mt-1">G6 canvas · {note} · drag to pan, scroll to zoom</p>
+    </div>
+  );
+}
+
+/** The uml/flow/c4 host: G6 canvas primary (negotiator path), the SVG
+ *  painter demoted to the parity harness — one toggle, honestly labelled. */
+function DiagramCanvas({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
+  const [svgHarness, setSvgHarness] = useState(false);
+  return (
+    <div>
+      {svgHarness ? (
+        <DiagramSVG spec={spec} onSelectElement={onSelectElement} />
+      ) : (
+        <DiagramG6 spec={spec} />
+      )}
+      <p className="mt-1">
+        <button
+          type="button"
+          onClick={() => setSvgHarness((v) => !v)}
+          className="text-[10px] text-stone-400 underline decoration-dotted hover:text-stone-600"
+        >
+          {svgHarness ? "draw with the G6 canvas" : "parity harness: draw as SVG"}
+        </button>
+      </p>
+    </div>
+  );
+}
+
 // ---------- dispatcher ----------
 
 export function ChatChart({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
   if (spec.kind === "table") return <div className="mt-1"><ChatTable spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "donut") return <div className="mt-1"><ChatDonut spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "stat") return <div className="mt-1"><ChatStat spec={spec} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "uml" || spec.kind === "flow") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
+  if (spec.kind === "uml" || spec.kind === "flow" || spec.kind === "c4") return <div className="mt-1"><DiagramCanvas spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "tree") return <div className="mt-1"><ConceptTreeG6 spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "mindmap") return <div className="mt-1"><MindmapSVG spec={spec} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "heatmap") return <div className="mt-1"><Heatmap spec={spec} /><ChartFootnote spec={spec} /></div>;
-  if (spec.kind === "c4") return <div className="mt-1"><DiagramSVG spec={spec} onSelectElement={onSelectElement} /><ChartFootnote spec={spec} /></div>;
   if (spec.kind === "sequence") return <div className="mt-1"><SequenceSVG spec={spec} onSelectElement={onSelectElement} /><p className="text-[10px] text-stone-400 flex items-center gap-1 mt-1"><MessageCircleQuestion className="h-3 w-3" /> {ASK_HINT} for an arrow — each one stands for real, recorded code · dashed = inferred · dashed emerald + YOU CONFIRMED = your own check</p><ChartFootnote spec={spec} /></div>;
   return <div className="mt-1"><FisheyeHBar spec={spec} /><ChartFootnote spec={spec} /></div>;
 }

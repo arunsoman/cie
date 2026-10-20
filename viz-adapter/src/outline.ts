@@ -5,7 +5,7 @@
  * the fallback when canvas rendering fails.
  */
 
-import type { ViewSpec } from './types.js';
+import type { ViewSpec } from './types';
 
 const WORD: Record<string, string> = {
   Fact: 'Fact, statically proven',

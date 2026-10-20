@@ -430,3 +430,18 @@ Work Log:
 
 Stage Summary:
 - The engine now emits the data the UI cannot fake: decisions with exact lines, flow elements over facts, stores with honest evidence. The R4 FlowChart in stage 4 consumes exactly this.
+---
+Task ID: 30
+Agent: main (Z.ai)
+Task: RFC-0024 stage 1 — G6 host runtime + render bodies through the negotiator.
+
+Work Log:
+- g6 NODE_TYPE gained process/decision/store/board-card (the four budget kinds).
+- renderHosted() in the negotiator: negotiate → gate → adapt → configure → host.render; HostRenderRuntime type; G6Adapter.setHostRuntime (throw without one stays the documented capability statement). 4 new tests prove order, un-bypassable gate on the hosted path, handle selection surface, and the no-runtime throw.
+- NEW web/src/lib/viz/g6-engine.ts — the host runtime: tree strategies pre-layout via @antv/hierarchy (the concept-tree math generalized), others through G6's registry; pan/zoom/drag, autoFit, autoResize; every click fires the patch-1 selection surface; relayout via handle→graph WeakMap.
+- chat-chart.tsx: uml/flow/c4 render through renderViaNegotiator (DiagramG6); the ChatChartSpec→ViewSpec conversion keeps producer discipline (unlocated boxes → hidden[] G1 rows with patch-2 label/kind; evidence-gated bodyLines; edges grounded in the source box's span; sealed with the adapter's hash fns). DiagramSVG demoted to a labelled parity-harness toggle; deletion stays stage 6.
+- Packaging: viz-adapter is a web file: dep (TS exports map) + transpilePackages + turbopack.root=".." ; internal imports extensionless so vitest and Turbopack share one source.
+- Verified: viz-adapter 305/305, tsc clean both sides, next build compiles successfully (client bundle carries the negotiator path).
+
+Stage Summary:
+- There is now exactly ONE render path (negotiator → gate → host) and the page draws uml/flow/c4 on the G6 canvas with the patch-1 selection surface live — the SVG painter only answers the parity harness.

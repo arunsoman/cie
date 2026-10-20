@@ -14,7 +14,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { ViewSpec } from './types.js';
+import type { ViewSpec } from './types';
 
 /** Stable stringify: object keys sorted at every depth (arrays in order),
  *  integral floats rendered the JS way (they already are — this pass pins

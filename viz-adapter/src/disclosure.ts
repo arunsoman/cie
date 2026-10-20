@@ -4,8 +4,8 @@
  * renders these payloads verbatim.
  */
 
-import type { EncodingFidelity, HiddenCandidate, LayoutOutcome } from './types.js';
-import type { NegotiationDisclosure } from './negotiator.js';
+import type { EncodingFidelity, HiddenCandidate, LayoutOutcome } from './types';
+import type { NegotiationDisclosure } from './negotiator';
 
 /** VIZ-28 — the engine banner. */
 export interface EngineBanner {

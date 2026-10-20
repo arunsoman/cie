@@ -205,13 +205,32 @@ export interface AuditReport {
   layout: LayoutOutcome;
 }
 
-/** RFC-0024 patch 1 — who moved the selection: a human click in the
- *  canvas ('user') or a host call (chips, plan, conductor —
- *  'programmatic'). Engines MUST tag every callback. */
+/**
+ * RFC-0024 patch 1 — who moved the selection: a human click in the
+ * canvas ('user') or a host call (chips, plan, conductor —
+ * 'programmatic'). Engines MUST tag every callback. */
 export type SelectionOrigin = 'user' | 'programmatic';
 
 /** RFC-0024 patch 1 — selection callback: element ids in pick order. */
 export type SelectionListener = (ids: string[], origin: SelectionOrigin) => void;
+
+/**
+ * RFC-0024 stage 1 — the host-injected render runtime. The PAGE bundles
+ * @antv/g6 and owns pixels + events; the adapter package stays
+ * headless-pure (no DOM, no engine import). The negotiator hands the
+ * host the ADAPTER-PREPARED data + options after negotiate → gate →
+ * adapt → configure, so there is still exactly one render path
+ * (VIZ-09) and no bypass of the gate.
+ */
+export interface HostRenderRuntime {
+  render(
+    engineId: EngineId,
+    container: HTMLElement,
+    spec: ViewSpec,
+    options: RenderOptions,
+  ): Promise<RenderHandle>;
+  relayout?(engineId: EngineId, handle: RenderHandle, layout: LayoutHint): Promise<LayoutOutcome>;
+}
 
 /**
  * RFC-0024 patch 1 (ux-spec §2.3/§13.1) — the selection surface on every

@@ -15,20 +15,23 @@ import type {
   G6EdgeDatum,
   G6NodeDatum,
   GraphData,
+  HostRenderRuntime,
   LayoutHint,
   LayoutOutcome,
   Preferences,
   RenderHandle,
   RenderOptions,
   ViewSpec,
-} from '../types.js';
-import { gate } from '../gate.js';
-import { recomputeRenderHash } from '../hash.js';
-import { audit as provenanceAudit } from '../audit.js';
+} from '../types';
+import { gate } from '../gate';
+import { recomputeRenderHash } from '../hash';
+import { audit as provenanceAudit } from '../audit';
 
 // ── Epistemic vocabulary (open maps, fixed law) ─────────────────────────
 
-/** Open node-type vocabulary — adding a kind is adding ONE entry. */
+/** Open node-type vocabulary — adding a kind is adding ONE entry.
+ *  RFC-0024 stage 1: process/decision/store/board-card are the FOUR new
+ *  kinds the extension budget was spent on (catalog C10 + ux-spec §4.1). */
 export const NODE_TYPE: Record<string, string> = {
   concept: 'circle',
   symbol: 'rect',
@@ -38,6 +41,10 @@ export const NODE_TYPE: Record<string, string> = {
   domain: 'donut',
   entity: 'ellipse',
   'stack-frame': 'cie-flame-frame',
+  process: 'rect',
+  decision: 'diamond',
+  store: 'rect',
+  'board-card': 'rect',
 };
 
 /** Unregistered name falls back to `circle`, never crashes. */
@@ -275,6 +282,18 @@ export class G6Adapter implements EngineAdapter {
   readonly id: EngineId = 'g6';
   readonly capabilities = G6_CAPABILITIES;
   readonly limits = G6_LIMITS;
+  /** RFC-0024 stage 1 — the host-injected runtime (the page bundles
+   *  @antv/g6). When registered, render/relayout delegate to it; without
+   *  one they remain the documented capability statement (throw), never
+   *  a silent blank. */
+  private hostRuntime: HostRenderRuntime | null = null;
+
+  setHostRuntime(rt: HostRenderRuntime): void {
+    this.hostRuntime = rt;
+  }
+  hasHostRuntime(): boolean {
+    return this.hostRuntime !== null;
+  }
 
   gate(spec: ViewSpec): void {
     gate(spec);
@@ -292,18 +311,26 @@ export class G6Adapter implements EngineAdapter {
     }
     return { ...base, ...options };
   }
-  /** Browser-only: requires the @antv/g6 runtime; typed for the host page. */
+  /** Browser-only: requires the @antv/g6 host runtime — REGISTER one via
+   *  setHostRuntime (the page bundles G6; the adapter stays headless).
+   *  Without one, this throw is a documented capability statement. */
   async render(
-    _container: HTMLElement,
-    _spec: ViewSpec,
-    _options: RenderOptions,
+    container: HTMLElement,
+    spec: ViewSpec,
+    options: RenderOptions,
   ): Promise<RenderHandle> {
-    throw new Error(
-      'g6 render requires the @antv/g6 host runtime — use demos/*.html or import @antv/g6 in the page',
-    );
+    if (!this.hostRuntime) {
+      throw new Error(
+        'g6 render requires the @antv/g6 host runtime — register it with setHostRuntime (RFC-0024 stage 1)',
+      );
+    }
+    return this.hostRuntime.render(this.id, container, spec, options);
   }
-  async relayout(_handle: RenderHandle, _layout: LayoutHint): Promise<LayoutOutcome> {
-    throw new Error('g6 relayout requires the @antv/g6 host runtime');
+  async relayout(handle: RenderHandle, layout: LayoutHint): Promise<LayoutOutcome> {
+    if (!this.hostRuntime?.relayout) {
+      throw new Error('g6 relayout requires the @antv/g6 host runtime');
+    }
+    return this.hostRuntime.relayout(this.id, handle, layout);
   }
   audit(spec: ViewSpec, layout: LayoutOutcome = layoutOutcomeFor(spec)): AuditReport {
     return {

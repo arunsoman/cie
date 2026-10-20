@@ -15,7 +15,7 @@
  * Headless-pure: no DOM, no engine import — vitest-suite-testable.
  */
 
-import type { SelectionListener, SelectionOrigin } from './types.js';
+import type { SelectionListener, SelectionOrigin } from './types';
 
 export interface SelectionHub {
   /** Subscribe; returns the unsubscribe function. */

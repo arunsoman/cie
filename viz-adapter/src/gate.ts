@@ -5,8 +5,8 @@
  * same stable codes.
  */
 
-import type { ViewSpec } from './types.js';
-import { VizError } from './errors.js';
+import type { ViewSpec } from './types';
+import { VizError } from './errors';
 
 /** Salience-bounded cap of 2 000 elements per view (PRD VIZ-I-06). */
 export const ELEMENT_CAP = 2_000;

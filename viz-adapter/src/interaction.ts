@@ -24,7 +24,7 @@ import type {
   DisplayMode,
   LayoutHint,
   ViewSpec,
-} from './types.js';
+} from './types';
 
 // ── US-022: level of detail + settle ────────────────────────────────────
 

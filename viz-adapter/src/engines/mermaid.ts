@@ -17,10 +17,10 @@ import type {
   RenderHandle,
   RenderOptions,
   ViewSpec,
-} from '../types.js';
-import { gate } from '../gate.js';
-import { recomputeRenderHash } from '../hash.js';
-import { audit as provenanceAudit } from '../audit.js';
+} from '../types';
+import { gate } from '../gate';
+import { recomputeRenderHash } from '../hash';
+import { audit as provenanceAudit } from '../audit';
 
 export const MERMAID_LAYOUTS = ['dagre', 'elk'] as const;
 

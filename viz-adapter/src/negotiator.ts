@@ -17,12 +17,13 @@ import type {
   EngineAdapter,
   EngineId,
   EngineRequest,
+  HostRenderRuntime,
   LayoutHint,
   RenderOptions,
   RenderHandle,
   ViewSpec,
-} from './types.js';
-import { NegotiationError, VizError } from './errors.js';
+} from './types';
+import { NegotiationError, VizError } from './errors';
 
 /** PRD §6's deterministic tie-break order. */
 export const ENGINE_ORDER: EngineId[] = ['g6', 'jointjs', 'reactflow', 'mermaid'];
@@ -190,4 +191,56 @@ export function renderHashOf(spec: ViewSpec, engineId: string): string {
   return recomputeRenderHash(spec, engineId);
 }
 
-import * as hashModule from './hash.js';
+import * as hashModule from './hash';
+
+/**
+ * RFC-0024 stage 1 — the HOSTED render pipeline. Same negotiation →
+ * gate → adapt → configure sequence as `renderHeadless` (VIZ-09: there
+ * is still NO render path that bypasses the negotiator), then the
+ * HOST-INJECTED render call executes: the page bundles @antv/g6 and
+ * owns pixels + events; the adapter package stays headless-pure. The
+ * returned RenderHandle (with its patch-1 selection surface) is the
+ * host's to hand back.
+ */
+export async function renderHosted(
+  spec: ViewSpec,
+  request: Omit<EngineRequest, 'graphSize' | 'layoutHint'> & {
+    graphSize?: { nodes: number; edges: number };
+    layoutHint?: LayoutHint;
+  },
+  registry: Map<EngineId, EngineAdapter>,
+  container: HTMLElement,
+  options: RenderOptions,
+  host: HostRenderRuntime,
+): Promise<HostedResult> {
+  const full: EngineRequest = {
+    ...request,
+    graphSize: request.graphSize ?? { nodes: spec.elements.length, edges: spec.edges.length },
+    layoutHint: request.layoutHint ?? spec.layoutHint,
+  };
+  const adapter = chooseEngine(full, registry);
+  const disclosure = disclose(full, adapter, registry);
+  adapter.gate(spec); // single honesty enforcement point — still un-bypassable
+  const data = adapter.adapt(spec);
+  const opts = adapter.configure(spec, options);
+  const handle = await host.render(adapter.id, container, spec, opts as RenderOptions);
+  return {
+    engineId: adapter.id,
+    data,
+    options: opts,
+    disclosure,
+    handle,
+    renderHash: renderHashOf(spec, adapter.id),
+    spec,
+  };
+}
+
+export interface HostedResult {
+  engineId: EngineId;
+  data: unknown;
+  options: unknown;
+  disclosure: NegotiationDisclosure;
+  handle: RenderHandle;
+  renderHash: string;
+  spec: ViewSpec;
+}

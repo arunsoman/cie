@@ -15,19 +15,19 @@
  * reactflow (full via custom node), mermaid (degraded, disclosed).
  */
 
-export * from './types.js';
-export { VizError, NegotiationError } from './errors.js';
-export type { GateErrorCode } from './errors.js';
-export { gate, gateFields, ELEMENT_CAP } from './gate.js';
+export * from './types';
+export { VizError, NegotiationError } from './errors';
+export type { GateErrorCode } from './errors';
+export { gate, gateFields, ELEMENT_CAP } from './gate';
 export {
   stableStringify,
   recomputeSemanticHash,
   recomputeRenderHash,
   verifySemanticHash,
   verifyRenderHash,
-} from './hash.js';
-export { audit } from './audit.js';
-export type { AuditFinding } from './audit.js';
+} from './hash';
+export { audit } from './audit';
+export type { AuditFinding } from './audit';
 export {
   ENGINE_ORDER,
   chooseEngine,
@@ -35,14 +35,15 @@ export {
   decideAll,
   disclose,
   renderHeadless,
+  renderHosted,
   renderHashOf,
-} from './negotiator.js';
-export type { EngineDecision, NegotiationDisclosure, HeadlessResult } from './negotiator.js';
-export { engineBanner, layoutChip, fidelityBanner, hiddenRows } from './disclosure.js';
-export type { EngineBanner, LayoutChip, FidelityBanner, HiddenRow } from './disclosure.js';
-export { createSelectionHub } from './selection.js';
-export type { SelectionHub } from './selection.js';
-export { textOutline, outlineSummary, renderOutline } from './outline.js';
+} from './negotiator';
+export type { EngineDecision, NegotiationDisclosure, HeadlessResult, HostedResult } from './negotiator';
+export { engineBanner, layoutChip, fidelityBanner, hiddenRows } from './disclosure';
+export type { EngineBanner, LayoutChip, FidelityBanner, HiddenRow } from './disclosure';
+export { createSelectionHub } from './selection';
+export type { SelectionHub } from './selection';
+export { textOutline, outlineSummary, renderOutline } from './outline';
 export {
   MODE_CHANNELS,
   SettleDetector,
@@ -57,7 +58,7 @@ export {
   rovingOrder,
   verifyParity,
   verifyTheme,
-} from './interaction.js';
+} from './interaction';
 export type {
   Gesture,
   GestureKind,
@@ -70,10 +71,10 @@ export type {
   Theme,
   ThemeToken,
   LayoutQuality,
-} from './interaction.js';
-export type { OutlineEntry } from './outline.js';
-export { CATALOG, CATALOG_SUMMARY, actionsFor, CATEGORY_DEFAULT_ACTIONS } from './catalog.js';
-export type { CatalogEntry, CatalogCategory, G6Status, ChartAction } from './catalog.js';
+} from './interaction';
+export type { OutlineEntry } from './outline';
+export { CATALOG, CATALOG_SUMMARY, actionsFor, CATEGORY_DEFAULT_ACTIONS } from './catalog';
+export type { CatalogEntry, CatalogCategory, G6Status, ChartAction } from './catalog';
 
 export {
   G6Adapter,
@@ -89,45 +90,45 @@ export {
   WORDS,
   G6_LAYOUTS,
   layoutOutcomeFor as g6LayoutOutcome,
-} from './engines/g6.js';
+} from './engines/g6';
 export {
   MermaidAdapter,
   adapt as mermaidAdapt,
   MERMAID_CLASSDEFS,
   MERMAID_LAYOUTS,
-} from './engines/mermaid.js';
-export type { MermaidOutput } from './engines/mermaid.js';
+} from './engines/mermaid';
+export type { MermaidOutput } from './engines/mermaid';
 export {
   ReactFlowAdapter,
   adapt as reactflowAdapt,
   layeredPositions,
   RF_CLASSES,
   REACTFLOW_LAYOUTS,
-} from './engines/reactflow.js';
-export type { RFGraph, RFNode, RFEdge } from './engines/reactflow.js';
+} from './engines/reactflow';
+export type { RFGraph, RFNode, RFEdge } from './engines/reactflow';
 export {
   JointJSAdapter,
   adapt as jointjsAdapt,
   JOINT_DASH,
   JOINT_STROKE,
   JOINTJS_LAYOUTS,
-} from './engines/jointjs.js';
-export type { JointGraph, JointElement, JointLink } from './engines/jointjs.js';
+} from './engines/jointjs';
+export type { JointGraph, JointElement, JointLink } from './engines/jointjs';
 export {
   computeFlameGeometry,
   depthColor,
   FLAME_DASH,
   FLAME_STROKE,
   FLAME_REGISTRATION_SNIPPET,
-} from './engines/flame.js';
-export type { FlameGeometry, FlameFrame, FlameNodeIn, FlameEdgeIn } from './engines/flame.js';
+} from './engines/flame';
+export type { FlameGeometry, FlameFrame, FlameNodeIn, FlameEdgeIn } from './engines/flame';
 
 /** The default registry: all four engines, negotiator-ready. */
-import { G6Adapter } from './engines/g6.js';
-import { JointJSAdapter } from './engines/jointjs.js';
-import { ReactFlowAdapter } from './engines/reactflow.js';
-import { MermaidAdapter } from './engines/mermaid.js';
-import type { EngineAdapter, EngineId } from './types.js';
+import { G6Adapter } from './engines/g6';
+import { JointJSAdapter } from './engines/jointjs';
+import { ReactFlowAdapter } from './engines/reactflow';
+import { MermaidAdapter } from './engines/mermaid';
+import type { EngineAdapter, EngineId } from './types';
 
 export function defaultRegistry(): Map<EngineId, EngineAdapter> {
   const adapters: EngineAdapter[] = [

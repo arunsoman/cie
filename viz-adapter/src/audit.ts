@@ -11,7 +11,7 @@
  *   H-05  every gap is reachable from the footer caption
  */
 
-import type { ViewSpec } from './types.js';
+import type { ViewSpec } from './types';
 
 export interface AuditFinding {
   rule: string;
