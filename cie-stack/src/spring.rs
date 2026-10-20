@@ -1205,9 +1205,17 @@ QUOTED_RE.captures(&a.args)
             }
         }
 
-        if names.contains(&"FeignClient") {
+        if let Some(ann) = c.anns.iter().find(|a| a.name == "FeignClient") {
             jvm.outbound.push(JvmOutbound {
                 kind: "feign".into(),
+                line: ann.line,
+                target: feign_target(&ann.args).map(|(_,v)|v),
+                target_kind: feign_target(&ann.args).map(|(k,_)|k).unwrap_or_default(),
+                requests: c.methods.iter().flat_map(|m|m.anns.iter()).filter_map(|a| {
+                    let verb = match a.name.as_str() { "GetMapping"=>"GET", "PostMapping"=>"POST", "PutMapping"=>"PUT", "DeleteMapping"=>"DELETE", "PatchMapping"=>"PATCH", _=>return None };
+                    let base=PATH_PATH_RE.captures(&ann.args).and_then(|c|c.get(1)).map(|m|m.as_str()).unwrap_or("");
+                    Some(crate::types::OutboundRequest{verb:verb.into(),path:join_path(base,&annotation_path(&a.args))})
+                }).collect(),
                 cls: c.name.clone(),
                 rel: c.rel.clone(),
             });
@@ -1215,18 +1223,21 @@ QUOTED_RE.captures(&a.args)
         if c.injections.iter().any(|i| i.r#type.contains("RestTemplate")) {
             jvm.outbound.push(JvmOutbound {
                 kind: "rest-template".into(),
+                line: c.line, target: None, target_kind: String::new(), requests: vec![],
                 cls: c.name.clone(),
                 rel: c.rel.clone(),
             });
         } else if c.injections.iter().any(|i| i.r#type.contains("WebClient")) {
             jvm.outbound.push(JvmOutbound {
                 kind: "web-client".into(),
+                line: c.line, target: None, target_kind: String::new(), requests: vec![],
                 cls: c.name.clone(),
                 rel: c.rel.clone(),
             });
         } else if c.injections.iter().any(|i| i.r#type.contains("KafkaTemplate")) {
             jvm.outbound.push(JvmOutbound {
                 kind: "kafka-producer".into(),
+                line: c.line, target: None, target_kind: String::new(), requests: vec![],
                 cls: c.name.clone(),
                 rel: c.rel.clone(),
             });
@@ -1468,4 +1479,26 @@ fn callish(span: &str) -> bool {
         && !span.starts_with("return")
         && !span.contains("//")
         && !span.contains("new ")
+}
+
+
+/// Parse only Feign routing attributes; contextId/qualifiers are not destinations.
+fn feign_target(args: &str) -> Option<(String,String)> {
+    for key in ["url", "name", "value"] {
+        let re=Regex::new(&format!(r#"(?:^|,)\s*{}\s*=\s*"([^"]+)"\s*(?:,|$)"#,key)).ok()?;
+        if let Some(c)=re.captures(args) { return Some((if key=="url"{"url"}else{"name"}.into(),c[1].into())); }
+    }
+    BARE_PATH_RE.captures(args).map(|c|("name".into(),c[1].into()))
+}
+
+#[cfg(test)]
+mod feign_destination_tests {
+    use super::*;
+    #[test]
+    fn attributes_are_named_and_explicit_url_takes_precedence() {
+        assert_eq!(feign_target(r#"contextId = "not-a-service", name = "billing""#),Some(("name".into(),"billing".into())));
+        assert_eq!(feign_target(r#"name = "billing", url = "https://other/invoices""#),Some(("url".into(),"https://other/invoices".into())));
+        assert_eq!(feign_target(r#"contextId = "not-a-service""#),None);
+        assert_eq!(feign_target(r#""billing""#),Some(("name".into(),"billing".into())));
+    }
 }

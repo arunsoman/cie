@@ -224,6 +224,7 @@ impl StackParser for CompositeParser {
 
 fn types_fresh(reference: &StackReport) -> StackReport {
     StackReport {
+        cross_service: vec![],
         v: reference.v,
         build: crate::types::BuildInfo {
             tool: String::new(),

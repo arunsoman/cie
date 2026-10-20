@@ -16,6 +16,7 @@ pub mod docker;
 pub mod factory;
 pub mod spring;
 pub mod types;
+pub mod cross_service;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -162,6 +163,7 @@ pub fn stack_report(root: &Path) -> types::StackReport {
     let parser = factory::pick(&det);
 
     let mut report = types::StackReport {
+        cross_service: vec![],
         v: 1,
         build: det.build.clone(),
         languages: det.languages(),
@@ -295,6 +297,7 @@ pub fn stack_report(root: &Path) -> types::StackReport {
             .push("no routes parsed for this stack yet — the stub above says exactly what CIE did and didn't read.".into());
     }
 
+    cross_service::resolve_cross_service(&mut report);
     report
 }
 

@@ -45,3 +45,21 @@ fn flows_carry_branches_and_database_nodes() {
     assert!(text.contains("\"decision\""), "branch decisions exist");
     assert!(text.contains("\"database\""), "db nodes exist");
 }
+
+#[test]
+fn feign_outbound_resolves_to_the_other_services_route() {
+ let dir=Path::new(env!("CARGO_MANIFEST_DIR")).join("../samples/polyglot");
+ let report=stack_report(&dir);
+ let edge=report.cross_service.iter().find(|e|e.from_app=="berth-booking"&&e.to_app=="billing").expect("Feign declaration joins billing route");
+ assert_eq!(edge.matched_path,"/invoices/{id}");
+ assert!(edge.from_evidence.contains("BillingClient.java:"));
+ assert!(edge.to_evidence.contains("BillingController.kt:"));
+ let ob=report.jvm.as_ref().unwrap().outbound.iter().find(|o|o.cls=="BillingClient").unwrap();
+ assert_eq!(ob.target.as_deref(),Some("billing"));assert!(ob.line>0);
+ let mut broken=report.clone();broken.jvm.as_mut().unwrap().outbound.iter_mut().for_each(|o|o.target=Some("external.invalid".into()));
+ cie_stack::cross_service::resolve_cross_service(&mut broken);assert!(broken.cross_service.is_empty());assert!(broken.notes.iter().any(|n|n.contains("no unique")));
+ let mut ambiguous=report.clone();let route=ambiguous.routes.iter().find(|r|r.service=="billing"&&r.path=="/invoices/{id}").unwrap().clone();ambiguous.routes.push(route);
+ cie_stack::cross_service::resolve_cross_service(&mut ambiguous);assert!(ambiguous.cross_service.is_empty());assert!(ambiguous.notes.iter().any(|n|n.contains("ambiguous")));
+ let mut legacy=serde_json::to_value(report).unwrap();legacy.as_object_mut().unwrap().remove("crossService");
+ let old:cie_stack::types::StackReport=serde_json::from_value(legacy).unwrap();assert!(old.cross_service.is_empty());
+}

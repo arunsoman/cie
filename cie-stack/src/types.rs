@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StackReport {
+    #[serde(default)]
+    pub cross_service: Vec<CrossServiceCall>,
     pub v: u32,
     pub build: BuildInfo,
     pub languages: Vec<StackLang>,
@@ -211,6 +213,14 @@ pub struct JvmListener {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmOutbound {
+    #[serde(default)]
+    pub line: u32,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub target_kind: String,
+    #[serde(default)]
+    pub requests: Vec<OutboundRequest>,
     pub kind: String, // "rest-template" | "web-client" | "feign"
     pub cls: String,
     pub rel: String,
@@ -314,6 +324,7 @@ impl StackReport {
     /// degraded state exactly as written here.
     pub fn unavailable(reason: &str) -> StackReport {
         StackReport {
+            cross_service: vec![],
             v: 1,
             build: BuildInfo {
                 tool: "unknown".into(),
@@ -348,4 +359,16 @@ impl StackReport {
                 .unwrap_or(0),
         }
     }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
+pub struct OutboundRequest { pub verb: String, pub path: String }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
+pub struct CrossServiceCall {
+    pub from_app: String, pub to_app: String, pub via: String,
+    pub matched_path: String, pub from_evidence: String, pub to_evidence: String,
+    pub match_basis: String,
 }
