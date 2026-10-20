@@ -115,6 +115,7 @@ impl SurvivingCandidate {
     /// accepts this ONLY with `Authority::InferredCandidate` (§8 rule 4).
     pub fn to_contract(&self, symbols: Vec<cie_core::types::SymbolId>) -> Contract {
         Contract {
+                verified_by: vec![],
                 introduced: None,
             id: 0, // assigned by the registry
             obligation: ObligationKind::Protocol,

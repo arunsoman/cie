@@ -4,8 +4,9 @@ use cie_incremental::snapshot::{SnapshotStoreExt, RevSnapshot};
 fn filtered_model_persists_roundtrips_and_survives_noop_without_fabrication() {
     let root=std::env::temp_dir().join(format!("cie-rfc20-{}-{}",std::process::id(),cie_core::types::now_ns()));
     std::fs::create_dir_all(&root).unwrap();
-    std::fs::write(root.join("app.py"),"def authorize():\n    print('hello')\n    return True\n").unwrap();
+    std::fs::write(root.join("app.py"),"def authorize():\n    print('hello')\n    return True\n\ndef test_authorize():\n    assert authorize()\n").unwrap();
     let out=run_ingest(&root,&IngestOptions::default()).unwrap();
+    assert!(out.snapshot.contracts.iter().any(|c| !c.verified_by.is_empty()));
     let view=out.snapshot.state_model.as_ref().unwrap();
     assert!(view.transitions.iter().all(|t|t.display_mode=="Fact"));
     assert!(view.transitions.iter().flat_map(|t|&t.evidence).all(|p|p.symbol.0!=u32::MAX));

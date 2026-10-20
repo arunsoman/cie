@@ -286,6 +286,7 @@ mod tests {
             ],
             findings: vec![finding(SymbolId(7)), finding(SymbolId(1))],
             contracts: vec![Contract {
+                verified_by: vec![],
                 introduced: None,
                 id: 0,
                 obligation: ObligationKind::MustAuthorize,

@@ -147,6 +147,9 @@ pub enum ContractSource {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Contract {
+    /// Static reachability only, not executed coverage or assertion proof.
+    #[serde(default)]
+    pub verified_by: Vec<SymbolId>,
     /// Blame-derived commit metadata, not proof of semantic introduction.
     #[serde(default)]
     pub introduced: Option<Vec<cie_history::CommitMeta>>,

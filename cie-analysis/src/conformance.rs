@@ -449,6 +449,7 @@ pub fn run(
             };
             if let Some(ob) = obligation {
                 contracts.push(Contract {
+                verified_by: vec![],
                 introduced: None,
                     id: cid,
                     obligation: ob,
@@ -468,6 +469,7 @@ pub fn run(
         }
         if is_auth_name(&sym.name) {
             contracts.push(Contract {
+                verified_by: vec![],
                 introduced: None,
                 id: cid,
                 obligation: ObligationKind::MustAuthorize,
@@ -483,6 +485,7 @@ pub fn run(
         }
         if is_money_name(&sym.name) || is_destructive_name(&sym.name) {
             contracts.push(Contract {
+                verified_by: vec![],
                 introduced: None,
                 id: cid,
                 obligation: ObligationKind::MustAuthorize,
@@ -500,6 +503,7 @@ pub fn run(
 
     // Ordering for deterministic output
     findings.sort_by(|a, b| (&a.kind, &a.symbol).cmp(&(&b.kind, &b.symbol)));
+    bind_verifying_tests(store, summaries, &mut contracts);
     ConformanceResult {
         findings,
         contracts,
@@ -524,4 +528,49 @@ pub fn bind_history(root: &std::path::Path, store: &SymbolStore, contracts: &mut
     };
     for c in contracts { c.introduced=chain(c.symbols.iter().filter_map(|s|site(*s,None)).collect()); }
     for f in findings { f.introduced=chain(if f.evidence_lines.is_empty(){site(f.symbol,None).into_iter().collect()}else{f.evidence_lines.iter().filter_map(|l|site(f.symbol,Some(*l))).collect()}); }
+}
+
+
+pub const MAX_VERIFY_DEPTH: usize = 6;
+/// Build the reverse index once, then walk each obligation's bound symbols.
+/// This says a parsed test reaches a symbol, not that the rule was asserted.
+pub fn bind_verifying_tests(store: &SymbolStore, summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>, contracts: &mut [Contract]) {
+    use std::collections::{BTreeSet, VecDeque};
+    let tests: BTreeSet<_> = store.symbols.iter().filter(|s|s.is_test()).map(|s|s.id).collect();
+    let mut callers: BTreeMap<SymbolId, BTreeSet<SymbolId>>=BTreeMap::new();
+    for (from,s) in summaries { for to in &s.callees { callers.entry(*to).or_default().insert(*from); } }
+    for contract in contracts {
+        let mut seen=BTreeSet::new(); let mut found=BTreeSet::new();
+        let mut queue: VecDeque<_> = contract.symbols.iter().map(|s|(*s,0)).collect();
+        while let Some((symbol,depth))=queue.pop_front() {
+            if !seen.insert(symbol) { continue; }
+            if tests.contains(&symbol) { found.insert(symbol); }
+            if depth>=MAX_VERIFY_DEPTH { continue; }
+            for caller in callers.get(&symbol).into_iter().flatten() { queue.push_back((*caller,depth+1)); }
+        }
+        contract.verified_by=found.into_iter().collect();
+    }
+}
+
+#[cfg(test)]
+mod reachability_tests {
+    use super::*;
+    use cie_semantic::facts::{SymbolFact,SymbolKind};
+    fn symbol(id:u32,kind:SymbolKind)->SymbolFact { SymbolFact { id:SymbolId(id),kind,name:format!("arbitrary_{id}"),qual_name:format!("arbitrary_{id}"),loc:cie_core::SourceLocation::span_bytes(cie_core::FileId(0),0,1),lang:cie_semantic::LangId::Java,parent:None,rev:1,doc:None } }
+    fn contract()->Contract { Contract { introduced:None,verified_by:vec![],id:0,obligation:ObligationKind::MustAuthorize,expr:"requires authorization".into(),authority:Authority::Explicit,symbols:vec![SymbolId(0)],source:ContractSource::Docstring } }
+    #[test]
+    fn direct_transitive_annotation_tests_depth_cap_and_cycles() {
+        let mut symbols:Vec<_>=(0..9).map(|id|symbol(id,if [1,6,7].contains(&id){SymbolKind::Test}else{SymbolKind::Function})).collect();
+        symbols.push(symbol(20,SymbolKind::Test));
+        let store=SymbolStore::build(symbols);
+        let mut summaries=BTreeMap::new();
+        for i in 1..9 { summaries.insert(SymbolId(i),cie_summary::FunctionSummary{sym:SymbolId(i),callees:vec![SymbolId(i-1)],..Default::default()}); }
+        summaries.insert(SymbolId(0),cie_summary::FunctionSummary{sym:SymbolId(0),callees:vec![SymbolId(1)],..Default::default()});
+        let mut contracts=vec![contract()];bind_verifying_tests(&store,&summaries,&mut contracts);
+        assert_eq!(contracts[0].verified_by,vec![SymbolId(1),SymbolId(6)]);
+        contracts[0].symbols=vec![SymbolId(20)];bind_verifying_tests(&store,&BTreeMap::new(),&mut contracts);assert_eq!(contracts[0].verified_by,vec![SymbolId(20)]);
+        contracts[0].symbols=vec![SymbolId(8)];bind_verifying_tests(&store,&summaries,&mut contracts);assert!(contracts[0].verified_by.is_empty());
+        let mut wire=serde_json::to_value(&contracts[0]).unwrap();wire.as_object_mut().unwrap().remove("verified_by");wire.as_object_mut().unwrap().remove("introduced");
+        let legacy:Contract=serde_json::from_value(wire).unwrap();assert!(legacy.verified_by.is_empty());assert!(legacy.introduced.is_none());
+    }
 }

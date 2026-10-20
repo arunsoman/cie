@@ -159,6 +159,7 @@ fn task_039_name_token_normalization() {
 fn task_039_registry_guards() {
     let mut reg = ContractRegistry::new();
     let naming = Contract {
+                verified_by: vec![],
                 introduced: None,
         id: 0,
         obligation: ObligationKind::Naming,
@@ -172,6 +173,7 @@ fn task_039_registry_guards() {
 
     // Explicit from NamingConvention is equally rejected.
     let fake_explicit = Contract {
+                verified_by: vec![],
                 introduced: None,
         id: 0,
         obligation: ObligationKind::MustAuthorize,
@@ -184,6 +186,7 @@ fn task_039_registry_guards() {
 
     // A legit naming candidate inserts, then upgrades ONLY via proof.
     let ok = Contract {
+                verified_by: vec![],
                 introduced: None,
         id: 0,
         obligation: ObligationKind::Naming,
@@ -201,6 +204,7 @@ fn task_039_registry_guards() {
 
     // LlmCandidate is inert (acceptance #28): never Verified.
     let llm = Contract {
+                verified_by: vec![],
                 introduced: None,
         id: 0,
         obligation: ObligationKind::MustValidateInput,
@@ -214,6 +218,7 @@ fn task_039_registry_guards() {
 
     // ...and an LLM source can never pose as decisive on insert either.
     let llm_explicit = Contract {
+                verified_by: vec![],
                 introduced: None,
         id: 0,
         obligation: ObligationKind::MustValidateInput,

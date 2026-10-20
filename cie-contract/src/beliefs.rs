@@ -101,6 +101,7 @@ impl Belief {
     /// (the guarded registry rejects anything else for rule-mined rules).
     pub fn to_contract(&self, symbols: Vec<SymbolId>) -> Contract {
         Contract {
+                verified_by: vec![],
                 introduced: None,
             id: 0, // assigned by the registry
             obligation: ObligationKind::Custom(format!("belief:{}", self.predicate.as_str())),
