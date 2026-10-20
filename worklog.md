@@ -488,3 +488,19 @@ Work Log:
 
 Stage Summary:
 - A chips-scoped question can no longer reach past the user's hand: the digest is the selection, the prompt says so, and every boundary crossing is named. Empty chips = exactly today's behavior.
+---
+Task ID: 34
+Agent: main (Z.ai)
+Task: RFC-0024 stage 6 — retire the bypasses; complete the implementation record.
+
+Work Log:
+- DELETED DiagramSVG (uml/flow/c4 painter) + the per-kind hand dispatch for those kinds + the SVG parity-harness toggle — one click path through the negotiator/gate/G6 host remains.
+- MindmapSVG deleted; the mindmap kind routes through the G6 tree renderer (same spec.tree data).
+- Statistical painters remain as the registered custom-svg engine (relocated, never a bypass); jointjs/reactflow/mermaid throwing stubs stay as declared capability statements.
+- Recorded the two honest demotions: SequenceSVG (engine replacement is RFC-0023 stage 5 territory — deleting today would break the R4 pair) and mapSelected (map bubble referent; chips are authoritative for context).
+- Implementation record completed with the per-stage acceptance tally.
+- Verified: tsc clean, next build compiles, zero references to the deleted painters.
+
+Stage Summary:
+- The SVG-in-product question is closed for uml/flow/c4/mindmap; exactly one click path, one chart-plan source; the two remaining items are named with reasons, not hidden.
+- Push status: stages 0–2 are on origin (2d12bd7, 6f3d9b7, 4e89aaa, e049fc1). Stages 3–6 (0ceb7c7, +3 more) sit in local commits — the PAT from the user's message began returning 401 mid-run (rotated/revoked after being pasted); push resumes the moment a fresh token arrives.
