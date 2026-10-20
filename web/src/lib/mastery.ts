@@ -457,10 +457,22 @@ export function buildSequenceSpec(title: string, steps: TraceStep[], you: Set<nu
  *  calls come from the engine's recorded cross-service matches first. With
  *  no stack artifact the path heuristic below still draws — no project
  *  regresses, and the tell says which lens produced the picture. */
+/** How much a spec shows: "summary" is the dashboard card (a handful of
+ *  boxes, the rest grouped behind an honest "…and N more" box); "full" is
+ *  the EXPANDED view — everything in the scope, with only a generous
+ *  renderer guard (FULL_VIEW_CAP) standing between a canvas and a tab
+ *  that can't paint a five-thousand-node tree. */
+export type Detail = "summary" | "full";
+
+/** The renderer guard in full detail: beyond this many boxes the honest
+ *  "…and N more" grouping returns — no picture hides fewer than it. */
+export const FULL_VIEW_CAP = 400;
+
 export function buildC4Spec(
   report: CieReport | null,
   stack: TechStack | null | undefined,
-  title = "C4 containers — the big picture"
+  title = "C4 containers — the big picture",
+  detail: Detail = "summary"
 ): ChatChartSpec | null {
   const apps = stack?.apps ?? [];
   if (report && report.files?.length && apps.length) {
@@ -499,7 +511,7 @@ export function buildC4Spec(
     };
 
     const MAX_APPS = 12;
-    const shownApps = apps.slice(0, MAX_APPS);
+    const shownApps = detail === "full" ? apps.slice(0, FULL_VIEW_CAP) : apps.slice(0, MAX_APPS);
     const restApps = apps.length - shownApps.length;
     const nodes: UmlNode[] = shownApps.map((a) => {
       const id = a.dir || "(project root)";

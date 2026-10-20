@@ -18,7 +18,7 @@
 import type { CieReport, ConceptTree, SymbolInfo } from "./cie-types";
 import type { ChatChartSpec, ElementLoc, UmlLink, UmlNode } from "./chat-chart";
 import { engineFor, layoutFor } from "./chat-chart";
-import { buildCallGraph, fileOf, type CallGraph } from "./mastery";
+import { buildCallGraph, fileOf, type CallGraph, FULL_VIEW_CAP, type Detail } from "./mastery";
 
 // ---------------------------------------------------------------------------
 // Selection Context — the single object every atlas view reads and writes
@@ -171,7 +171,8 @@ export function buildComponentSpec(
   title?: string,
   module?: string | null,
   concepts?: ConceptTree | null,
-  apps?: { dir: string }[] | null
+  apps?: { dir: string }[] | null,
+  detail: Detail = "summary"
 ): ChatChartSpec | null {
   if (!report?.files?.length) return null;
   const g = graphOf(report);
@@ -181,7 +182,7 @@ export function buildComponentSpec(
     const containerArg = module;
     const syms = symbolsOfModule(report, containerArg);
     if (!syms.length) return null;
-    const MAX_SYMBOL_BOXES = 10;
+    const MAX_SYMBOL_BOXES = detail === "full" ? FULL_VIEW_CAP : 10;
     const shown = syms.slice(0, MAX_SYMBOL_BOXES);
     const more = syms.length - shown.length;
     const nodes: UmlNode[] = shown.map((s) => {
@@ -243,18 +244,21 @@ export function buildComponentSpec(
       .filter((n) => (n.kind === "Service" || n.kind === "Subdomain") && n.parent != null && contLabel.has(n.parent))
       .sort((a, b) => (contLabel.get(a.parent!) ?? "").localeCompare(contLabel.get(b.parent!) ?? "") || a.label.localeCompare(b.label));
     if (tier.length) {
-      const MAX_COMPS = 12;
+      // full detail (the expanded panel) lists EVERY component — the 12-box
+      // summary cap is the dashboard card's; only the renderer guard stays
+      const MAX_COMPS = detail === "full" ? FULL_VIEW_CAP : 12;
       const shown = tier.slice(0, MAX_COMPS);
       const restT = tier.length - shown.length;
+      const LINE_CAP = detail === "full" ? 100 : 3;
       const nodeOf = (c: (typeof tier)[number]) => {
         const cont = contLabel.get(c.parent!) ?? "?";
         const mods = all.filter((m) => m.parent === c.id && m.kind === "Module").map((m) => m.label);
         const first = mods[0];
         const lines = [
           `in ${cont}`, `${c.kind.toLowerCase()} · ${(c.confidence ?? 1) >= 1 ? "recorded evidence" : "inferred from names/structure"}`,
-          ...mods.slice(0, 3).map((m) => m.split("/").pop() ?? m),
+          ...mods.slice(0, LINE_CAP).map((m) => m.split("/").pop() ?? m),
         ];
-        const moreM = mods.length - 3;
+        const moreM = mods.length - LINE_CAP;
         if (moreM > 0) lines.push(`…and ${moreM} more module(s)`);
         return {
           id: first ?? `component:${c.id}`,
@@ -304,6 +308,11 @@ export function buildComponentSpec(
       s0.nodes = nodes;
       s0.links = links;
       s0.source = "concepts.json — every container's Service/Subdomain tier; report.json for the calls";
+      if (detail === "full") {
+        s0.tell = restT > 0
+          ? `${tier.length} component(s) in this tier — the renderer guard keeps this canvas usable; the first ${shown.length} are on it, grouped not hidden`
+          : `${tier.length} component(s) drawn — the whole tier; nothing grouped out`;
+      }
       return s0;
     }
   }
@@ -320,16 +329,19 @@ export function buildComponentSpec(
   if (container) {
     const comps = dagComponentsOf(concepts, container);
     if (comps && comps.length) {
-      const MAX_COMPS = 12;
+      // full detail (the expanded panel) lists EVERY component of this
+      // container and names every module inside each box
+      const MAX_COMPS = detail === "full" ? FULL_VIEW_CAP : 12;
       const shown = comps.slice(0, MAX_COMPS);
       const restComps = comps.length - shown.length;
+      const LINE_CAP = detail === "full" ? 100 : 3;
       const nodes: UmlNode[] = shown.map((c) => {
         const first = c.modules[0];
         const lines: string[] = [
           `${c.kind.toLowerCase()} · ${c.confidence >= 1 ? "recorded evidence" : "inferred from names/structure"}`,
-          ...c.modules.slice(0, 3).map((m) => m.split("/").pop() ?? m),
+          ...c.modules.slice(0, LINE_CAP).map((m) => m.split("/").pop() ?? m),
         ];
-        const moreM = c.modules.length - 3;
+        const moreM = c.modules.length - LINE_CAP;
         if (moreM > 0) lines.push(`…and ${moreM} more module(s)`);
         return {
           id: first ?? `component:${c.id}`,
@@ -374,6 +386,11 @@ export function buildComponentSpec(
       s1.nodes = nodes;
       s1.links = links;
       s1.source = "concepts.json — Service/Subdomain nodes under this container, built from the persisted stack facts; report.json for the calls";
+      if (detail === "full") {
+        s1.tell = restComps > 0
+          ? `${comps.length} component(s) under this container — the renderer guard keeps this canvas usable; the first ${shown.length} are on it, grouped not hidden`
+          : `${comps.length} component(s) drawn — everything under this container; nothing grouped out`;
+      }
       return s1;
     }
   }
@@ -409,12 +426,16 @@ export function buildComponentSpec(
     sOnly.tell = `${testFiles.length} test file(s) indexed — tests verify components; they are not components.`;
     return sOnly;
   }
-  const shown = ordered.slice(0, MAX_MODULE_BOXES);
+  // full detail (the expanded panel) lists EVERY module file in this scope
+  // and every named thing inside each box — only the renderer guard keeps
+  // the honest grouping beyond 400 boxes
+  const shown = ordered.slice(0, detail === "full" ? FULL_VIEW_CAP : MAX_MODULE_BOXES);
   const rest = ordered.length - shown.length;
+  const lineCap = detail === "full" ? 100 : MAX_SYMBOL_LINES;
 
   const nodes: UmlNode[] = shown.map((f) => {
     const syms = byModule.get(f) ?? [];
-    const lines = syms.slice(0, MAX_SYMBOL_LINES).map((s) => `${s.name}()`);
+    const lines = syms.slice(0, lineCap).map((s) => `${s.name}()`);
     const moreSyms = syms.length - lines.length;
     return {
       id: f,
@@ -455,6 +476,9 @@ export function buildComponentSpec(
   s1.nodes = nodes;
   s1.links = links;
   s1.source = "report.json — the file table, named things, and recorded calls";
+  if (detail === "full" && rest === 0) {
+    s1.tell = `${ordered.length} module(s) drawn — the whole scope; nothing grouped out`;
+  }
   if (testFiles.length) {
     s1.tell =
       `${testFiles.length} test file(s) sit out of this picture on purpose — tests verify components; they are not components. ` +

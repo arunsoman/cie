@@ -384,3 +384,16 @@ Work Log:
 
 Stage Summary:
 - The title meant exactly what it said: that workspace's store had no concept tier to draw — because its store predated the tier. The marker fix from Task 25 makes the folder self-heal on the next CIE command; the record refresh in place made that heal immediate for the browser too.
+---
+Task ID: 27
+Agent: main (Z.ai)
+Task: The expanded Atlas panels must show every module/component, not group the rest behind "…and N more".
+
+Work Log:
+- The small dashboard cards keep their 12-box summaries (the caps exist so five charts fit one screen); the EXPANDED panel now draws "full" detail: a Detail = "summary" | "full" dial (mastery.ts) with a shared FULL_VIEW_CAP = 400 renderer guard.
+- buildComponentSpec detail-aware at every zoom: system concept tier → every Service/Subdomain node (177 for shahy-restructure; the "…and N more component(s)" box only returns beyond the 400 guard, stated in the tell); container tier → same, and each box names ALL its file modules (LINE_CAP 100 vs 3); the files fallback → every module file in scope (cap 400), every named thing per box; the one-module zoom → every symbol. buildC4Spec full → every app dir + every external. Full specs set an honest tell ("N drawn — the whole tier/scope; nothing grouped out") and the grouping box carries the plain words when the guard does bite.
+- atlas-view derives the full specs only while a panel is expanded (fullC4/fullComp memos on the expanded state), passes them through the same Facts-only filter, and the expanded Panel body picks the full variant; the small cards render exactly as before.
+- Verified live on shahy-restructure (restored through its record): expanded Components panel = all 38 containers' components on one canvas, every module listed inside its component box, zero "…and N more" groupings, the "nothing grouped out" tell on screen (r21/r22 screenshots). tsc clean.
+
+Stage Summary:
+- Grouping is a property of the small card, never of the picture: expand = everything the scope holds, honestly told when even the expanded canvas caps (400) — the tell says so in plain words, groups never pretend to be all there is.
