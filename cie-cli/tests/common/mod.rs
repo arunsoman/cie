@@ -878,6 +878,7 @@ pub mod scenarios {
             &outcome.snapshot.contracts,
             llm_labeler,
             0,
+            None,
         );
         let llm_rules: Vec<_> = dag
             .nodes

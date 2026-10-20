@@ -71,7 +71,7 @@ pub fn analyze(
     label_fn: hierarchy::LabelFn,
     reuse: Option<&behavior::ReusePlan>,
 ) -> AnalysisOutput {
-    analyze_with_history(store, per_file, rev, cfg, label_fn, reuse, None)
+    analyze_with_history(store, per_file, rev, cfg, label_fn, reuse, None, None)
 }
 
 pub fn analyze_with_history(
@@ -82,6 +82,7 @@ pub fn analyze_with_history(
     label_fn: hierarchy::LabelFn,
     reuse: Option<&behavior::ReusePlan>,
     history_root: Option<&std::path::Path>,
+    stack: Option<&cie_stack::types::StackReport>,
 ) -> AnalysisOutput {
     let start = cie_core::types::now_ns();
 
@@ -144,8 +145,10 @@ pub fn analyze_with_history(
         conformance::bind_history(root, store, &mut conf.contracts, &mut findings);
     }
 
-    // Stage 5: concepts + hierarchy.
-    let concepts = hierarchy::build_hierarchy(store, &beh, &conf.contracts, label_fn, start);
+    // Stage 5: concepts + hierarchy. RFC-0019 §6.4: the persisted stack
+    // facts feed the C4 tiers when present (ingest runs the stack stage
+    // BEFORE analyze precisely so this same-run consumption works).
+    let concepts = hierarchy::build_hierarchy(store, &beh, &conf.contracts, label_fn, start, stack);
 
     // Evidence + coverage.
     let mut unresolved: Vec<String> = vec![];

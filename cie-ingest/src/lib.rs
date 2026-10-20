@@ -477,6 +477,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &label_fn,
         reuse_ref,
         Some(project),
+        Some(&stack),
     );
 
     // Persist label cache (LLM provenance recorded per PRD §63).

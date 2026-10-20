@@ -11,6 +11,8 @@ use cie_concepts::{BehaviorRef, ConceptDag, ConceptKind, ConceptNode, EdgeReason
 use cie_contract::Contract;
 use cie_core::types::{ConceptNodeId, Ns, SymbolId};
 use cie_semantic::facts::{SymbolKind, SymbolStore};
+use cie_stack::types::StackReport;
+use cie_summary::EffectKind;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Label function hook: the CLI supplies either the offline deterministic
@@ -20,17 +22,425 @@ use std::collections::{BTreeMap, BTreeSet};
 /// LLM-proposed labels as inert `LlmCandidate` rules.
 pub type LabelFn<'a> = &'a dyn Fn(&[String], &str) -> (String, &'static str);
 
+/// RFC-0019 §6.4: the C4 view of the persisted stack facts, precomputed so
+/// every tier below is a lookup. `stack: None` skips the whole structure —
+/// the exact pre-RFC shape.
+struct C4 {
+    /// file path -> (its Container node, its component node)
+    file_home: BTreeMap<String, (ConceptNodeId, ConceptNodeId)>,
+    /// file path -> the app dir that claims it (aggregate scoping)
+    file_app: BTreeMap<String, String>,
+    /// app dir -> recorded route-handler class names (routes[].owner)
+    route_owners: BTreeMap<String, BTreeSet<String>>,
+    /// app dir -> recorded repository class names (jvm.repositories[].name)
+    repo_names: BTreeMap<String, BTreeSet<String>>,
+    /// app dir -> classes a recorded repository's supertype NAMES as the
+    /// entity it serves (JpaRepository<Invoice, Long> → Invoice) — the
+    /// strongest recorded aggregate evidence
+    repo_entities: BTreeMap<String, BTreeSet<String>>,
+    /// app dir -> recorded framework-role class names (routes[].owner,
+    /// @Service, @Repository, @Entity, config classes, boot mains) — these
+    /// are NEVER aggregates: they are the framework's own furniture
+    role_names: BTreeMap<String, BTreeSet<String>>,
+    /// app dir -> class names reachable FROM a recorded route handler
+    /// (bounded BFS over recorded summaries' callees)
+    route_reached: BTreeMap<String, BTreeSet<String>>,
+    /// files with a recorded route (the http-route FCA attribute)
+    route_files: BTreeSet<String>,
+    /// files of @Service classes — the recorded DI-injected layer
+    di_files: BTreeSet<String>,
+    /// app dirs whose docker governance is NOT "none"
+    managed_dirs: BTreeSet<String>,
+}
+
+/// One AppSite's slice of the stack facts, scoped for the tier build.
+struct AppSlice<'a> {
+    name: String,
+    routes: Vec<&'a str>,
+    mains: Vec<&'a str>,
+    services: Vec<&'a str>,
+    repositories: Vec<&'a str>,
+    entities: Vec<&'a str>,
+    configs: Vec<&'a str>,
+}
+
+fn app_slice<'a>(stack: &'a StackReport, dir: &'a str) -> AppSlice<'a> {
+    let under = |rel: &str| -> bool {
+        if dir.is_empty() {
+            // a root app claims files no other app claims — resolved by the
+            // caller via `claimed_elsewhere`; here accept everything
+            true
+        } else {
+            rel.starts_with(&format!("{dir}/"))
+        }
+    };
+    let jvm = stack.jvm.as_ref();
+    AppSlice {
+        name: if dir.is_empty() {
+            "app root".to_string()
+        } else {
+            dir.rsplit('/').next().unwrap_or(dir).to_string()
+        },
+        routes: stack.routes.iter().filter(|r| under(&r.rel)).map(|r| r.rel.as_str()).collect(),
+        mains: stack.mains.iter().filter(|m| under(&m.rel)).map(|m| m.rel.as_str()).collect(),
+        services: jvm
+            .map(|j| j.services.iter().filter(|s| under(&s.rel)).map(|s| s.rel.as_str()).collect())
+            .unwrap_or_default(),
+        repositories: jvm
+            .map(|j| {
+                j.repositories
+                    .iter()
+                    .filter(|s| under(&s.rel))
+                    .map(|s| s.rel.as_str())
+                    .collect()
+            })
+            .unwrap_or_default(),
+        entities: jvm
+            .map(|j| j.entities.iter().filter(|s| under(&s.rel)).map(|s| s.rel.as_str()).collect())
+            .unwrap_or_default(),
+        configs: jvm
+            .map(|j| {
+                j.config_classes
+                    .iter()
+                    .filter(|s| under(&s.rel))
+                    .map(|s| s.rel.as_str())
+                    .collect()
+            })
+            .unwrap_or_default(),
+    }
+}
+
+/// the file's role home inside its app, in priority order (RFC §6.4 L2):
+/// DDD subpackage > recorded route > recorded boot > recorded jvm layer >
+/// role/suffix naming > core fallback. (role, recorded). `rel_to_app` is
+/// the path under the app dir (DDD segments, naming); `rel_full` is the
+/// repo-relative path the stack artifact's recorded rels speak.
+fn role_of(rel_to_app: &str, rel_full: &str, app: &AppSlice) -> (&'static str, bool) {
+    for seg in rel_to_app.split('/') {
+        match seg {
+            "domain" => return ("domain", false), // Subdomain — structure-based
+            "application" => return ("application", false),
+            "infrastructure" => return ("infrastructure", false),
+            _ => {}
+        }
+    }
+    if app.routes.contains(&rel_full) {
+        return ("web", true);
+    }
+    if app.mains.contains(&rel_full) {
+        return ("boot", true);
+    }
+    if app.services.contains(&rel_full) {
+        return ("service", true);
+    }
+    if app.repositories.contains(&rel_full) {
+        return ("repository", true);
+    }
+    if app.entities.contains(&rel_full) {
+        return ("entity", true);
+    }
+    if app.configs.contains(&rel_full) {
+        return ("config", true);
+    }
+    // role/suffix naming — inference, never recorded
+    let stem = rel_to_app.rsplit('/').next().unwrap_or(rel_to_app);
+    let stem = stem
+        .rsplit_once('.')
+        .map(|(s, _)| s)
+        .unwrap_or(stem)
+        .to_ascii_lowercase();
+    let has = |needles: &[&str]| needles.iter().any(|n| stem.contains(n));
+    if has(&["service", "usecase", "use_case"]) {
+        ("service", false)
+    } else if has(&["repository", "repo", "store", "dao", "gateway", "persistence"]) {
+        ("repository", false)
+    } else if has(&["controller", "route", "handler", "endpoint", "resource"]) {
+        ("web", false)
+    } else if has(&["entity", "model", "dto", "value"]) {
+        ("entity", false)
+    } else if has(&["main", "server", "boot", "launcher"]) {
+        ("boot", false)
+    } else if has(&["config", "settings"]) {
+        ("config", false)
+    } else {
+        ("core", false)
+    }
+}
+
+impl C4 {
+    /// Build the L1 (Container) and L2 (Service/Subdomain) tiers from the
+    /// persisted stack facts. Deterministic: apps in report order, files in
+    /// the store's sorted path order, roles in the priority order above.
+    fn build(dag: &mut ConceptDag, store: &SymbolStore, stack: &StackReport, now: Ns) -> C4 {
+        let mut file_home = BTreeMap::new();
+        let mut file_app: BTreeMap<String, String> = BTreeMap::new();
+        let mut route_owners = BTreeMap::new();
+        let mut repo_names = BTreeMap::new();
+        let mut repo_entities: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut role_names: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let route_reached: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut route_files = BTreeSet::new();
+        let mut di_files = BTreeSet::new();
+        let mut managed_dirs = BTreeSet::new();
+
+        let files = store.files(); // sorted paths — deterministic tiering
+        // app dirs longest-first so a nested app claims before its parent
+        let mut dirs: Vec<&String> = stack.apps.iter().map(|a| &a.dir).collect();
+        dirs.sort_by_key(|d| std::cmp::Reverse(d.len()));
+
+        for app in &stack.apps {
+            let dir = app.dir.as_str();
+            // ---- L1: the container (recorded: manifest + docker evidence)
+            let mut cnode = ConceptNode::new(0, container_label(app), ConceptKind::Container, now);
+            cnode.primary_edge = EdgeReason::PackageContainment;
+            cnode.provenance = "stack:apps".into();
+            cnode.confidence = 1.0; // recorded — the manifest named it
+            cnode.intent = vec![
+                match app.docker.as_ref().map(|g| g.kind.as_str()) {
+                    Some("compose") => "docker:compose",
+                    Some("own-dockerfile") => "docker:own-dockerfile",
+                    Some(_) => "docker:none",
+                    None => "docker:unknown",
+                }
+                .to_string(),
+            ];
+            let cid = dag.push(cnode);
+            // the Domain root is always node 0 (pushed first in build_hierarchy)
+            dag.link_child(0, cid);
+
+            // ---- L2: components (roles / subpackages) over the app's files
+            let slice = app_slice(stack, dir);
+            let app_routes: Vec<_> = stack
+                .routes
+                .iter()
+                .filter(|r| slice.routes.contains(&r.rel.as_str()))
+                .collect();
+            if !app_routes.is_empty() {
+                route_owners.insert(
+                    dir.to_string(),
+                    app_routes.iter().map(|r| r.owner.clone()).collect(),
+                );
+            }
+            let jvm = stack.jvm.as_ref();
+            let app_repos: Vec<_> = jvm
+                .map(|j| {
+                    j.repositories
+                        .iter()
+                        .filter(|s| slice.repositories.contains(&s.rel.as_str()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            repo_names.insert(
+                dir.to_string(),
+                app_repos.iter().map(|s| s.name.clone()).collect(),
+            );
+            repo_entities.insert(
+                dir.to_string(),
+                app_repos
+                    .iter()
+                    .filter_map(|s| s.entity.clone())
+                    .collect(),
+            );
+            // the framework's own furniture: never aggregates
+            let mut roles: BTreeSet<String> = app_routes.iter().map(|r| r.owner.clone()).collect();
+            if let Some(j) = jvm {
+                for s in j.services.iter().filter(|s| slice.services.contains(&s.rel.as_str())) {
+                    roles.insert(s.name.clone());
+                }
+                for s in j.repositories.iter().filter(|s| slice.repositories.contains(&s.rel.as_str())) {
+                    roles.insert(s.name.clone());
+                }
+                for s in j.entities.iter().filter(|s| slice.entities.contains(&s.rel.as_str())) {
+                    roles.insert(s.name.clone());
+                }
+                for s in j.config_classes.iter().filter(|s| slice.configs.contains(&s.rel.as_str())) {
+                    roles.insert(s.name.clone());
+                }
+            }
+            for m in stack.mains.iter().filter(|m| slice.mains.contains(&m.rel.as_str())) {
+                roles.insert(m.name.clone());
+            }
+            role_names.insert(dir.to_string(), roles);
+            for r in &slice.routes {
+                route_files.insert(r.to_string());
+            }
+            for s in &slice.services {
+                di_files.insert(s.to_string());
+            }
+            match app.docker.as_ref().map(|g| g.kind.as_str()) {
+                Some(k) if k != "none" => {
+                    managed_dirs.insert(dir.to_string());
+                }
+                _ => {}
+            }
+
+            // one component node per distinct home, in first-seen order
+            let mut components: BTreeMap<String, ConceptNodeId> = BTreeMap::new();
+            for path in &files {
+                let rel = match rel_under(dir, path) {
+                    Some(r) => r,
+                    None => continue, // not this app's file
+                };
+                if dir.is_empty() && claimed_elsewhere(&dirs, dir, path) {
+                    continue; // a root app only keeps files no subdir app claims
+                }
+                let (role, recorded) = role_of(&rel, path, &slice);
+                let home_key = role.to_string();
+                let comp = *components.entry(home_key.clone()).or_insert_with(|| {
+                    let (label, kind, conf) = if matches!(
+                        role,
+                        "domain" | "application" | "infrastructure"
+                    ) {
+                        (format!("{} {role}", slice.name), ConceptKind::Subdomain, 0.7)
+                    } else if recorded {
+                        (format!("{} {role}", slice.name), ConceptKind::Service, 1.0)
+                    } else {
+                        (format!("{} {role}", slice.name), ConceptKind::Service, 0.7)
+                    };
+                    let mut n = ConceptNode::new(0, label, kind, now);
+                    n.primary_edge = EdgeReason::ClusterCohesion;
+                    n.provenance = "stack:roles".into();
+                    n.confidence = conf;
+                    let id = dag.push(n);
+                    dag.link_child(cid, id);
+                    id
+                });
+                file_home.insert(path.clone(), (cid, comp));
+                file_app.insert(path.clone(), dir.to_string());
+            }
+        }
+        C4 {
+            file_home,
+            file_app,
+            route_owners,
+            repo_names,
+            repo_entities,
+            role_names,
+            route_reached,
+            route_files,
+            di_files,
+            managed_dirs,
+        }
+    }
+
+    /// RFC-0019 §6.4 aggregate arm 3's reachability input: the class names
+    /// reachable FROM a recorded route handler, bounded BFS (3 hops, visited
+    /// set) over the recorded summaries' callees. Needs `behavior`, so it
+    /// runs after `build` (which only sees the stack artifact).
+    fn fill_route_reached(
+        &mut self,
+        store: &SymbolStore,
+        behavior: &BehaviorResult,
+        stack: &StackReport,
+    ) {
+        for app in &stack.apps {
+            let Some(owners) = self.route_owners.get(app.dir.as_str()) else {
+                continue;
+            };
+            // start: every method of every recorded route-owner class
+            let mut frontier: Vec<SymbolId> = Vec::new();
+            let mut visited: BTreeSet<SymbolId> = BTreeSet::new();
+            for sym in &store.symbols {
+                if sym.is_function_like() {
+                    if let Some(p) = sym.parent {
+                        if let Some(psym) = store.get(p) {
+                            if owners.contains(&psym.name) && visited.insert(sym.id) {
+                                frontier.push(sym.id);
+                            }
+                        }
+                    }
+                }
+            }
+            let mut reached: BTreeSet<String> = BTreeSet::new();
+            for _ in 0..3 {
+                let mut next: Vec<SymbolId> = Vec::new();
+                for id in &frontier {
+                    if let Some(s) = behavior.summaries.get(id) {
+                        for c in &s.callees {
+                            if visited.insert(*c) {
+                                if let Some(csym) = store.get(*c) {
+                                    if let Some(p) = csym.parent {
+                                        if let Some(psym) = store.get(p) {
+                                            reached.insert(psym.name.clone());
+                                        }
+                                    }
+                                }
+                                next.push(*c);
+                            }
+                        }
+                    }
+                }
+                if next.is_empty() {
+                    break;
+                }
+                frontier = next;
+            }
+            self.route_reached.insert(app.dir.clone(), reached);
+        }
+    }
+
+    fn component_of(&self, path: &str) -> Option<ConceptNodeId> {
+        self.file_home.get(path).map(|(_, c)| *c)
+    }
+
+    fn app_of(&self, path: &str) -> Option<&str> {
+        self.file_app.get(path).map(String::as_str)
+    }
+}
+
+fn container_label(app: &cie_stack::types::AppSite) -> String {
+    if !app.name.is_empty() {
+        app.name.clone()
+    } else if !app.dir.is_empty() {
+        app.dir.clone()
+    } else {
+        "app root".into()
+    }
+}
+
+/// the file's path relative to the app dir (None when outside it)
+fn rel_under(dir: &str, path: &str) -> Option<String> {
+    if dir.is_empty() {
+        Some(path.to_string())
+    } else {
+        path.strip_prefix(&format!("{dir}/")).map(|s| s.to_string())
+    }
+}
+
+/// is `path` claimed by any OTHER app dir (longest-first)?
+fn claimed_elsewhere(dirs: &[&String], own: &str, path: &str) -> bool {
+    dirs.iter().any(|d| {
+        !d.is_empty() && d.as_str() != own && path.starts_with(&format!("{d}/"))
+    })
+}
+
 pub fn build_hierarchy(
     store: &SymbolStore,
     behavior: &BehaviorResult,
     contracts: &[Contract],
     label_fn: LabelFn,
     now: Ns,
+    stack: Option<&StackReport>,
 ) -> ConceptDag {
     let mut dag = ConceptDag::default();
 
     // ---- Domain root ----
     let root = dag.push(ConceptNode::new(0, "Project", ConceptKind::Domain, now));
+
+    // ---- RFC-0019 §6.4: the C4 tiers from the persisted stack facts ----
+    // L1 Containers (one per AppSite) and L2 components (framework roles /
+    // DDD subpackages), then files re-parent under their component. With
+    // stack: None nothing here runs — the exact pre-RFC shape.
+    let mut c4 = stack.map(|st| C4::build(&mut dag, store, st, now));
+    if let (Some(c4), Some(st)) = (c4.as_mut(), stack) {
+        c4.fill_route_reached(store, behavior, st);
+    }
+    let module_parent = |path: &str, root: ConceptNodeId| -> ConceptNodeId {
+        match &c4 {
+            Some(c4) => c4.component_of(path).unwrap_or(root),
+            None => root,
+        }
+    };
 
     // ---- Module nodes (package containment) ----
     let mut module_nodes: BTreeMap<String, ConceptNodeId> = BTreeMap::new();
@@ -39,7 +449,7 @@ pub fn build_hierarchy(
         n.primary_edge = EdgeReason::PackageContainment;
         n.provenance = "rule:package".into();
         let id = dag.push(n);
-        dag.link_child(root, id);
+        dag.link_child(module_parent(&path, root), id);
         module_nodes.insert(path, id);
     }
 
@@ -55,34 +465,87 @@ pub fn build_hierarchy(
             | SymbolKind::Enum
             | SymbolKind::Interface => {
                 let methods = store.children_of(sym.id);
-                let moneyish = methods.iter().any(|m| {
-                    store
-                        .get(*m)
-                        .map(|s| {
-                            let n = s.name.to_ascii_lowercase();
-                            n.contains("charge")
-                                || n.contains("pay")
-                                || n.contains("refund")
-                                || n.contains("transfer")
-                        })
+                let path = store.files.path(sym.loc.file);
+                // RFC-0019 §6.4: the money-words Aggregate heuristic retires
+                // wherever stack facts exist. Aggregate = a recorded route
+                // owner that (within a bounded hop budget) reaches a
+                // recorded repository — two evidence links, not vocabulary.
+                // The vocabulary fallback survives ONLY where no stack facts
+                // reach (no stack artifact, or files outside every app).
+                let in_app = c4.as_ref().and_then(|c| c.app_of(path)).map(String::from);
+                let kind = if let Some(app_dir) = &in_app {
+                    let c4 = c4.as_ref().unwrap();
+                    let aggregate = c4
+                        .repo_entities
+                        .get(app_dir.as_str())
+                        .map(|e| e.contains(sym.name.as_str()))
                         .unwrap_or(false)
-                });
-                let kind = if moneyish {
-                    ConceptKind::Aggregate
-                } else if methods.is_empty() {
-                    ConceptKind::Value
+                        || (!c4
+                            .role_names
+                            .get(app_dir.as_str())
+                            .map(|r| r.contains(sym.name.as_str()))
+                            .unwrap_or(false)
+                            && c4
+                                .route_reached
+                                .get(app_dir.as_str())
+                                .map(|r| r.contains(sym.name.as_str()))
+                                .unwrap_or(false)
+                            && c4
+                                .repo_names
+                                .get(app_dir.as_str())
+                                .map(|repos| {
+                                    reaches_repository(store, behavior, methods, repos)
+                                })
+                                .unwrap_or(false));
+                    if aggregate {
+                        ConceptKind::Aggregate
+                    } else if methods.is_empty() {
+                        ConceptKind::Value
+                    } else {
+                        ConceptKind::Entity
+                    }
                 } else {
-                    ConceptKind::Entity
+                    let moneyish = methods.iter().any(|m| {
+                        store
+                            .get(*m)
+                            .map(|s| {
+                                let n = s.name.to_ascii_lowercase();
+                                n.contains("charge")
+                                    || n.contains("pay")
+                                    || n.contains("refund")
+                                    || n.contains("transfer")
+                            })
+                            .unwrap_or(false)
+                    });
+                    if moneyish {
+                        ConceptKind::Aggregate
+                    } else if methods.is_empty() {
+                        ConceptKind::Value
+                    } else {
+                        ConceptKind::Entity
+                    }
                 };
                 let mut n = ConceptNode::new(0, sym.name.clone(), kind, now);
                 n.primary_edge = EdgeReason::PackageContainment;
-                n.provenance = "rule:structure".into();
+                n.provenance = if matches!(kind, ConceptKind::Aggregate) && in_app.is_some() {
+                    "stack:aggregate".into() // recorded: route owner + repo reach
+                } else {
+                    "rule:structure".into()
+                };
                 n.symbols = vec![sym.id];
                 let id = dag.push(n);
-                if let Some(pn) = module_nodes.get(store.files.path(sym.loc.file)) {
+                if let Some(pn) = module_nodes.get(path) {
                     dag.link_child(*pn, id);
                 } else {
                     dag.link_child(root, id);
+                }
+                // the class also links straight to its component (RFC §6.4
+                // re-parenting: the primary chain stays Module → class*, the
+                // component edge keeps the role visible as its own reason)
+                if let Some(c4) = &c4 {
+                    if let Some(comp) = c4.component_of(path) {
+                        let _ = dag.try_link_child(comp, id, EdgeReason::CallOwnership);
+                    }
                 }
                 node_of_symbol.insert(sym.id, id);
             }
@@ -155,6 +618,9 @@ pub fn build_hierarchy(
     }
 
     // ---- FCA concepts -> UseCase/Subdomain nodes (FcaSubsumption edges) ----
+    // RFC-0019 §6.4: the lattice intents gain the stack facts — http-route,
+    // db-write, di-injected, docker-managed — so the same function that used
+    // to share only its tags now shares WHERE it sits in the served surface.
     let objects: Vec<(SymbolId, BTreeSet<String>)> = behavior
         .summaries
         .iter()
@@ -168,6 +634,24 @@ pub fn build_hierarchy(
             let mut attrs: BTreeSet<String> = s.tags.clone();
             for e in &s.effects {
                 attrs.insert(e.as_str().to_string());
+            }
+            if let Some(c4) = &c4 {
+                let sym = store.get(*id);
+                let path = sym.map(|s| store.files.path(s.loc.file)).unwrap_or("");
+                if c4.route_files.contains(path) {
+                    attrs.insert("http-route".into());
+                }
+                if s.effects.contains(&EffectKind::DbWrite) {
+                    attrs.insert("db-write".into());
+                }
+                if c4.di_files.contains(path) {
+                    attrs.insert("di-injected".into());
+                }
+                if let Some(app) = c4.app_of(path) {
+                    if c4.managed_dirs.contains(app) {
+                        attrs.insert("docker-managed".into());
+                    }
+                }
             }
             (*id, attrs)
         })
@@ -307,6 +791,49 @@ pub fn build_hierarchy(
 
     let _ = behaviors_added; // retained for future incremental invalidation
     dag
+}
+
+/// RFC-0019 §6.4: does ANY of `methods` (or their callees, bounded at three
+/// hops with a visited set) resolve to a symbol whose OWNING class is one of
+/// the recorded repository classes? Pure store/summary lookups — no naming
+/// heuristics on the caller side; the repo names themselves ARE the evidence.
+fn reaches_repository(
+    store: &SymbolStore,
+    behavior: &BehaviorResult,
+    methods: &[SymbolId],
+    repo_names: &BTreeSet<String>,
+) -> bool {
+    if repo_names.is_empty() {
+        return false;
+    }
+    let mut visited: BTreeSet<SymbolId> = methods.iter().copied().collect();
+    let mut frontier: Vec<SymbolId> = methods.to_vec();
+    for _ in 0..3 {
+        let mut next: Vec<SymbolId> = Vec::new();
+        for id in &frontier {
+            if let Some(sym) = store.get(*id) {
+                if let Some(p) = sym.parent {
+                    if let Some(psym) = store.get(p) {
+                        if repo_names.contains(&psym.name) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            if let Some(s) = behavior.summaries.get(id) {
+                for c in &s.callees {
+                    if visited.insert(*c) {
+                        next.push(*c);
+                    }
+                }
+            }
+        }
+        if next.is_empty() {
+            break;
+        }
+        frontier = next;
+    }
+    false
 }
 
 fn humanize(name: &str) -> String {

@@ -477,6 +477,7 @@ dependencies = [
  "cie-incremental",
  "cie-relations",
  "cie-semantic",
+ "cie-stack",
  "cie-summary",
  "petgraph",
  "regex",

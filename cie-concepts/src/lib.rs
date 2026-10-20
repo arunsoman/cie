@@ -22,6 +22,9 @@ use std::collections::BTreeSet;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ConceptKind {
     Domain,
+    /// RFC-0019 §6.4: the C4 L1 tier — one deployable (AppSite from the
+    /// persisted stack facts), recorded manifest + docker evidence
+    Container,
     Subdomain,
     Module,
     Service,
@@ -37,6 +40,7 @@ impl ConceptKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             ConceptKind::Domain => "Domain",
+            ConceptKind::Container => "Container",
             ConceptKind::Subdomain => "Subdomain",
             ConceptKind::Module => "Module",
             ConceptKind::Service => "Service",

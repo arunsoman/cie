@@ -18,6 +18,7 @@ cie-evidence = { workspace = true }
 cie-summary = { workspace = true }
 cie-concepts = { workspace = true }
 cie-contract = { workspace = true }
+cie-stack = { workspace = true }
 cie-counterexample = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
