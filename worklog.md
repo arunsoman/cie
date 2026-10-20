@@ -301,3 +301,18 @@ Work Log:
 
 Stage Summary:
 - The hierarchy's reserved rooms are occupied: the DAG now reads Project → Container → Component → Module → class with per-node certainty and evidence-based aggregates. Old artifacts build the exact pre-RFC shape (stack: None), so nothing regresses. Next: stage 5 — consumers re-source (atlas/components views from the DAG, TS types, sample regeneration).
+---
+Task ID: 21
+Agent: main (Z.ai)
+Task: RFC-0019 stage 5 — consumers re-source (atlas containers/components from the stack artifact and the concept DAG), TS types, sample regeneration. Push per commit.
+
+Work Log:
+- stack-types.ts: AppSite.docker + AppGovernance + ExternalSystem + StackReport.externalDocker. cie-types.ts: ConceptNode gains optional confidence/provenance; the kind comment lists the C4 kinds (additive, tolerate unknown).
+- mastery.ts buildC4Spec(report, stack, title): with stack.apps present the boxes ARE the apps — name/framework/build/manifest evidence + the docker governance line, Fact-certified; image-only compose services draw as C4 Context externals; cross-app arrows from the engine's recorded cross-service matches first, client-counted calls fill uncovered pairs; no stack → the first-segment heuristic verbatim.
+- atlas.ts: containerOfPath(f, apps?) — longest app-dir prefix claims a file (root app keeps leftovers); threaded through grid scoping, breadcrumbOf, buildDataFlowSpec, buildFlowSpec (all levels), the detail rail, and quality.ts's four scoped builders (coverage/complexity/churn/hotspots) as optional trailing params — zero behaviour change without the stack. dagComponentsOf(concepts, container) reads the DAG's Service/Subdomain tier; buildComponentSpec renders those components (role label, recorded/inference chip, module lists, cross-component calls) when present, falling back to the module list.
+- Samples regenerated with the new engine via scripts/regenerate-rfc0020-samples.py --fresh: polyglot (5 compose-governed containers, billing DDD subdomains, Invoice the one evidence-based Aggregate), spring (root container + 7 recorded layers, aggregates by repository evidence), banking (root container, honestly docker:none, vocabulary aggregates retired).
+- E2E on the built app (next build + next start, agent-browser): containers = 5 app boxes with framework/build/docker lines + the recorded feign edge "calls /invoices/{id} (feign)"; billing click scopes the whole grid ("scoped: billing"); components panel = the four DAG components with proven/good-guess chips; component click drills into its first module (routing intact); flow panel re-levels ("level: inside Invoice.kt"); zero console/page errors. tsc, eslint, next build clean.
+- The harness's periodic snapshot commit (ceb6000) caught the stage-5 tree mid-flight; amended into the proper commit f10bfc2 (code + regenerated samples + E2E screenshots) and pushed; token scrubbed after every push.
+
+Stage Summary:
+- RFC-0019 is fully landed (stages 1-5 all on origin/main): one parse per revision persisted as the fourth sibling artifact; stack-input hashing feeds invalidation; docker governance per app with compose build contexts, both port forms, honest skips; the C4 tiers occupy the reserved rooms in the concept DAG (Container → Service/Subdomain → Module → class) with per-node certainty and evidence-based aggregates; and the atlas now re-sources from that one DAG — the containers view draws the apps the build files name, the components panel draws the roles the code and annotations name, and the two views can never disagree again because both read the same nodes. Each stage landed behind its own commit + tests, every fallback preserved for pre-RFC artifacts.
