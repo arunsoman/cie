@@ -630,6 +630,7 @@ dependencies = [
  "cie-contract",
  "cie-core",
  "cie-semantic",
+ "cie-stack",
  "cie-store",
  "cie-summary",
  "proptest",
@@ -667,6 +668,7 @@ dependencies = [
  "cie-incremental",
  "cie-llm",
  "cie-semantic",
+ "cie-stack",
  "cie-store",
  "cie-summary",
  "rayon",
@@ -727,7 +729,6 @@ name = "cie-stack"
 version = "1.2.0"
 dependencies = [
  "cie-core",
- "cie-ingest",
  "cie-semantic",
  "regex",
  "serde",

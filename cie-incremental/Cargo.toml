@@ -13,6 +13,7 @@ cie-semantic = { workspace = true }
 cie-summary = { workspace = true }
 cie-store = { workspace = true }
 cie-concepts = { workspace = true }
+cie-stack = { workspace = true }
 cie-contract = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

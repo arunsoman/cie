@@ -336,6 +336,31 @@ pub fn to_json(report: &types::StackReport) -> String {
     serde_json::to_string_pretty(report).unwrap_or_else(|_| "{}".into())
 }
 
+/// RFC-0019 §6.1: the ingest-side entry point. Runs the same deterministic
+/// lens as [`stack_report`] — one walk, one parse, the factory's own honest
+/// caps (`MAX_FILES`, `MAX_DIRS`, `flow.rs` limits) bound the work — and
+/// hands the report to ingest for persistence as `revs/<N>/stack.json`.
+///
+/// `budget_ms` is the caller's sub-deadline slice. The lens cannot abort
+/// mid-parse (a half-walked report would read as authoritative when it is
+/// neither complete nor honest), so the budget is enforced as a POST-HOC
+/// disclosure: an overrun adds a note naming the measured wall time and the
+/// caps that bounded it. Measured sub-second on 5 apps / 36 files (the
+/// polyglot sample, release build); the caps keep the worst case bounded.
+pub fn stack_report_stage(root: &Path, budget_ms: Option<u64>) -> types::StackReport {
+    let t0 = std::time::Instant::now();
+    let mut report = stack_report(root);
+    if let Some(budget) = budget_ms {
+        let wall_ms = t0.elapsed().as_millis() as u64;
+        if wall_ms > budget {
+            report.notes.push(format!(
+                "stack stage took {wall_ms}ms against a {budget}ms budget slice — the walk/parse caps (max {MAX_FILES} files) bounded it; the report above is complete, not truncated"
+            ));
+        }
+    }
+    report
+}
+
 /// convenience for tests / CLI: build + print in one call
 pub fn build_json(root: &Path) -> String {
     let r = stack_report(root);

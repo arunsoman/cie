@@ -204,6 +204,7 @@ mod tests {
         RevSnapshot {
             rev,
             files: vec![],
+            stack: None,
             symbols,
             summaries: vec![],
             findings: vec![],

@@ -34,6 +34,13 @@ pub struct RevSnapshot {
     /// TASK-030: reuse counters recorded for this revision.
     #[serde(default)]
     pub summary_reuse: Option<ReuseStats>,
+    /// RFC-0019 §6.1: the stack lens' reading of this revision (routes,
+    /// flows, apps, docker, jvm family facts), persisted with the snapshot
+    /// so the two lenses finally share one artifact. Absent (None) on
+    /// snapshots from before this RFC — old artifacts never gain claims
+    /// they were never derived from.
+    #[serde(default)]
+    pub stack: Option<cie_stack::types::StackReport>,
 }
 
 /// Extension trait: snapshot + file-index persistence over the generic

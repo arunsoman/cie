@@ -498,6 +498,7 @@ pub fn us_089() -> Result<(), String> {
     let snap = |rev: u64, present: bool| RevSnapshot {
         rev,
         files: vec![],
+        stack: None,
         symbols: if present {
             vec![SymbolFact {
                 id: SymbolId(1),

@@ -71,6 +71,11 @@ pub enum Command {
         path: PathBuf,
         #[arg(long)]
         json: bool,
+        /// RFC-0019 §6.1: recompute even when the revision store already
+        /// holds this revision's stack artifact (default off — the store
+        /// answers first, compute-if-absent otherwise).
+        #[arg(long)]
+        force: bool,
     },
     /// Co-change coupling report from git history (US-087)
     Cochange {
@@ -303,6 +308,8 @@ fn finding_summary(outcome: &IngestOutcome) -> String {
     )
 }
 
+use cie_ingest::stack_store::StackStoreExt;
+
 fn main() {
     let cli = Cli::parse();
     let code = run(cli);
@@ -311,13 +318,58 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
-        Command::Stack { path, json } => {
-            let report = cie_stack::stack_report(&path);
-            if json {
-                println!("{}", cie_stack::to_json(&report));
-                return 0;
+        Command::Stack { path, json, force } => {
+            // RFC-0019 §6.1: store-first, compute-if-absent. When the repo
+            // carries a .cie store whose head revision has a stack artifact,
+            // answer FROM THE STORE — the exact bytes persisted at ingest,
+            // honestly stamped, no second parse. A bare folder computes as
+            // today. --force skips the store and re-derives.
+            let mut from_store: Option<(cie_stack::types::StackReport, u64)> = None;
+            if !force {
+                if path.join(".cie").join("revs").exists() {
+                    if let Ok(store) = cie_store::Store::open(&path) {
+                        let rev = store.last_rev();
+                        if rev > 0 {
+                            match store.load_stack(rev) {
+                                Ok(Some(report)) => from_store = Some((report, rev)),
+                                _ => {} // no artifact / unreadable → compute below
+                            }
+                        }
+                    }
+                }
             }
-            println!("tech stack — read from the project's own files; nothing inferred here:");
+            let (report, store_stamp): (cie_stack::types::StackReport, Option<u64>) =
+                match from_store {
+                    Some((r, rev)) => (r, Some(rev)),
+                    None => (cie_stack::stack_report(&path), None),
+                };
+            if json {
+                match store_stamp {
+                    // identical bytes to what ingest persisted
+                    Some(rev) if !force && path.join(".cie").join("revs").join(rev.to_string()).join("stack.json").exists() => {
+                        match std::fs::read_to_string(path.join(".cie").join("revs").join(rev.to_string()).join("stack.json")) {
+                            Ok(s) => {
+                                println!("{s}");
+                                return 0;
+                            }
+                            Err(_) => {
+                                println!("{}", cie_stack::to_json(&report));
+                                return 0;
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("{}", cie_stack::to_json(&report));
+                        return 0;
+                    }
+                }
+            }
+            match store_stamp {
+                Some(rev) => println!(
+                    "tech stack — from the revision store (rev {rev}); the exact artifact ingest persisted. Recompute with --force:"
+                ),
+                None => println!("tech stack — read from the project's own files; nothing inferred here:"),
+            }
             println!("  build      · {}", report.build.tool);
             println!("  artifact   · {}", if report.build.artifact_name.is_empty() { "(not stated)" } else { &report.build.artifact_name });
             for l in &report.languages {

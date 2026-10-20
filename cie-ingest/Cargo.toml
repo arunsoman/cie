@@ -34,6 +34,7 @@ cie-analysis = { workspace = true }
 cie-llm = { workspace = true }
 cie-claims = { workspace = true }
 cie-drift = { workspace = true }
+cie-stack = { workspace = true }
 cie-contract = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

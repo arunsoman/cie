@@ -2,9 +2,9 @@
 //! TypeScript contract (web/src/lib/stack-types.ts). Every record carries
 //! its own file+line so a UI row can open the real code.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StackReport {
     pub v: u32,
@@ -30,7 +30,7 @@ pub struct StackReport {
     pub generated_at: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildInfo {
     pub tool: String, // "maven" | "gradle" | "cargo" | "npm" | "go" | "mix" | "unknown"
@@ -38,7 +38,7 @@ pub struct BuildInfo {
     pub artifact_name: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StackLang {
     pub family: String, // "jvm-mixed" | "java" | "kotlin" | "rust" | …
@@ -47,7 +47,7 @@ pub struct StackLang {
     pub shared_runtime: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StackFramework {
     pub id: String, // "spring-boot" | "axum" | …
@@ -56,7 +56,7 @@ pub struct StackFramework {
     pub modules: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DockerInfo {
     pub present: bool,
@@ -65,7 +65,7 @@ pub struct DockerInfo {
     pub note: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dockerfile {
     pub path: String,
@@ -73,14 +73,14 @@ pub struct Dockerfile {
     pub exposed_ports: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeFile {
     pub path: String,
     pub services: Vec<ComposeService>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeService {
     pub name: String,
@@ -88,7 +88,7 @@ pub struct ComposeService {
     pub ports: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigEntry {
     pub rel: String,
@@ -100,7 +100,7 @@ pub struct ConfigEntry {
     pub note: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Coverage {
     pub files_scanned: u32,
@@ -110,7 +110,7 @@ pub struct Coverage {
 
 // ---- JVM deep facts (spring) ----
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmStack {
     /// the annotated classes that AREN'T one of the main families
@@ -131,7 +131,7 @@ pub struct JvmStack {
     pub kotlin_files: u32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmConfigCls {
     pub name: String,
@@ -141,7 +141,7 @@ pub struct JvmConfigCls {
     pub kind: String, // "configuration" | "security" | "feign" | "messaging"
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmService {
     pub name: String,
@@ -151,14 +151,14 @@ pub struct JvmService {
     pub injections: Vec<Injection>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Injection {
     pub field: String,
     pub r#type: String, // as written, generics included
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmRepository {
     pub name: String,
@@ -169,7 +169,7 @@ pub struct JvmRepository {
     pub entity: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmEntity {
     pub name: String,
@@ -180,14 +180,14 @@ pub struct JvmEntity {
     pub props: Vec<Prop>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Prop {
     pub name: String,
     pub r#type: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmScheduled {
     pub cls: String,
@@ -198,7 +198,7 @@ pub struct JvmScheduled {
     pub line: u32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmListener {
     pub cls: String,
@@ -208,7 +208,7 @@ pub struct JvmListener {
     pub line: u32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JvmOutbound {
     pub kind: String, // "rest-template" | "web-client" | "feign"
@@ -216,7 +216,7 @@ pub struct JvmOutbound {
     pub rel: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ControllerFlow {
     pub name: String,
@@ -225,7 +225,7 @@ pub struct ControllerFlow {
     pub flows: Vec<HandlerFlow>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HandlerFlow {
     pub method: String,
@@ -239,7 +239,7 @@ pub struct HandlerFlow {
 /// One node of the branch-capable data flow. Decisions carry children =
 /// branch arms; every node cites file+line. All text AS WRITTEN (truncated
 /// for display at the UI's discretion).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlowNode {
     pub id: String,
@@ -252,7 +252,7 @@ pub struct FlowNode {
     pub children: Vec<FlowBranch>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlowBranch {
     pub label: String, // "if (x > cap)", "else", "case 404:"
@@ -261,7 +261,7 @@ pub struct FlowBranch {
 
 // ---- generic per-stack sites (every parser fills these) ----
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteSite {
     pub verb: String,
@@ -278,7 +278,7 @@ pub struct RouteSite {
     pub evidence: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MainSite {
     pub name: String,
@@ -292,7 +292,7 @@ pub struct MainSite {
 
 /// one detected application: its dir, the language as detected from its OWN
 /// manifest, and the HTTP framework named in that manifest
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSite {
     /// dir of the app module, "" when the manifest sits at the root
@@ -305,4 +305,47 @@ pub struct AppSite {
     pub framework: String,
     /// the manifest file that named it
     pub evidence: String,
+}
+impl StackReport {
+    /// RFC-0019 Amendment 3, concretely: when the stack lens itself fails
+    /// (walk error, parser panic caught upstream, budget overrun), ingest
+    /// persists THIS honest record instead of blocking the analysis. Every
+    /// other artifact of the revision is unaffected; the web shows the
+    /// degraded state exactly as written here.
+    pub fn unavailable(reason: &str) -> StackReport {
+        StackReport {
+            v: 1,
+            build: BuildInfo {
+                tool: "unknown".into(),
+                modules: vec![],
+                artifact_name: String::new(),
+            },
+            languages: vec![],
+            frameworks: vec![],
+            docker: DockerInfo {
+                present: false,
+                dockerfiles: vec![],
+                compose: None,
+                note: String::new(),
+            },
+            jvm: None,
+            routes: vec![],
+            mains: vec![],
+            flows: vec![],
+            apps: vec![],
+            config: vec![],
+            notes: vec![format!(
+                "stack lens unavailable for this revision ({reason}) — other artifacts are unaffected"
+            )],
+            coverage: Coverage {
+                files_scanned: 0,
+                manifests_read: vec![],
+                dockerfiles_read: vec![],
+            },
+            generated_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+        }
+    }
 }

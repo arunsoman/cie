@@ -7,6 +7,7 @@ pub mod cochange;
 pub mod sample;
 pub mod history;
 pub mod pipeline;
+pub mod stack_store;
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -26,6 +27,7 @@ use cie_incremental::{plan_ingest, FileIndex, FileRecord, IngestPlan};
 use cie_llm::persist::LabelStoreExt;
 use cie_llm::{Budget, Labeler, OfflineProvider, ProviderKind};
 use cie_semantic::facts::SymbolStore;
+use stack_store::StackStoreExt;
 use cie_semantic::lang_for_path;
 use cie_semantic::LangId;
 use cie_store::Store;
@@ -179,10 +181,15 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         let mut index = prev_index.unwrap_or_default();
         index.last_reingest_ns = wall;
         store.save_index(&index)?;
+        // RFC-0019 §6.1: a no-op ingest answers the stack lens from the
+        // PRIOR revision's persisted artifact — never re-parses. (Stage 2
+        // adds the manifest/docker input diff that forces a re-derive here.)
+        let prior_stack = if last > 0 { store.load_stack(last).ok().flatten() } else { None };
         let snapshot = RevSnapshot {
             rev: last,
             incremental: true,
             ingest_wall_ns: wall,
+            stack: prior_stack,
             ..Default::default()
         };
         return Ok(IngestOutcome {
@@ -407,6 +414,23 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         deadline_ns: deadline,
         include_coverage_gaps: opts.include_coverage_gaps,
     };
+
+    // RFC-0019 §6.1: the stack lens runs INSIDE ingest, before analyze, so
+    // the hierarchy can consume it in the same run. Being in the FULL path
+    // means language files changed (§6.2 rule 1: facts may change) — the
+    // stack artifact re-derives; the lens' own caps bound the work, under a
+    // sub-deadline slice. The lens is infallible by construction (walk/parse
+    // problems land as honest notes inside the report), so this cannot
+    // block the analysis — Amendment 3's `unavailable` record exists for
+    // callers that wrap the stage in a fallible boundary.
+    let stack_budget_ms = opts
+        .budget_ms
+        .map(|total| std::cmp::max(total / 4, 1).min(20_000));
+    let stack = cie_stack::stack_report_stage(project, stack_budget_ms);
+    // Persist BEFORE save_snapshot so a crash mid-ingest can never leave a
+    // snapshot naming a stack artifact that isn't durably on disk.
+    store.save_stack(rev, &stack)?;
+
     let analysis = cie_analysis::analyze(
         &extracted.store,
         &extracted.per_file,
@@ -491,6 +515,9 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
             reused_symbols: analysis.summary_reuse.reused_symbols,
             recomputed_symbols: analysis.summary_reuse.recomputed_symbols,
         }),
+        // RFC-0019 §6.1: the stack lens' reading rides with the snapshot —
+        // the report/concepts consumers read ONE artifact family.
+        stack: Some(stack),
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
     // orphaned call edges survive a tombstoned deletion.
