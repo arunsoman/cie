@@ -174,3 +174,38 @@ Choreography: §5.2 shared, plus:
 ## 12. Worked example — the fresher, 07 clicks (so reviewers of this spec can run it)
 
 `C4.click(alerting)` → breadcrumb [System ▸ alerting], chip `alerting` — tables filter, tree collapses. `routeRow.click(POST head-accounts)` → popup at `HeadAccountController.java`; chip 2. `Enter` (popup) → full source panel, dock stays. `componentBox.click(alerting service)` → scope module `DynamicRCAEngine`, popup at its first line, chip 3. `flowBox.click(RCAOrchestrator)` → chip 4 → **R4 slot appears**: FlowChart of `DynamicRCAEngine+RCAOrchestrator+…` (process boxes + reads/writes edges; "decisions not indexed" until DecisionFact lands) + SequenceChart of the calls between the two. `decision.click` (once available) → popup at `if (calibrationConfidence < 0.7)` exact line. `chip(2).✕` → R4 reflows to 3 elements, scope unchanged. Footer throughout: every one of these actions stated in plain words, chips counted.
+
+---
+
+## 13. Contract-capability evaluation — can the ViewSpec carry this spec?
+
+Question: does the sealed contract — `ViewSpec` v2 (`viz-adapter/src/types.ts:120-139`), the Rust producer (`cie-viz/src/produce.rs`), and the engine-adapter contracts — have the *shape* to express everything §1–§12 requires, and can the viz-manager render these interactions over it? Verdicts below cite exact fields (`types.ts` line ranges from this session's reads).
+
+**Overall verdict: ~90% of the spec is expressible in the contract as it stands.** Three additive patches carry the rest (`➕`), the interaction vocabulary deliberately stays OUT of the contract (`✅` verdicts of a different kind), and the genuinely missing pieces are producer emissions, not schema (`ENGINE`).
+
+| Spec capability (§ ref) | Contract field today | Verdict |
+|---|---|---|
+| Element identity for chips + popup + path:line (§2, §3-CHIP/POPUP) | `ViewElement.id` + `evidence {file,start,end}` (`types.ts:31-36, :19-23`) | ✅ exact |
+| Drill chains container→module→symbol (§3-SCOPE) | `ViewElement.parentId` (`:42`) | ✅ |
+| FlowChart decision diamonds (§4.1) | open `elementKind` vocabulary (`:32`, open map; `g6.ts:31` "adding a kind is adding ONE entry") + `label` carries the condition + `evidence` carries the line | ✅ **no schema change** — needs `ENGINE: DecisionFact` emission only |
+| Data edges labeled reads/writes; call edges; stores/externals (§4.1) | open `edgeKind` (`:50`) + open element kinds + `fields` | ✅ |
+| Component-board body lines (§4, charter §4.2) | `fields: Record<string, unknown>` (`:41`) | ⚠️ expressible — 🌈 requires gate rule: body-lines must carry evidence too (formalize as `fields.bodyLines` with a gate check) |
+| Grouped-box disclosure popup listing grouped elements (§3-R1) | `hidden[]` ledger exists: `HiddenCandidate {id, reason, salienceWeight}` (`:67-71`) | ➕ additive: `label`+`kind` on HiddenCandidate so a disclosure row is clickable |
+| Drift claim pairs (doc line + code line, §6) | single `EvidenceRef` per element/edge | ➕ additive: `fields.alsoEvidence?: EvidenceRef[]` |
+| Facts-only filter + recount (§3-REGATE) | `Preferences` (`:96-101`) + TS gate + `EpistemicFooter` recount (`:73-80`) | ✅ — the slice re-gate design (RFC-0023 §4.3) already prescribes it |
+| Scope attestation per slice (footer) | `ScopeAttestation {revision, environments, coverage}` (`:82-89`) | ✅ |
+| Which charts to draw, with which actions (drill/filter) (§8, §9-R3) | **NOT in the ViewSpec — correctly.** `planSheet` (manager) derives actions from chartKind × elementKind | ✅ architectural: the producer stays interaction-blind — the VIZ-A-01 law ("CIE never knows what a chart is") extends naturally: **CIE never knows what a click is either**; the ChartPlan owns actions |
+| Selection subscription (chips echo engine↔app, §3-CHIP) | `RenderHandle {engineId, semanticHash, renderHash, layout, dispose}` (`:189-194`) — no events yet | ➕ additive (designed in RFC-0023 §4.1): `onSelection(cb)` + `setSelected(ids, origin)` |
+| Chart-list derivation (viz-manager, R2) | negotiator chooses ONE engine per chart (`negotiator.ts:14-22`); catalog is data (`catalog.ts`) | ✅ — `planSheet` is the same pure-function style; no contract change |
+| Single-chart interactions: pan/zoom/click/fisheye/export | G6 capabilities declared (`g6.ts` CapabilitySet) + **proven live** (`concept-tree-g6.tsx:115-150`); LOD set (`interaction.ts` US-022) | ✅ — remaining work is the render/relayout BODIES (stage 1), not capability |
+| Multi-chart conductor | not implemented anywhere yet | ➕ client-side bus (RFC-0023 stage 4); no contract change |
+| Selected-set re-gating + hash stability | `ELEMENT_CAP = 2_000` (`gate.ts:12`) + semantic/render hash split (`:130-138`) + cross-language hash specs pass | ✅ — a selection's FlowChart+Sequence are comfortably inside the cap |
+| Producer element emission for the new charts | `produce.rs:211` emits concept-node elements only (`c<id>`) | `ENGINE` — produce gains a flow-chart producer over Pdg facts + DecisionFacts; schema untouched |
+
+### 13.1 The three additive patches, exactly
+
+1. **`RenderHandle.onSelection` / `setSelected`** — the only *behavioral* contract extension; additive, both directions, loop-guarded.
+2. **`HiddenCandidate.label` + `.kind`** — makes the `…and N more` disclosure popup real (rows clickable) without weakening the seal (the ledger's ids already resolve to full elements when un-hidden).
+3. **`fields.alsoEvidence[]` + a formalized `fields.bodyLines[]` gate rule** — the only multiplicity and narration the spec needs; the gate gains two checks, error codes shared with Rust as usual.
+
+Nothing else changes the wire contract. The producer gains *emissions*, the manager gains *a pure function*, the engines gain *render bodies*, the client gains *a conductor* — four work packages, all inside the law that the producer emits epistemics and never pixels, actions, or clicks.
