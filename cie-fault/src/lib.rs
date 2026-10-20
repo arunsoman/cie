@@ -22,3 +22,5 @@ pub use trace::{
     TraceFrame, TraceFrames, TraceParseError,
 };
 pub use next_steps::{next_steps, EvidenceState, NextStep};
+
+pub mod lineage_from_state_model;

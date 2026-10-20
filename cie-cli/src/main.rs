@@ -54,6 +54,8 @@ pub struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
+    /// Static-model fault hypotheses (RFC-0020); no application is executed.
+    Fault { path: PathBuf, #[arg(long, default_value_t=2)] max_faults: usize, #[arg(long, default_value_t=500)] budget_ms: u64, #[arg(long)] json: bool },
     /// Evidenced payment/recovery template transitions (RFC-0020), static only.
     StateModel { path: PathBuf, #[arg(long)] json: bool },
     /// Dependency manifest scan + usage evidence + upgrade what-if (US-062)
@@ -320,6 +322,22 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::Fault { path, max_faults, budget_ms, json } => {
+            if !(1..=2).contains(&max_faults) || budget_ms>5000 {eprintln!("fault: max-faults must be 1–2, budget-ms at most 5000");return 1;}
+            let result=(|| -> std::io::Result<_> {
+                use cie_ingest::state_model_store::StateModelStoreExt;
+                let o=cie_ingest::materialize(cie_ingest::run_ingest(&path,&IngestOptions::default())?)?;
+                let store=cie_store::Store::open(&path)?;
+                let model=store.load_state_model(o.rev)?.filter(|m|!m.edges.is_empty());
+                let r=cie_fault::lineage_from_state_model::analyze_model(o.rev,model.as_ref(),cie_fault::RoundLimits{max_faults,budget_ns:budget_ms*1_000_000});
+                store.write_json(&store.root().join("revs").join(o.rev.to_string()).join("fault.json"),&r)?;
+                Ok(r)
+            })();
+            match result {
+                Ok(r)=>{if json {println!("{}",serde_json::to_string_pretty(&r).unwrap());}else{println!("{} · static-model simulation, execution performed: false",r.status);if let Some(reason)=r.unknown_reason{println!("{reason}");}if let Some(p)=r.property{println!("{p}");}println!("{} bounded simulated hypotheses; no runtime recovery conclusion",r.experiments.len());}0},
+                Err(e)=>{eprintln!("fault: {e}");1}
+            }
+        }
         Command::StateModel { path, json } => {
             match cie_ingest::run_ingest(&path, &IngestOptions::default()).and_then(|o| cie_ingest::materialize(o)) {
                 Ok(o) => {

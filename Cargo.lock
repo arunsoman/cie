@@ -511,6 +511,7 @@ dependencies = [
  "cie-contract",
  "cie-core",
  "cie-drift",
+ "cie-fault",
  "cie-incremental",
  "cie-ingest",
  "cie-llm",
