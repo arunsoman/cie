@@ -371,3 +371,16 @@ Work Log:
 
 Stage Summary:
 - "Modules — each file as a box" now appears only when it's true; a folder's cached store can no longer serve yesterday's engine's concepts as today's facts. The fast path stays fast: one extra JSON read when the plan is empty, one full pass per engine upgrade per folder, then nothing.
+---
+Task ID: 26
+Agent: main (Z.ai)
+Task: Heal the shahy-restructure workspace the staleness bug was showing "Modules — each file as a box" for.
+
+Work Log:
+- The user's own 2,269-file monorepo (/home/arun/shahy-restructure) restored through its last-workspace record fell back to the file/class picture. The stored evidence said why: its .cie store was FOUNDED by an older engine — revs/1/snapshot.json carried no stack in the snapshot, no concepts_tier marker, and pre-tier concepts (Module 2183, Value 2300, zero Container/Service) — and every ingest since had been a no-op, so the fast path (pre-6abef5e) served that tree forever while the stack lens named 39 apps correctly beside it.
+- Healed with the fixed binary: one full concepts pass on the folder (16.5s, the once-per-engine-upgrade cost) → concepts now Domain 1 / Container 38 / Service 172 / Subdomain 5 / Module 2269 / Aggregate 104 / UseCase 104 — the real fleet (account-management, alerting, aml-controller, aml-service, api-gw, authorization-authentication, bookkeeping, kyc, shahy-topup …).
+- Re-ran the analyze job end to end (e7c09652 … — the workspace scan reads 3,445 files, 1,087 Java + 1,069 TypeScript + 34 SQL) and refreshed the user's existing record id (68cd21e7 …) IN PLACE to serve the healed result — the browser's last-workspace record heals on the next launch without any re-connection.
+- Verified live: the restored workspace opens with its own name in the topbar; Atlas shows the concept tier over the whole system (account-management boot/config/web, alerting boot/web — certainty chips as recorded), the controllers/routes table (HeadAccountController, LeafAccountController, /ams/api/…), and the honest unresolved-names node.
+
+Stage Summary:
+- The title meant exactly what it said: that workspace's store had no concept tier to draw — because its store predated the tier. The marker fix from Task 25 makes the folder self-heal on the next CIE command; the record refresh in place made that heal immediate for the browser too.
