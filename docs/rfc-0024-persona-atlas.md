@@ -98,3 +98,22 @@ G6 bundle optimization, mermaid/elk new engines beyond RFC-0023 stage 5, MCP exe
 - every `…and N more` opens its ledger list; every click footer-disclosed (G4);
 - scope attestation + revision printed on every panel (ScopeAttestation);
 - the popup shows context lines styled apart from evidence lines — never fabricated.
+## 6. The retirement list — classes deleted when the implementation completes
+
+Everything the new path replaces, named per file, so a coder knows exactly what dies, when, and why — and what survives *demoted* (still executing, never on a bypass path). Deletion stages are the §4 stage numbers; every deletion has a verifying acceptance: **nothing is deleted before the ux-spec §12 worked example runs click-for-click against the canvas path on shahy-restructure plus all five presets render from plans.**
+
+| Class / field | File | Fate | Stage | Why |
+|---|---|---|---|---|
+| `DiagramSVG` (uml/flow/c4 painter) | `web/src/components/cie/chat-chart.tsx` | **DELETED** | 6 | G6 canvas + engine adapters draw all graph kinds; the SVG body was the bypass |
+| `SequenceSVG` | `chat-chart.tsx` | **DELETED** | 6 | SequenceChart draws via the engine over PDG slice |
+| `MindmapSVG` | `chat-chart.tsx` | **DELETED** | 6 | mindmap kind routed through the adapter |
+| the per-kind dispatch switch (`spec.kind === …` rows `:1039-1047`) | `chat-chart.tsx` | **DELETED** | 6 | negotiator routing replaces hand dispatch; `useAsk`/`ASK_HINT`/`ChartFootnote`/`ElementLoc` live on (host hooks, disclosures) |
+| the four ad-hoc Atlas click handlers `onContainersClick` / `onComponentsClick` / `onDataflowClick` / `onFlowClick` | `web/src/components/cie/atlas-view.tsx` | **DELETED** | 3 | verb-composed handlers (§3 vocabulary) own clicks; the old ids survive as `atlasSelection` kinds |
+| `concept-tree-g6.tsx` as a standalone bespoke component | `web/src/components/cie/concept-tree-g6.tsx` | **DELETED (pattern generalized first)** | 1→6 | its G6+compactBox wiring moves INTO `web/src/lib/viz/g6-engine.ts`; the tree kind then reads through planSheet like every kind; file dies only after canvas parity confirmed |
+| `mapSelected: VizElement \| null` (singular referent) | `web/src/lib/cie-store.ts` + `chat-panel.tsx` chip UI + `sections.tsx` bindings | **DELETED** | 4 | replaced by plural `chatContext: ChatContextElement[]`; `MapInfoCard` keeps working off the context head (the last-picked chip) |
+| `openChartOnCanvas`-era ad-hoc chart-on-canvas wiring in chat-panel | `chat-panel.tsx` | **demoted, not deleted** | 2 | chart-on-canvas becomes a planSheet case (an "on canvas" detail preset) — code survives behind the manager |
+| statistical-kind painters (`FisheyeHBar`/fisheye math, `ChatDonut`, `ChatStat`, `ChatTable`, `Heatmap`) | `chat-chart.tsx` | **RELOCATED BEHIND `EngineAdapter` — NOT deleted** | 1 | statistical kinds are honest SVG-engines for print/export (per charter boundary: engine = chart engine, not necessarily G6); their code becomes the registered statistical engine's implementation; the fisheye lens contract (US-023) moves with it |
+| throwing stubs `render/relayout` in `jointjs/reactflow/mermaid` adapters | `viz-adapter/src/engines/{jointjs,reactflow,mermaid}.ts` | **KEPT (declared-capability engines)** | — | headless until RFC-0023 stage 5; their throws are documented capability statements, not dead code |
+| today's jump-to-source-on-click behavior | (behavior, not file) | **REPLACED** | 3 | popup-first (§2); full source panel = popup's `Enter`/button path |
+
+**The promise this list enforces:** after stage 6 there is exactly ONE click path (verbs → conductor → engines → onSelection), exactly ONE chart-plan source (planSheet), and the SVG-in-product question is closed — statistical engines remain as *registered* renderers, while every bespoke bypass hand-route (`DiagramSVG` dispatch, four ad-hoc handlers, standalone tree component, singular referent) is gone from the tree.
