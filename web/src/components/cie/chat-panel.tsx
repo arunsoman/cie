@@ -19,6 +19,7 @@ import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X,
 import { useCie } from "@/lib/cie-store";
 import { ContextChips } from "./context-chips";
 import { buildDigest } from "@/lib/chat-digest";
+import { scopeDigest } from "@/lib/scope-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
@@ -95,7 +96,7 @@ export function ChatPanel() {
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
     stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
     pendingTrace, setPendingTrace, updateMastery, loadMastery,
-  } = useCie();
+    chatContext } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +104,13 @@ export function ChatPanel() {
   const digest = useMemo(
     () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift),
     [report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift]
+  );
+
+  // RFC-0024 stage 5 — the chips scope the digest (R5): chips present →
+  // ONLY the selection's code space is sent, with the honest scope line.
+  const scopedDigest = useMemo(
+    () => scopeDigest(digest as Record<string, unknown> | null, chatContext),
+    [digest, chatContext]
   );
 
   // Keep the newest message in view.
@@ -247,6 +255,7 @@ export function ChatPanel() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sourceRoot, symbol: target.qual_name }),
+
           });
           const data = (await res.json().catch(() => ({}))) as Partial<CieImpact> & { error?: string; technical?: string };
           if (!res.ok || !data.symbol) {
@@ -302,7 +311,10 @@ export function ChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          digest,
+          // RFC-0024 stage 5 — the send payload carries the selection scope:
+          // chips present → the digest is SLICED to the chips' code space
+          // (and the route's system prompt binds the model to it).
+          digest: scopedDigest?.scoped ?? digest,
           llm: {
             provider: llm.provider,
             ollama: { baseUrl: llm.ollama.baseUrl.trim(), model: llm.ollama.model.trim() },
@@ -500,7 +512,15 @@ export function ChatPanel() {
         >
           <input
             ref={inputRef}
-            placeholder={chatBusy ? "CIE is thinking…" : mapSelected ? `Ask about ${mapSelected.label}…` : "Type your question…"}
+            placeholder={
+              chatBusy
+                ? "CIE is thinking…"
+                : scopedDigest?.scopeLine
+                  ? `Ask about your selection — ${scopedDigest.scopeLine}`
+                  : mapSelected
+                    ? `Ask about ${mapSelected.label}…`
+                    : "Type your question…"
+            }
             disabled={chatBusy || !canAsk}
             maxLength={2000}
             aria-label="Your question"

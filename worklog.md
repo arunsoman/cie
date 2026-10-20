@@ -475,3 +475,16 @@ Work Log:
 
 Stage Summary:
 - The dashboard now follows the user's hand: pick elements anywhere and the R4 pair flows them, while the scope-driven panels step aside (G5) — chips are the user's, personas and scope never touch them.
+---
+Task ID: 33
+Agent: main (Z.ai)
+Task: RFC-0024 stage 5 — scoped answering (the chips bound the model to the selection's code space).
+
+Work Log:
+- scope-digest.ts: scopeDigest(digest, chips) — slices findings/promises/repeated_behavior/cochange/overlap/drift to the chips' files ∪ named things, attaches selection_scope {rule, chips, files, named_things} + the honest scope line "drawn from N files over M named things".
+- chat-panel: the send payload carries the SCOPED digest when chips exist (empty chips = today's behavior); composer placeholder names the scope.
+- api/chat route: system prompt gains the binding scope rules when selection_scope is present — answer ONLY from the selection, disclose out-of-scope reach FIRST, never silently merge, close with the scope line.
+- Verified: tsc clean, next build compiles.
+
+Stage Summary:
+- A chips-scoped question can no longer reach past the user's hand: the digest is the selection, the prompt says so, and every boundary crossing is named. Empty chips = exactly today's behavior.

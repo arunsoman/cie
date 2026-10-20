@@ -41,6 +41,24 @@ function sanitizeHistory(raw: unknown): ChatTurn[] {
 
 function systemPrompt(digest: unknown): string {
   const facts = JSON.stringify(digest, null, 1);
+  // RFC-0024 stage 5 — scoped answering (ux-spec §3-ASK, RFC-0023 §9-R5):
+  // when the digest carries a selection_scope, the answer draws ONLY from
+  // that code space, and every out-of-scope temptation is DISCLOSED, never
+  // silently merged.
+  const scope = (digest as { selection_scope?: { files: string[]; named_things: string[]; chips: { label: string; kind: string }[] } }).selection_scope;
+  const scopeRules = scope
+    ? [
+        "",
+        "SELECTION SCOPE — THIS OVERRIDES EVERYTHING ELSE ABOUT RANGE:",
+        `The user has selected a specific slice of their project (chips: ${scope.chips.map((c) => c.label).join(", ") || "(none)"}).`,
+        `ONLY use facts about these named things and files: ${(scope.named_things ?? []).join(", ")}${(scope.files ?? []).length ? " in files " + scope.files.join(", ") : ""}.`,
+        "- Answer ONLY from facts inside this selection. Everything else in the JSON is OUT OF SCOPE for this question.",
+        "- If the question reaches outside the selection (or the selection alone cannot answer), say so plainly FIRST: \"that's outside the elements you've picked — here's what your selection does say:\" and then answer from the selection.",
+        "- Never silently import an out-of-scope fact to fill a gap. Name the boundary, then use the selection.",
+        `- End scope-sensitive answers' honesty line: the answer was drawn from ${scope.files.length} file(s) over ${(scope.named_things ?? []).length} named thing(s).`,
+        "",
+      ]
+    : [];
   return [
     "You are CIE's friendly explainer. CIE is a tool that reads a software project and turns it into a plain-English health report.",
     "You are chatting with the project's owner. They may be completely non-technical — a founder, a manager, a student. Be warm, patient and clear.",
@@ -49,7 +67,7 @@ function systemPrompt(digest: unknown): string {
     "----- BEGIN PROJECT FACTS -----",
     facts,
     "----- END PROJECT FACTS -----",
-    "",
+    ...scopeRules,
     "OUTPUT FORMAT — reply with ONE JSON object and nothing else (no code fences, no prose outside the JSON):",
     '{"answer": "your plain-words answer", "chart": null}',
     "or, when a chart genuinely helps:",
