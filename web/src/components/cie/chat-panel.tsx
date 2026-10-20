@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
+import { ContextChips } from "./context-chips";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
@@ -482,6 +483,11 @@ export function ChatPanel() {
           </span>
         </div>
       )}
+
+      {/* RFC-0024 stage 4 — the R5a CONTEXT CHIPS row lives in the Ask-CIE
+          dock, above the composer (§1); the payload carries the scope at
+          stage 5. */}
+      <ContextChips />
 
       {/* composer */}
       <div className="p-3.5 bg-white border-t border-stone-200">

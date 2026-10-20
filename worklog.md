@@ -459,3 +459,19 @@ Work Log:
 
 Stage Summary:
 - Clicks speak the closed verb vocabulary: SCOPE/POPUP/G1-ledger; jump-to-source is replaced (retired at stage 6 in name only — the popup owns first response now).
+---
+Task ID: 32
+Agent: main (Z.ai)
+Task: RFC-0024 stage 4 — the R5a context chips + the R4 selected-context pair + the G5 collapse rule.
+
+Work Log:
+- Store: chatContext with dedupe/cap-24-evict-and-disclose (chipNotice), removeChip/clearChips; ChatContextElement type in cie-types.
+- context-chips.tsx: the R5a row in the Ask-CIE dock (plural, removable, pulse-on-repeat, cap line).
+- Every element-resolving Atlas click auto-chips (§2.3); the popup's toggle = the removal affordance; tree clicks upgraded to CHIP+SCOPE.
+- selected-context-panel.tsx: R4 pair — FlowChart over the picked elements (recorded calls only, honest "decisions not indexed in this slice") + SequenceChart (selection-internal messages, computed entry with TELL, no invented hops); empty state before the first chip.
+- G5: R4 first in the grid while chips exist; flow/dataflow/sequence collapse to caption rows; re-open pushes R4 below; zero chips restores.
+- NOTE: the GitHub PAT from the user's message stopped authenticating mid-run (API 401 — likely rotated/revoked after being pasted). Stage 4 commit is local; push resumes on a fresh token. The token file was scrubbed from the repo before staging.
+- Verified: tsc clean, next build compiles.
+
+Stage Summary:
+- The dashboard now follows the user's hand: pick elements anywhere and the R4 pair flows them, while the scope-driven panels step aside (G5) — chips are the user's, personas and scope never touch them.

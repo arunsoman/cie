@@ -20,6 +20,7 @@ import { compactBox } from "@antv/hierarchy";
 import { MessageCircleQuestion } from "lucide-react";
 import type { ChatChartSpec, TreeNode } from "@/lib/chat-chart";
 import { ASK_HINT, KIND_PLAIN, useAsk } from "./chat-chart";
+import { useCie } from "@/lib/cie-store";
 
 const KIND_STYLE: Record<string, { fill: string; stroke: string; text: string }> = {
   Domain: { fill: "#ecfdf5", stroke: "#059669", text: "#065f46" },
@@ -37,6 +38,8 @@ interface HData {
 
 export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
   const ask = useAsk();
+  const setAtlasSelection = useCie((s) => s.setAtlasSelection);
+  const addChip = useCie((s) => s.addChip);
   const nodes = spec.tree ?? [];
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -124,11 +127,21 @@ export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
     });
     void graph.render();
 
+    // RFC-0024 stage 4 — the chip-first upgrade of today's ask-only click
+    // (ux-spec §5.2 "Tree node": SCOPE + FOCUS + CHIP). SCOPE lands in the
+    // Atlas selection (module level); the chip rides along; the ask stays
+    // for nodes that resolve to nothing scopeable.
     const onClick = (e: IElementEvent) => {
       const id = e.target?.id;
       if (id == null) return;
       const datum = graph.getNodeData(id as string);
-      ask(spec, { name: (datum?.data?.label as string | undefined) ?? String(id) });
+      const label = (datum?.data?.label as string | undefined) ?? String(id);
+      const node = nodes.find((n) => n.id === id);
+      if (node) {
+        setAtlasSelection({ kind: node.parent === null ? "container" : "module", id: node.label, label: node.label });
+        addChip({ id: `tree:${node.id}`, label: node.label, kind: "module", sourceTitle: "Concept tree" });
+      }
+      ask(spec, { name: label });
     };
     const onEnter = () => { host.style.cursor = "pointer"; };
     const onLeave = () => { host.style.cursor = "default"; };
@@ -149,7 +162,7 @@ export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
       graph.off("node:pointerleave", onLeave);
       graph.destroy();
     };
-  }, [nodes, ask, spec]);
+  }, [nodes, ask, spec, setAtlasSelection, addChip]);
 
   if (!nodes.length) return null;
 

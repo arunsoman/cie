@@ -20,7 +20,7 @@
 // (dashed / "inferred"), and the Facts-only switch filters the whole
 // dashboard at once.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, Rocket, Ser
 import { useCie } from "@/lib/cie-store";
 import { planSheet } from "@/lib/chart-plan";
 import { CodePopup, type PopupRequest } from "./code-popup";
+import { SelectedContextPanel } from "./selected-context-panel";
 import {
   breadcrumbOf,
   buildComponentSpec,
@@ -78,7 +79,7 @@ function filterFacts(spec: ChatChartSpec): ChatChartSpec {
 }
 
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure, setPendingAsk } = useCie();
+  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure, setPendingAsk, chatContext, addChip, removeChip } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders
   // plan.rows in reading order instead of a hand-coded sequence.
@@ -221,14 +222,32 @@ export function AtlasView() {
   // evidence, never a scope (G2); the grouped-out box opens the G1
   // disclosure popup (the ledger rows), never a scope.
   const [popup, setPopup] = useState<PopupRequest | null>(null);
+  // G5 — exclusivity of subject: the flow/sequence subject is either the
+  // scope (R3 panels) or the selection (R4), never both visible at once.
+  const r4Active = chatContext.length > 0;
+  const [g5Reopened, setG5Reopened] = useState<string | null>(null);
+  useEffect(() => {
+    if (!r4Active) setG5Reopened(null); // chips at zero → everything restores
+  }, [r4Active]);
+  const g5Collapsible = (panel: string) =>
+    r4Active && g5Reopened !== panel && (panel === "flow" || panel === "dataflow" || panel === "sequence");
   const [disclosure, setDisclosure] = useState<{ title: string; rows: NonNullable<ChatChartSpec["hidden"]> } | null>(null);
   const openPopup = (loc: ElementLoc | undefined | null, label: string, kind?: string, certainty?: PopupRequest["certainty"]) => {
     if (!loc?.file) return;
+    // §2.3 — CHIP is automatic on the click that resolves an identity; the
+    // popup merely displays that a chip was added and offers removal.
+    const chipId = `${kind ?? "el"}:${label}:${loc.file}`;
+    addChip({ id: chipId, label, kind: kind ?? "element", loc: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line }, sourceTitle: "Atlas" });
     setPopup({
       primary: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line },
       label,
       kind,
       certainty: certainty ?? "Fact",
+      chipped: true,
+      onToggleChip: () => {
+        removeChip(chipId);
+        setPopup(null);
+      },
       onAsk: () => {
         setPopup(null);
         setPendingAsk(`what does ${label} do, and what evidence supports that?`);
@@ -246,6 +265,7 @@ export function AtlasView() {
       return; // G1: the grouped-out box is a ledger, not a scope
     }
     setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
+    addChip({ id: `container:${sel.id}`, label: sel.id, kind: "container", sourceTitle: "Atlas" });
   };
   const onComponentsClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
@@ -458,10 +478,32 @@ export function AtlasView() {
               </Panel>
             </div>
           ) : (
+            <>
+            {r4Active && !g5Reopened && (
+              <div className="lg:col-span-2 mb-1" data-testid="r4-slot">
+                <SelectedContextPanel />
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {plan.rows.map((row) => {
                 const meta = PANELS.find((p) => p.id === row.panel);
                 if (!meta) return null;
+                // G5: the collapsed caption keeps the panel's place and count
+                if (g5Collapsible(row.panel)) {
+                  const count = row.panel === "sequence" ? "" : "";
+                  return (
+                    <button
+                      key={row.panel}
+                      type="button"
+                      onClick={() => setG5Reopened(row.panel)}
+                      data-testid={`g5-collapsed-${row.panel}`}
+                      className="lg:col-span-2 flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-left text-[11px] text-stone-500 hover:bg-stone-100"
+                    >
+                      <span className="font-semibold text-stone-600">{meta.label}</span>
+                      <span>{count}showing selection-scoped below — click to re-open in place</span>
+                    </button>
+                  );
+                }
                 const wide = row.panel === "containers" || row.panel === "flow";
                 const panel = (
                   <Panel
@@ -488,6 +530,12 @@ export function AtlasView() {
               {hasChurn && <QualityPanel icon={GitCommitHorizontal} label="Churn per file" scopedTo={scopeId} spec={churnSpec} scopeWhat="files with churn" />}
               {hasHot && <QualityPanel icon={Flame} label="Hot spots" scopedTo={scopeId} spec={hotSpec} scopeWhat="ranked files" />}
             </div>
+            {r4Active && g5Reopened && (
+              <div className="mt-3" data-testid="r4-slot">
+                <SelectedContextPanel />
+              </div>
+            )}
+            </>
           )}
           {!expandedPanel && (
             <p className="mt-3 flex items-center gap-1.5 text-[10.5px] text-stone-400">

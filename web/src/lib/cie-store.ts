@@ -21,6 +21,7 @@ import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
 import { PERSONA_PRESETS, loadPersonaMemory, savePersonaMemory, type PersonaId } from "./atlas-presets";
+import type { ChatContextElement } from "./cie-types";
 
 export type DataSource = "demo" | "custom" | null;
 
@@ -188,6 +189,16 @@ interface CieState {
   setPersona: (id: PersonaId) => void;
   markFactsOnlyTouched: () => void;
 
+  // RFC-0024 stage 4 — the R5a context chips (ux-spec §3-CHIP/§2.3): every
+  // element-resolving click auto-adds its chip (dedupe by id, cap 24 — the
+  // 25th click evicts the oldest and says so). Chips SURVIVE persona
+  // switches and scope releases (G3). R4 follows chips only (G5).
+  chatContext: ChatContextElement[];
+  chipNotice: string | null; // eviction / repeat-pulse disclosure (G4)
+  addChip: (el: ChatContextElement) => void;
+  removeChip: (id: string) => void;
+  clearChips: () => void;
+
   // mastery journey
   loadMastery: () => void; // (re)load for the CURRENT project; call after mount / project change
   updateMastery: (fn: (m: MasteryState) => MasteryState) => void; // pure edit + persist
@@ -234,6 +245,8 @@ export const useCie = create<CieState>((set, get) => ({
   persona: "fresher" as PersonaId, // §14.2-6: first-run default = Fresher
   personaFactsOnlyTouched: false,
   personaDisclosure: null,
+  chatContext: [],
+  chipNotice: null,
 
   loadDemo: async (kind) => {
     const demoKind = kind ?? get().demoKind ?? "polyglot";
@@ -464,6 +477,26 @@ export const useCie = create<CieState>((set, get) => ({
         ...(scopeCarries ? {} : { atlasSelection: ATLAS_RESET }),
       };
     }),
+  addChip: (el) =>
+    set((s) => {
+      if (s.chatContext.some((c) => c.id === el.id)) {
+        // §2.3: a repeat click never duplicates — the existing chip pulses
+        // (CSS key on the chip row handles the animation); disclose anyway.
+        return { chipNotice: `${el.label} is already in context — pulsed` };
+      }
+      const next = [...s.chatContext, el];
+      if (next.length > 24) {
+        const evicted = next.shift()!;
+        return {
+          chatContext: next,
+          chipNotice: `cap of 24 reached — evicted the oldest chip (${evicted.label})`,
+        };
+      }
+      return { chatContext: next, chipNotice: null };
+    }),
+  removeChip: (id) =>
+    set((s) => ({ chatContext: s.chatContext.filter((c) => c.id !== id), chipNotice: null })),
+  clearChips: () => set({ chatContext: [], chipNotice: null }),
 
   // mastery: keyed by the loaded project (label); load reads localStorage.
   // Switching projects drops the old state from memory so every component

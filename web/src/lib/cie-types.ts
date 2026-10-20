@@ -710,3 +710,15 @@ export function isValidConcepts(o: unknown): o is ConceptTree {
   const c = o as ConceptTree;
   return !!c && Array.isArray(c.nodes);
 }
+
+// RFC-0024 stage 4 — the R5a context chip (ux-spec §3-CHIP). One picked
+// element: identity + display data + (when the click resolved one) its
+// recorded location. Chips are the user's, not the persona's (G3): they
+// survive persona switches and scope releases; the R4 pair follows them.
+export interface ChatContextElement {
+  id: string; // element id — dedupe key
+  label: string; // human text on the chip
+  kind: string; // plain-words kind (container / module / symbol / route / edge …)
+  loc?: { file: string; byteStart?: number; byteEnd?: number; line?: number };
+  sourceTitle?: string; // the panel/chart the chip was picked from
+}
