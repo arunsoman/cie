@@ -8,6 +8,7 @@ pub mod sample;
 pub mod history;
 pub mod pipeline;
 pub mod stack_store;
+pub mod state_model_store;
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -556,10 +557,18 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         // RFC-0019 §6.1: the stack lens' reading rides with the snapshot —
         // the report/concepts consumers read ONE artifact family.
         stack: Some(stack),
+        state_model: None,
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
     // orphaned call edges survive a tombstoned deletion.
     let purged = store.purge_tombstoned(&mut snapshot)?;
+    let model = cie_contract::obligations::StateModelBuilder::from_effects(
+        &SymbolStore::build(snapshot.symbols.clone()),
+        &snapshot.summaries.iter().map(|s| (s.sym, s.clone())).collect());
+    let model = cie_contract::obligations::evidenced_model(&model);
+    snapshot.state_model = cie_contract::obligations::to_view(&model);
+    use state_model_store::StateModelStoreExt;
+    store.save_state_model(rev, &model)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous

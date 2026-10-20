@@ -341,3 +341,72 @@ pub fn obligations(model: &StateModel, symbols: Vec<SymbolId>) -> Vec<Contract> 
     });
     out
 }
+
+
+/// RFC-0020: a static, payment-template projection, never runtime calibration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateModelView {
+    pub transitions: Vec<TransitionView>,
+    pub domain_note: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransitionView {
+    pub from: String,
+    pub event: String,
+    pub to: String,
+    pub provenance: String,
+    pub evidence: Vec<EffectProvenance>,
+    pub display_mode: String,
+}
+/// Strip placeholders, and do not let an unrelated external write invent a
+/// refund transition. The builder remains unchanged for its existing callers.
+pub fn evidenced_model(model: &StateModel) -> StateModel {
+    let refund_symbols: std::collections::BTreeSet<_> = model.edges.iter()
+        .filter(|t| t.event == Event::RefundCalled)
+        .flat_map(|t| t.provenance.iter()).filter(|p| is_real(p)).map(|p| p.symbol).collect();
+    let edges = model.edges.iter().filter_map(|t| {
+        let mut t = t.clone();
+        t.provenance.retain(|p| is_real(p) && (t.event != Event::RefundEffective || refund_symbols.contains(&p.symbol)));
+        (!t.provenance.is_empty()).then_some(t)
+    }).collect();
+    StateModel { edges, created_ns: model.created_ns }
+}
+fn is_real(p: &EffectProvenance) -> bool {
+    p.symbol != SymbolId(u32::MAX) && p.effect != "model_template"
+}
+pub fn to_view(model: &StateModel) -> Option<StateModelView> {
+    let model = evidenced_model(model);
+    if model.edges.is_empty() { return None; }
+    Some(StateModelView {
+        domain_note: "Payment/recovery flow (TASK-052 template): static name/effect associations, not observed execution or proof of successful authorization, fulfillment or money returned.".into(),
+        transitions: model.edges.iter().map(|t| TransitionView {
+            from: t.from.as_str().into(), event: t.event.as_str().into(), to: t.to.as_str().into(),
+            provenance: t.provenance.iter().map(|p| format!("symbol {}: {}", p.symbol.0, p.effect)).collect::<Vec<_>>().join("; "),
+            evidence: t.provenance.clone(), display_mode: "Fact".into(),
+        }).collect(),
+    })
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+    #[test]
+    fn template_only_and_unrelated_write_are_not_exported() {
+        let mut model = StateModelBuilder::from_effects(&SymbolStore::default(), &BTreeMap::new());
+        assert!(to_view(&model).is_none());
+        model.edges.last_mut().unwrap().provenance = vec![EffectProvenance {symbol: SymbolId(2), effect: "db_write".into(), external_write: true, reads: vec![], writes: vec![]}];
+        assert!(to_view(&model).is_none());
+        let old: StateModel = serde_json::from_str(&serde_json::to_string(&model).unwrap()).unwrap();
+        assert!(to_view(&old).is_none());
+    }
+    #[test]
+    fn real_transition_exports_only_its_static_evidence() {
+        let mut model = StateModelBuilder::from_effects(&SymbolStore::default(), &BTreeMap::new());
+        model.edges[0].provenance.push(EffectProvenance {symbol: SymbolId(3), effect: "print".into(), external_write: false, reads: vec![], writes: vec![]});
+        let view = to_view(&model).unwrap();
+        assert_eq!(view.transitions.len(), 1);
+        assert_eq!(view.transitions[0].evidence.len(), 1);
+        assert_eq!(view.transitions[0].display_mode, "Fact");
+        assert!(view.domain_note.contains("not observed"));
+    }
+}

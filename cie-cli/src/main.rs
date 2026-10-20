@@ -54,6 +54,8 @@ pub struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
+    /// Evidenced payment/recovery template transitions (RFC-0020), static only.
+    StateModel { path: PathBuf, #[arg(long)] json: bool },
     /// Dependency manifest scan + usage evidence + upgrade what-if (US-062)
     Deps {
         path: PathBuf,
@@ -318,6 +320,19 @@ fn main() {
 
 fn run(cli: Cli) -> i32 {
     match cli.command {
+        Command::StateModel { path, json } => {
+            match cie_ingest::run_ingest(&path, &IngestOptions::default()).and_then(|o| cie_ingest::materialize(o)) {
+                Ok(o) => {
+                    if json { println!("{}", serde_json::to_string_pretty(&o.snapshot.state_model).unwrap()); }
+                    else if let Some(m) = o.snapshot.state_model {
+                        println!("{}", m.domain_note);
+                        for t in m.transitions { println!("{} --{}--> {} [static Fact] {}", t.from, t.event, t.to, t.provenance); }
+                    } else { println!("No evidenced payment/recovery state model for this revision."); }
+                    0
+                }
+                Err(e) => { eprintln!("state-model: {e}"); 1 }
+            }
+        }
         Command::Stack { path, json, force } => {
             // RFC-0019 §6.1: store-first, compute-if-absent. When the repo
             // carries a .cie store whose head revision has a stack artifact,

@@ -513,6 +513,7 @@ mod tests {
             incremental: false,
             summary_cache: vec![],
             summary_reuse: None,
+            state_model: None,
         }
     }
 

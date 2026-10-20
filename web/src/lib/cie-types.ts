@@ -69,7 +69,13 @@ export interface EvidenceInfo {
   unresolved: string[];
 }
 
+export interface TransitionView {
+  from: string; event: string; to: string; provenance: string; display_mode: "Fact";
+  evidence: { symbol: number; effect: string; external_write: boolean; reads: string[]; writes: string[] }[];
+}
+export interface StateModelView { transitions: TransitionView[]; domain_note: string }
 export interface CieReport {
+  state_model?: StateModelView | null;
   rev: number;
   files: string[];
   symbols: SymbolInfo[];

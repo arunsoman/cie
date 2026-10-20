@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 /// One revision's full analysis snapshot.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RevSnapshot {
+    #[serde(default)]
+    pub state_model: Option<cie_contract::obligations::StateModelView>,
     pub rev: RevId,
     pub files: Vec<String>,
     pub symbols: Vec<SymbolFact>,
