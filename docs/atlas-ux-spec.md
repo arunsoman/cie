@@ -10,7 +10,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│ TOP BAR   logo · persona preset [Fresher ▾] · scope breadcrumb                   │
+│ TOP BAR   logo · persona preset [Fresher ▾] (sub-menu, §14) · scope breadcrumb   │
 │           [System ▸ alerting ▸ AlertService] · search · Facts only ○             │
 │           change-context picker (Reviewer/Consultant presets only) · dock toggle │
 ├──────────────────────────┬────────────────────────────────────────┬──────────────┤
@@ -247,3 +247,40 @@ Choreography = shared verbs plus:
 3. **`fields.alsoEvidence[]` + the formalized `fields.bodyLines[]` gate rule** — the only multiplicity/narration the spec needs; two new gate checks, error codes shared with Rust.
 
 The producer stays epistemics-only; the manager owns charts+actions; engines own pixels+events; the conductor owns sync — four work packages, all inside the law.
+The producer stays epistemics-only; the manager owns charts+actions; engines own pixels+events; the conductor owns sync — four work packages, all inside the law.
+
+---
+
+## 14. The persona sub-menu (top bar) — NEW
+
+The persona preset picker is a **drop-down sub-menu**, one entry per user type — the Atlas has sub-menus for each of the user types, not a hidden setting.
+
+### 14.1 Menu structure
+
+```
+Atlas ▾  (the top-bar control, labeled with the ACTIVE persona)
+ ├─ Onboarding (Fresher)        ┐
+ ├─ Reviewer                    │ HUMAN personas — one menu group,
+ ├─ Architect / Maintainer      │ keyboard-navigable, check-mark on active
+ ├─ Auditor / Security          │
+ ├─ Consultant (foreign repo)   ┘
+ └─ (agent consumes these same presets over MCP — menu entry HONESTLY ABSENT: an
+     agent has no Atlas screen, per §9; the menu must not pretend otherwise)
+```
+
+- Only the five human personas appear. The agent persona is intentionally absent (§9) — the menu never offers a screen it cannot render.
+- Each entry renders its one-line "what this view is for" under the label on hover (from charter §5–§10 defaults), so a user can *see* the difference before switching.
+
+### 14.2 Switching semantics (nothing left to guess)
+
+1. **Switch = re-plan, not re-page.** The Atlas frame (§1 regions) persists; `planSheet(viewSpec, preset)` re-derives panels; R1/R3 fill per the new persona's planOrder. No route change, no reload.
+2. **Scope carries over when meaningful, resets when not:** container scope survives all persona switches (a container is persona-neutral); module/symbol scope RESETS to persona defaults (a fresher walking symbols handed a Reviewer view should not stay inside a function); chips (R5a) and the change-context picker SURVIVE every switch (they are the user's, not the persona's — G3 extended).
+3. **Facts-only follows the preset's default, with the user's manual override winning for the session** (a toggled switch beats a preset default until the page reloads or the preset is switched twice-through-system).
+4. **Each preset remembers its own last scope** (per-persona layout memory in `sessionStorage`): switching Fresher↔Reviewer back and forth restores each persona's last state rather than clobbering it.
+5. **Disclosure:** the switch is footer-disclosed ("Atlas re-planned for: Reviewer — change context kept, symbol scope reset").
+6. **First-run default = Onboarding (Fresher)** — a brand-new visitor lands in the fresher view; the menu's check-mark teaches the existence of the other views.
+7. **Keyboard/menu parity** (US-140 lineage): the menu is a normal focusable menu (arrow keys, Enter, Esc); each persona also has a `1`–`5` shortcut only while the menu is open (never global hotkeys).
+
+### 14.3 Files this section creates (pointed at precisely in RFC-0024)
+
+`web/src/components/cie/atlas-persona-menu.tsx` (the menu), `web/src/lib/atlas-presets.ts` (the five presets), `web/src/lib/chart-plan.ts` (`planSheet(viewSpec, preset)`), `web/src/lib/cie-store.ts` (preset/`atlasSelection` state + per-persona `sessionStorage` memory), `web/src/components/cie/atlas-view.tsx` (panels-from-plan + G5 collapse) — the exact modification table lives in RFC-0024 §3.
