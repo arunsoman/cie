@@ -37,13 +37,21 @@
    "name": "",
    "build": "python",
    "framework": "python-unknown",
-   "evidence": "requirements.txt"
+   "evidence": "requirements.txt",
+   "docker": {
+    "kind": "none",
+    "service": null,
+    "ports": [],
+    "evidence": ""
+   }
   }
  ],
  "config": [],
+ "externalDocker": [],
  "notes": [
   "[stack] stub parsed it: the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet",
   "the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet — no route/main parser for this stack yet; the counts and manifests above are all CIE knows.",
+  "the repo root is not containerized as far as the repo says — no compose row names it and no Dockerfile sits under its directory.",
   "no routes parsed for this stack yet — the stub above says exactly what CIE did and didn't read."
  ],
  "coverage": {
@@ -53,5 +61,5 @@
   ],
   "dockerfilesRead": []
  },
- "generatedAt": 1792469687
+ "generatedAt": 1792470328
 }

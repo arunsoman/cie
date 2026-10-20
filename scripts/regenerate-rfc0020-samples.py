@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Regenerate static evidence with the actual CLI, never manufacture runtime data."""
-import json,os,pathlib,subprocess
+import argparse,json,os,pathlib,shutil,subprocess
 root=pathlib.Path(__file__).resolve().parents[1]
 binary=os.environ.get('CIE_BINARY',str(root/'target/debug/cie'))
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--fresh',action='store_true',help='Discard only the three bundled samples’ generated .cie analysis caches before regeneration')
+options=parser.parse_args()
 def run(args,cwd=root):
  p=subprocess.run([binary,*map(str,args)],cwd=cwd,capture_output=True,text=True,timeout=120)
  if p.returncode:raise RuntimeError(f'{args[0]} failed: {p.stderr[:1000]}')
@@ -10,6 +13,7 @@ def run(args,cwd=root):
 def save(path,value):path.write_text(json.dumps(value,indent=1,ensure_ascii=False)+'\n')
 for source,destination in [('examples/bankapp','web/public/data'),('samples/spring','web/public/data/spring'),('samples/polyglot','web/public/data/polyglot')]:
  project=root/source;out=root/destination;out.mkdir(parents=True,exist_ok=True)
+ if options.fresh and (project/'.cie').is_dir():shutil.rmtree(project/'.cie')
  run(['ingest',project])
  report=json.loads(run(['report',project,'--json']))
  save(out/'report.json',report)

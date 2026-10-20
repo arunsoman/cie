@@ -61,5 +61,8 @@ fn feign_outbound_resolves_to_the_other_services_route() {
  let mut ambiguous=report.clone();let route=ambiguous.routes.iter().find(|r|r.service=="billing"&&r.path=="/invoices/{id}").unwrap().clone();ambiguous.routes.push(route);
  cie_stack::cross_service::resolve_cross_service(&mut ambiguous);assert!(ambiguous.cross_service.is_empty());assert!(ambiguous.notes.iter().any(|n|n.contains("ambiguous")));
  let mut legacy=serde_json::to_value(report).unwrap();legacy.as_object_mut().unwrap().remove("crossService");
+ legacy.as_object_mut().unwrap().remove("externalDocker");
+ if let Some(services)=legacy.pointer_mut("/docker/compose/services").and_then(|v|v.as_array_mut()){for service in services {let s=service.as_object_mut().unwrap();s.remove("line");s.remove("build");s.remove("dockerfile");}}
+ if let Some(apps)=legacy.get_mut("apps").and_then(|v|v.as_array_mut()){for app in apps {app.as_object_mut().unwrap().remove("docker");}}
  let old:cie_stack::types::StackReport=serde_json::from_value(legacy).unwrap();assert!(old.cross_service.is_empty());
 }

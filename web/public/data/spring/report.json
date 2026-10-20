@@ -745,7 +745,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -765,7 +765,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -785,7 +785,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -807,7 +807,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -827,7 +827,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -856,7 +856,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -882,7 +882,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -902,7 +902,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -922,7 +922,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -942,7 +942,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -962,7 +962,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -982,7 +982,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1002,7 +1002,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1027,7 +1027,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1049,7 +1049,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1071,7 +1071,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1091,7 +1091,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1120,7 +1120,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1140,7 +1140,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1164,7 +1164,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   },
   {
@@ -1184,13 +1184,20 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469688826941579,
+   "compute_ns": 1792470330426989046,
    "complete": true
   }
  ],
  "findings": [
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0001",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1208,7 +1215,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0002",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1226,7 +1240,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0003",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1244,7 +1265,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0004",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1262,7 +1290,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0005",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1280,7 +1315,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0006",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1298,7 +1340,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0007",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1316,7 +1365,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0008",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1334,7 +1390,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0009",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1352,7 +1415,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0010",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1370,7 +1440,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0011",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1388,7 +1465,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0012",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1406,7 +1490,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0013",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1424,7 +1515,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0014",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1442,7 +1540,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0015",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1460,7 +1565,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0016",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1478,7 +1590,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0017",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1496,7 +1615,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0018",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1514,7 +1640,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0019",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1532,7 +1665,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0020",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1550,7 +1690,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-T0021",
    "kind": "CoverageGap",
    "severity": "Low",
@@ -1568,7 +1715,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0022",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1586,7 +1740,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0023",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1604,7 +1765,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0024",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1622,7 +1790,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0025",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1640,7 +1815,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0026",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1658,7 +1840,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0027",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1676,7 +1865,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0028",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1694,7 +1890,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0029",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1712,7 +1915,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0030",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1730,7 +1940,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0031",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1748,7 +1965,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0032",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1766,7 +1990,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0033",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1784,7 +2015,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0034",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1802,7 +2040,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0035",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1820,7 +2065,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0036",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1838,7 +2090,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0037",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1856,7 +2115,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0038",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1874,7 +2140,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0039",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1892,7 +2165,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0040",
    "kind": "DeadCode",
    "severity": "Low",
@@ -1910,7 +2190,14 @@
    ]
   },
   {
-   "introduced": null,
+   "introduced": [
+    {
+     "id": "e21ee63d7300d5d38f765679212d224f35d66201",
+     "author": "Codex",
+     "time": 1792470134,
+     "subject": "feat(rfc0020): surface evidence in Atlas Trust and Quality with acceptance tests"
+    }
+   ],
    "id": "F-1-D0041",
    "kind": "DeadCode",
    "severity": "Low",
@@ -2116,7 +2403,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2268,7 +2555,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2293,7 +2580,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2318,7 +2605,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2343,7 +2630,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2368,7 +2655,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2393,7 +2680,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2418,7 +2705,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2443,7 +2730,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2468,7 +2755,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2493,7 +2780,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2518,7 +2805,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2543,7 +2830,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2568,7 +2855,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2717,7 +3004,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2739,7 +3026,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2761,7 +3048,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2783,7 +3070,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2805,7 +3092,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2827,7 +3114,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2849,7 +3136,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2871,7 +3158,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2893,7 +3180,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2915,7 +3202,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2937,7 +3224,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2959,7 +3246,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    },
    {
@@ -2981,7 +3268,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469688826939816,
+    "created_ns": 1792470330426987253,
     "compute_ns": 0
    }
   ],
@@ -2999,7 +3286,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 141852469
+  "wall_ns": 212749946
  },
  "evidence": {
   "rev": 1,
@@ -3033,10 +3320,10 @@
    "KycController.status: IllegalStateException (unresolved_name)",
    "KycService.stateOf: kycRepository.findByUserId (virtual_dispatch)"
   ],
-  "generated_at_ns": 1792469688826939816
+  "generated_at_ns": 1792470330426987253
  },
  "warnings": [],
- "ingest_wall_ns": 438805800,
+ "ingest_wall_ns": 472187941,
  "incremental": false,
  "summary_cache": [
   {
@@ -5467,12 +5754,20 @@
     "name": "spring-demo",
     "build": "maven",
     "framework": "spring",
-    "evidence": "pom.xml"
+    "evidence": "pom.xml",
+    "docker": {
+     "kind": "none",
+     "service": null,
+     "ports": [],
+     "evidence": ""
+    }
    }
   ],
   "config": [],
+  "externalDocker": [],
   "notes": [
    "[stack] spring-jvm parsed it: Spring over the JVM (java + kotlin read as one family)",
+   "the repo root is not containerized as far as the repo says — no compose row names it and no Dockerfile sits under its directory.",
    "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
   ],
   "coverage": {
@@ -5482,6 +5777,6 @@
    ],
    "dockerfilesRead": []
   },
-  "generatedAt": 1792469688
+  "generatedAt": 1792470330
  }
 }

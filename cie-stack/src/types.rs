@@ -29,6 +29,7 @@ pub struct StackReport {
     pub config: Vec<ConfigEntry>,
     /// RFC-0019 §6.3: compose services that ship an `image:` but no `build:`
     /// — not our apps; the named external systems (C4 Context, L1)
+    #[serde(default)]
     pub external_docker: Vec<ExternalSystem>,
     pub notes: Vec<String>,
     pub coverage: Coverage,
@@ -103,6 +104,7 @@ pub struct ComposeService {
     /// list rows AND inline flow entries, as written ("8081:8081")
     pub ports: Vec<String>,
     /// the compose row the service key sits on (1-based) — evidence anchor
+    #[serde(default)]
     pub line: u32,
 }
 

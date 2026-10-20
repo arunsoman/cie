@@ -2344,7 +2344,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2375,7 +2375,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2401,7 +2401,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2423,7 +2423,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2443,7 +2443,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2469,7 +2469,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2494,7 +2494,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2519,7 +2519,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2551,7 +2551,7 @@
     "mutation"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2579,7 +2579,7 @@
     "query"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2609,7 +2609,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2637,7 +2637,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2659,7 +2659,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2685,7 +2685,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2707,7 +2707,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2742,7 +2742,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2774,7 +2774,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2803,7 +2803,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2827,7 +2827,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2859,7 +2859,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2886,7 +2886,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2908,7 +2908,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2936,7 +2936,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2960,7 +2960,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -2991,7 +2991,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3018,7 +3018,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3053,7 +3053,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3109,7 +3109,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3133,7 +3133,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3196,7 +3196,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3288,7 +3288,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3321,7 +3321,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3402,7 +3402,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3508,7 +3508,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3536,7 +3536,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3629,7 +3629,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3658,7 +3658,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3692,7 +3692,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3733,7 +3733,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3778,7 +3778,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3812,7 +3812,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -3856,7 +3856,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4154,7 +4154,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4178,7 +4178,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4205,7 +4205,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4244,7 +4244,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4280,7 +4280,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4304,7 +4304,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4343,7 +4343,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4408,7 +4408,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4430,7 +4430,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4461,7 +4461,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4518,7 +4518,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4588,7 +4588,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4612,7 +4612,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4639,7 +4639,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4661,7 +4661,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4688,7 +4688,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4727,7 +4727,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4761,7 +4761,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4783,7 +4783,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4839,7 +4839,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4892,7 +4892,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4914,7 +4914,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4937,7 +4937,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -4981,7 +4981,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5007,7 +5007,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5029,7 +5029,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5071,7 +5071,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5125,7 +5125,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5176,7 +5176,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5333,7 +5333,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5367,7 +5367,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5400,7 +5400,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5440,7 +5440,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5488,7 +5488,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5522,7 +5522,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5542,7 +5542,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5562,7 +5562,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5582,7 +5582,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5602,7 +5602,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5624,7 +5624,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5644,7 +5644,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5664,7 +5664,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5684,7 +5684,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5704,7 +5704,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -5726,7 +5726,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6348,7 +6348,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6372,7 +6372,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6401,7 +6401,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6423,7 +6423,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6447,7 +6447,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6472,7 +6472,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6496,7 +6496,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6530,7 +6530,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6564,7 +6564,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6600,7 +6600,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6636,7 +6636,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6659,7 +6659,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6693,7 +6693,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6723,7 +6723,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6760,7 +6760,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6782,7 +6782,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6804,7 +6804,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6828,7 +6828,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6857,7 +6857,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6877,7 +6877,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6903,7 +6903,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6930,7 +6930,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6958,7 +6958,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -6980,7 +6980,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7007,7 +7007,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7029,7 +7029,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7065,7 +7065,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7092,7 +7092,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7115,7 +7115,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7166,7 +7166,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7189,7 +7189,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7223,7 +7223,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7278,7 +7278,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7305,7 +7305,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   },
   {
@@ -7336,7 +7336,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792469687448535374,
+   "compute_ns": 1792470328979861287,
    "complete": true
   }
  ],
@@ -11978,7 +11978,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12068,7 +12068,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12092,7 +12092,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12115,7 +12115,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12141,7 +12141,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12188,7 +12188,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12250,7 +12250,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12327,7 +12327,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12349,7 +12349,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12522,7 +12522,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12630,7 +12630,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12917,7 +12917,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12952,7 +12952,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -12974,7 +12974,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13033,7 +13033,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13100,7 +13100,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13323,7 +13323,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13352,7 +13352,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13393,7 +13393,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13415,7 +13415,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13465,7 +13465,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13513,7 +13513,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13560,7 +13560,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13604,7 +13604,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13646,7 +13646,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13686,7 +13686,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13725,7 +13725,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13762,7 +13762,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13798,7 +13798,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13833,7 +13833,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13869,7 +13869,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13905,7 +13905,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13939,7 +13939,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -13975,7 +13975,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14010,7 +14010,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14045,7 +14045,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14078,7 +14078,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14111,7 +14111,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14146,7 +14146,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14180,7 +14180,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14215,7 +14215,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14249,7 +14249,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14282,7 +14282,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14315,7 +14315,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14348,7 +14348,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14382,7 +14382,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14414,7 +14414,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14446,7 +14446,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14478,7 +14478,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14514,7 +14514,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14547,7 +14547,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14581,7 +14581,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14613,7 +14613,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14644,7 +14644,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14676,7 +14676,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14708,7 +14708,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14745,7 +14745,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14781,7 +14781,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14812,7 +14812,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14843,7 +14843,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14871,7 +14871,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14899,7 +14899,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14927,7 +14927,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14955,7 +14955,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -14983,7 +14983,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15011,7 +15011,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15039,7 +15039,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15067,7 +15067,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15095,7 +15095,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15123,7 +15123,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15151,7 +15151,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15179,7 +15179,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15207,7 +15207,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15235,7 +15235,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15263,7 +15263,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15291,7 +15291,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15319,7 +15319,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15347,7 +15347,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15375,7 +15375,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15403,7 +15403,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15431,7 +15431,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15459,7 +15459,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    },
    {
@@ -15487,7 +15487,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792469687448533631,
+    "created_ns": 1792470328979859635,
     "compute_ns": 0
    }
   ],
@@ -15505,7 +15505,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 554415649
+  "wall_ns": 662373210
  },
  "evidence": {
   "rev": 1,
@@ -15724,10 +15724,10 @@
    "scripts.collect_quality.collect_drift: round (unresolved_name)",
    "scripts.collect_quality.collect_drift: str (unresolved_name)"
   ],
-  "generated_at_ns": 1792469687448533631
+  "generated_at_ns": 1792470328979859635
  },
  "warnings": [],
- "ingest_wall_ns": 787657649,
+ "ingest_wall_ns": 976241386,
  "incremental": false,
  "summary_cache": [
   {
@@ -21199,13 +21199,21 @@
     "name": "",
     "build": "python",
     "framework": "python-unknown",
-    "evidence": "requirements.txt"
+    "evidence": "requirements.txt",
+    "docker": {
+     "kind": "none",
+     "service": null,
+     "ports": [],
+     "evidence": ""
+    }
    }
   ],
   "config": [],
+  "externalDocker": [],
   "notes": [
    "[stack] stub parsed it: the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet",
    "the repo root app in python (python-unknown): not mapped yet — CIE counts files but doesn't name routes or mains for this stack yet — no route/main parser for this stack yet; the counts and manifests above are all CIE knows.",
+   "the repo root is not containerized as far as the repo says — no compose row names it and no Dockerfile sits under its directory.",
    "no routes parsed for this stack yet — the stub above says exactly what CIE did and didn't read."
   ],
   "coverage": {
@@ -21215,6 +21223,6 @@
    ],
    "dockerfilesRead": []
   },
-  "generatedAt": 1792469687
+  "generatedAt": 1792470328
  }
 }

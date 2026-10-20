@@ -758,12 +758,20 @@
    "name": "spring-demo",
    "build": "maven",
    "framework": "spring",
-   "evidence": "pom.xml"
+   "evidence": "pom.xml",
+   "docker": {
+    "kind": "none",
+    "service": null,
+    "ports": [],
+    "evidence": ""
+   }
   }
  ],
  "config": [],
+ "externalDocker": [],
  "notes": [
   "[stack] spring-jvm parsed it: Spring over the JVM (java + kotlin read as one family)",
+  "the repo root is not containerized as far as the repo says — no compose row names it and no Dockerfile sits under its directory.",
   "jvm-mixed: java and kotlin share ONE runtime and classpath — read as one family, two syntaxes."
  ],
  "coverage": {
@@ -773,5 +781,5 @@
   ],
   "dockerfilesRead": []
  },
- "generatedAt": 1792469688
+ "generatedAt": 1792470330
 }
