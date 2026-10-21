@@ -31,8 +31,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::history::git_ok;
-
 /// Knobs for the generator (kept tiny on purpose).
 #[derive(Debug, Clone)]
 pub struct SampleOptions {

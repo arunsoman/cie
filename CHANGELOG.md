@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.3.2 — `cie sample` git isolation: refuse targets inside a host repo (2026-10-21)
+
+Retires the incident warned about in 1.3.1: running `cie sample
+demo-sample` inside an existing repository committed the sample's 5
+fixture commits into the HOST repo, and the first commit's repo-wide
+`git add -A` swept the host's uncommitted work into it.
+
+- **Root cause** — `git rev-parse` walks UP the tree, so a fresh empty
+  subdirectory of any repository answered "already inside a work tree";
+  the `git_ok`-gated init was skipped and every add/commit silently hit
+  the enclosing repo's index, refs and object store.
+- **Ownership guard** — before anything is written, `rev-parse
+  --show-toplevel` is compared with the canonicalized target: a path
+  that sits inside a repo that is not its own is refused with an
+  explicit message. The probe only fires when a repo still has to be
+  created, so "no git binary" and "inside someone else's repo" name
+  different causes.
+- **Physical isolation** — every git invocation (init, add, diff
+  --cached, commit, rev-list) is pinned to the sample's own absolute
+  `GIT_DIR`/`GIT_WORK_TREE`, so even a future probe bug cannot touch
+  another repository's index, refs or objects.
+- Regression test replays the exact incident shape (fresh empty subdir
+  of a host repo) and asserts the refusal message, unchanged host
+  commit count, clean host status, and an untouched target; the happy
+  path now also asserts the sample is its OWN toplevel. 145 workspace
+  suites green.
+
 ## 1.3.1 — UI-reuse seam: byte-span ViewSpecs, bundle mode, C4 spec, pipeline step (2026-10-21)
 
 Closes the four gaps between the polyglot layer's §25 artifacts and the
