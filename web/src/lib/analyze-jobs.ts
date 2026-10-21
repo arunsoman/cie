@@ -12,13 +12,14 @@ import { randomUUID } from "crypto";
 import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieDrift, CieOverlap } from "./cie-types";
 import type { TechStack } from "./stack-types";
 import { isTechStack, stackDetail } from "./stack-types";
+import { isPolyglotBundle, polyglotDetail, type PolyglotBundle } from "./polyglot-types";
 import { scanRepoLanguages, findDocFiles, MAX_DOCS, MAX_DOC_BYTES } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "stack" | "cochange" | "overlap" | "drift";
+export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "stack" | "polyglot" | "cochange" | "overlap" | "drift";
 export type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 export type JobState = "queued" | "running" | "awaiting_permission" | "done" | "failed";
 
@@ -66,6 +67,10 @@ export interface AnalyzeJob {
     drift?: CieDrift | null;
     label: string;
     scan?: RepoScan | null;
+    /** PRD v2.0 polyglot bundle (`cie polyglot --viewspec all`) — C4,
+     *  state-machine, workflow and impact ViewSpecs, gate-checked on the
+     *  engine side; null when the layer produced nothing nameable. */
+    polyglotSpecs?: PolyglotBundle | null;
     // The absolute root the source panel may read from — set ONLY for
     // local-folder jobs (the folder the user themselves pointed at, read
     // in place). URL clones are deleted after analysis; uploads never
@@ -96,6 +101,7 @@ export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
   { key: "deps", label: "Listing the dependencies", hint: "Reading pom.xml, build.gradle, package.json, Cargo.toml and friends — names and versions as written." },
   { key: "stack", label: "Understanding your frameworks", hint: "Reading the build files, Docker files and framework code classes directly — the engine names what runs and how every route flows, branches included." },
+  { key: "polyglot", label: "Naming components and flows", hint: "Naming the C4 containers and components, the state machines and the workflows the engine can actually evidence — each with the file and bytes that earned it, and nothing it cannot prove." },
   { key: "cochange", label: "Checking what changes together", hint: "Mining git history for files that tend to be edited in the same commit." },
   { key: "overlap", label: "Checking for overlap", hint: "Comparing every part's symbols against every other part — what's shared, what's not." },
   { key: "drift", label: "Checking docs against code", hint: "Reading your docs' own claims and verifying each one against what the code actually does." },
@@ -903,6 +909,32 @@ async function runPipeline(job: AnalyzeJob) {
       Date.now() - t_stack
     );
 
+    // 5b. the polyglot layer (PRD v2.0) — C4 containers/components, state
+    //     machines, workflows and impact/duplicate views as gate-checked
+    //     ViewSpecs in one bundle document. The engine already refused any
+    //     spec the TS gate would reject, so what lands here renders as-is.
+    setStep(job, "polyglot", "running", "Naming components and flows…");
+    const t_pg = Date.now();
+    let polyglotSpecs: PolyglotBundle | null = null;
+    const pg = await run(bin, ["polyglot", repoDir, "--viewspec", "all"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 120_000) });
+    if (!pg.timedOut && pg.code === 0) {
+      try {
+        const parsed = JSON.parse(pg.stdout) as unknown;
+        if (isPolyglotBundle(parsed)) polyglotSpecs = parsed;
+      } catch {
+        polyglotSpecs = null;
+      }
+    }
+    setStep(
+      job,
+      "polyglot",
+      polyglotSpecs ? "done" : "skipped",
+      polyglotSpecs
+        ? polyglotDetail(polyglotSpecs)
+        : "No polyglot views for this project — what the engine can't evidence it doesn't draw.",
+      Date.now() - t_pg
+    );
+
     // 6. co-change — real git history, files that tend to change together.
     //    A shallow URL clone (--depth 1) has almost no history to mine; that
     //    is recorded honestly via sample_commits, never hidden or faked.
@@ -1009,6 +1041,7 @@ async function runPipeline(job: AnalyzeJob) {
       concepts,
       deps,
       stack,
+      polyglotSpecs,
       runtime,
       cochange,
       overlap,
