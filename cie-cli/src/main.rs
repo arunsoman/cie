@@ -1652,6 +1652,20 @@ fn run(cli: Cli) -> i32 {
                 .map_or(Ok(None), |r| r.map(Some));
 
             if let Some(want) = viewspec {
+                // `all` → one bundle document: every spec in one JSON,
+                // the seam the web pipeline consumes with a single read
+                if want == "all" {
+                    match cie_polyglot::viewspec::produce_bundle(&conn) {
+                        Ok(bundle) => {
+                            println!("{bundle}");
+                            return 0;
+                        }
+                        Err(e) => {
+                            eprintln!("error: {e}");
+                            return 1;
+                        }
+                    }
+                }
                 let specs = cie_polyglot::viewspec::produce(&conn);
                 match specs {
                     Ok(map) => {

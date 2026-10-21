@@ -36,6 +36,40 @@ pub fn produce(conn: &Connection) -> Result<BTreeMap<String, Value>, String> {
     Ok(specs)
 }
 
+/// The bundle: every produced spec in one JSON document — the seam the web
+/// pipeline consumes (one engine invocation, one parse on the reader side).
+/// Impact+duplicate specs are produced per duplicate-family center
+/// (non-hidden rows), capped at 50; the cap is counted, never silent.
+pub fn produce_bundle(conn: &Connection) -> Result<Value, String> {
+    let mut specs = produce(conn)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT symbol_a FROM duplicates WHERE tier != 'hidden'
+             UNION
+             SELECT DISTINCT symbol_b FROM duplicates WHERE tier != 'hidden'
+             ORDER BY 1
+             LIMIT 51",
+        )
+        .map_err(|e| e.to_string())?;
+    let centers: Vec<i64> = stmt
+        .query_map([], |r| r.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+    let truncated = centers.len() > 50;
+    for center in centers.into_iter().take(50) {
+        let spec = crate::duplicates::impact_duplicate_spec(conn, center)?;
+        specs.insert(format!("impact:{center}"), spec);
+    }
+    Ok(json!({
+        "kind": "cie-polyglot-viewspec-bundle",
+        "spec-count": specs.len(),
+        "impact-centers-truncated": truncated,
+        "specs": Value::Object(specs.into_iter().collect()),
+    }))
+}
+
 fn machine_claims(conn: &Connection) -> Result<BTreeMap<i64, i64>, String> {
     // stable per-store claim numbering: C-SM-<n> in id order
     let mut stmt = conn
@@ -530,6 +564,29 @@ async def db_fetch():
             .find(|e| e["displayMode"] == "Fog")
             .expect("async boundary present as Fog");
         assert!(fog.get("fogReason").is_some());
+    }
+
+    #[test]
+    fn bundle_wraps_every_spec_and_counts_honestly() {
+        let conn = setup();
+        let ts = "export const m = createMachine({\n  states: { draft: { on: { PAY: 'paid' } }, paid: {} }\n});\n";
+        let f = ingest_parsed_file(&conn, 1, 41, "m.ts", Lang::TypeScript, ts, &mut IngestStats::default()).unwrap();
+        cache_source_bytes(&conn, f, ts).unwrap();
+        sm_detect(&conn).unwrap();
+        crate::duplicates::create_dup_schema(&conn).unwrap();
+
+        let bundle = produce_bundle(&conn).unwrap();
+        assert_eq!(bundle["kind"], "cie-polyglot-viewspec-bundle");
+        let specs = bundle["specs"].as_object().unwrap();
+        assert!(specs.keys().any(|k| k.starts_with("state-machine:")), "{:?}", specs.keys());
+        assert_eq!(bundle["spec-count"], specs.len());
+        // no duplicate rows in this fixture → no impact specs, cap not hit —
+        // counted honestly either way
+        assert_eq!(bundle["impact-centers-truncated"], false);
+        assert!(!specs.keys().any(|k| k.starts_with("impact:")));
+        for (name, spec) in specs {
+            validate(spec).unwrap_or_else(|e| panic!("bundled spec {name} must pass the gate mirror: {e}"));
+        }
     }
 
     #[test]
