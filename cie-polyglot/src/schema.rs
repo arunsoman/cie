@@ -14,8 +14,9 @@
 //! * content and text are content-addressed (`blake3`), so unchanged files
 //!   re-ingest as no-ops and `node_text` is shared across languages (§42).
 
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 
 use rusqlite::Connection;
 
@@ -324,7 +325,7 @@ pub struct IngestStats {
 
 fn intern_kind(
     conn: &Connection,
-    cache: &mut BTreeMap<(String, &'static str), i64>,
+    cache: &mut HashMap<(String, &'static str), i64>,
     name: &str,
     language: &'static str,
 ) -> Result<i64, String> {
@@ -350,7 +351,7 @@ fn intern_kind(
 
 fn intern_text(
     conn: &Connection,
-    cache: &mut BTreeMap<String, i64>,
+    cache: &mut HashMap<String, i64>,
     text: &str,
     kind_hint: &str,
 ) -> Result<i64, String> {
@@ -380,33 +381,104 @@ fn intern_text(
 
 /// ANL-06 shape hash: pre-order sequence of grammar kinds in the subtree,
 /// text excluded — structurally identical subtrees share the hash.
-/// Iterative pre-order (no recursion on hostile-nesting files).
-fn shape_hash(root: tree_sitter::Node) -> Vec<u8> {
-    let mut buf = String::new();
-    let mut stack = vec![root];
-    while let Some(node) = stack.pop() {
-        buf.push_str(node.kind());
-        buf.push('\u{1}');
-        let mut cursor = node.walk();
-        let children: Vec<tree_sitter::Node> = node.children(&mut cursor).collect();
-        drop(cursor);
-        for child in children.into_iter().rev() {
-            stack.push(child);
+///
+/// One pass per FILE builds the shared pre-order kind stream S (kind +
+/// \u{1} per node, children in source order — the exact byte sequence the
+/// old per-node walk produced) and hashes each node's slice when its
+/// subtree closes (a stack marker pops right there). DFS pre-order
+/// contiguity makes a subtree's stream the contiguous run S[start..close],
+/// so every shape_hash is one blake3 over contiguous bytes — bit-identical
+/// to the old per-node result (same bytes hashed) — instead of re-walking
+/// the subtree under every node, which cost O(subtree) node visits per node.
+fn precompute_shape_hashes(root: tree_sitter::Node) -> HashMap<usize, Vec<u8>> {
+    enum Ev<'t> {
+        Node(tree_sitter::Node<'t>),
+        /// pops exactly when pre-order node `usize`'s subtree is complete
+        Close(usize),
+    }
+    let mut stream: Vec<u8> = Vec::new();
+    let mut nid_by_idx: Vec<usize> = Vec::new();
+    let mut starts: Vec<usize> = Vec::new();
+    let mut out: HashMap<usize, Vec<u8>> = HashMap::new();
+    let mut stack: Vec<Ev> = vec![Ev::Node(root)];
+    while let Some(ev) = stack.pop() {
+        match ev {
+            Ev::Node(node) => {
+                nid_by_idx.push(node.id());
+                starts.push(stream.len());
+                stream.extend_from_slice(node.kind().as_bytes());
+                stream.push(1u8); // the '\u{1}' separator
+                // close marker below the children → it pops after the whole
+                // subtree (children pushed in reverse so they visit in order)
+                stack.push(Ev::Close(nid_by_idx.len() - 1));
+                let mut cursor = node.walk();
+                let children: Vec<tree_sitter::Node> = node.children(&mut cursor).collect();
+                drop(cursor);
+                for child in children.into_iter().rev() {
+                    stack.push(Ev::Node(child));
+                }
+            }
+            Ev::Close(i) => {
+                let nid = nid_by_idx[i];
+                let seg = &stream[starts[i]..stream.len()];
+                out.insert(nid, blake3::hash(seg).as_bytes().to_vec());
+            }
         }
     }
-    blake3::hash(buf.as_bytes()).as_bytes().to_vec()
+    out
+}
+
+/// Enclosing declaration chain for qualified symbol names — a persistent
+/// (cons) list so the per-child copy that used to be a deep Vec<String>
+/// clone is one Rc refcount bump. `newest` is the old `last`, `joined` the
+/// old oldest-first "."-join, byte for byte.
+#[derive(Clone)]
+struct QualList(Option<Rc<QualCell>>);
+struct QualCell {
+    ast_id: i64,
+    name: String,
+    next: QualList,
+}
+impl QualList {
+    fn empty() -> Self {
+        QualList(None)
+    }
+    fn push(&self, ast_id: i64, name: String) -> QualList {
+        QualList(Some(Rc::new(QualCell {
+            ast_id,
+            name,
+            next: self.clone(),
+        })))
+    }
+    fn newest(&self) -> Option<(i64, &str)> {
+        self.0.as_ref().map(|c| (c.ast_id, c.name.as_str()))
+    }
+    fn joined(&self) -> String {
+        let mut parts: Vec<&str> = Vec::new();
+        let mut cur = self;
+        while let Some(c) = &cur.0 {
+            parts.push(c.name.as_str());
+            cur = &c.next;
+        }
+        parts.reverse();
+        parts.join(".")
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_none()
+    }
 }
 
 struct WalkRow<'t> {
     parent: Option<i64>,
     child_index: usize,
     node: tree_sitter::Node<'t>,
-    /// enclosing declaration chain: (ast_id, name) — newest last
-    qualifier: Vec<(i64, String)>,
+    /// enclosing declaration chain — newest first, O(1) clone
+    qualifier: QualList,
 }
 
-/// Ingest one file's parse into the schema. Everything happens in one
-/// transaction per file (§13 step 3). Returns the file row id.
+/// Ingest one file's parse into the schema. One transaction per file
+/// (§13 step 3) — the direct path for single-file callers; the folder pass
+/// uses `ingest_file_tx` under savepoints instead. Returns the file row id.
 pub fn ingest_parsed_file(
     conn: &Connection,
     repo_id: i64,
@@ -416,20 +488,13 @@ pub fn ingest_parsed_file(
     src: &str,
     stats: &mut IngestStats,
 ) -> Result<i64, String> {
-    let bytes = src.as_bytes();
-    let mut parser = tree_sitter::Parser::new();
-    parser
-        .set_language(&lang.ts_language().ok_or("grammar unavailable")?)
-        .map_err(|e| e.to_string())?;
-    let tree = parser.parse(bytes, None).ok_or("parse aborted")?;
-    let root = tree.root_node();
-    let parse_errored = root.has_error();
-
+    let mut kind_cache: HashMap<(String, &'static str), i64> = HashMap::new();
+    let mut text_cache: HashMap<String, i64> = HashMap::new();
     conn.execute_batch("BEGIN").map_err(|e| e.to_string())?;
-    let result = ingest_tx(conn, repo_id, revision, path, lang, bytes, root, stats);
+    let result = ingest_file_tx(conn, repo_id, revision, path, lang, src, stats, &mut kind_cache, &mut text_cache);
 
     match result {
-        Ok(id) => {
+        Ok((id, parse_errored)) => {
             conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
             stats.files_ingested += 1;
             if parse_errored {
@@ -444,7 +509,36 @@ pub fn ingest_parsed_file(
     }
 }
 
-fn ingest_tx(
+/// Ingest one file — parse + walk + writes — with NO transaction management
+/// of its own. The direct path wraps it in BEGIN/COMMIT; the folder pass
+/// wraps the whole loop in one transaction with a SAVEPOINT per file, so a
+/// failing file still rolls back alone while the store fsyncs once, not
+/// once per file. Returns (file row id, parse_errored).
+fn ingest_file_tx(
+    conn: &Connection,
+    repo_id: i64,
+    revision: i64,
+    path: &str,
+    lang: Lang,
+    src: &str,
+    stats: &mut IngestStats,
+    kind_cache: &mut HashMap<(String, &'static str), i64>,
+    text_cache: &mut HashMap<String, i64>,
+) -> Result<(i64, bool), String> {
+    let bytes = src.as_bytes();
+    let mut parser = tree_sitter::Parser::new();
+    parser
+        .set_language(&lang.ts_language().ok_or("grammar unavailable")?)
+        .map_err(|e| e.to_string())?;
+    let tree = parser.parse(bytes, None).ok_or("parse aborted")?;
+    let root = tree.root_node();
+    let parse_errored = root.has_error();
+
+    let file_id = ingest_walk(conn, repo_id, revision, path, lang, bytes, root, stats, kind_cache, text_cache)?;
+    Ok((file_id, parse_errored))
+}
+
+fn ingest_walk(
     conn: &Connection,
     repo_id: i64,
     revision: i64,
@@ -453,6 +547,8 @@ fn ingest_tx(
     bytes: &[u8],
     root: tree_sitter::Node,
     stats: &mut IngestStats,
+    mut kind_cache: &mut HashMap<(String, &'static str), i64>,
+    mut text_cache: &mut HashMap<String, i64>,
 ) -> Result<i64, String> {
     conn.execute(
         "INSERT INTO files(repo_id, path, content_hash, language, revision, size_bytes, tree_sitter_grammar_version)
@@ -470,9 +566,11 @@ fn ingest_tx(
     .map_err(|e| e.to_string())?;
     let file_id = conn.last_insert_rowid();
 
-    let mut kind_cache: BTreeMap<(String, &'static str), i64> = BTreeMap::new();
-    let mut text_cache: BTreeMap<String, i64> = BTreeMap::new();
-    let decls: BTreeMap<&'static str, &'static str> = decl_kinds(lang).iter().copied().collect();
+    let decls: HashMap<&'static str, &'static str> = decl_kinds(lang).iter().copied().collect();
+
+    // every node's shape hash in one file-level pass (see fn docs) —
+    // keyed by tree-sitter node id
+    let shapes = precompute_shape_hashes(root);
 
     // Iterative pre-order walk (explicit stack; hostile nesting cannot
     // overflow). The qualifier chain rides on each stack row.
@@ -480,10 +578,10 @@ fn ingest_tx(
         parent: None,
         child_index: 0,
         node: root,
-        qualifier: Vec::new(),
+        qualifier: QualList::empty(),
     }];
     // symbol row id by declaration ast id (for parent_symbol_id + qual fix)
-    let mut sym_ids: BTreeMap<i64, i64> = BTreeMap::new();
+    let mut sym_ids: HashMap<i64, i64> = HashMap::new();
 
     // prepared once per file, reused for every node in the walk — the old
     // code re-parsed the INSERT SQL for every ast node and symbol
@@ -512,7 +610,7 @@ fn ingest_tx(
         } else {
             -1
         };
-        let shape = shape_hash(node);
+        let shape: &[u8] = &shapes[&node.id()];
         let is_decl = decls.contains_key(kind_name);
 
         ast_ins
@@ -544,12 +642,7 @@ fn ingest_tx(
         if is_decl {
             match find_decl_name(node, bytes) {
                 Some(name) => {
-                    let own_qual = row
-                        .qualifier
-                        .iter()
-                        .map(|(_, n)| n.as_str())
-                        .collect::<Vec<_>>()
-                        .join(".");
+                    let own_qual = row.qualifier.joined();
                     let qual = if own_qual.is_empty() {
                         name.to_string()
                     } else {
@@ -557,8 +650,8 @@ fn ingest_tx(
                     };
                     let parent_sym = row
                         .qualifier
-                        .last()
-                        .and_then(|(ast_id, _)| sym_ids.get(ast_id).copied());
+                        .newest()
+                        .and_then(|(ast_id, _)| sym_ids.get(&ast_id).copied());
                     sym_ins
                         .execute(rusqlite::params![
                             file_id,
@@ -588,11 +681,10 @@ fn ingest_tx(
         }
 
         // push children in reverse so pre-order pop order matches source order
-        let mut qualifier = row.qualifier.clone();
-        if let Some((sym_row, name)) = &decl_sym {
-            qualifier.push((ast_id, name.clone()));
-            let _ = sym_row;
-        }
+        let qualifier = match &decl_sym {
+            Some((_, name)) => row.qualifier.push(ast_id, name.clone()),
+            None => row.qualifier.clone(),
+        };
         let mut cursor = node.walk();
         let children: Vec<tree_sitter::Node> = node.children(&mut cursor).collect();
         drop(cursor);
@@ -615,6 +707,12 @@ fn file_hash(bytes: &[u8]) -> Vec<u8> {
 
 /// Walk a folder (PRD §7 ignore list) and ingest every supported file.
 /// Unsupported files are counted, never silently dropped.
+///
+/// The whole folder writes through ONE transaction: a per-file commit fsyncs
+/// the store n times for data nobody reads until lowering starts. Per-file
+/// atomicity is preserved with SAVEPOINTs — a failing file rolls back to its
+/// own savepoint, everything before it stays committed (the exact outcome of
+/// the old per-file commits), and the walk aborts with the same error.
 pub fn ingest_folder(
     conn: &Connection,
     repo_id: i64,
@@ -625,10 +723,60 @@ pub fn ingest_folder(
     let mut files: Vec<(String, Lang, String)> = Vec::new();
     collect_files(root, root, &mut files, stats)?;
     files.sort_by(|a, b| a.0.cmp(&b.0));
-    for (rel, lang, src) in files {
-        ingest_parsed_file(conn, repo_id, revision, &rel, lang, &src, stats)?;
+    ingest_collected(conn, repo_id, revision, files, stats)
+}
+
+/// Ingest a pre-collected (path, lang, source) list under one transaction
+/// with per-file savepoints. The intern caches are shared across the folder:
+/// node_kinds and node_text are folder-global tables, so this only memoizes
+/// lookups an earlier file already answered — the first-encounter order that
+/// assigns every id is unchanged.
+fn ingest_collected(
+    conn: &Connection,
+    repo_id: i64,
+    revision: i64,
+    files: Vec<(String, Lang, String)>,
+    stats: &mut IngestStats,
+) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    let mut kind_cache: HashMap<(String, &'static str), i64> = HashMap::new();
+    let mut text_cache: HashMap<String, i64> = HashMap::new();
+    for (i, (rel, lang, src)) in files.into_iter().enumerate() {
+        let sp = format!("f{i}");
+        tx.execute_batch(&format!("SAVEPOINT {sp}"))
+            .map_err(|e| e.to_string())?;
+        match ingest_file_tx(
+            &tx,
+            repo_id,
+            revision,
+            &rel,
+            lang,
+            &src,
+            stats,
+            &mut kind_cache,
+            &mut text_cache,
+        ) {
+            Ok((_, parse_errored)) => {
+                tx.execute_batch(&format!("RELEASE SAVEPOINT {sp}"))
+                    .map_err(|e| e.to_string())?;
+                stats.files_ingested += 1;
+                if parse_errored {
+                    stats.files_parse_errors += 1;
+                }
+            }
+            Err(e) => {
+                tx.execute_batch(&format!("ROLLBACK TO SAVEPOINT {sp}"))
+                    .map_err(|err| err.to_string())?;
+                tx.execute_batch(&format!("RELEASE SAVEPOINT {sp}"))
+                    .map_err(|err| err.to_string())?;
+                // files before the failure stay committed (the old per-file
+                // commit outcome); the failed file is fully undone
+                tx.commit().map_err(|err| err.to_string())?;
+                return Err(e);
+            }
+        }
     }
-    Ok(())
+    tx.commit().map_err(|e| e.to_string())
 }
 
 fn collect_files(
@@ -822,6 +970,70 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(ha, hb, "identical shapes must hash identically");
+    }
+
+    /// The old per-node implementation, kept verbatim as the brute-force
+    /// reference the stream version must match bit for bit.
+    fn shape_hash_brute(root: tree_sitter::Node) -> Vec<u8> {
+        let mut buf = String::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            buf.push_str(node.kind());
+            buf.push('\u{1}');
+            let mut cursor = node.walk();
+            let children: Vec<tree_sitter::Node> = node.children(&mut cursor).collect();
+            drop(cursor);
+            for child in children.into_iter().rev() {
+                stack.push(child);
+            }
+        }
+        blake3::hash(buf.as_bytes()).as_bytes().to_vec()
+    }
+
+    #[test]
+    fn shape_stream_matches_per_node_brute_force_on_every_node() {
+        // deep nesting, literals, comments, multi-language: every node of
+        // every tree must get exactly the brute-force hash
+        let sources: &[(Lang, &str)] = &[
+            (
+                Lang::Python,
+                "class Cart:\n    def add(self, xs):\n        total = 0  # sum\n        for x in xs:\n            if x > 0 and x != 3:\n                total += x\n            else:\n                total = total - 1\n        return {'t': total, 'n': None}\n",
+            ),
+            (
+                Lang::Rust,
+                "fn go(xs: Vec<i64>) -> i64 {\n    let mut t = 0;\n    for x in &xs {\n        if x > &2 { t += *x; } else { t -= 1; }\n    }\n    match t { 0 => 1, _ => t * 2 }\n}\n",
+            ),
+            (
+                Lang::TypeScript,
+                "class Svc {\n  run(items: string[]): number {\n    let n = 0;\n    for (const it of items) {\n      if (it.length > 2) n += it.length;\n    }\n    return items.map(x => x + n).length;\n  }\n}\n",
+            ),
+        ];
+        for (lang, src) in sources {
+            let mut parser = tree_sitter::Parser::new();
+            parser
+                .set_language(&lang.ts_language().expect("grammar"))
+                .expect("set lang");
+            let tree = parser.parse(src, None).expect("parse");
+            let root = tree.root_node();
+            assert!(!root.has_error(), "test source must parse clean");
+            let by_nid = precompute_shape_hashes(root);
+            let mut stack = vec![root];
+            let mut checked = 0usize;
+            while let Some(n) = stack.pop() {
+                assert_eq!(
+                    by_nid[&n.id()],
+                    shape_hash_brute(n),
+                    "shape mismatch at kind {}",
+                    n.kind()
+                );
+                let mut c = n.walk();
+                let ch: Vec<tree_sitter::Node> = n.children(&mut c).collect();
+                drop(c);
+                stack.extend(ch);
+                checked += 1;
+            }
+            assert!(checked > 50, "corpus too small to be meaningful");
+        }
     }
 
     #[test]

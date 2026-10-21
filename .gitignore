@@ -17,3 +17,4 @@ scripts/askpass.sh
 
 # build artifacts
 *.tsbuildinfo
+scripts/bench/

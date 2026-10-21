@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.3.4 — polyglot ingest: one-pass shape stream + folder-bulk writes + normalize query fix (2026-10-21)
+
+Same outputs, no threads — the sequel to 1.3.3, aimed at the phase that
+1.3.3 left dominant. Measured on this repository, `ingest_and_lower`
+62.3 s → 16.7 s (3.7×); the full `cie polyglot` pipeline ~81 s → ~38 s.
+Frozen-corpus split (same 609 files, 1.64M ast nodes, 5,225 symbols):
+`ingest_folder` 16.9 s → 12.8 s, `lower_all` 46.2 s → 4.1 s (11×),
+`store_sources` ~50 ms unchanged.
+
+- **Equivalence proven, not assumed** — a persistent-db harness dumps all
+  12 tables (ids included) deterministically; before/after runs over a
+  frozen repo snapshot produced BYTE-IDENTICAL dumps (1,975,480 lines).
+  The new shape computation is additionally asserted node-by-node against
+  the kept per-node brute-force reference over multi-language corpora
+  (55 crate tests; 529 workspace tests green).
+- **One-pass shape stream (ANL-06)** — `shape_hash` used to re-walk the
+  whole subtree under EVERY node (O(subtree) node visits per node, with a
+  child-Vec allocation and String rebuild at each). Now one pass per file
+  builds the shared pre-order kind stream (kind + \u{1} per node, the
+  exact byte sequence the old walk produced) and a stack close-marker
+  hashes each node's contiguous slice the moment its subtree completes —
+  DFS pre-order contiguity makes that slice exactly the subtree's stream,
+  so every stored hash is bit-identical, hashed at memcpy speed.
+- **Folder pass = one transaction, savepoint per file** — the per-file
+  BEGIN/COMMIT fsynced the store once per file; the folder now writes
+  through a single transaction with a SAVEPOINT per file, so a failing
+  file still rolls back alone while everything before it stays committed
+  (the exact old outcome, including stats counters and abort semantics).
+- **Shared intern caches** — `node_kinds`/`node_text` are folder-global
+  tables, but the caches were rebuilt per file and re-queried rows an
+  earlier file had already answered; they are now shared across the
+  folder (HashMap keyed memoization — first-encounter order, hence every
+  id, unchanged). The qualifier chain for qualified symbol names moved
+  from a per-child deep `Vec<String>` clone to a persistent Rc cons list
+  (O(1) clone, identical oldest-first "."-join).
+- **uast::normalize query rewrite (the 11× in lower_all)** — the
+  `kinds_unmapped` count ran an `EXISTS` probe over all 1.6M `ast_nodes`
+  for every `node_kinds` row (no kind_id-leading index exists) —
+  rewritten as the single-scan `COUNT(DISTINCT kind_id) … WHERE
+  uast_kind_id IS NULL`, the same set by definition. The node-tagging
+  UPDATE gained a null-safe `IS NOT` change guard so NULL→NULL rows
+  (unmapped grammar kinds) are not rewritten; final state identical.
+
 ## 1.3.3 — polyglot pipeline: mathematically faster detection + bulk persistence (2026-10-21)
 
 Same outputs, no threads — the speed comes from algorithms, data

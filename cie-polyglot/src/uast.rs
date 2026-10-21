@@ -223,9 +223,15 @@ pub fn normalize(conn: &Connection) -> Result<NormalizeReport, String> {
         }
     }
 
-    // 3. tag nodes (single join update)
+    // 3. tag nodes (single join update). The IS NOT guard is a null-safe
+    //    change check: rows whose kind has no mapping (still NULL → NULL)
+    //    and rows already carrying their computed tag are not rewritten —
+    //    the final state is exactly the unguarded update's.
     conn.execute(
         "UPDATE ast_nodes SET uast_kind_id = (
+            SELECT m.uast_kind_id FROM uast_map m WHERE m.ast_kind_id = ast_nodes.kind_id
+         )
+         WHERE uast_kind_id IS NOT (
             SELECT m.uast_kind_id FROM uast_map m WHERE m.ast_kind_id = ast_nodes.kind_id
          )",
         [],
@@ -241,10 +247,12 @@ pub fn normalize(conn: &Connection) -> Result<NormalizeReport, String> {
             .map_err(|e| e.to_string())?;
         (t as usize, u as usize)
     };
+    // same set as the old per-kind EXISTS probe — node_kinds rows owning at
+    // least one still-unmapped node — as ONE scan of ast_nodes instead of a
+    // 1.6M-row probe per node_kinds row (no kind_id-leading index existed)
     report.kinds_unmapped = conn
         .query_row(
-            "SELECT COUNT(*) FROM node_kinds k
-             WHERE EXISTS (SELECT 1 FROM ast_nodes a WHERE a.kind_id = k.id AND a.uast_kind_id IS NULL)",
+            "SELECT COUNT(DISTINCT kind_id) FROM ast_nodes WHERE uast_kind_id IS NULL",
             [],
             |r| r.get::<_, i64>(0),
         )

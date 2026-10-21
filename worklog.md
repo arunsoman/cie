@@ -669,3 +669,21 @@ Work Log:
 
 Stage Summary:
 - Everything is on GitHub: main at 71154da, local == origin, tree clean. Perf task (113x duplicates, full pipeline 81s, no threads) fully delivered and published.
+
+---
+Task ID: perf-ingest
+Agent: main (Z.ai)
+Task: "yes plx" — take down the ingest phase (61s of the 81s pipeline) with the same rules as the duplicates round: mathematically faster, better build-time data structures, bulk DB writes, no threads, bit-identical outputs.
+
+Work Log:
+- Fine-grained baseline via a new persistent-db dump harness (cie-polyglot/examples/ingest_dump.rs — sub-phase timers to stderr, deterministic 12-table dump to stdout): ingest_folder 16.2s | store_sources 50ms | lower_all 45.8s on the full repo — lower_all, not ingest_folder, was the real dragon.
+- schema.rs — shape stream (ANL-06): shape_hash re-walked the whole subtree under EVERY node; replaced with one pass per file building the shared pre-order kind stream (kind + \u{1} exactly as before) plus stack close-markers, hashing each node's contiguous slice at subtree close — DFS pre-order contiguity makes that slice the subtree's stream, so hashes are bit-identical at memcpy speed. First version had a wrong end-boundary guess (starts[i+1] = first child, not subtree end); the new per-node-vs-brute unit test caught it before any run, fixed with proper close events.
+- schema.rs — folder pass in ONE transaction with a SAVEPOINT per file (per-file rollback semantics preserved exactly, incl. stats counters and abort-with-prior-files-committed); intern caches (node_kinds/node_text) shared across the folder (pure memoization — first-encounter order unchanged); qualifier chain → Rc cons list (O(1) clone, same join); caches/sym_ids BTreeMap→HashMap.
+- uast.rs — the 11x: kinds_unmapped ran an EXISTS probe of all 1.6M ast_nodes PER node_kinds row (no kind_id-leading index) → single-scan COUNT(DISTINCT kind_id) WHERE uast_kind_id IS NULL (same set by definition); tagging UPDATE gained a null-safe IS NOT change guard (NULL→NULL rows no longer rewritten; final state identical).
+- Equivalence: frozen repo snapshot under target/eq (walk-ignored), baseline binary via git stash → dumps BYTE-IDENTICAL (1,975,480 lines, ids/hashes included). Trap handled: the first before/after diff was polluted by self-ingestion (the pipeline ingested my own edits to schema.rs/uast.rs between runs — +2172 ast nodes) — the frozen snapshot removed the variable.
+- Numbers: ingest_and_lower 62.28s → 16.66s (3.7x); frozen split ingest_folder 16.93→12.76s, lower_all 46.23→4.08s (11x); full pipeline ~81s → ~38s. Disk-full incident during one bench (548M of eq artifacts) — cleaned, re-run clean; artifacts gitignored (scripts/bench/).
+- Workspace 529 tests green (55 in cie-polyglot incl. the new brute-force shape test); CHANGELOG 1.3.4.
+
+Stage Summary:
+- Ingest no longer dominates: duplicates.detect (17.5s, 12.6M row inserts) is now the biggest single phase — the named remainder for any future round.
+- store_sources at 50ms is not worth touching; re-parse-per-file in lower_all is by design (§11.10).
