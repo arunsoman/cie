@@ -33,6 +33,7 @@ pub fn produce(conn: &Connection) -> Result<BTreeMap<String, Value>, String> {
     let mut specs = BTreeMap::new();
     produce_state_machines(conn, &mut specs)?;
     produce_workflows(conn, &mut specs)?;
+    produce_c4(conn, &mut specs)?;
     Ok(specs)
 }
 
@@ -339,6 +340,249 @@ const WF_COUNTER_PLACEHOLDER: &str =
     "static call order across components; runtime branching, retries and queues may differ — needs runtime evidence to confirm";
 
 // ---------------------------------------------------------------------------
+// C4 (§20) — the concept DAG as a ViewSpec
+// ---------------------------------------------------------------------------
+
+/// C4 spec from the §11.7 concept DAG tables + §20.3 relationships.
+/// displayMode follows confidence: 1.0 = Fact, below = Inference with its
+/// per-node claimId. Evidence is a real byte span per node: the symbol a
+/// component was detected at, the manifest file a container roots at, the
+/// first file under a DDD segment, the store's first file for the project
+/// root. Edges carry the §22.3 closed reason set as edgeKind and cite the
+/// SOURCE node's span (the call site lives in the source component).
+/// Over-cap stores truncate class nodes salience-first — counted, never
+/// silent; edges into dropped nodes are dropped with them.
+fn produce_c4(conn: &Connection, specs: &mut BTreeMap<String, Value>) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT n.id, n.label, n.kind, n.confidence, n.provenance
+             FROM concept_nodes n ORDER BY n.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let nodes = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, f64>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+    if nodes.is_empty() {
+        return Ok(());
+    }
+
+    // --- per-node byte-span evidence ------------------------------------
+    // symbol carrier → span; else resolve from the provenance shape
+    let span_of_node = |node_id: i64, provenance: &str| -> Option<Span> {
+        let sym: Option<i64> = conn
+            .query_row(
+                "SELECT symbol_id FROM concept_node_symbols WHERE concept_id = ?1 AND symbol_id IS NOT NULL ORDER BY symbol_id LIMIT 1",
+                rusqlite::params![node_id],
+                |r| r.get(0),
+            )
+            .ok();
+        if let Some(s) = sym {
+            return symbol_span(conn, s);
+        }
+        // containers: "manifest:<dir> (<tool>)" → the manifest file itself
+        if let Some(rest) = provenance.strip_prefix("manifest:") {
+            let dir = rest.split(" (").next().unwrap_or("").trim();
+            for (m, _) in crate::c4::MANIFESTS {
+                let candidate = if dir.is_empty() || dir == "./" {
+                    m.to_string()
+                } else {
+                    format!("{dir}/{m}")
+                };
+                if let Ok((path, size)) = conn.query_row(
+                    "SELECT path, size_bytes FROM files WHERE path = ?1 ORDER BY id LIMIT 1",
+                    rusqlite::params![candidate],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+                ) {
+                    return Some((path, 0, size));
+                }
+            }
+            return None;
+        }
+        // DDD segments: "ddd-dir:<seg_path>" → the first file under it
+        if let Some(seg) = provenance.strip_prefix("ddd-dir:") {
+            if let Ok((path, size)) = conn.query_row(
+                "SELECT path, size_bytes FROM files WHERE path LIKE ?1 ORDER BY id LIMIT 1",
+                rusqlite::params![format!("{seg}%")],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+            ) {
+                return Some((path, 0, size));
+            }
+            return None;
+        }
+        // project root: the store's own first file is the evidence the
+        // project exists (§20.1: the root is where the walk started)
+        conn.query_row(
+            "SELECT path, size_bytes FROM files ORDER BY id LIMIT 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+        )
+        .ok()
+        .map(|(path, size)| (path, 0, size))
+    };
+
+    // build candidate elements with a salience rank for the cap
+    struct C4El {
+        node_id: i64,
+        rank: u8,
+        el: Value,
+        span: Span,
+    }
+    let mut candidates: Vec<C4El> = Vec::new();
+    for (id, label, kind, confidence, provenance) in &nodes {
+        let Some(span) = span_of_node(*id, provenance) else { continue };
+        let fact = *confidence >= 1.0;
+        let display = if fact { "Fact" } else { "Inference" };
+        let rank: u8 = if provenance.starts_with("class node") {
+            2 // classes are the leaves — first to yield under the cap
+        } else if kind == "Container" || kind == "Domain" {
+            0 // the view's skeleton — last to yield
+        } else {
+            1 // components
+        };
+        let mut el = json!({
+            "id": format!("c4:{id}"),
+            "elementKind": if kind == "Container" { "container" } else if kind == "Domain" { "domain" } else { "component" },
+            "displayMode": display,
+            "label": label,
+            "evidence": span_ev(&span),
+            "salience": {
+                "factors": [format!("kind:{kind}")],
+                "weight": confidence,
+                "whyShown": provenance,
+            },
+            "fields": { "c4Kind": kind, "confidence": confidence, "provenance": provenance },
+        });
+        if !fact {
+            el["claimId"] = json!(format!("C-C4-{id}"));
+        }
+        candidates.push(C4El { node_id: *id, rank, el, span });
+    }
+    if candidates.is_empty() {
+        return Ok(());
+    }
+
+    // VIZ-I-06: salience-bounded truncation, counted not silent
+    candidates.sort_by(|a, b| a.rank.cmp(&b.rank).then(b.el["salience"]["weight"].as_f64().unwrap_or(0.0).total_cmp(&a.el["salience"]["weight"].as_f64().unwrap_or(0.0))).then(a.node_id.cmp(&b.node_id)));
+    let mut gaps: Vec<Value> = Vec::new();
+    let mut hidden_classes = 0usize;
+    let mut kept: Vec<C4El> = Vec::new();
+    let mut seen_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for c in candidates {
+        if kept.len() >= ELEMENT_CAP {
+            hidden_classes += 1;
+            continue;
+        }
+        if !seen_ids.insert(c.el["id"].as_str().unwrap_or_default().to_string()) {
+            hidden_classes += 1; // duplicate label-id guard — never two of one node
+            continue;
+        }
+        kept.push(c);
+    }
+    if hidden_classes > 0 {
+        gaps.push(json!({ "reason": format!("{hidden_classes} concept node(s) below the salience line stay hidden, counted not shown") }));
+    }
+    let span_by_node: BTreeMap<i64, Span> = kept.iter().map(|c| (c.node_id, c.span.clone())).collect();
+    let elements: Vec<Value> = kept.into_iter().map(|c| c.el).collect();
+
+    // containment / cohesion edges (§11.7, reasons from the §22.3 closed set)
+    let mut edges: Vec<Value> = Vec::new();
+    let mut push_edge = |from: i64, to: i64, kind: &str, display: &str, fields: Value| {
+        let (Some(sf), Some(st)) = (span_by_node.get(&from), span_by_node.get(&to)) else {
+            return; // an endpoint truncated with its node — never a ghost arrow
+        };
+        edges.push(json!({
+            "source": format!("c4:{from}"),
+            "target": format!("c4:{to}"),
+            "edgeKind": kind,
+            "displayMode": display,
+            "evidence": span_ev(sf),
+            "fields": fields,
+        }));
+    };
+    {
+        let mut stmt = conn
+            .prepare("SELECT parent_id, child_id, reason, is_primary FROM concept_edges")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, i64>(3)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        for (parent, child, reason, is_primary) in rows {
+            // containment from manifest roots is direct structural evidence
+            // (Fact); cohesion/subsumption groupings are inferred
+            let display = match reason.as_str() {
+                "PackageContainment" | "CallOwnership" => "Fact",
+                _ => "Inference",
+            };
+            push_edge(parent, child, &reason, display, json!({ "isPrimary": is_primary == 1 }));
+        }
+    }
+    // §20.3 relationships — uses (resolved calls) / calls (bindings)
+    {
+        let mut stmt = conn
+            .prepare("SELECT from_node, to_node, kind, resolution, confidence FROM c4_relationships")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, f64>(4)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        for (from, to, kind, resolution, confidence) in rows {
+            let display = if confidence >= 1.0 { "Fact" } else { "Inference" };
+            push_edge(
+                from,
+                to,
+                &kind,
+                display,
+                json!({ "resolution": resolution, "confidence": confidence }),
+            );
+        }
+    }
+
+    let spec = json!({
+        "elements": elements,
+        "edges": edges,
+        "footer": {
+            "epistemic": "Fact",
+            "note": "containers from manifest roots (§20.1); components from framework annotations, naming suffixes and DDD segments (§20.2); relationships per §20.3 — every edge reason in the §22.3 closed set",
+        },
+        "gaps": gaps,
+        "scope": { "artifact": "c4" },
+        "layoutHint": { "strategy": "dagre" },
+    });
+    validate(&spec)?;
+    specs.insert("c4".to_string(), spec);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Byte-span evidence helpers — the TS EvidenceRef contract
 // ---------------------------------------------------------------------------
 
@@ -489,6 +733,7 @@ mod tests {
         create_fw_schema(&conn).unwrap();
         create_sm_schema(&conn).unwrap();
         create_wf_schema(&conn).unwrap();
+        crate::c4::create_c4_schema(&conn).unwrap();
         conn
     }
 
@@ -586,6 +831,58 @@ async def db_fetch():
         assert!(!specs.keys().any(|k| k.starts_with("impact:")));
         for (name, spec) in specs {
             validate(spec).unwrap_or_else(|e| panic!("bundled spec {name} must pass the gate mirror: {e}"));
+        }
+    }
+
+    #[test]
+    fn c4_spec_cites_manifest_and_symbol_spans() {
+        let conn = setup();
+        let py = "\
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get(\"/orders\")
+def list_orders():
+    return load_orders()
+";
+        let f = ingest_parsed_file(&conn, 1, 41, "svc.py", Lang::Python, py, &mut IngestStats::default()).unwrap();
+        cache_source_bytes(&conn, f, py).unwrap();
+        lower_all(&conn).unwrap();
+        install_registry(&conn).unwrap();
+        fw_detect(&conn).unwrap();
+        // a root manifest → one container rooted at it (§20.1)
+        conn.execute(
+            "INSERT INTO files(id, repo_id, path, content_hash, language, revision, size_bytes, tree_sitter_grammar_version)
+             VALUES (100, 1, 'pyproject.toml', x'00', 'toml', 41, 20, 'toml')",
+            [],
+        )
+        .unwrap();
+        crate::c4::create_c4_schema(&conn).unwrap();
+        crate::c4::detect_c4(&conn, std::path::Path::new("."), 41).unwrap();
+
+        let specs = produce(&conn).unwrap();
+        let c4 = specs.get("c4").expect("c4 spec produced");
+        validate(c4).unwrap_or_else(|e| panic!("c4 must pass the gate mirror: {e}"));
+        let els = c4["elements"].as_array().unwrap();
+        assert!(els.len() >= 3, "domain + container + component expected: {els:?}");
+        // the container cites the manifest file itself as byte-span evidence
+        let container = els
+            .iter()
+            .find(|e| e["fields"]["c4Kind"] == "Container")
+            .expect("container element");
+        assert_eq!(container["evidence"]["file"], "pyproject.toml");
+        assert_eq!(container["displayMode"], "Fact");
+        // the framework-annotation component cites the symbol's file span
+        let component = els
+            .iter()
+            .find(|e| e["fields"]["c4Kind"] == "Service")
+            .expect("framework component element");
+        assert_eq!(component["evidence"]["file"], "svc.py");
+        assert!(component["evidence"]["start"].is_i64());
+        // containment edges use the closed reason set and carry span evidence
+        for e in c4["edges"].as_array().unwrap() {
+            assert!(e["evidence"]["file"].as_str().map(|f| !f.is_empty()).unwrap_or(false));
+            assert!(e["edgeKind"].as_str().map(|k| !k.is_empty()).unwrap_or(false));
         }
     }
 
