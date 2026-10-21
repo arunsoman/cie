@@ -39,7 +39,7 @@ function sanitizeHistory(raw: unknown): ChatTurn[] {
     .slice(-MAX_HISTORY);
 }
 
-export function systemPrompt(digest: unknown, scoped = false): string {
+function systemPrompt(digest: unknown, scoped = false): string {
   const facts = JSON.stringify(digest, null, 1);
   // RFC-0024 stage 5 — scoped answering (ux-spec §3-ASK, RFC-0023 §9-R5):
   // when the digest carries a selection_scope, the answer draws ONLY from

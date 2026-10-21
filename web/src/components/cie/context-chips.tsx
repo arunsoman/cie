@@ -7,9 +7,10 @@
 // once. Chips are the user's, not the persona's (G3): they survive
 // persona switches and scope releases; the R4 pair follows them only.
 //
-// Merge note (RFC-0023 stages 1–5 came in through origin/main): each chip
-// now also carries the selection's resolved `files`, and the tooltip says
-// honestly when a chip contributes no code space at all.
+// RFC-0023 stage 6 additions kept in the merge: the "Answers use these
+// selections" line with the one-tap whole-project release, and the honest
+// per-chip code-space tooltip (a chip with no recorded files says it
+// contributes none).
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
@@ -56,6 +57,10 @@ export function ContextChips() {
           clear all
         </button>
       </div>
+      <p className="text-[10.5px] text-stone-500 mb-1">
+        Answers use these selections — everything else is outside the answer&apos;s
+        scope.
+      </p>
       <div className="flex flex-wrap gap-1">
         {chatContext.map((c) => (
           <span
@@ -71,7 +76,7 @@ export function ContextChips() {
             <button
               type="button"
               onClick={() => removeChip(c.id)}
-              aria-label={`remove ${c.label} from context`}
+              aria-label={`Remove ${c.label} from answer context`}
               className="rounded-full p-0.5 text-emerald-700/70 hover:bg-emerald-100 hover:text-emerald-900"
             >
               <X className="h-3 w-3" />

@@ -108,6 +108,9 @@ export interface VizElement {
   label: string;
   evidence: { file: string; start: number; end: number };
   claimId?: string;
+  counterArgument?: string;
+  fogReason?: string;
+  parentId?: string;
   salience?: { factors: string[]; weight: number; whyShown: string };
   fields?: Record<string, unknown>;
 }

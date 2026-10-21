@@ -1,4 +1,4 @@
-import type { ElementLoc } from './chat-chart';
+import type { ElementLoc } from "./chat-chart";
 export interface ChatContextElement {
   id: string;
   label: string;
@@ -11,9 +11,14 @@ export interface ChatContextElement {
   sourceTitle?: string;
 }
 export const CHAT_CONTEXT_CAP = 24;
-export function addContext(current: ChatContextElement[], next: ChatContextElement): ChatContextElement[] {
-  const sameRevision = current.filter(c => c.revision === next.revision);
-  return [...sameRevision.filter(c => c.id !== next.id), next].slice(-CHAT_CONTEXT_CAP);
+export function addContext(
+  current: ChatContextElement[],
+  next: ChatContextElement,
+): ChatContextElement[] {
+  const sameRevision = current.filter((c) => c.revision === next.revision);
+  return [...sameRevision.filter((c) => c.id !== next.id), next].slice(
+    -CHAT_CONTEXT_CAP,
+  );
 }
 /** The store's single add path (RFC-0024 stage 4 disclosures over the RFC-0023
  *  primitive): a repeat click never duplicates — it pulses, and the notice says

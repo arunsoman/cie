@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "test:rfc0020": "node --test test/rfc0020-evidence.test.cjs",
-    "test:rfc0020:browser": "node test/rfc0020-browser.cjs"
+    "test:rfc0020:browser": "node test/rfc0020-browser.cjs",
+    "test:rfc0023": "node --test test/rfc0023.test.cjs",
+    "test:rfc0023:browser": "node test/rfc0023-browser.cjs"
   },
   "dependencies": {
     "@antv/g6": "^5.1.1",
@@ -56,6 +58,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "elkjs": "0.11.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.2",
     "input-otp": "^1.4.2",
@@ -79,10 +82,10 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
+    "viz-adapter": "file:../viz-adapter",
     "z-ai-web-dev-sdk": "^0.0.18",
     "zod": "^4.0.2",
-    "zustand": "^5.0.6",
-    "viz-adapter": "file:../viz-adapter"
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
