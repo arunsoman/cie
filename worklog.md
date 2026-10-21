@@ -536,3 +536,17 @@ Work Log:
 
 Stage Summary:
 - Both RFCs are complete and unified on ONE line on origin/main: one gated canvas, one chip path with disclosures, both scope halves enforced. The persona Atlas (RFC-0024) is fully implemented and pushed.
+---
+Task ID: 37
+Agent: main (Z.ai)
+Task: "Atlas persona menu invisible" — server wedged; relative turbopack root root-caused and fixed.
+
+Work Log:
+- :3000 dead all morning: the pulled stage-1 next.config set `turbopack.root: ".."` — RELATIVE, resolved against process.cwd() at runtime. From warm .next it appeared fine; once recompiled (fresh .next / any other start dir) the CSS pipeline re-rooted at the repo root (no node_modules there) and died: "Can't resolve 'tailwindcss' in /home/arun/2cie/cie" — the parallel session's morning server (pid 276370, 140-165% CPU, listening, never answering) was the same bug.
+- Fix: `turbopack.root: path.resolve(__dirname, "..")` (next.config.ts) — cwd-independent, intent unchanged (repo root = workspace root for the file:../viz-adapter TS bundling; "route fix"-class change).
+- Verified: fresh boot "✓ Ready in 1415ms", :3000 = 200, load back to ~5 on 8 cores; the persona sub-menu renders in the shell top bar with all FIVE human presets + per-line purposes + 1–5 keys, and the agent's honest absence stated inside the menu (d4/d5 screenshots).
+- Playwright sessions killed on request before the watch; chrome-devtools-mcp processes left alone (parallel session's tooling).
+
+Stage Summary:
+- "Why don't I see X" = usually the server, not the code: check the port and the wedged-compile signature (LISTEN but 000 on curl, CPU pegged) before touching the UI.
+- Any workspace-root-style config must be ABSOLUTE at build time; relative paths re-root with cwd and fail only when caches are cold — the nastiest class of bug because it hides for days then bites a cold start.
