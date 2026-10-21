@@ -657,3 +657,15 @@ Work Log:
 Stage Summary:
 - Same outputs, no threads: the speedups are algorithmic (dense vectors + inverted index + hash grouping) plus bulk writes (one txn, prepared statements, gaps as counts).
 - Named remainders: ingest now dominates (~61s: per-file ingest txns, shape_hash walks each node's whole subtree); the unweighted §23 cosine puts 12.5M of 13.6M pairs above the floor on this repo — IDF weighting would change similarities (semantic decision, deferred to user).
+
+---
+Task ID: perf-polyglot-push
+Agent: main (Z.ai)
+Task: "push the latest code" — publish the remaining local commit.
+
+Work Log:
+- Verified state: perf rewrite 27dfaff + worklog 9059843 already on origin; working tree clean; local ahead by exactly the environment auto-commit 71154da (scripts/diff_dump.py, the left/right row-diff helper used during the duplicates equivalence proof).
+- Pushed 9059843..71154da via push-with-token.sh; fetched and confirmed HEAD == origin/main == 71154da, branch in sync, nothing untracked.
+
+Stage Summary:
+- Everything is on GitHub: main at 71154da, local == origin, tree clean. Perf task (113x duplicates, full pipeline 81s, no threads) fully delivered and published.
