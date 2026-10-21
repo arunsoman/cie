@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS duplicates (
     canonical_symbol_id INTEGER REFERENCES symbols(id),
     counter_argument   TEXT
 );
+CREATE TABLE IF NOT EXISTS duplicate_gaps (
+    symbol_id    INTEGER PRIMARY KEY REFERENCES symbols(id),
+    hidden_count INTEGER NOT NULL
+);
 "#;
 
 pub fn create_dup_schema(conn: &Connection) -> Result<(), String> {
@@ -52,24 +56,69 @@ pub struct DupReport {
     pub hidden_gaps: usize,
 }
 
-/// Cosine over the stored op-bag vectors (ir_meta.ir_vec JSON maps).
-fn cosine(a: &BTreeMap<String, u32>, b: &BTreeMap<String, u32>) -> f64 {
-    let mut dot = 0f64;
-    let mut na = 0f64;
-    let mut nb = 0f64;
-    for (k, va) in a {
-        na += (*va as f64) * (*va as f64);
-        if let Some(vb) = b.get(k) {
-            dot += (*va as f64) * (*vb as f64);
+// ---------------------------------------------------------------------------
+// Detection engine — threshold all-pairs cosine over a dense op-bag space
+// ---------------------------------------------------------------------------
+
+/// The low tier floor (§23.2): pairs below this similarity are hidden pairs.
+/// They are counted per symbol in `duplicate_gaps`, never materialized —
+/// the brute-force reference wrote one row per hidden pair (O(n²) rows for
+/// output that is only ever read as per-symbol counts).
+const LOW_FLOOR: f64 = 0.40;
+
+/// Slack for the scan-abort bound: the remainder mass is a floating-point
+/// upper estimate, so the abort is padded by far more than any summation
+/// error (~1 ulp) — an abort can only ever be a few dims LATER than the
+/// exact bound, never earlier. It can never cause a missed pair.
+const ABORT_SLACK: f64 = 1e-9;
+
+/// One symbol's op-bag in the dense shared vocabulary. Dims are the globally
+/// sorted op names, so ascending dim id == ascending string key — the exact
+/// iteration order the brute-force `BTreeMap` cosine used. Combined with
+/// norms being `sqrt` of the same sums (correctly rounded ⇒ precomputing is
+/// bit-identical to recomputing per pair), every similarity this module
+/// reports is bit-identical to a full brute-force pass.
+struct Bag {
+    dims: Vec<u32>,
+    vals: Vec<u32>,
+    norm: f64,
+}
+
+impl Bag {
+    fn build(bag: &BTreeMap<String, u32>, dim_of: &HashMap<&str, u32>) -> Bag {
+        // BTreeMap iteration is ascending by string key; dim ids were assigned
+        // in sorted-name order, so the vec comes out sorted by dim already.
+        let pairs: Vec<(u32, u32)> = bag
+            .iter()
+            .map(|(k, v)| (dim_of[k.as_str()], *v))
+            .collect();
+        let mut sum_sq = 0f64;
+        let mut dims = Vec::with_capacity(pairs.len());
+        let mut vals = Vec::with_capacity(pairs.len());
+        for (d, v) in pairs {
+            let x = v as f64;
+            sum_sq += x * x;
+            dims.push(d);
+            vals.push(v);
         }
+        Bag { dims, vals, norm: sum_sq.sqrt() }
     }
-    for vb in b.values() {
-        nb += (*vb as f64) * (*vb as f64);
+
+    /// Exact cosine, op-for-op the brute-force computation: dot accumulates
+    /// over `a`'s dims in ascending (== string) order, skipping keys `b`
+    /// lacks, divided by the two precomputed norms.
+    fn cosine(&self, other: &Bag) -> f64 {
+        if self.norm == 0.0 || other.norm == 0.0 {
+            return 0.0;
+        }
+        let mut dot = 0f64;
+        for (i, &d) in self.dims.iter().enumerate() {
+            if let Ok(j) = other.dims.binary_search(&d) {
+                dot += (self.vals[i] as f64) * (other.vals[j] as f64);
+            }
+        }
+        dot / (self.norm * other.norm)
     }
-    if na == 0.0 || nb == 0.0 {
-        return 0.0;
-    }
-    dot / (na.sqrt() * nb.sqrt())
 }
 
 fn load_ir_meta(conn: &Connection) -> Result<BTreeMap<i64, (Vec<u8>, BTreeMap<String, u32>)>, String> {
