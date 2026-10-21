@@ -639,3 +639,21 @@ Work Log:
 Stage Summary:
 - The recorded engine bug is closed at both layers (ownership guard + pinned envs); sample commits can never land in a host repo again.
 - cie-polyglot exists only as a crate in the cie monorepo — no separate repo, no published crate.
+
+---
+Task ID: perf-polyglot
+Agent: main (Z.ai)
+Task: "make it faster, mathematically, no threads; better data structures while creating the data, then bulk writes to db" — speed up the polyglot pipeline.
+
+Work Log:
+- Bench harness (cie-polyglot/examples/bench_phases.rs) profiled per phase: on the subtree, ingest_and_lower 3.68s + duplicates.detect 3.44s dominated (everything else <0.12s); on the full repo the pipeline could not finish inside 590s.
+- duplicates.rs rewritten: dense op-bag space (sorted op names -> u32 dims; ascending dim == old BTreeMap string order => BIT-identical cosine), norms once per symbol, O(n) exact-hash grouping for canonical rows, inverted index with weight-descending scan + Cauchy-Schwarz remainder abort (sub-floor pairs never enumerated; completeness proven per-scan), hidden pairs counted in duplicate_gaps(symbol_id, hidden_count) instead of O(n^2) rows, canonical winner precomputed and stamped at insert, whole output in ONE transaction.
+- Discovered + preserved: the old mark_canonical family walk always reduced to a global argmax (every pair got a row, hidden included -> complete graph); module doc §23.3 confirms "winner over the whole pair set" is intended. New canonical_winner() reproduces it exactly; doc comments record the reasoning.
+- ir.rs/schema.rs: one transaction per pass, name_ids loaded once (was O(files x symbols)), per-file span->node index replacing per-symbol x2 + per-call full-tree DFS, AstIdMap span buckets with Box<str> (no per-level String alloc), prepared statements across all hot write loops, store_sources batched.
+- Equivalence proof in tests: brute reference kept verbatim (mod brute); 500-bag bit-identity test; full-corpus equivalence (rows incl. similarity bits/tiers/counters/winner + totals + per-symbol hidden counts) on a corpus with exact dups / near dups / weak pairs / hidden residual. Debugging detour: two "hangs" were bash-pipe orphans (timeout killing cargo, test binary holding the pipe) — real failure was a row-count assert; hidden rows are intentionally no longer materialized, so the reference dump filters tier != 'hidden'.
+- Results (release): subtree duplicates 3.44s -> 30.3ms (113x), ingest 3.68s -> 1.00s; FULL REPO pipeline >590s (never finished) -> 81.4s total, duplicates 17.5s for 12,547,890 verified shown pairs. Hidden rows never written: ~1.02M.
+- Workspace 145 suites green; CHANGELOG 1.3.3; committed 27dfaff, pushed, local==origin verified.
+
+Stage Summary:
+- Same outputs, no threads: the speedups are algorithmic (dense vectors + inverted index + hash grouping) plus bulk writes (one txn, prepared statements, gaps as counts).
+- Named remainders: ingest now dominates (~61s: per-file ingest txns, shape_hash walks each node's whole subtree); the unweighted §23 cosine puts 12.5M of 13.6M pairs above the floor on this repo — IDF weighting would change similarities (semantic decision, deferred to user).
