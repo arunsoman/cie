@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.0 — PRD v2.0 polyglot layer (2026-10-21)
+
+The polyglot architecture lands as `cie-polyglot`: SQLite AST/UAST/IR
+schema fed by real tree-sitter parses, framework + cross-language
+detection, C4 containers/components into the §11.7 concept DAG,
+three-tier state machines with epistemic encoding, workflow DFS with
+async-boundary Fog, ir-hash/cosine duplicate tiers with canonical
+marking, §25 ViewSpec production with a producer-side gate mirror, and
+the §45 runtime evidence layer with the OTel join. One commit per PRD
+slice, all pushed to `main` as they landed. Record:
+`docs/implementation/prd-v2.0.md`.
+
+- 50 crate tests green (`cargo test -p cie-polyglot`), CLI surface
+  `cie polyglot` + `--otel` + `--viewspec` (18 cli tests).
+- Acceptances landed here: #11 groundwork, #28 guard, #32, #33, #34,
+  #75, #76, #77, #78, #79, #80 (+ the §23.2 tier ladder and §19.3
+  disclosure rules enforced by audit()).
+
 ## 1.2.0 — CIE-US opens close + plain-English web dashboard (2026-10-18)
 
 Four planned user stories whose named gap became engine work, one commit per

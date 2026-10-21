@@ -550,3 +550,28 @@ Work Log:
 Stage Summary:
 - "Why don't I see X" = usually the server, not the code: check the port and the wedged-compile signature (LISTEN but 000 on curl, CPU pegged) before touching the UI.
 - Any workspace-root-style config must be ABSOLUTE at build time; relative paths re-root with cwd and fail only when caches are cold — the nastiest class of bug because it hides for days then bites a cold start.
+
+
+---
+
+## PRD v2.0 polyglot layer — 2026-10-21 (agent session)
+
+User ask: "implement the prd-v2.0.md file, most of it's done, check and
+implement the rest; push after every commit."
+
+- Confirmed the standing substrate (tree-sitter adapters, viz-adapter
+  multi-engine, cie-llm native, ingest/budgets, 84/84 PRD v1.0 tasks) and
+  built the genuinely missing layer as `cie-polyglot`, one commit per PRD
+  §47 slice: 9 (AST schema) → 11 (UAST) → 10 (IR) → 12 (frameworks +
+  xlang) → 12b (C4) → 13 (state machines) → 14 (workflows + ViewSpec) →
+  15 (impact+duplicates) → 20 (runtime) → CLI wiring.
+- Each commit pushed immediately (PAT-supplied token, never stored in
+  the repo; `scripts/push-with-token.sh` takes it at runtime).
+- Honesty rules carried throughout: parse errors flagged not hidden;
+  unmapped UAST kinds NULL and counted; callee resolution never guesses
+  (callee_text preserved); framework identity only from import evidence;
+  non-Fact disclosures (claimId/counterArgument/fogReason) enforced by
+  producer-side validate() mirroring the TS gate; duplicate pairs below
+  0.40 similarity stored hidden and cited as gaps; unresolved spans
+  stored with reasons.
+- Implementation record: docs/implementation/prd-v2.0.md.
