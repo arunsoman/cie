@@ -1,4 +1,4 @@
-import type { ElementLoc } from './chat-chart';
+import type { ElementLoc } from "./chat-chart";
 export interface ChatContextElement {
   id: string;
   label: string;
@@ -9,7 +9,12 @@ export interface ChatContextElement {
   files: string[];
 }
 export const CHAT_CONTEXT_CAP = 24;
-export function addContext(current: ChatContextElement[], next: ChatContextElement): ChatContextElement[] {
-  const sameRevision = current.filter(c => c.revision === next.revision);
-  return [...sameRevision.filter(c => c.id !== next.id), next].slice(-CHAT_CONTEXT_CAP);
+export function addContext(
+  current: ChatContextElement[],
+  next: ChatContextElement,
+): ChatContextElement[] {
+  const sameRevision = current.filter((c) => c.revision === next.revision);
+  return [...sameRevision.filter((c) => c.id !== next.id), next].slice(
+    -CHAT_CONTEXT_CAP,
+  );
 }

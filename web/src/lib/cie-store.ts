@@ -20,7 +20,7 @@ import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
 import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
-import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
+import { ATLAS_RESET, scopeForRef, containerOfPath, type AtlasRef, type AtlasSelection } from "./atlas";
 import { PERSONA_PRESETS, loadPersonaMemory, savePersonaMemory, type PersonaId } from "./atlas-presets";
 
 export type DataSource = "demo" | "custom" | null;
@@ -419,7 +419,7 @@ export const useCie = create<CieState>((set, get) => ({
         return { atlasSelection: ATLAS_RESET }; // second click = release
       }
       const files = ref.kind === "container"
-        ? (s.report?.files ?? []).filter(f => f === ref.id || f.startsWith(ref.id + "/"))
+        ? (s.report?.files ?? []).filter(f => containerOfPath(f, s.stack?.apps) === ref.id)
         : ref.loc?.file ? [ref.loc.file] : ref.kind === "module" ? [ref.id] : [];
       return { atlasSelection: { primary: ref, scope: scopeForRef(ref) },
         chatContext: addContext(s.chatContext, {id:ref.id,label:ref.label,kind:ref.kind,revision:s.report?.rev ?? 0,loc:ref.loc,files}) };

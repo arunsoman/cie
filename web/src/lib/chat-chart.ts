@@ -187,21 +187,7 @@ const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow",
 const COLORS = new Set(["rose", "amber", "emerald", "stone"]);
 
 /** Engine + layout per kind — deterministic, so a hallucinated pair gets corrected. */
-export function engineFor(kind: ChatChartKind): string {
-  switch (kind) {
-    case "hbar": return "custom-svg";
-    case "donut": return "recharts";
-    case "stat": return "card";
-    case "table": return "grid";
-    case "uml": return "custom-svg";
-    case "flow": return "custom-svg";
-    case "tree": return "g6";
-    case "heatmap": return "custom-svg";
-    case "sequence": return "custom-svg";
-    case "c4": return "custom-svg";
-    case "mindmap": return "custom-svg";
-  }
-}
+export function engineFor(_kind: ChatChartKind): string { return "g6"; }
 export function layoutFor(kind: ChatChartKind): string {
   switch (kind) {
     case "hbar": return "fisheye-rows";

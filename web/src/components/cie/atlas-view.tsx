@@ -67,18 +67,8 @@ const PANELS = [
 
 type PanelId = (typeof PANELS)[number]["id"];
 
-/** Facts-only: drop every element the engine marked as a guess. Store-built
- *  specs carry Fact/Inference/Hypothesis on each node and link — the filter
- *  simply honours them; nothing is re-classified to look better. */
-function filterFacts(spec: ChatChartSpec): ChatChartSpec {
-  const nodes = (spec.nodes ?? []).filter((n) => (n.certainty ?? "Fact") === "Fact");
-  const links = (spec.links ?? []).filter((l) => (l.certainty ?? "Fact") === "Fact");
-  const keep = new Set(nodes.map((n) => n.id));
-  return { ...spec, nodes, links: links.filter((l) => keep.has(l.from) && keep.has(l.to)) };
-}
-
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure } = useCie();
+  const { report, quality, stack, concepts, addChatContext, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders
   // plan.rows in reading order instead of a hand-coded sequence.
@@ -278,6 +268,7 @@ export function AtlasView() {
   // own symbol index carries a matching function IN THE SAME FILE (never
   // guessed across files) also select it, so Sequence/Flow re-centre on it.
   const onPickMain = (m: MainSite) => {
+    addChatContext({id:`main:${m.rel}:${m.line}`,label:m.name,kind:"entry",revision:report?.rev??0,loc:{file:m.rel,line:m.line},files:[m.rel]});
     openSourceViewer({ file: m.rel, line: m.line });
     if (!report) return;
     const sym = [m.name, `${m.name}.main`, "main"]
@@ -289,6 +280,7 @@ export function AtlasView() {
     }
   };
   const onPickRoute = (r: RouteSite) => {
+    addChatContext({id:`route:${r.rel}:${r.line}`,label:r.method,kind:"route",revision:report?.rev??0,loc:{file:r.rel,line:r.line},files:[r.rel]});
     openSourceViewer({ file: r.rel, line: r.line });
     if (!report) return;
     const sym = symbolByQualName(report, `${r.owner}.${r.method}`);
@@ -299,7 +291,7 @@ export function AtlasView() {
   };
 
   const crumbs = breadcrumbOf(atlasSelection);
-  const shown = (s: ChatChartSpec | null): ChatChartSpec | null => (atlasFactsOnly && s ? filterFacts(s) : s);
+  const shown = (s: ChatChartSpec | null): ChatChartSpec | null => s; // gate/conductor owns Facts-only and its ledger
   const shownC4 = shown(c4Spec);
   const shownComp = shown(compSpec);
   const shownFlow = shown(dataflowSpec);
@@ -431,7 +423,7 @@ export function AtlasView() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {plan.rows.map((row) => {
+              {[plan.hero, ...plan.rows].map((row) => {
                 const meta = PANELS.find((p) => p.id === row.panel);
                 if (!meta) return null;
                 const wide = row.panel === "containers" || row.panel === "flow";

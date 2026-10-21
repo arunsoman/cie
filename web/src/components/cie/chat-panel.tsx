@@ -138,7 +138,7 @@ export function ChatPanel() {
       const t = pendingTrace;
       setPendingTrace(null);
       pushChat({ role: "user", content: `Trace ${t.title}, end to end` });
-      const ans = buildTraceAnswer(report, t.entryId);
+      const ans = answerData.scope ? null : buildTraceAnswer(report, t.entryId);
       if (ans) {
         pushChat({ role: "assistant", content: ans.answer, card: ans.card, instant: true });
         markMasteryPrompt(ans.promptKey);

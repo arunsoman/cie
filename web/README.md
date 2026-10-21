@@ -192,3 +192,22 @@ code-intelligence implementations (`camera-stage.tsx`, `map-fisheye.tsx`).
 The charts use **Recharts** (already in the shadcn ecosystem) so the numbers
 views stay declarative and accessible; the AI chat uses **z-ai-web-dev-sdk**
 server-side only (`src/app/api/chat/route.ts`).
+
+## Negotiated canvas charts (RFC-0023)
+
+Charts now share the ViewSpec gate, negotiator, canvas runtime and selection
+conductor. Use the per-chart text outline for keyboard selection; it includes
+recorded aggregates without source spans, which are disclosed rather than given
+fabricated evidence. Graph clicks and outline selections add removable chat
+context chips. Answers are limited to those selections until you choose
+**Answer from the whole project**. Project changes clear the selection.
+
+The disclosure names the actual engine/layout. Choose **ELK layered** for a wide
+graph, or download the current gated chart as PNG or Mermaid text. Expanded
+Atlas panels request full detail through the same rendering path.
+
+Run `npm run test:rfc0023` for the contract/host/scoping regression tests.
+For the live browser checks, start the development server and run
+`CIE_TEST_URL=http://127.0.0.1:3000 npm run test:rfc0023:browser`.
+The harness uses Chromium at `/usr/bin/chromium`; override `CIE_CHROMIUM` as needed.
+It exercises the bundled polyglot sample and does not need an AI provider.

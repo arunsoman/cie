@@ -1,5 +1,5 @@
 /**
- * The hash split (CIE-VIZ-MULTI PRD Part I §3) — Node-side recomputation.
+ * The hash split (CIE-VIZ-MULTI PRD Part I §3) — browser and Node recomputation.
  *
  *   semanticHash : sha256 over {elements, edges, groups, gaps, footer,
  *                 scope} — the CACHE key; hidden[], layoutHint,
@@ -13,7 +13,8 @@
  * with recursively sorted keys, integral floats as integers.
  */
 
-import { createHash } from 'node:crypto';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
 import type { ViewSpec } from './types';
 
 /** Stable stringify: object keys sorted at every depth (arrays in order),
@@ -33,7 +34,7 @@ export function stableStringify(value: unknown): string {
 }
 
 function sha256Hex(text: string): string {
-  return `sha256:${createHash('sha256').update(text).digest('hex')}`;
+  return `sha256:${bytesToHex(sha256(new TextEncoder().encode(text)))}`;
 }
 
 export function recomputeSemanticHash(spec: ViewSpec): string {
