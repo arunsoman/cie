@@ -12,6 +12,7 @@ fn main() {
 
     let conn = cie_polyglot::schema::open_db(&db).expect("open db");
 
+    let t_total = Instant::now();
     let t = Instant::now();
     let res = cie_polyglot::ir::ingest_and_lower(&conn, 1, 41, &path);
     let ingest = t.elapsed();
@@ -67,7 +68,7 @@ fn main() {
         .query_row("SELECT COUNT(*) FROM duplicates", [], |r| r.get(0))
         .unwrap_or(0);
     println!("   duplicates table rows: {dup_rows}");
-    println!("TOTAL                  {:>10.2?}", t.elapsed());
+    println!("TOTAL                  {:>10.2?}", t_total.elapsed());
 
     let _ = std::fs::remove_file(&db);
 }

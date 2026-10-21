@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.3.5 — polyglot duplicates: streaming CASE-literal bulk insert, redundant FK probes suspended (2026-10-21)
+
+Same outputs, no threads — third round of the perf campaign, aimed at the
+phase 1.3.4 left dominant. Measured on this repository (12,618,554 shown
+pairs over 5,225 symbols), `duplicates.detect` 17.7 s → 6.7 s (2.7×);
+the full `cie polyglot` pipeline ~39 s → ~28 s. Peak memory drops by the
+~1.2 GB the old engine used to stage 12.6M rows before writing them.
+
+- **Equivalence proven, not assumed** — the new `dup_dump` harness dumps
+  `duplicates` + `duplicate_gaps` deterministically (ids, f64 bits,
+  texts included); before/after runs over a frozen repo snapshot produced
+  BYTE-IDENTICAL gzip streams (194,276,504 bytes, 12,623,779 lines each).
+  529 workspace tests green, including the 500-bag bit-identity and
+  full-corpus brute-force equivalence tests.
+- **Rows stream, nothing staged** — the verify loop used to push a ~96-byte
+  struct per shown pair (~1.2 GB at this corpus size) and only then open
+  the transaction; rows now flow straight from the cosine ladder into the
+  INSERT. Row order (and therefore every autoassigned id) is unchanged:
+  canonical rows first in hash-byte order, then candidate rows in scan
+  order.
+- **512-row multi-row INSERT with CASE-literal texts** — one prepared
+  statement per run binds only (a, b, similarity, outcome) per row and
+  expands the outcome to tier/detection/epistemic/counter via `CASE ?4`
+  literals living IN the statement; rusqlite copies every bound text
+  (SQLITE_TRANSIENT), so moving four never-varying texts into the
+  statement removes ~40M mallocs+memcpys per run. One step/reset cycle
+  per 512 rows instead of per row; the tail chunk replays into an
+  exact-size statement so ids stay sequential.
+- **Redundant FK probes suspended for the bulk write (the 8.6 s lever)** —
+  with `foreign_keys=ON`, SQLite probed three parents per row
+  (symbol_a, symbol_b, canonical_symbol_id ≈ 38M B-tree searches,
+  ~55% of the phase). Every referenced id is read out of
+  `symbols`/`ir_meta` earlier in the same call, and those tables' own
+  foreign keys already enforced it at write time, so the probes verify
+  already-verified data. An RAII guard turns the pragma off before the
+  transaction opens and restores the connection's original setting on
+  every path (success, error, panic); table contents are identical.
+  *Judgment call, easily reverted*: delete the `FkGuard::off` line in
+  `detect()` if per-row enforcement is wanted anyway.
+- **Merge-intersection cosine** — the per-pair dot product now walks two
+  ascending dim arrays with two pointers instead of binary-searching
+  each dim; same hit sequence, same accumulation order → bit-identical
+  result, O(dims_a + dims_b) sequential instead of O(dims_a · log dims_b)
+  random probes. Hash and shape equality inside the walk/ladder are now
+  u32 group-id compares (interned once) instead of 32-byte memcmps and
+  per-pair BTreeMap lookups; the walk marks partners with generation
+  stamps instead of unmarking them.
+- **Measured non-levers (left alone)** — page_size 8192/16384/32768:
+  ≤5% (would change the tool's DB file format); cache_size 64 MB: made
+  inserts slower; deferred FKs: the parent lookup still happens per row.
+- bench_phases' TOTAL line measured the last phase, not the pipeline
+  (stale timer variable) — fixed.
+
 ## 1.3.4 — polyglot ingest: one-pass shape stream + folder-bulk writes + normalize query fix (2026-10-21)
 
 Same outputs, no threads — the sequel to 1.3.3, aimed at the phase that

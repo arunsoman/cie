@@ -104,17 +104,28 @@ impl Bag {
         Bag { dims, vals, norm: sum_sq.sqrt() }
     }
 
-    /// Exact cosine, op-for-op the brute-force computation: dot accumulates
-    /// over `a`'s dims in ascending (== string) order, skipping keys `b`
-    /// lacks, divided by the two precomputed norms.
+    /// Exact cosine, op-for-op the brute-force computation. Both dim arrays
+    /// are ascending, so a two-pointer merge visits the shared dims in the
+    /// same ascending (== string) order the old per-dim `binary_search` did:
+    /// the hit sequence, every term `(a_d as f64) * (b_d as f64)` and the
+    /// accumulation order are identical, so the dot is bit-identical to the
+    /// brute-force `BTreeMap` cosine — but O(dims_a + dims_b) sequential
+    /// instead of O(dims_a · log dims_b) with a random probe per dim.
     fn cosine(&self, other: &Bag) -> f64 {
         if self.norm == 0.0 || other.norm == 0.0 {
             return 0.0;
         }
         let mut dot = 0f64;
-        for (i, &d) in self.dims.iter().enumerate() {
-            if let Ok(j) = other.dims.binary_search(&d) {
-                dot += (self.vals[i] as f64) * (other.vals[j] as f64);
+        let (mut i, mut j) = (0usize, 0usize);
+        while i < self.dims.len() && j < other.dims.len() {
+            match self.dims[i].cmp(&other.dims[j]) {
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+                std::cmp::Ordering::Equal => {
+                    dot += (self.vals[i] as f64) * (other.vals[j] as f64);
+                    i += 1;
+                    j += 1;
+                }
             }
         }
         dot / (self.norm * other.norm)
@@ -146,15 +157,119 @@ fn load_ir_meta(conn: &Connection) -> Result<BTreeMap<i64, (Vec<u8>, BTreeMap<St
     Ok(out)
 }
 
-/// One detected pair, staged in memory and written in one bulk transaction.
-struct DupRow {
-    a: i64,
-    b: i64,
-    sim: f64,
-    tier: &'static str,
-    detection: &'static str,
-    epistemic: &'static str,
-    counter: Option<&'static str>,
+/// The §23.2 tier ladder, as one fixed table: a row's `(tier, detection,
+/// epistemic, counter_argument)` is fully determined by its outcome, so the
+/// bulk INSERT carries a u8 outcome per row and expands it to the four text
+/// columns with `CASE` literals inside the prepared statement — the texts
+/// live in the statement, not in per-row binds (rusqlite binds every text
+/// with SQLITE_TRANSIENT: a malloc + memcpy per column per row, ~4 copies ×
+/// 12.6M rows of pure overhead for strings that never change).
+const COMBOS: [(&str, &str, &str, Option<&str>); 4] = [
+    ("canonical", "ir-hash-match", "Fact", None),
+    ("high", "ir-vec", "Inference", None),
+    ("medium", "ir-shingle", "Inference", None),
+    (
+        "low",
+        "ir-vec-cosine",
+        "Hypothesis",
+        Some("op-bag cosine only; control flow and data flow not compared — needs IR-level diff to confirm"),
+    ),
+];
+const C_CANONICAL: u8 = 0;
+const C_HIGH: u8 = 1;
+const C_MEDIUM: u8 = 2;
+const C_LOW: u8 = 3;
+
+/// Rows per multi-row INSERT. 512 × 4 params = 2048 bound parameters, well
+/// under SQLite's 32766 default limit; the VDBE amortizes one step/reset
+/// cycle over 512 rows instead of 1. The VALUES text is built once.
+const CHUNK_ROWS: usize = 512;
+
+/// The column order of every INSERT into `duplicates`.
+const DUP_COLS: &str = "symbol_a, symbol_b, similarity, tier, detection, epistemic, canonical_symbol_id, counter_argument";
+
+/// One VALUES tuple per row: four numbered bound params (`a, b, similarity,
+/// outcome` — outcome is the u8 combo code) plus four `CASE` literals that
+/// expand that row's outcome into the tier texts; the canonical winner is a
+/// constant for the whole run, so it is embedded as a literal (or NULL when
+/// absent). Every stored byte is identical to binding the texts directly —
+/// same storage classes, same values, same NULLs.
+fn dup_values_sql(rows: usize, winner: Option<i64>) -> String {
+    // the CASE bodies come straight from the COMBOS ladder — one source of
+    // truth for what each outcome code means
+    let mut tier_body = String::new();
+    let mut det_body = String::new();
+    let mut epi_body = String::new();
+    for (i, (tier, detection, epistemic, _)) in COMBOS.iter().enumerate() {
+        tier_body.push_str(&format!(" WHEN {i} THEN '{tier}'"));
+        det_body.push_str(&format!(" WHEN {i} THEN '{detection}'"));
+        epi_body.push_str(&format!(" WHEN {i} THEN '{epistemic}'"));
+    }
+    let low = COMBOS[3];
+    let counter_body = match low.3 {
+        Some(c) => format!(" WHEN 3 THEN '{c}' ELSE NULL END"),
+        None => String::new(),
+    };
+    let winner_sql = match winner {
+        Some(w) => w.to_string(),
+        None => "NULL".to_string(),
+    };
+    let mut sql = String::with_capacity(rows * 520 + 320);
+    sql.push_str("INSERT INTO duplicates(");
+    sql.push_str(DUP_COLS);
+    sql.push_str(") VALUES ");
+    for i in 0..rows {
+        if i > 0 {
+            sql.push(',');
+        }
+        // params ?{4i+1}..?{4i+4}: a, b, similarity, outcome
+        let a = 4 * i + 1;
+        let b = 4 * i + 2;
+        let sim = 4 * i + 3;
+        let c = 4 * i + 4;
+        sql.push_str(&format!(
+            "(?{a}, ?{b}, ?{sim}, CASE ?{c}{tier_body} ELSE '{}' END, CASE ?{c}{det_body} ELSE '{}' END, CASE ?{c}{epi_body} ELSE '{}' END, {winner_sql}, CASE ?{c}{counter_body})",
+            low.0, low.1, low.2
+        ));
+    }
+    sql
+}
+
+/// Restores the connection's `PRAGMA foreign_keys` to its original value on
+/// every drop path (success, `?` error, unwind). The duplicates output is
+/// the only place this guard is used: the referenced ids were all read from
+/// `symbols`/`ir_meta` inside this same call, and upstream FKs already
+/// validated them when they were written, so the per-row parent probes are
+/// pure redundancy during the bulk insert.
+struct FkGuard<'a> {
+    conn: &'a Connection,
+    was_on: bool,
+    armed: bool,
+}
+
+impl<'a> FkGuard<'a> {
+    fn off(conn: &'a Connection) -> Result<FkGuard<'a>, String> {
+        let was_on: bool = conn
+            .query_row("PRAGMA foreign_keys", [], |r| r.get::<_, i64>(0))
+            .map(|v| v != 0)
+            .map_err(|e| e.to_string())?;
+        if was_on {
+            // legal only outside a transaction — detect() toggles before
+            // its own txn opens and restores after it commits
+            conn.pragma_update(None, "foreign_keys", false)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(FkGuard { conn, was_on, armed: true })
+    }
+}
+
+impl Drop for FkGuard<'_> {
+    fn drop(&mut self) {
+        if self.armed && self.was_on {
+            let _ = self.conn.pragma_update(None, "foreign_keys", true);
+        }
+        self.armed = false;
+    }
 }
 
 /// Detect duplicate pairs. Same rows, same tiers, same canonical winner and
@@ -176,7 +291,19 @@ struct DupRow {
 ///      replacing the old post-hoc full-table UPDATE per family member
 ///      (every pair got a row — hidden included — so the brute-force
 ///      family was always the complete graph and the family walk always
-///      selected the same global argmax).
+///      selected the same global argmax);
+///   4. rows stream into 512-row multi-row INSERTs whose tier texts are
+///      `CASE` literals inside the prepared statement — no 12.6M-row staging
+///      Vec, one step/reset per 512 rows instead of per row, and no
+///      SQLITE_TRANSIENT copy for the four text columns (rusqlite copies
+///      every bound text; these texts never vary, so they live in the
+///      statement and each row binds only a, b, similarity, outcome);
+///   5. the per-row foreign-key parent probes are suspended for the bulk
+///      insert (`FkGuard` restores the original setting on every path) —
+///      three probes × 12.6M rows is ~8.6s of redundant work: every
+///      referenced id was read from `symbols`/`ir_meta` in this same call
+///      and those tables' own foreign keys already enforced it at write
+///      time. Table contents are unaffected either way.
 pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     let mut report = DupReport::default();
     let meta = load_ir_meta(conn)?;
@@ -214,33 +341,51 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
         .iter()
         .map(|s| Bag::build(&meta[s].1, &dim_of))
         .collect();
-    let hashes: Vec<&Vec<u8>> = ids.iter().map(|s| &meta[s].0).collect();
 
-    let mut rows: Vec<DupRow> = Vec::new();
+    // shape-hash group ids, aligned with bag positions: equal subtree_hash
+    // bytes ⟺ equal id (missing ids — impossible for ir_meta symbols, but
+    // the old `shape.get(&a) == shape.get(&b)` treated None == None as equal
+    // — all share one group, preserving that exactly). Replaces a per-pair
+    // BTreeMap lookup + byte compare with one array compare.
+    let mut shape_gid: Vec<u32> = Vec::with_capacity(n);
+    {
+        let mut intern: HashMap<&[u8], u32> = HashMap::with_capacity(n);
+        let mut next_id = 0u32;
+        let mut missing = None::<u32>;
+        for id in &ids {
+            match shape.get(id) {
+                Some(h) => {
+                    let e = intern.entry(h.as_slice()).or_insert_with(|| {
+                        next_id += 1;
+                        next_id - 1
+                    });
+                    shape_gid.push(*e);
+                }
+                None => {
+                    let e = missing.get_or_insert_with(|| {
+                        next_id += 1;
+                        next_id - 1
+                    });
+                    shape_gid.push(*e);
+                }
+            }
+        }
+    }
+
     let mut shown_deg = vec![0i64; n]; // partners at or above the floor
 
     // -- 1. exact-hash grouping: canonical Fact rows, no cosine --------------
+    // BTreeMap keyed by hash bytes: iteration order (and therefore the row
+    // emission order) is identical to the previous pass. hash_gid gives the
+    // walk an O(1) "same ir_hash" test instead of a 32-byte memcmp.
     let mut groups: BTreeMap<&[u8], Vec<u32>> = BTreeMap::new();
-    for (i, h) in hashes.iter().enumerate() {
-        groups.entry(h.as_slice()).or_default().push(i as u32);
+    for (i, s) in ids.iter().enumerate() {
+        groups.entry(meta[s].0.as_slice()).or_default().push(i as u32);
     }
-    for members in groups.values() {
-        for i in 0..members.len() {
-            for j in i + 1..members.len() {
-                let (x, y) = (members[i] as usize, members[j] as usize);
-                rows.push(DupRow {
-                    a: ids[x],
-                    b: ids[y],
-                    sim: 1.0,
-                    tier: "canonical",
-                    detection: "ir-hash-match",
-                    epistemic: "Fact",
-                    counter: None,
-                });
-                shown_deg[x] += 1;
-                shown_deg[y] += 1;
-                report.canonical_hash += 1;
-            }
+    let mut hash_gid: Vec<u32> = vec![0; n];
+    for (gi, members) in groups.values().enumerate() {
+        for &m in members {
+            hash_gid[m as usize] = gi as u32;
         }
     }
 
@@ -258,7 +403,12 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     }
     let mut candidates: Vec<(u32, u32)> = Vec::new();
     {
-        let mut touched = vec![false; n];
+        // generation stamps replace the bool + clear-everything loop: a
+        // partner touched in a's scan has stamp == gen, and moving to the
+        // next `a` invalidates every stamp at once (no second pass over
+        // touched_list just to unmark).
+        let mut stamp = vec![u32::MAX; n];
+        let mut gen: u32 = 0;
         let mut touched_list: Vec<u32> = Vec::new();
         for a in 0..n {
             let bag = &bags[a];
@@ -266,6 +416,8 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                 continue;
             }
             touched_list.clear();
+            let this_gen = gen;
+            gen += 1;
             // dims of `a` in descending weight order (ties by dim for determinism)
             let mut order: Vec<usize> = (0..bag.dims.len()).collect();
             order.sort_unstable_by(|&x, &y| bag.vals[y].cmp(&bag.vals[x]));
@@ -281,10 +433,10 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                 let dim = bag.dims[k] as usize;
                 for &bi in &postings[dim] {
                     let b = bi as usize;
-                    if b == a || touched[b] || hashes[a] == hashes[b] {
+                    if b == a || stamp[b] == this_gen || hash_gid[a] == hash_gid[b] {
                         continue; // self / already staged this round / canonical row
                     }
-                    touched[b] = true;
+                    stamp[b] = this_gen;
                     touched_list.push(bi);
                 }
                 if suf[k + 1] < LOW_FLOOR * LOW_FLOOR - ABORT_SLACK {
@@ -299,69 +451,105 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                     candidates.push((a as u32, bi));
                 }
             }
-            for &bi in &touched_list {
-                touched[bi as usize] = false;
-            }
         }
     }
 
-    // -- 3. exact verification + the §23.2 tier ladder (reference-identical) --
-    for (ai, bi) in candidates {
-        let (x, y) = (ai as usize, bi as usize);
-        let sim = bags[x].cosine(&bags[y]);
-        let (a, b) = (ids[x], ids[y]);
-        if sim < LOW_FLOOR {
-            continue; // sub-floor candidate: counted only in the gap residual
-        }
-        let (tier, detection, epistemic, counter): (&str, &str, &str, Option<&str>);
-        if sim >= 0.85 {
-            tier = "high";
-            detection = "ir-vec";
-            epistemic = "Inference";
-            counter = None;
-            report.high += 1;
-        } else if sim >= 0.60 && shape.get(&a) == shape.get(&b) {
-            tier = "medium";
-            detection = "ir-shingle";
-            epistemic = "Inference";
-            counter = None;
-            report.medium += 1;
-        } else {
-            tier = "low";
-            detection = "ir-vec-cosine";
-            epistemic = "Hypothesis";
-            counter = Some("op-bag cosine only; control flow and data flow not compared — needs IR-level diff to confirm");
-            report.low += 1;
-        }
-        rows.push(DupRow { a, b, sim, tier, detection, epistemic, counter });
-        shown_deg[x] += 1;
-        shown_deg[y] += 1;
-    }
-
-    // -- 4. §23.3 winner up front, then ONE bulk transaction ------------------
+    // -- 3. §23.3 winner up front, then ONE bulk transaction ------------------
+    // The winner is a pure read of calls/symbols/files (tables the inserts
+    // never touch), so computing it before the write phase is order-neutral.
     let winner = canonical_winner(conn, &ids)?;
+    // Bulk-load discipline: skip the per-row parent probes while the
+    // 12.6M-row output is written. Every referenced id was read out of
+    // `symbols`/`ir_meta` earlier in this very call, and those tables' own
+    // foreign keys already validated them at write time — re-probing three
+    // parents per row is ~8.6s of redundant B-tree searches. The guard
+    // restores the connection's original setting on every path (success,
+    // error, panic) and the pragma is only ever toggled outside a txn.
+    let _fk_guard = FkGuard::off(conn)?;
     let tx = conn
         .unchecked_transaction()
         .map_err(|e| e.to_string())?;
     {
-        let mut ins = tx
-            .prepare(
-                "INSERT INTO duplicates(symbol_a, symbol_b, similarity, tier, detection, epistemic, canonical_symbol_id, counter_argument)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            )
-            .map_err(|e| e.to_string())?;
-        for r in &rows {
-            ins.execute(rusqlite::params![
-                r.a.min(r.b),
-                r.b.max(r.a),
-                r.sim,
-                r.tier,
-                r.detection,
-                r.epistemic,
-                winner,
-                r.counter
-            ])
-            .map_err(|e| e.to_string())?;
+        // 512-row multi-row INSERT with the tier texts as CASE literals:
+        // one step/reset cycle per 512 rows and zero per-row text binds
+        // (params are just a, b, similarity, outcome — the texts live in
+        // the prepared statement). Rows stream straight from the loops —
+        // no 12.6M-row staging Vec in between.
+        let full_sql = dup_values_sql(CHUNK_ROWS, winner);
+        let mut full = tx.prepare(&full_sql).map_err(|e| e.to_string())?;
+        let mut pending: usize = 0;
+        // the rows of the not-yet-full chunk, replayed into an exact-size
+        // tail statement at the end
+        let mut buf: Vec<(i64, i64, f64, u8)> = Vec::with_capacity(CHUNK_ROWS);
+
+        // canonical rows first — the grouping order above, exactly the
+        // order the previous engine staged them in
+        for members in groups.values() {
+            for i in 0..members.len() {
+                for j in i + 1..members.len() {
+                    let (x, y) = (members[i] as usize, members[j] as usize);
+                    let (av, bv) = (ids[x], ids[y]);
+                    feed_row(
+                        &mut full,
+                        &mut pending,
+                        &mut buf,
+                        av.min(bv),
+                        bv.max(av),
+                        1.0,
+                        C_CANONICAL,
+                    )?;
+                    shown_deg[x] += 1;
+                    shown_deg[y] += 1;
+                    report.canonical_hash += 1;
+                }
+            }
+        }
+
+        // -- 4. exact verification + the §23.2 tier ladder (reference-identical) --
+        for (ai, bi) in candidates {
+            let (x, y) = (ai as usize, bi as usize);
+            let sim = bags[x].cosine(&bags[y]);
+            if sim < LOW_FLOOR {
+                continue; // sub-floor candidate: counted only in the gap residual
+            }
+            let combo: u8;
+            if sim >= 0.85 {
+                combo = C_HIGH;
+                report.high += 1;
+            } else if sim >= 0.60 && shape_gid[x] == shape_gid[y] {
+                combo = C_MEDIUM;
+                report.medium += 1;
+            } else {
+                combo = C_LOW;
+                report.low += 1;
+            }
+            let (av, bv) = (ids[x], ids[y]);
+            feed_row(
+                &mut full,
+                &mut pending,
+                &mut buf,
+                av.min(bv),
+                bv.max(av),
+                sim,
+                combo,
+            )?;
+            shown_deg[x] += 1;
+            shown_deg[y] += 1;
+        }
+
+        // tail chunk: an exact-size statement for the last pending rows —
+        // the same rows, the same order, so ids stay sequential
+        if pending > 0 {
+            let tail_sql = dup_values_sql(pending, winner);
+            let mut tail = tx.prepare(&tail_sql).map_err(|e| e.to_string())?;
+            for (i, &(a, b, sim, combo)) in buf.iter().enumerate() {
+                let base = 4 * i;
+                tail.raw_bind_parameter(base + 1, a).map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 2, b).map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 3, sim).map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 4, combo as i64).map_err(|e| e.to_string())?;
+            }
+            tail.raw_execute().map_err(|e| e.to_string())?;
         }
     }
     {
@@ -376,10 +564,41 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
         }
     }
     tx.commit().map_err(|e| e.to_string())?;
+    drop(_fk_guard); // restore FK enforcement before the caller sees the conn
 
-    report.pairs = rows.len();
+    // every fed row landed in exactly one counted bucket; sub-floor
+    // candidates were never fed
+    report.pairs = report.canonical_hash + report.high + report.medium + report.low;
     report.hidden_gaps = n * (n - 1) / 2 - report.pairs;
     Ok(report)
+}
+
+/// Bind one duplicates row into the current 512-row INSERT chunk; execute
+/// the statement when the chunk fills. `buf` remembers the chunk's rows so
+/// the final partial chunk can be replayed into an exact-size statement.
+#[inline]
+fn feed_row(
+    ins: &mut rusqlite::Statement<'_>,
+    pending: &mut usize,
+    buf: &mut Vec<(i64, i64, f64, u8)>,
+    a: i64,
+    b: i64,
+    sim: f64,
+    combo: u8,
+) -> Result<(), String> {
+    let base = *pending * 4;
+    ins.raw_bind_parameter(base + 1, a).map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 2, b).map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 3, sim).map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 4, combo as i64).map_err(|e| e.to_string())?;
+    buf.push((a, b, sim, combo));
+    *pending += 1;
+    if *pending == CHUNK_ROWS {
+        ins.raw_execute().map_err(|e| e.to_string())?;
+        *pending = 0;
+        buf.clear();
+    }
+    Ok(())
 }
 
 /// §23.3 canonical winner: the member with the most callers, tie-broken by

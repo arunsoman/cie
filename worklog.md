@@ -687,3 +687,20 @@ Work Log:
 Stage Summary:
 - Ingest no longer dominates: duplicates.detect (17.5s, 12.6M row inserts) is now the biggest single phase — the named remainder for any future round.
 - store_sources at 50ms is not worth touching; re-parse-per-file in lower_all is by design (§11.10).
+
+---
+Task ID: perf-duplicates
+Agent: main (Z.ai)
+Task: "yes duplicates.detect" — take down the phase the ingest round left dominant (duplicates.detect 17.7s, 12.6M row inserts), same rules: mathematically faster, better build-time structures, bulk writes, no threads, bit-identical outputs.
+
+Work Log:
+- Instrumented the phase first (throwaway coarse timers): load 6ms, vocab+bags 3ms, grouping 4ms, index+walk 285ms, verify+tiers 1.16s, winner+insert+gaps 16.39s — the phase was INSERT-BOUND, not compute-bound (13.4M candidates at 86ns/cosine already).
+- Probe harness (dup_probe, env-gated pragmas, deleted before commit) measured the levers: FK off 15.71→7.09s (three parent probes x 12.6M rows = ~8.6s, 55% of the phase); cache_size 64MB WORSE (16.26s); page_size 8192/16384/32768 only ≤5% (rejected — would change the tool's DB file format); defer_foreign_keys no-op (parent lookup still runs per row).
+- duplicates.rs rewritten: (1) rows stream from the cosine ladder straight into the INSERT — the ~1.2GB staging Vec of 12.6M DupRows is gone; (2) one prepared 512-row multi-row INSERT whose tier/detection/epistemic/counter texts are CASE ?4 literals built from the COMBOS ladder — rusqlite binds every text with SQLITE_TRANSIENT, so moving four never-varying texts into the statement kills ~40M mallocs+memcpys; each row binds only (a,b,sim,outcome); tail chunk replays into an exact-size statement (ids stay sequential); (3) FkGuard (RAII) suspends foreign_keys around the bulk write and restores the original setting on success/error/panic — flagged in CHANGELOG as a judgment call with a 1-line revert; (4) cosine = two-pointer merge intersection over the two ascending dim arrays (same hit sequence and accumulation order → bit-identical, sequential instead of log-probes); (5) ir_hash and subtree_hash equality became u32 group-id compares; walk uses generation stamps (no unmark pass).
+- Equivalence: frozen HEAD snapshot under target/eq (git archive, walk-ignored), baseline binary via path-limited git stash → dup_dump (new harness, committed) dumps duplicates+gaps with ids/f64-bits → gzip streams BYTE-IDENTICAL (194,276,504 bytes, 12,623,779 lines both sides). Report counts identical (pairs 12,618,554 = canon 69,967 + high 5,543,894 + med 0 + low 7,004,693; hidden 1,029,146).
+- Numbers (frozen snapshot, release): duplicates.detect 17.72s → 7.52s (2.4×); live-tree bench 17.74s → 6.65s; full pipeline 39.3s → 28.0s TOTAL (bench TOTAL line also fixed — it printed the last phase's timer). Peak detect memory down ~1.2GB (no staging).
+- Workspace 529 tests green (145 suites). Incidents: disk full twice (9.9G rootfs) — 1.1GB panic-orphaned DB + gz dumps; cleaned, bench/debug-incremental trimmed; a stale-example binary briefly reported pre-rewrite timings (rebuilt before any conclusion). CHANGELOG 1.3.5.
+
+Stage Summary:
+- duplicates.detect 17.7s → 6.7s; pipeline >590s (round start) → 81s → 39s → 28s. Output byte-identical at every step.
+- Named remainders: ingest_and_lower 17.2s (shape stream already one-pass; re-parse-per-file is §11.10 by design) is now the biggest phase; inside duplicates, the ~5.9s core insert (B-tree + record building for 1.1GB of rows) has no safe lever left — the FK probes were the only big one and are taken. IDF weighting remains the deferred semantic decision (it would change similarities).
