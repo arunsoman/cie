@@ -29,3 +29,5 @@ pub mod ir;
 pub mod frameworks;
 pub mod c4;
 pub mod statemachines;
+pub mod workflows;
+pub mod viewspec;
