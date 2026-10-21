@@ -575,3 +575,31 @@ implement the rest; push after every commit."
   0.40 similarity stored hidden and cited as gaps; unresolved spans
   stored with reasons.
 - Implementation record: docs/implementation/prd-v2.0.md.
+
+---
+Task ID: 36
+Agent: Z.ai main agent
+Task: Implement docs/prd-v2.0.md ("most of it's done — check and implement the rest"), push after every commit (PAT ghp_6dS... new token supplied, verified 200/arunsoman)
+
+Work Log:
+- Verified new PAT (200, arunsoman); synced with origin (maintainer had pushed PRD v2.0 + CIE Admin web module + next.config fix)
+- Dropped a junk UUID commit (tsbuildinfo artifact) that had diverged; added .gitignore entry; pushed chore commit
+- Confirmed "most of it's done": tree-sitter parsing substrate, viz-adapter multi-engine, cie-llm native, 84/84 PRD v1.0 tasks (TRACEABILITY §5); installed Rust toolchain (container was fresh); baseline 473 tests green
+- Built the missing polyglot layer as new crate `cie-polyglot`, ONE COMMIT PER PRD §47 SLICE, pushed immediately after each:
+  - slice 9 (ff9ba02): SQLite AST schema (files/node_kinds/node_text/ast_nodes/symbols) from real tree-sitter parses, ANL-06 shape_hash, parse errors flagged, revision-scoped
+  - slice 11 (dd47e1d): UAST normalization (uast_map, pinned §11.2 rows + verified extensions, one-join polyglot queries, acc #77)
+  - slice 10 (e7e3798): IR lowering (CFG blocks/instructions/edges, ast_node_id back-pointers, six sequence fields on calls, guard_summary, ir_hash rename-stable, ir_vec, file_source_cache zstd)
+  - slice 12 (3ecd08f): framework registry + detection (names only from import evidence) + cross-language bindings (DECLARED 1.0 / URL_MATCHED 0.7, acc #78-80)
+  - slice 12b (649ae44): C4 containers/components → §11.7 concept DAG, no-file-path correction enforced (acc #28 guard), §20.3 relationships
+  - slice 13 (ff09cae + 21b8490 cleanup): state machines T1/T2/T3 (XState verbatim Fact, enum+switch Inference with label-only coverage → Fog "N of M", T3 Hypothesis with counter-argument, audit() enforcement)
+  - slice 14 (c0f1c01): workflow DFS (entry points, gateways, async boundaries = Fog acc #75, cycles collapse, acc #76 seam) + §25 ViewSpec producer with producer-side gate() mirror
+  - slice 15 (d8d9374): impact+duplicates (§23.2 tier ladder: ir-hash Fact / cosine tiers / hidden counted; canonical = most callers+tests; §23.1 ViewSpec)
+  - slice 20 (b164943): runtime evidence (§45 table exact, OTLP/JSON parse, acc #32 mapped-or-Unresolved-with-reason, hot paths acc #34, flaky, runtime drift acc #33 unmodeled-edge)
+  - CLI (92be0ee): `cie polyglot <path>` + `--otel` + `--viewspec`, fresh store per run, ensure_all_schemas; smoke-tested end-to-end on cie sample
+  - docs (2e7950d): docs/implementation/prd-v2.0.md record + CHANGELOG 1.3.0 + repo worklog
+
+Stage Summary:
+- 11 commits pushed to origin/main (7f591f9..2e7950d), local == origin
+- Full workspace: 523 tests passed / 0 failed (145 binaries); cie-polyglot 50 tests green; cli 18 green
+- Acceptances landed this session: #11 groundwork, #28 guard, #32, #33, #34, #75, #76, #77, #78, #79, #80 + §19.3/§23.2/§25-26 disclosure rules enforced in code
+- Token used only at runtime via scripts/push-with-token.sh; never written to the repo
