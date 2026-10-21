@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.3.1 — UI-reuse seam: byte-span ViewSpecs, bundle mode, C4 spec, pipeline step (2026-10-21)
+
+Closes the four gaps between the polyglot layer's §25 artifacts and the
+already-standing UI substrate (viz-adapter negotiator + 5 engines + the
+web analyze pipeline). One commit per gap, pushed as it landed.
+
+- **Gate parity + byte-span evidence** — every element/edge evidence is
+  now the `{file, start, end}` ref `viz-adapter/src/types.ts` requires
+  (machines anchor at their symbol span, workflow async boundaries cite
+  their entry symbol, impact/duplicate elements cite their own spans);
+  the producer-side `validate()` mirrors the TS gate clause-for-clause
+  (duplicate ids, span-checked evidence, claim/counter/fog, RFC-0024
+  bodyLines/alsoEvidence, the 2 000-element cap) — the drift the mirror
+  existed to prevent is closed.
+- **`--viewspec all`** — one bundle document (`spec-count`,
+  `impact-centers-truncated`, `specs{}`), impact specs per
+  duplicate-family center capped at 50, cap counted.
+- **C4 spec** — the §11.7 DAG + §20.3 relationships as the `c4`
+  ViewSpec: containers cite their manifest FILE, components the symbol
+  they were detected at, edges the closed §22.3 reason set, over-cap
+  stores truncate class nodes salience-first with the count stated.
+- **Pipeline step** — `analyze-jobs` runs the bundle as its own step
+  (`polyglot`, between stack and cochange), type-guards it, exposes
+  `result.polyglotSpecs`; no new catalog rows (the artifacts are
+  instances of already-enumerated chart kinds).
+- 52 polyglot tests, 145 workspace suites green; web + viz-adapter
+  typecheck clean. Known pre-existing: `cie sample <path>` inside an
+  existing repo commits its fixture history into the HOST repo (its
+  repo-wide `git add` also sweeps uncommitted work) — sample into a
+  path outside any repository until the generator isolates its git ops.
+
 ## 1.3.0 — PRD v2.0 polyglot layer (2026-10-21)
 
 The polyglot architecture lands as `cie-polyglot`: SQLite AST/UAST/IR

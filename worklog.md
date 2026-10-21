@@ -603,3 +603,21 @@ Stage Summary:
 - Full workspace: 523 tests passed / 0 failed (145 binaries); cie-polyglot 50 tests green; cli 18 green
 - Acceptances landed this session: #11 groundwork, #28 guard, #32, #33, #34, #75, #76, #77, #78, #79, #80 + §19.3/§23.2/§25-26 disclosure rules enforced in code
 - Token used only at runtime via scripts/push-with-token.sh; never written to the repo
+---
+## UI-reuse seam closed: byte-span ViewSpecs, bundle mode, C4 spec, pipeline step — 2026-10-21 (agent session)
+
+Task: user asked whether the polyglot layer's §25 artifacts can reuse the existing UI infra; the audit found one real contract gap (Rust specs emitted semantic evidence tokens while the TS gate requires byte-span `{file, start, end}` refs) plus three plumbing gaps. User approved the 4-commit chain; every commit pushed as it landed.
+
+Work Log:
+- b56b377 — gate parity + byte-span evidence: every element/edge evidence is now the `{file, start, end}` EvidenceRef viz-adapter/src/types.ts requires (SMs anchor at their symbol span, else the evidence AST node; workflow async boundaries cite their entry symbol; impact center/callers/duplicates cite their own spans; edges cite the source node's span); semantic provenance moved into `fields`; local validate() now mirrors gate.ts clause-for-clause (DUPLICATE_ELEMENT_ID, span-checked ELEMENT/EDGE_WITHOUT_EVIDENCE, NON_FACT_WITHOUT_CLAIM, HYPOTHESIS_WITHOUT_COUNTER, FOG_WITHOUT_REASON, BODY_LINE_WITHOUT_EVIDENCE, ALSO_EVIDENCE_MALFORMED, ELEMENT_CAP_EXCEEDED) collecting ALL violations like cie-viz::gate; salience bags added; 50 tests green
+- b2e6954 — `--viewspec all` bundle: one `{kind, spec-count, impact-centers-truncated, specs{}}` document; impact specs per duplicate-family center (non-hidden), cap 50 counted; smoke on cie sample: 9 impact specs all span-cited; 51 tests green
+- aff6dcc — C4 ViewSpec producer (`c4` spec): §11.7 concept DAG + §20.3 relationships; containers cite their manifest FILE, components the detection symbol, DDD segments their first file, project root the store's first file; edges carry the §22.3 closed reason set; over-cap truncation salience-first (classes yield first) with hidden count in gaps; smoke: manifest-less sample = one evidenced Domain node (honest §20.1); 52 tests green
+- 69d7f94 — web wiring: `polyglot` StepKey between stack and cochange; analyze-jobs runs `cie polyglot <dir> --viewspec all`, type-guards via isPolyglotBundle, exposes result.polyglotSpecs; new web/src/lib/polyglot-types.ts (contract docs + polyglotDetail honest step line); NO new catalog rows — artifacts are instances of already-enumerated chart kinds; web + viz-adapter tsc clean, rfc0020 7/7 (rfc0023 G6-mock failure pre-exists)
+- verification: cargo test --workspace → 145 suites ok, 0 failed
+- incident handled: `cie sample demo-sample` (run INSIDE the host repo for smoke) created 5 fake-history commits in the host repo and its first commit swept the then-uncommitted bundle-mode edits (repo-wide git add); recovered by backing up the two files, `git reset --hard b56b377` (remote never saw it), restoring, re-testing, committing properly. ENGINE BUG noted below.
+- docs: CHANGELOG 1.3.1 entry (this commit)
+
+Stage Summary:
+- The polyglot §25 artifacts now flow to the existing UI substrate unmodified: same contract (span evidence, disclosures, cap), same gate, same negotiator/engines, one bundle read in the pipeline
+- Engine bug to fix later: `cie sample <path>` must isolate its git ops (temp dir / refuse when target is inside an existing repo) — it currently commits fixture history into the host repo and sweeps uncommitted work
+- Local origin/main ref goes stale after push-with-token (pushes by URL, not remote name) — always `git fetch origin` before trusting `git status` ahead/behind
