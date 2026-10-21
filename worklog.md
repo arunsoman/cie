@@ -520,3 +520,19 @@ Work Log:
 
 Stage Summary:
 - The two RFCs are now ONE line: RFC-0023's engine/contract work and RFC-0024's persona Atlas compose without duplicated chip state, with both scope halves enforced (inputs restricted, digest sliced). All 6 RFC-0024 stages + the merge are committed and verified locally; only a valid token stands between main and origin.
+---
+Task ID: 36
+Agent: main (Z.ai)
+Task: Merge RFC-0023 stage 6 from origin; push everything with the working PAT.
+
+Work Log:
+- New PAT from the user (ghp_6dSz...FbUM) verified against api.github.com: 200, login arunsoman, push:true on arunsoman/cie. (The earlier token stayed 401 — dead as suspected.)
+- A stray UUID-named auto-commit (web/bun.lock install noise) was found on local main and dropped before merging.
+- Origin had advanced again: RFC-0023 stage 6 (unified gated canvas host, ELK, exports, in-chart disclosure ledger) + a route fix. Merged; 5 files conflicted (chat-chart content, concept-tree modify/delete, context-chips + scope-digest content, atlas-view content).
+- Resolutions: adopted the unified ChatChart wholesale (it subsumes our host, the painters' product role, and the tree component — deletion per the retirement list); RFC-0024's disclosed addChip wired into its useAsk/pick; fused chips row kept stage-4 UI + their scope line; scope-digest kept both functions; atlas-view got their new entry/route chips on addChip + repaired two syntax defects in THEIR committed code (const sym = .name, / files:.rel]); the store's one add path survived untouched.
+- NOTE: a container restore mid-run lost one in-progress merge; redone cleanly (saved resolutions to /tmp, re-merged, re-applied). bun's file: dep materialization breaks Turbopack — web uses npm installs.
+- Verified: tsc clean; vitest 309/309; rfc0023 8/8 + rfc0020 7/7; next build OK.
+- Commit c46eb1e; PUSHED with the working PAT: 399fef6..c46eb1e (7 commits: RFC-0024 stages 3–6, merge 1, follow-through, merge 2). This record pushed in the same session.
+
+Stage Summary:
+- Both RFCs are complete and unified on ONE line on origin/main: one gated canvas, one chip path with disclosures, both scope halves enforced. The persona Atlas (RFC-0024) is fully implemented and pushed.
