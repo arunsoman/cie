@@ -47,3 +47,17 @@ test('conductor broadcasts valid IDs once and detaches disposed charts',()=>{
  hubA.setSelected(['b'],'user');assert.deepEqual(hubB.selected(),['b']);assert.equal(calls,1);
  off();hubA.setSelected(['a'],'user');assert.deepEqual(hubB.selected(),['b']);
 });
+test('scoped facts exclude other files, symbols, findings, calls and ancestor rollups',()=>{
+ const {scopeDigest}=loader()(src('lib/scope-digest.ts'));
+ const report={rev:3,files:['a.py','secret.py'],symbols:[{id:0,name:'a',qual_name:'a',loc:{file:0}},{id:1,name:'secret',qual_name:'secret',loc:{file:1}}],summaries:[{sym:0,callees:['secret'],unresolved_callees:[]},{sym:1,callees:[]}],findings:[{symbol:0},{symbol:1}],contracts:[{symbols:[0,1]}],coverage:{},evidence:{},warnings:['secret']};
+ const chips=[{id:'a',label:'A',revision:3,files:['a.py']}];
+ const tree={nodes:[{id:0,symbols:[0,1]},{id:1,symbols:[0],parent:0,children:[]}],unattached_behaviors:[],unattached_rules:[]};
+ const scoped=scopeDigest(report,null,tree,chips);
+ assert.deepEqual(scoped.report.files,['a.py','']);assert.equal(scoped.report.symbols.length,1);
+ assert.equal(scoped.report.findings.length,1);assert.deepEqual(scoped.report.summaries[0].callees,[]);
+ assert.equal(scoped.report.contracts.length,0);assert.deepEqual(scoped.concepts.nodes.map(n=>n.id),[1]);
+ assert.equal(scoped.concepts.nodes[0].parent,null);assert.match(scoped.scope.header,/1 files over 1/);
+ assert.equal(scopeDigest(report,null,null,[]).report,report);
+ assert.equal(scopeDigest(report,null,null,[{...chips[0],revision:2}]).report.symbols.length,0);
+ assert.equal(scopeDigest(report,null,null,[{...chips[0],files:[]}]).report.symbols.length,0);
+});

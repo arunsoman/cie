@@ -39,13 +39,13 @@ function sanitizeHistory(raw: unknown): ChatTurn[] {
     .slice(-MAX_HISTORY);
 }
 
-function systemPrompt(digest: unknown): string {
+export function systemPrompt(digest: unknown, scoped = false): string {
   const facts = JSON.stringify(digest, null, 1);
   return [
     "You are CIE's friendly explainer. CIE is a tool that reads a software project and turns it into a plain-English health report.",
     "You are chatting with the project's owner. They may be completely non-technical — a founder, a manager, a student. Be warm, patient and clear.",
     "",
-    "The ONLY facts you may use are in this JSON digest of their project:",
+    scoped ? "Answer ONLY from the selection code space in this digest. Prior chat is not evidence. If facts are missing, say the question needs facts outside this selection and offer Answer from the whole project. Never silently broaden scope." : "The ONLY facts you may use are in this JSON digest of their project:",
     "----- BEGIN PROJECT FACTS -----",
     facts,
     "----- END PROJECT FACTS -----",
@@ -95,7 +95,7 @@ function systemPrompt(digest: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: unknown; digest?: unknown; llm?: unknown };
+  let body: { messages?: unknown; digest?: unknown; scope?: unknown; llm?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -115,9 +115,13 @@ export async function POST(req: NextRequest) {
   }
 
   const llm = sanitizeLlmCfg(body.llm);
+  const scoped = body.scope != null;
+  if (scoped && !(body.digest as Record<string, unknown>).answer_scope) {
+    return NextResponse.json({error:"A scoped question requires selection-filtered facts."}, {status:400});
+  }
   const messages: ChatTurn[] = [
-    { role: "assistant", content: systemPrompt(body.digest) },
-    ...history,
+    { role: "assistant", content: systemPrompt(body.digest, scoped) },
+    ...(scoped ? [last] : history),
   ];
 
   try {

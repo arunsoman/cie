@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { ContextChips } from "./context-chips";
+import { scopeDigest } from "@/lib/scope-digest";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
@@ -94,16 +95,25 @@ export function ChatPanel() {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
     stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
-    pendingTrace, setPendingTrace, updateMastery, loadMastery,
+    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // The digest is recomputed whenever the loaded project changes.
-  const digest = useMemo(
-    () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift),
-    [report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift]
-  );
+  const answerData = useMemo(() => {
+    const scoped = scopeDigest(report, viewspec, concepts, chatContext);
+    // Aggregate exports have no selection-level attestation. Do not pass them
+    // to local answerers or companion-chart builders in a scoped answer.
+    return {...scoped, quality:scoped.scope ? null : quality, stories:scoped.scope ? null : stories,
+      stack:scoped.scope ? null : stack, deps:scoped.scope ? null : deps,
+      runtime:scoped.scope ? null : runtime, cochange:scoped.scope ? null : cochange,
+      overlap:scoped.scope ? null : overlap, drift:scoped.scope ? null : drift};
+  }, [report, viewspec, concepts, chatContext, quality, stories, stack, deps, runtime, cochange, overlap, drift]);
+  const digest = useMemo(() => {
+    const d = answerData;
+    const facts = buildDigest(d.report, d.viewspec, d.concepts, label, d.deps, d.runtime, d.quality, d.cochange, d.overlap, d.drift);
+    return facts && {...facts, answer_scope:d.scope};
+  }, [answerData, label]);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -145,6 +155,7 @@ export function ChatPanel() {
   };
 
   const send = async (text: string) => {
+    const {report, viewspec, concepts, quality, stories, stack, deps, runtime, cochange, overlap, drift, scope} = answerData;
     const question = text.trim();
     if (!question || chatBusy) return;
 
@@ -163,7 +174,7 @@ export function ChatPanel() {
       technical?: string;
       providerIssue?: boolean;
     }) => {
-      pushChat({ role: "assistant", ...msg });
+      pushChat({ role: "assistant", ...msg, content: scope ? `${scope.header}\n\n${msg.content}` : msg.content });
       if (msg.chart) openChartOnCanvas(msg.chart);
     };
 
@@ -200,7 +211,7 @@ export function ChatPanel() {
     // locally, from the loaded exports — instant, cited, interactive cards
     // (entry points / flows / trace with the verify loop / 5 things). ----
     const masteryCtx: MasteryCtx = { report, concepts, stack, deps, cochange, overlap, drift, label };
-    const masteryAns = tryAnswerMastery(question, masteryCtx);
+    const masteryAns = scope ? null : tryAnswerMastery(question, masteryCtx);
     if (masteryAns) {
       // every answered journey prompt keeps its chart in the MESSAGE; the
       // canvas opens for diagram-bearing answers — except the trace card's
@@ -231,7 +242,7 @@ export function ChatPanel() {
     // pre-compute, since it needs a specific symbol as a target. Only
     // possible when the project's files are still on disk (sourceRoot);
     // a cloned URL's checkout is deleted right after ingest. ----
-    if (IMPACT_WORDS.test(question)) {
+    if (!scope && IMPACT_WORDS.test(question)) {
       const target = findSymbolInQuestion(report, question);
       if (target) {
         if (!sourceRoot) {
@@ -292,7 +303,7 @@ export function ChatPanel() {
 
     // History for the model: everything so far, minus old error bubbles.
     const history = [
-      ...chat.filter((m) => !m.error),
+      ...(scope ? [] : chat.filter((m) => !m.error)),
       { role: "user" as const, content: question },
     ].map((m) => ({ role: m.role, content: m.content }));
 
@@ -303,6 +314,7 @@ export function ChatPanel() {
         body: JSON.stringify({
           messages: history,
           digest,
+          scope,
           llm: {
             provider: llm.provider,
             ollama: { baseUrl: llm.ollama.baseUrl.trim(), model: llm.ollama.model.trim() },
@@ -477,7 +489,7 @@ export function ChatPanel() {
         >
           <input
             ref={inputRef}
-            placeholder={chatBusy ? "CIE is thinking…" : mapSelected ? `Ask about ${mapSelected.label}…` : "Type your question…"}
+            placeholder={chatBusy ? "CIE is thinking…" : chatContext.length ? "Ask about your selections…" : mapSelected ? `Ask about ${mapSelected.label}…` : "Type your question…"}
             disabled={chatBusy || !canAsk}
             maxLength={2000}
             aria-label="Your question"
