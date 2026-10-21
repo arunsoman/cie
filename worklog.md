@@ -621,3 +621,21 @@ Stage Summary:
 - The polyglot §25 artifacts now flow to the existing UI substrate unmodified: same contract (span evidence, disclosures, cap), same gate, same negotiator/engines, one bundle read in the pipeline
 - Engine bug to fix later: `cie sample <path>` must isolate its git ops (temp dir / refuse when target is inside an existing repo) — it currently commits fixture history into the host repo and sweeps uncommitted work
 - Local origin/main ref goes stale after push-with-token (pushes by URL, not remote name) — always `git fetch origin` before trusting `git status` ahead/behind
+
+---
+Task ID: sample-isolation-fix
+Agent: main (Z.ai)
+Task: Fix the `cie sample` engine bug recorded in the UI-reuse session — running it inside a host repo committed fixture history into the host and swept uncommitted work; plus answer "does a polyglot repo already exist".
+
+Work Log:
+- Confirmed root cause: git rev-parse walks UP the tree, so a fresh empty subdir of any repo answers "inside a work tree"; the git_ok-gated init was skipped and add/commit hit the ENCLOSING repo (cie-ingest/src/sample.rs:185,213 pre-fix).
+- Audited all git_ok users: cie-history (read-only probes) and cochange.rs (read-only) are correct as-is; sample.rs is the only write-path hazard.
+- Fix in cie-ingest/src/sample.rs: (1) ownership guard BEFORE any write — rev-parse --show-toplevel must equal the canonicalized target, else explicit refusal; binary probe only fires when a repo still has to be created; (2) physical isolation — every invocation (init/add/diff --cached/commit/rev-list) pinned to the sample's own absolute GIT_DIR/GIT_WORK_TREE.
+- Regression test replays the exact incident shape (fresh empty subdir of a host repo): asserts refusal message, unchanged host commit count, clean host status, untouched target; happy path now asserts the sample is its OWN toplevel. cli:sample --help documents the rule.
+- Environment auto-commit b92f113 (UUID message) snapshot-committed in-flight edits mid-task; left in history per the 9-precedent pattern; final commit c6a9a71 supersedes its partial state.
+- CHANGELOG 1.3.2 entry (retires the 1.3.1 warning); full workspace 145 suites green; pushed 9744dd9..c6a9a71, local == origin verified by fetch.
+- Polyglot-repo check (user question): NO standalone repo exists — cie-polyglot is a workspace crate inside arunsoman/cie (Cargo.toml member line 45, path dep line 146, no .gitmodules); GitHub search "cie-polyglot" = 0 results; crates.io = not published; under arunsoman only `cie` and `code-intelligence` (unrelated HTML repo).
+
+Stage Summary:
+- The recorded engine bug is closed at both layers (ownership guard + pinned envs); sample commits can never land in a host repo again.
+- cie-polyglot exists only as a crate in the cie monorepo — no separate repo, no published crate.
