@@ -41,12 +41,16 @@ export function sliceViewSpec(
   }
 
   let elements = view.elements.filter((e) => kept.has(e.id));
-  const factsDropped = opts.factsOnly
-    ? elements.filter((e) => e.displayMode !== "Fact").length
-    : 0;
   if (opts.factsOnly) elements = elements.filter((e) => e.displayMode === "Fact");
   const keptIds = new Set(elements.map((e) => e.id));
-  const edges = view.edges.filter((e) => keptIds.has(e.source) && keptIds.has(e.target));
+  const edges = view.edges.filter((e) => keptIds.has(e.source) && keptIds.has(e.target)
+    && (!opts.factsOnly || e.displayMode === "Fact"));
+  const omitted = view.elements.filter(e => !keptIds.has(e.id));
+  const omittedIds = new Set(omitted.map(e => e.id));
+  const hidden = [...view.hidden.filter(h => !omittedIds.has(h.id)), ...omitted.map(e => ({
+    id: e.id, label: e.label, kind: e.elementKind, salienceWeight: e.salience.weight,
+    reason: opts.factsOnly && kept.has(e.id) ? "excluded by Facts-only preference" : "outside selected scope",
+  }))];
 
   const sliced: ViewSpec = {
     ...view,
@@ -60,8 +64,10 @@ export function sliceViewSpec(
       stale: 0,
       caption: view.footer.caption,
     },
-    gaps: view.gaps,
-    hidden: view.hidden,
+    // Keep source coverage limitations: slicing cannot improve attestation.
+    gaps: [...view.gaps, ...(omitted.length ? [{id:"slice-omissions", area:"scope", why:`${omitted.length} elements omitted by scope/preferences; see hidden ledger`}] : [])],
+    hidden,
+    groups: view.groups?.filter(g => keptIds.has(g.id) || elements.some(e => e.fields.groupId === g.id)),
     semanticHash: "",
     renderHash: "",
   };
@@ -71,12 +77,12 @@ export function sliceViewSpec(
   // Re-gate ONCE, client-side, with the shared stable codes.
   try {
     gate(sliced);
-    return { spec: sliced, violations: [], dropped: factsDropped };
+    return { spec: sliced, violations: [], dropped: omitted.length };
   } catch (err) {
     return {
       spec: null,
       violations: [err instanceof Error ? err.message : String(err)],
-      dropped: factsDropped,
+      dropped: omitted.length,
     };
   }
 }

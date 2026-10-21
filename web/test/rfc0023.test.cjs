@@ -17,3 +17,17 @@ test('G6 host supplies adapted nodes to canvas and suppresses selection feedback
   assert.equal(calls,1); assert.equal(result.handle.layout.actual,'dagre');
   await result.handle.dispose();
 });
+test('scope slicing keeps ancestry, recomputes ledgers/hashes and filters inferred edges',()=>{
+ const load=loader(), {sliceViewSpec}=load(src('lib/viz/slice.ts'));
+ const v=spec();v.elements.push({...v.elements[0],id:'b',parentId:'a',displayMode:'Inference',claimId:'c'}, {...v.elements[0],id:'unrelated'});
+ v.edges=[{id:'ab',source:'a',target:'b',edgeKind:'call',displayMode:'Inference',evidence:v.elements[0].evidence}];
+ const before=JSON.stringify(v);
+ const sliced=sliceViewSpec(v,{keepIds:new Set(['b'])});
+ assert.deepEqual(sliced.spec.elements.map(e=>e.id),['a','b']);
+ assert.equal(sliced.spec.footer.inferences,1);assert.equal(sliced.dropped,1);
+ assert.equal(sliced.spec.hidden[0].id,'unrelated');assert.ok(sliced.spec.semanticHash);
+ const facts=sliceViewSpec(v,{factsOnly:true});assert.equal(facts.spec.edges.length,0);
+ assert.equal(JSON.stringify(v),before);
+ v.elements[1].claimId=undefined;
+ assert.equal(sliceViewSpec(v).spec,null);
+});

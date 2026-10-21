@@ -19,6 +19,7 @@ import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
 import type { ChatChartSpec, UmlNode, ElementLoc } from "@/lib/chat-chart";
 import type { ViewSpec } from "viz-adapter";
 import { recomputeSemanticHash, recomputeRenderHash } from "viz-adapter";
+import { sliceViewSpec } from "@/lib/viz/slice";
 import { renderViaNegotiator } from "@/lib/viz/g6-engine";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
@@ -1147,7 +1148,11 @@ function DiagramG6({ spec }: { spec: ChatChartSpec }) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const { view, metaById } = toViewSpec(spec);
+    const converted = toViewSpec(spec);
+    const metaById = converted.metaById;
+    const sliced = sliceViewSpec(converted.view);
+    if (!sliced.spec) { setNote(`gate declined: ${sliced.violations.join("; ")}`); return; }
+    const view = sliced.spec;
     if (!view.elements.length) return;
     let disposed = false;
     let offSelection: (() => void) | null = null;
