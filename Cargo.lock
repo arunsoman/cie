@@ -516,6 +516,7 @@ dependencies = [
  "cie-incremental",
  "cie-ingest",
  "cie-llm",
+ "cie-polyglot",
  "cie-relations",
  "cie-semantic",
  "cie-stack",

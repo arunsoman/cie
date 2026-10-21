@@ -283,6 +283,22 @@ pub enum Command {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    /// PRD v2.0 polyglot layer: parse with tree-sitter into the SQLite
+    /// AST/UAST/IR schema, detect frameworks + C4 + state machines +
+    /// workflows + duplicates, optionally ingest OTel runtime evidence.
+    Polyglot {
+        path: PathBuf,
+        /// Ingest an OTel spans payload (OTLP/JSON or flat array) after the
+        /// static pass — the §9 runtime join
+        #[arg(long)]
+        otel: Option<PathBuf>,
+        /// Emit a produced ViewSpec artifact by name ("state-machine:*",
+        /// "workflows") to stdout instead of the summary
+        #[arg(long)]
+        viewspec: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// User-story catalogue and coverage (CIE-US layer, 147 stories)
     Stories {
         #[command(subcommand)]
@@ -1588,6 +1604,157 @@ fn run(cli: Cli) -> i32 {
                     1
                 }
             }
+        }
+        Command::Polyglot {
+            path,
+            otel,
+            viewspec,
+            json,
+        } => {
+            let path = path.canonicalize().unwrap_or(path);
+            // stable per-path store name: FNV-1a over the canonical path
+            let mut h: u64 = 0xcbf29ce484222325;
+            for b in path.to_string_lossy().as_bytes() {
+                h ^= *b as u64;
+                h = h.wrapping_mul(0x100000001b3);
+            }
+            let db_path = std::env::temp_dir().join(format!("cie-polyglot-{h:x}.db"));
+            // this command builds a FRESH store each run — re-runs must not
+            // collide with a previous revision's rows (honest recomputation)
+            let _ = std::fs::remove_file(&db_path);
+            let conn = match cie_polyglot::schema::open_db(&db_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            let static_res =
+                cie_polyglot::ir::ingest_and_lower(&conn, 1, 41, &path);
+            let Ok((stats, lower)) = static_res else {
+                eprintln!("error: {}", static_res.err().unwrap_or_default());
+                return 1;
+            };
+            let _ = cie_polyglot::frameworks::install_registry(&conn);
+            let fw = cie_polyglot::frameworks::detect(&conn);
+            // C4 needs the ingested root for DDD dir checks
+            let c4 = cie_polyglot::c4::detect_c4(&conn, &path, 41);
+            let sm = cie_polyglot::statemachines::detect(&conn);
+            let wf = cie_polyglot::workflows::detect(&conn);
+            let dup = cie_polyglot::duplicates::detect(&conn);
+            let runtime = otel
+                .as_deref()
+                .map(|p| {
+                    std::fs::read_to_string(p)
+                        .map_err(|e| e.to_string())
+                        .and_then(|payload| cie_polyglot::runtime::ingest(&conn, &payload))
+                })
+                .map_or(Ok(None), |r| r.map(Some));
+
+            if let Some(want) = viewspec {
+                let specs = cie_polyglot::viewspec::produce(&conn);
+                match specs {
+                    Ok(map) => {
+                        let hits: Vec<_> = map
+                            .iter()
+                            .filter(|(k, _)| {
+                                k.starts_with(&want) || k.contains(&want)
+                            })
+                            .collect();
+                        if hits.is_empty() {
+                            eprintln!(
+                                "error: no spec matches '{want}' (available: {})",
+                                map.keys().cloned().collect::<Vec<_>>().join(", ")
+                            );
+                            return 1;
+                        }
+                        for (k, v) in hits {
+                            println!("{k}");
+                            println!("{v}");
+                        }
+                        return 0;
+                    }
+                    Err(e) => {
+                        eprintln!("error: {e}");
+                        return 1;
+                    }
+                }
+            }
+
+            if json {
+                let report = serde_json::json!({
+                    "db": db_path.display().to_string(),
+                    "ingest": {
+                        "files": stats.files_ingested,
+                        "parse_errors": stats.files_parse_errors,
+                        "ast_nodes": stats.ast_nodes,
+                        "symbols": stats.symbols,
+                        "unsupported_files": stats.skipped_unsupported,
+                    },
+                    "ir": {
+                        "symbols_lowered": lower.symbols_lowered,
+                        "blocks": lower.blocks,
+                        "instructions": lower.instructions,
+                        "calls": lower.calls,
+                        "calls_resolved": lower.calls_resolved,
+                        "calls_unresolved": lower.calls_unresolved,
+                    },
+                    "frameworks": fw.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                    "c4": c4.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                    "state_machines": sm.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                    "workflows": wf.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                    "duplicates": dup.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                    "runtime": runtime.as_ref().map(|r| r.as_ref().map(|x| serde_json::to_value(x).unwrap_or_default()).unwrap_or(serde_json::json!("failed"))).unwrap_or(serde_json::json!("not-requested")),
+                });
+                println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+            } else {
+                println!("polyglot store: {}", db_path.display());
+                println!(
+                    "  ingest: {} files ({} parse errors), {} ast nodes, {} symbols, {} unsupported",
+                    stats.files_ingested, stats.files_parse_errors, stats.ast_nodes, stats.symbols, stats.skipped_unsupported
+                );
+                println!(
+                    "  ir: {} symbols lowered, {} blocks, {} instructions, {} calls ({} resolved / {} unresolved)",
+                    lower.symbols_lowered, lower.blocks, lower.instructions, lower.calls, lower.calls_resolved, lower.calls_unresolved
+                );
+                if let Ok(r) = &fw {
+                    println!(
+                        "  frameworks: {} role sites, {} declared + {} url-matched bindings ({} specs)",
+                        r.roles, r.declared_bindings, r.url_matched_bindings, r.specs_parsed
+                    );
+                }
+                if let Ok(r) = &c4 {
+                    println!(
+                        "  c4: {} containers, {} components, {} classes linked, {} relationships",
+                        r.containers, r.components, r.classes_linked, r.relationships
+                    );
+                }
+                if let Ok(r) = &sm {
+                    println!(
+                        "  state machines: {} T1 facts, {} T2 inference, {} T2 fog, {} T3 hypothesis",
+                        r.t1, r.t2, r.t2_fog, r.t3
+                    );
+                }
+                if let Ok(r) = &wf {
+                    println!(
+                        "  workflows: {} entries, {} nodes ({} async boundaries, {} gateways)",
+                        r.workflows, r.nodes, r.async_boundaries, r.gateways
+                    );
+                }
+                if let Ok(r) = &dup {
+                    println!(
+                        "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden)",
+                        r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps
+                    );
+                }
+                if let Ok(Some(r)) = &runtime {
+                    println!(
+                        "  runtime: {} spans ({} mapped / {} unresolved), {} drift edges, {} flaky",
+                        r.spans, r.mapped, r.unresolved, r.drift_edges, r.flaky
+                    );
+                }
+            }
+            0
         }
         Command::Stories { cmd } => run_stories(cmd),
     }

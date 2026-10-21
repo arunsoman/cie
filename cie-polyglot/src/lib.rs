@@ -33,3 +33,19 @@ pub mod workflows;
 pub mod duplicates;
 pub mod runtime;
 pub mod viewspec;
+
+use rusqlite::Connection;
+
+/// Apply every module's DDL in dependency order — one call that leaves a
+/// store ready for the full pipeline (ingest → lower → detect → runtime).
+pub fn ensure_all_schemas(conn: &Connection) -> Result<(), String> {
+    schema::create_schema(conn)?;
+    ir::create_ir_schema(conn)?;
+    frameworks::create_fw_schema(conn)?;
+    c4::create_c4_schema(conn)?;
+    statemachines::create_sm_schema(conn)?;
+    workflows::create_wf_schema(conn)?;
+    duplicates::create_dup_schema(conn)?;
+    runtime::create_rt_schema(conn)?;
+    Ok(())
+}

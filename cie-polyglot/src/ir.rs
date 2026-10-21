@@ -931,6 +931,7 @@ pub fn ingest_and_lower(
     revision: i64,
     root: &std::path::Path,
 ) -> Result<(crate::schema::IngestStats, LowerReport), String> {
+    crate::ensure_all_schemas(conn)?;
     let mut st = crate::schema::IngestStats::default();
     crate::schema::ingest_folder(conn, repo_id, revision, root, &mut st)?;
     store_sources(conn, root)?;
