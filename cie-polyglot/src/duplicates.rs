@@ -274,6 +274,13 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
         })
         .unwrap_or_else(|_| format!("symbol {sid}"))
     };
+    // byte-span evidence (the TS EvidenceRef contract): a symbol cites the
+    // file + bytes it occupies — the call site / duplicate body IS there
+    let ev = |sid: i64| -> Value {
+        viewspec::symbol_span(conn, sid)
+            .map(|s| viewspec::span_ev(&s))
+            .unwrap_or_else(|| json!({ "file": "", "start": 0, "end": 0 }))
+    };
     let mut elements: Vec<Value> = Vec::new();
     let mut edges: Vec<Value> = Vec::new();
 
@@ -283,7 +290,8 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
         "elementKind": "symbol",
         "displayMode": "Fact",
         "label": name(center),
-        "evidence": { "kind": "symbol", "id": center },
+        "evidence": ev(center),
+        "salience": { "factors": ["impact-center"], "weight": 1.0, "whyShown": "the change under question" },
         "fields": { "role": "center", "ring": 0 },
     }));
 
@@ -304,12 +312,13 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
                 "elementKind": "symbol",
                 "displayMode": "Fact",
                 "label": name(*r1),
-                "evidence": { "kind": "resolved-call-edge" },
-                "fields": { "role": "caller", "ring": 1 },
+                "evidence": ev(*r1),
+                "salience": { "factors": ["direct-caller"], "weight": 0.9, "whyShown": "resolved call edge into the center" },
+                "fields": { "role": "caller", "ring": 1, "via": "resolved-call-edge" },
             }));
             edges.push(json!({
                 "source": format!("c{r1}"), "target": "center", "edgeKind": "calls",
-                "displayMode": "Fact", "evidence": { "kind": "resolved-call-edge" },
+                "displayMode": "Fact", "evidence": ev(*r1),
             }));
         }
         for r1 in &ring1 {
@@ -332,12 +341,13 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
                         "displayMode": "Inference",
                         "label": name(r2),
                         "claimId": format!("C-IMP-{center}"),
-                        "evidence": { "kind": "transitive-call-edge" },
-                        "fields": { "role": "caller", "ring": 2 },
+                        "evidence": ev(r2),
+                        "salience": { "factors": ["transitive-caller"], "weight": 0.6, "whyShown": "reaches the center through a ring-1 caller" },
+                        "fields": { "role": "caller", "ring": 2, "via": "transitive-call-edge" },
                     }));
                     edges.push(json!({
                         "source": format!("c{r2}"), "target": format!("c{r1}"), "edgeKind": "calls",
-                        "displayMode": "Inference", "evidence": { "kind": "transitive-call-edge" },
+                        "displayMode": "Inference", "evidence": ev(r2),
                     }));
                 }
             }
@@ -374,7 +384,8 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
                 "elementKind": "symbol",
                 "displayMode": epi,
                 "label": name(other),
-                "evidence": { "kind": "duplicate", "detection": detection },
+                "evidence": ev(other),
+                "salience": { "factors": ["duplicate"], "weight": sim, "whyShown": format!("similarity {sim} via {detection}") },
                 "fields": {
                     "role": "duplicate", "ring": 1,
                     "similarity": sim, "isCanonical": canon == Some(other),
@@ -395,7 +406,7 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
             edges.push(json!({
                 "source": "center", "target": format!("dup{other}"), "edgeKind": "similar",
                 "displayMode": epi,
-                "evidence": { "kind": "duplicate", "detection": detection },
+                "evidence": ev(other),
                 "fields": { "similarity": sim },
             }));
         }
