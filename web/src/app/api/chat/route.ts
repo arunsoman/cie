@@ -39,7 +39,7 @@ function sanitizeHistory(raw: unknown): ChatTurn[] {
     .slice(-MAX_HISTORY);
 }
 
-export function systemPrompt(digest: unknown, scoped = false): string {
+function systemPrompt(digest: unknown, scoped = false): string {
   const facts = JSON.stringify(digest, null, 1);
   return [
     "You are CIE's friendly explainer. CIE is a tool that reads a software project and turns it into a plain-English health report.",
