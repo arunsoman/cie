@@ -13,16 +13,19 @@
 //            lens centre, Escape releases it).
 //   US-142 — never colour alone: every bar/row keeps its text label + value.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { BarChart3, MessageCircleQuestion, MoveVertical } from "lucide-react";
 import type { ChatChartSpec, UmlNode, ElementLoc } from "@/lib/chat-chart";
 import type { ViewSpec } from "viz-adapter";
-import { recomputeSemanticHash, recomputeRenderHash } from "viz-adapter";
+import { SelectionConductor, recomputeSemanticHash, recomputeRenderHash } from "viz-adapter";
+import { sliceViewSpec } from "@/lib/viz/slice";
 import { renderViaNegotiator } from "@/lib/viz/g6-engine";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
 import { ConceptTreeG6 } from "./concept-tree-g6";
+
+const conductor = new SelectionConductor();
 
 const HEX: Record<string, string> = {
   rose: "#e11d48",
@@ -43,7 +46,10 @@ const hex = (c?: string) => HEX[c ?? ""] ?? "#78716c";
 export function useAsk() {
   const setPendingAsk = useCie((s) => s.setPendingAsk);
   const openSourceViewer = useCie((s) => s.openSourceViewer);
-  return (spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) => {
+  const add = useCie(s => s.addChip);
+  const revision = useCie(s => s.report?.rev ?? 0);
+  return useCallback((spec: ChatChartSpec, el: { name: string; value?: number | string; loc?: ElementLoc }) => {
+    add({id:`${spec.kind}:${el.loc?.file ?? ""}:${el.name}`,label:el.name,kind:spec.kind,revision,loc:el.loc,files:el.loc?.file ? [el.loc.file] : []});
     if (el.loc?.file) {
       openSourceViewer({
         file: el.loc.file,
@@ -58,7 +64,7 @@ export function useAsk() {
       return;
     }
     setPendingAsk(askAboutChartElement(spec.title, el));
-  };
+  }, [add, revision, openSourceViewer, setPendingAsk]);
 }
 
 export const ASK_HINT = "tap any element to ask CIE about it";
@@ -688,7 +694,7 @@ function toViewSpec(spec: ChatChartSpec): { view: ViewSpec; metaById: Map<string
 /** The canvas body for uml/flow/c4: negotiator → gate → G6 host. Click
  *  fires the patch-1 selection surface and keeps today's ask/source
  *  behavior (the popup replaces jump-to-source at stage 3). */
-function DiagramG6({ spec }: { spec: ChatChartSpec }) {
+function DiagramG6({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
   const ask = useAsk();
   const hostRef = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState<string>("negotiating engine…");
@@ -696,7 +702,11 @@ function DiagramG6({ spec }: { spec: ChatChartSpec }) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const { view, metaById } = toViewSpec(spec);
+    const converted = toViewSpec(spec);
+    const metaById = converted.metaById;
+    const sliced = sliceViewSpec(converted.view);
+    if (!sliced.spec) { setNote(`gate declined: ${sliced.violations.join("; ")}`); return; }
+    const view = sliced.spec;
     if (!view.elements.length) return;
     let disposed = false;
     let offSelection: (() => void) | null = null;
@@ -711,12 +721,15 @@ function DiagramG6({ spec }: { spec: ChatChartSpec }) {
         }
         handle = result.handle;
         setNote(`${result.disclosure.headline} · ${result.handle.layout.actual}`);
-        offSelection = result.handle.onSelection((ids) => {
+        offSelection = conductor.attach(result.handle, view.elements.map(e => e.id), (ids) => {
           const id = ids[ids.length - 1];
           if (!id) return;
           const n = metaById.get(id);
           if (!n) return;
-          ask(spec, { name: n.title, loc: n.loc });
+          const state = useCie.getState();
+          state.addChip({id:n.id,label:n.title,kind:n.kind,revision:state.report?.rev ?? 0,loc:n.loc,files:n.loc?.file ? [n.loc.file] : []});
+          if (onSelectElement) onSelectElement({kind:"node",id:n.id,label:n.title,loc:n.loc});
+          else ask(spec, { name: n.title, loc: n.loc });
         });
       } catch (err) {
         setNote(`engine declined: ${err instanceof Error ? err.message : String(err)}`);
@@ -728,7 +741,7 @@ function DiagramG6({ spec }: { spec: ChatChartSpec }) {
       offSelection?.();
       void handle?.dispose();
     };
-  }, [spec, ask]);
+  }, [spec, ask, onSelectElement]);
 
   const nodes = spec.nodes ?? [];
   return (
@@ -744,9 +757,10 @@ function DiagramG6({ spec }: { spec: ChatChartSpec }) {
 /** RFC-0024 stage 6 — the SVG bypass is GONE: uml/flow/c4 draw through
  *  the negotiator → gate → G6 host, exactly one click path
  *  (verbs → conductor → engines → onSelection). The old ids live on as
- *  atlasSelection kinds, not as painters. */
-function DiagramCanvas({ spec }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
-  return <DiagramG6 spec={spec} />;
+ *  atlasSelection kinds, not as painters. (The SVG parity-harness toggle
+ *  that RFC-0023 stage 1 added retired with the bypass itself.) */
+function DiagramCanvas({ spec, onSelectElement }: { spec: ChatChartSpec; onSelectElement?: SelectHandler }) {
+  return <DiagramG6 spec={spec} onSelectElement={onSelectElement} />;
 }
 
 // ---------- dispatcher ----------

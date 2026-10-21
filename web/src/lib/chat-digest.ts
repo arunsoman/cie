@@ -363,7 +363,7 @@ export function buildDigest(
       ...(drift_facts ? ["hbar of drift_facts below for 'do the docs match the code / drift' questions — real claim verification on THIS project, not the git-date proxy"] : []),
     ],
     project: {
-      files: report.files?.map((f) => f.split("/").pop() ?? f) ?? [],
+      files: report.files?.filter(Boolean).map((f) => f.split("/").pop() ?? f) ?? [],
       named_things_total: report.symbols.length,
       languages: [...new Set(report.symbols.map((s) => s.lang))],
       touches_outside_world: effectTally,

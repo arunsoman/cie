@@ -237,7 +237,7 @@ export function AtlasView() {
     // §2.3 — CHIP is automatic on the click that resolves an identity; the
     // popup merely displays that a chip was added and offers removal.
     const chipId = `${kind ?? "el"}:${label}:${loc.file}`;
-    addChip({ id: chipId, label, kind: kind ?? "element", loc: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line }, sourceTitle: "Atlas" });
+    addChip({ id: chipId, label, kind: kind ?? "element", revision: report?.rev ?? 0, files: [loc.file], loc: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line }, sourceTitle: "Atlas" });
     setPopup({
       primary: { file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, line: loc.line },
       label,
@@ -265,7 +265,7 @@ export function AtlasView() {
       return; // G1: the grouped-out box is a ledger, not a scope
     }
     setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
-    addChip({ id: `container:${sel.id}`, label: sel.id, kind: "container", sourceTitle: "Atlas" });
+    addChip({ id: `container:${sel.id}`, label: sel.id, kind: "container", revision: report?.rev ?? 0, files: (report?.files ?? []).filter((f) => f === sel.id || f.startsWith(sel.id + "/")), sourceTitle: "Atlas" });
   };
   const onComponentsClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;

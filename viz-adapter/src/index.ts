@@ -139,3 +139,6 @@ export function defaultRegistry(): Map<EngineId, EngineAdapter> {
   ];
   return new Map(adapters.map((a) => [a.id, a]));
 }
+export { planSheet } from './manager';
+export type { ChartPlan } from './manager';
+export { SelectionConductor } from './conductor';

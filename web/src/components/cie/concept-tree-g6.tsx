@@ -40,6 +40,7 @@ export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
   const ask = useAsk();
   const setAtlasSelection = useCie((s) => s.setAtlasSelection);
   const addChip = useCie((s) => s.addChip);
+  const report = useCie((s) => s.report);
   const nodes = spec.tree ?? [];
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -139,7 +140,17 @@ export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
       const node = nodes.find((n) => n.id === id);
       if (node) {
         setAtlasSelection({ kind: node.parent === null ? "container" : "module", id: node.label, label: node.label });
-        addChip({ id: `tree:${node.id}`, label: node.label, kind: "module", sourceTitle: "Concept tree" });
+        // The chip carries its resolved code space: only REAL report files
+        // under the node's path (a tree label that isn't a path contributes
+        // none — the chip tooltip says so honestly).
+        addChip({
+          id: `tree:${node.id}`,
+          label: node.label,
+          kind: "module",
+          revision: report?.rev ?? 0,
+          files: (report?.files ?? []).filter((f) => f === node.label || f.startsWith(node.label + "/")),
+          sourceTitle: "Concept tree",
+        });
       }
       ask(spec, { name: label });
     };
@@ -162,7 +173,7 @@ export function ConceptTreeG6({ spec }: { spec: ChatChartSpec }) {
       graph.off("node:pointerleave", onLeave);
       graph.destroy();
     };
-  }, [nodes, ask, spec, setAtlasSelection, addChip]);
+  }, [nodes, ask, spec, setAtlasSelection, addChip, report]);
 
   if (!nodes.length) return null;
 

@@ -19,7 +19,10 @@ import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X,
 import { useCie } from "@/lib/cie-store";
 import { ContextChips } from "./context-chips";
 import { buildDigest } from "@/lib/chat-digest";
-import { scopeDigest } from "@/lib/scope-digest";
+// Scoped answering composes both halves (see scope-digest.ts): the inputs are
+// restricted first (scopeDigest, RFC-0023 stage 5), then the built digest is
+// sliced to the chips' code space (scopeChatDigest, RFC-0024 stage 5).
+import { scopeDigest, scopeChatDigest } from "@/lib/scope-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryAnswerStory } from "@/lib/stories";
@@ -95,21 +98,30 @@ export function ChatPanel() {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
     stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
-    pendingTrace, setPendingTrace, updateMastery, loadMastery,
-    chatContext } = useCie();
+    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext,
+  } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // The digest is recomputed whenever the loaded project changes.
-  const digest = useMemo(
-    () => buildDigest(report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift),
-    [report, viewspec, concepts, label, deps, runtime, quality, cochange, overlap, drift]
-  );
+  const answerData = useMemo(() => {
+    const scoped = scopeDigest(report, viewspec, concepts, chatContext);
+    // Aggregate exports have no selection-level attestation. Do not pass them
+    // to local answerers or companion-chart builders in a scoped answer.
+    return {...scoped, quality:scoped.scope ? null : quality, stories:scoped.scope ? null : stories,
+      stack:scoped.scope ? null : stack, deps:scoped.scope ? null : deps,
+      runtime:scoped.scope ? null : runtime, cochange:scoped.scope ? null : cochange,
+      overlap:scoped.scope ? null : overlap, drift:scoped.scope ? null : drift};
+  }, [report, viewspec, concepts, chatContext, quality, stories, stack, deps, runtime, cochange, overlap, drift]);
+  const digest = useMemo(() => {
+    const d = answerData;
+    const facts = buildDigest(d.report, d.viewspec, d.concepts, label, d.deps, d.runtime, d.quality, d.cochange, d.overlap, d.drift);
+    return facts && {...facts, answer_scope:d.scope};
+  }, [answerData, label]);
 
   // RFC-0024 stage 5 — the chips scope the digest (R5): chips present →
   // ONLY the selection's code space is sent, with the honest scope line.
   const scopedDigest = useMemo(
-    () => scopeDigest(digest as Record<string, unknown> | null, chatContext),
+    () => scopeChatDigest(digest as Record<string, unknown> | null, chatContext),
     [digest, chatContext]
   );
 
@@ -153,6 +165,7 @@ export function ChatPanel() {
   };
 
   const send = async (text: string) => {
+    const {report, viewspec, concepts, quality, stories, stack, deps, runtime, cochange, overlap, drift, scope} = answerData;
     const question = text.trim();
     if (!question || chatBusy) return;
 
@@ -171,7 +184,7 @@ export function ChatPanel() {
       technical?: string;
       providerIssue?: boolean;
     }) => {
-      pushChat({ role: "assistant", ...msg });
+      pushChat({ role: "assistant", ...msg, content: scope ? `${scope.header}\n\n${msg.content}` : msg.content });
       if (msg.chart) openChartOnCanvas(msg.chart);
     };
 
@@ -208,7 +221,7 @@ export function ChatPanel() {
     // locally, from the loaded exports — instant, cited, interactive cards
     // (entry points / flows / trace with the verify loop / 5 things). ----
     const masteryCtx: MasteryCtx = { report, concepts, stack, deps, cochange, overlap, drift, label };
-    const masteryAns = tryAnswerMastery(question, masteryCtx);
+    const masteryAns = scope ? null : tryAnswerMastery(question, masteryCtx);
     if (masteryAns) {
       // every answered journey prompt keeps its chart in the MESSAGE; the
       // canvas opens for diagram-bearing answers — except the trace card's
@@ -239,7 +252,7 @@ export function ChatPanel() {
     // pre-compute, since it needs a specific symbol as a target. Only
     // possible when the project's files are still on disk (sourceRoot);
     // a cloned URL's checkout is deleted right after ingest. ----
-    if (IMPACT_WORDS.test(question)) {
+    if (!scope && IMPACT_WORDS.test(question)) {
       const target = findSymbolInQuestion(report, question);
       if (target) {
         if (!sourceRoot) {
@@ -301,7 +314,7 @@ export function ChatPanel() {
 
     // History for the model: everything so far, minus old error bubbles.
     const history = [
-      ...chat.filter((m) => !m.error),
+      ...(scope ? [] : chat.filter((m) => !m.error)),
       { role: "user" as const, content: question },
     ].map((m) => ({ role: m.role, content: m.content }));
 
@@ -311,10 +324,13 @@ export function ChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          // RFC-0024 stage 5 — the send payload carries the selection scope:
-          // chips present → the digest is SLICED to the chips' code space
-          // (and the route's system prompt binds the model to it).
+          // The payload carries BOTH scope halves: `scope` is the input-level
+          // attestation (RFC-0023 — the route refuses scoped questions without
+          // selection-filtered facts), and the digest is SLICED to the chips'
+          // code space with its binding selection_scope manifest (RFC-0024
+          // stage 5 — the system prompt holds the model to it).
           digest: scopedDigest?.scoped ?? digest,
+          scope,
           llm: {
             provider: llm.provider,
             ollama: { baseUrl: llm.ollama.baseUrl.trim(), model: llm.ollama.model.trim() },
@@ -476,25 +492,7 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* referent — the map bubble you picked becomes the "these" in your question */}
-      {mapSelected && (
-        <div className="px-4 pt-3 bg-white border-t border-stone-200" role="group" aria-label="Picked on the map">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 pl-2.5 pr-1.5 py-1 text-xs text-emerald-900 max-w-full"
-            title="Picked on the Map — CIE will read your next question as being about this"
-          >
-            <span className="truncate font-medium">{mapSelected.label}</span>
-            <button
-              type="button"
-              aria-label={`Stop asking about ${mapSelected.label}`}
-              onClick={() => setMapSelected(null)}
-              className="shrink-0 h-4 w-4 grid place-items-center rounded-full hover:bg-emerald-100 text-emerald-700"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        </div>
-      )}
+      <ContextChips />
 
       {/* RFC-0024 stage 4 — the R5a CONTEXT CHIPS row lives in the Ask-CIE
           dock, above the composer (§1); the payload carries the scope at

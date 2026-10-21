@@ -6,6 +6,10 @@
 // says so). A repeat click never duplicates — the existing chip pulses
 // once. Chips are the user's, not the persona's (G3): they survive
 // persona switches and scope releases; the R4 pair follows them only.
+//
+// Merge note (RFC-0023 stages 1–5 came in through origin/main): each chip
+// now also carries the selection's resolved `files`, and the tooltip says
+// honestly when a chip contributes no code space at all.
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
@@ -58,7 +62,7 @@ export function ContextChips() {
             key={c.id}
             data-chip={c.id}
             className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 py-0.5 pl-2 pr-1 text-[10.5px] text-emerald-900"
-            title={`${c.kind}${c.loc?.file ? ` — ${c.loc.file}` : ""}${c.sourceTitle ? ` · picked from ${c.sourceTitle}` : ""}`}
+            title={`${c.kind}${c.files.length ? ` — ${c.files.join(", ")}` : " — no source files recorded; contributes no code space"}${c.sourceTitle ? ` · picked from ${c.sourceTitle}` : ""}`}
           >
             <span className="rounded-full bg-emerald-600/10 px-1 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
               {c.kind}

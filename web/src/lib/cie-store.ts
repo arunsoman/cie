@@ -11,6 +11,7 @@
 // asked it to render big, and the map bubble the user picked (which the chat
 // offers as a referent).
 
+import { addChipState, addContext, type ChatContextElement } from "./chat-context";
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import type { TechStack } from "./stack-types";
@@ -21,7 +22,6 @@ import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, type AtlasRef, type AtlasSelection } from "./atlas";
 import { PERSONA_PRESETS, loadPersonaMemory, savePersonaMemory, type PersonaId } from "./atlas-presets";
-import type { ChatContextElement } from "./cie-types";
 
 export type DataSource = "demo" | "custom" | null;
 
@@ -191,8 +191,9 @@ interface CieState {
 
   // RFC-0024 stage 4 — the R5a context chips (ux-spec §3-CHIP/§2.3): every
   // element-resolving click auto-adds its chip (dedupe by id, cap 24 — the
-  // 25th click evicts the oldest and says so). Chips SURVIVE persona
-  // switches and scope releases (G3). R4 follows chips only (G5).
+  // 25th click evicts the oldest and says so; RFC-0023 adds the same-
+  // revision rule — stale selections are not code space). Chips SURVIVE
+  // persona switches and scope releases (G3). R4 follows chips only (G5).
   chatContext: ChatContextElement[];
   chipNotice: string | null; // eviction / repeat-pulse disclosure (G4)
   addChip: (el: ChatContextElement) => void;
@@ -300,6 +301,7 @@ export const useCie = create<CieState>((set, get) => ({
         view: "start",
         canvasChart: null,
         mapSelected: null,
+  chatContext: [],
         // The sample project has no local-folder root on this machine.
         // Switching away from a connected project must drop its source
         // state too, or the panel would try to resolve demo files against
@@ -354,6 +356,7 @@ export const useCie = create<CieState>((set, get) => ({
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
       mapSelected: null,
+  chatContext: [],
       atlasSelection: ATLAS_RESET,
       atlasView: "containers",
       atlasFactsOnly: false,
@@ -381,7 +384,20 @@ export const useCie = create<CieState>((set, get) => ({
   openChartOnCanvas: (spec) => set({ canvasChart: spec, view: "chart" }),
   closeCanvasChart: () => set({ canvasChart: null, view: "start" }),
 
-  setMapSelected: (el) => set({ mapSelected: el }),
+  setMapSelected: (el) =>
+    set((s) => ({
+      mapSelected: el,
+      ...(el
+        ? addChipState(s.chatContext, {
+            id: el.id,
+            label: el.label,
+            kind: el.elementKind,
+            revision: s.report?.rev ?? 0,
+            files: el.evidence?.file ? [el.evidence.file] : [],
+            loc: el.evidence?.file ? { file: el.evidence.file, byteStart: el.evidence.start, byteEnd: el.evidence.end } : undefined,
+          })
+        : {}),
+    })),
 
   setPendingAsk: (q) => set({ pendingAsk: q }),
 
@@ -420,7 +436,11 @@ export const useCie = create<CieState>((set, get) => ({
       if (s.atlasSelection.primary?.kind === ref.kind && s.atlasSelection.primary?.id === ref.id) {
         return { atlasSelection: ATLAS_RESET }; // second click = release
       }
-      return { atlasSelection: { primary: ref, scope: scopeForRef(ref) } };
+      const files = ref.kind === "container"
+        ? (s.report?.files ?? []).filter(f => f === ref.id || f.startsWith(ref.id + "/"))
+        : ref.loc?.file ? [ref.loc.file] : ref.kind === "module" ? [ref.id] : [];
+      const chip = addChipState(s.chatContext, { id: ref.id, label: ref.label, kind: ref.kind, revision: s.report?.rev ?? 0, loc: ref.loc, files });
+      return { atlasSelection: { primary: ref, scope: scopeForRef(ref) }, ...chip };
     }),
   drillUp: () =>
     set((s) => {
@@ -477,26 +497,12 @@ export const useCie = create<CieState>((set, get) => ({
         ...(scopeCarries ? {} : { atlasSelection: ATLAS_RESET }),
       };
     }),
-  addChip: (el) =>
-    set((s) => {
-      if (s.chatContext.some((c) => c.id === el.id)) {
-        // §2.3: a repeat click never duplicates — the existing chip pulses
-        // (CSS key on the chip row handles the animation); disclose anyway.
-        return { chipNotice: `${el.label} is already in context — pulsed` };
-      }
-      const next = [...s.chatContext, el];
-      if (next.length > 24) {
-        const evicted = next.shift()!;
-        return {
-          chatContext: next,
-          chipNotice: `cap of 24 reached — evicted the oldest chip (${evicted.label})`,
-        };
-      }
-      return { chatContext: next, chipNotice: null };
-    }),
+  // One add path (chat-context.addChipState): dedupe → pulse notice, cap 24
+  // → evict-oldest notice, same-revision → stale chips drop (RFC-0023).
+  addChip: (el) => set((s) => addChipState(s.chatContext, el)),
   removeChip: (id) =>
-    set((s) => ({ chatContext: s.chatContext.filter((c) => c.id !== id), chipNotice: null })),
-  clearChips: () => set({ chatContext: [], chipNotice: null }),
+    set((s) => ({ chatContext: s.chatContext.filter((c) => c.id !== id), mapSelected: s.mapSelected?.id === id ? null : s.mapSelected, chipNotice: null })),
+  clearChips: () => set({ chatContext: [], mapSelected: null, chipNotice: null }),
 
   // mastery: keyed by the loaded project (label); load reads localStorage.
   // Switching projects drops the old state from memory so every component

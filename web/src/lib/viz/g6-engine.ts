@@ -24,6 +24,8 @@ import {
   defaultRegistry,
   renderHosted,
   recomputeRenderHash,
+  createSelectionHub,
+  g6LayoutOutcome,
 } from "viz-adapter";
 import type {
   HostRenderRuntime,
@@ -108,15 +110,8 @@ async function renderSpecG6(
   const strategy = String((cfg.layout as Record<string, unknown> | undefined)?.type ?? "dagre");
 
   // The patch-1 selection surface — one hub per rendering, loop-guarded.
-  const listeners = new Set<SelectionListener>();
-  let current: string[] = [];
-  const sameSet = (a: string[], b: string[]) =>
-    a.length === b.length && a.every((x, i) => x === b[i]);
-  const setSelected = (ids: string[], origin: SelectionOrigin) => {
-    if (sameSet(ids, current)) return; // an echo never re-fires
-    current = [...ids];
-    for (const l of [...listeners]) l(current, origin);
-  };
+  const hub = createSelectionHub();
+  const setSelected = hub.setSelected;
 
   let graph: Graph;
 
@@ -184,10 +179,11 @@ async function renderSpecG6(
       padding: 16,
       behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
       ...(rest as Record<string, unknown>),
+      data: data as never,
     });
   }
 
-  await graph.render();
+  try { await graph.render(); } catch (err) { graph.destroy(); throw err; }
 
   const onClick = (e: IElementEvent) => {
     const id = e.target?.id;
@@ -200,15 +196,12 @@ async function renderSpecG6(
     engineId: "g6",
     semanticHash: spec.semanticHash,
     renderHash: recomputeRenderHash(spec, "g6"),
-    layout: g6LayoutOutcomeOf(spec),
+    layout: g6LayoutOutcome(spec),
     onSelection(cb) {
-      listeners.add(cb);
-      return () => {
-        listeners.delete(cb);
-      };
+      return hub.subscribe(cb);
     },
     setSelected(ids, origin) {
-      setSelected(ids, origin);
+      setSelected(ids.filter((id) => spec.elements.some((el) => el.id === id)), origin);
     },
     async dispose() {
       graph.off("element:click", onClick);
@@ -223,13 +216,6 @@ async function renderSpecG6(
 }
 
 const graphs = new WeakMap<RenderHandle, Graph>();
-
-/** Layout outcome from the adapter package (kept local: the host owns the
- *  disclosed outcome it rendered with). */
-function g6LayoutOutcomeOf(spec: ViewSpec): LayoutOutcome {
-  const strategy = spec.layoutHint?.strategy ?? "dagre";
-  return { requested: spec.layoutHint?.strategy, actual: strategy, fidelity: "Exact" };
-}
 
 /** The HostRenderRuntime the page registers on the g6 adapter. */
 export function g6HostRuntime(): HostRenderRuntime {
