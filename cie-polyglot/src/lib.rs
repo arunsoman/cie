@@ -24,3 +24,4 @@
 //! * `Unresolved` is a first-class resolution, never guessed (§9).
 
 pub mod schema;
+pub mod uast;
