@@ -504,3 +504,19 @@ Work Log:
 Stage Summary:
 - The SVG-in-product question is closed for uml/flow/c4/mindmap; exactly one click path, one chart-plan source; the two remaining items are named with reasons, not hidden.
 - Push status: stages 0–2 are on origin (2d12bd7, 6f3d9b7, 4e89aaa, e049fc1). Stages 3–6 (0ceb7c7, +3 more) sit in local commits — the PAT from the user's message began returning 401 mid-run (rotated/revoked after being pasted); push resumes the moment a fresh token arrives.
+---
+Task ID: 35
+Agent: main (Z.ai)
+Task: Merge origin/main (RFC-0023 stages 1–5) into the RFC-0024 line; push the committed stages with the user's new PAT.
+
+Work Log:
+- Fetched origin with the new PAT attached: origin/main had moved twice (RFC-0023 stages 1–5 landed on the shared RFC-0024 stage-2 base — the maintainer's parallel line). Local had RFC-0024 stages 3–6 unpushed.
+- Set core.fileMode false: the 719 "modified" files were mode-only (100644→100755) artifacts, zero content diff — excluded from the commit.
+- Merged origin/main; 4 files conflicted (context-chips, scope-digest add/add; chat-panel, chat-chart content) + 2 auto-merged files needed coherence work (cie-store kept BOTH chip APIs; chat-panel imported scopeDigest twice).
+- Resolutions: canonical ChatContextElement in chat-context.ts (+sourceTitle); ONE store mutator set (addChip/removeChip/clearChips via new pure addChipState = RFC-0024 disclosures over RFC-0023's same-revision rule; removals release mapSelected); scopeDigest (RFC-0023, test-pinned) + scopeChatDigest (renamed RFC-0024 slicer) composed in chat-panel; stage-6 end state kept in chat-chart WITH the DiagramCanvas→DiagramG6 onSelectElement forwarding restored; context-chips keeps stage-4 UI + RFC-0023's honest no-code-space tooltip; atlas-view/concept-tree chips now resolve real report files for their code space.
+- Verified: tsc --noEmit clean; viz-adapter vitest 309/309; web rfc0023 5/5 + rfc0020 7/7; next build compiled (14 pages). (Note: web node_modules had gone missing — reinstalled with npm after bun's symlink materialization broke Turbopack's file: dep parse.)
+- Merge commit 9de0dd8 created; implementation record appended with the reconciliation + verification.
+- PUSH BLOCKED: the new PAT (ghp_ju4s…R9Cj) returns 401 Bad credentials — verified directly against api.github.com/user (the earlier ls-remote "success" was anonymous read on a public repo, not auth). The previous session's PAT is also 401. 5 commits staged on main; scripts/push-with-token.sh takes the next valid token and pushes in one command; token never stored in the repo.
+
+Stage Summary:
+- The two RFCs are now ONE line: RFC-0023's engine/contract work and RFC-0024's persona Atlas compose without duplicated chip state, with both scope halves enforced (inputs restricted, digest sliced). All 6 RFC-0024 stages + the merge are committed and verified locally; only a valid token stands between main and origin.
