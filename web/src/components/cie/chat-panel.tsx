@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { BrainCog, Compass, Send, Settings2, Sparkles, Trash2, TriangleAlert, X, Zap } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
+import { ContextChips } from "./context-chips";
 import { buildDigest } from "@/lib/chat-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
@@ -463,25 +464,7 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* referent — the map bubble you picked becomes the "these" in your question */}
-      {mapSelected && (
-        <div className="px-4 pt-3 bg-white border-t border-stone-200" role="group" aria-label="Picked on the map">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 pl-2.5 pr-1.5 py-1 text-xs text-emerald-900 max-w-full"
-            title="Picked on the Map — CIE will read your next question as being about this"
-          >
-            <span className="truncate font-medium">{mapSelected.label}</span>
-            <button
-              type="button"
-              aria-label={`Stop asking about ${mapSelected.label}`}
-              onClick={() => setMapSelected(null)}
-              className="shrink-0 h-4 w-4 grid place-items-center rounded-full hover:bg-emerald-100 text-emerald-700"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        </div>
-      )}
+      <ContextChips />
 
       {/* composer */}
       <div className="p-3.5 bg-white border-t border-stone-200">

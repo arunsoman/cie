@@ -11,6 +11,7 @@
 // asked it to render big, and the map bubble the user picked (which the chat
 // offers as a referent).
 
+import { addContext, type ChatContextElement } from "./chat-context";
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import type { TechStack } from "./stack-types";
@@ -111,6 +112,10 @@ interface CieState {
   // workspace state
   view: StageView; // what the middle stage shows
   canvasChart: ChatChartSpec | null; // the chart sent to the canvas (view === "chart")
+  chatContext: ChatContextElement[];
+  addChatContext: (el: ChatContextElement) => void;
+  removeChatContext: (id: string) => void;
+  clearChatContext: () => void;
   mapSelected: VizElement | null; // map bubble picked; the chat offers it as a referent
   llm: LlmConfig; // who answers — hydrated from localStorage after mount
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
@@ -221,6 +226,7 @@ export const useCie = create<CieState>((set, get) => ({
   view: "start",
   canvasChart: null,
   mapSelected: null,
+  chatContext: [],
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
   chatOpen: true,
@@ -287,6 +293,7 @@ export const useCie = create<CieState>((set, get) => ({
         view: "start",
         canvasChart: null,
         mapSelected: null,
+  chatContext: [],
         // The sample project has no local-folder root on this machine.
         // Switching away from a connected project must drop its source
         // state too, or the panel would try to resolve demo files against
@@ -341,6 +348,7 @@ export const useCie = create<CieState>((set, get) => ({
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
       mapSelected: null,
+  chatContext: [],
       atlasSelection: ATLAS_RESET,
       atlasView: "containers",
       atlasFactsOnly: false,
@@ -368,7 +376,10 @@ export const useCie = create<CieState>((set, get) => ({
   openChartOnCanvas: (spec) => set({ canvasChart: spec, view: "chart" }),
   closeCanvasChart: () => set({ canvasChart: null, view: "start" }),
 
-  setMapSelected: (el) => set({ mapSelected: el }),
+  addChatContext: (el) => set(s => ({chatContext: addContext(s.chatContext, el)})),
+  removeChatContext: (id) => set(s => ({chatContext: s.chatContext.filter(c => c.id !== id), mapSelected: s.mapSelected?.id === id ? null : s.mapSelected})),
+  clearChatContext: () => set({chatContext: [], mapSelected: null}),
+  setMapSelected: (el) => set(s => ({ mapSelected: el, ...(el ? {chatContext: addContext(s.chatContext, {id:el.id, label:el.label,kind:el.elementKind,revision:s.report?.rev ?? 0,files:el.evidence?.file ? [el.evidence.file] : [],loc:el.evidence?.file ? {file:el.evidence.file,byteStart:el.evidence.start,byteEnd:el.evidence.end} : undefined})} : {}) })),
 
   setPendingAsk: (q) => set({ pendingAsk: q }),
 
@@ -407,7 +418,11 @@ export const useCie = create<CieState>((set, get) => ({
       if (s.atlasSelection.primary?.kind === ref.kind && s.atlasSelection.primary?.id === ref.id) {
         return { atlasSelection: ATLAS_RESET }; // second click = release
       }
-      return { atlasSelection: { primary: ref, scope: scopeForRef(ref) } };
+      const files = ref.kind === "container"
+        ? (s.report?.files ?? []).filter(f => f === ref.id || f.startsWith(ref.id + "/"))
+        : ref.loc?.file ? [ref.loc.file] : ref.kind === "module" ? [ref.id] : [];
+      return { atlasSelection: { primary: ref, scope: scopeForRef(ref) },
+        chatContext: addContext(s.chatContext, {id:ref.id,label:ref.label,kind:ref.kind,revision:s.report?.rev ?? 0,loc:ref.loc,files}) };
     }),
   drillUp: () =>
     set((s) => {

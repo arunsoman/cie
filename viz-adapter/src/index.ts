@@ -141,3 +141,4 @@ export function defaultRegistry(): Map<EngineId, EngineAdapter> {
 }
 export { planSheet } from './manager';
 export type { ChartPlan } from './manager';
+export { SelectionConductor } from './conductor';

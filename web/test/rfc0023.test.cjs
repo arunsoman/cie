@@ -31,3 +31,19 @@ test('scope slicing keeps ancestry, recomputes ledgers/hashes and filters inferr
  v.elements[1].claimId=undefined;
  assert.equal(sliceViewSpec(v).spec,null);
 });
+test('plural context deduplicates, bounds and clears stale revisions',()=>{
+ const {addContext}=loader()(src('lib/chat-context.ts'));
+ let chips=[];for(let i=0;i<30;i++)chips=addContext(chips,{id:String(i),revision:1,files:[],label:String(i),kind:'test'});
+ assert.equal(chips.length,24);
+ chips=addContext(chips,{...chips[0],label:'updated'});assert.equal(chips.length,24);assert.equal(chips.at(-1).label,'updated');
+ assert.equal(addContext(chips,{id:'new',revision:2,files:[],label:'new',kind:'test'}).length,1);
+});
+test('conductor broadcasts valid IDs once and detaches disposed charts',()=>{
+ const load=loader(),{SelectionConductor,createSelectionHub}=load(path.resolve(__dirname,'../../viz-adapter/src/index.ts'));
+ const hubA=createSelectionHub(),hubB=createSelectionHub();
+ const a={onSelection:hubA.subscribe,setSelected:hubA.setSelected},b={onSelection:hubB.subscribe,setSelected:hubB.setSelected};
+ const conductor=new SelectionConductor();let calls=0;
+ conductor.attach(a,['a','b'],()=>calls++);const off=conductor.attach(b,['b'],()=>calls++);
+ hubA.setSelected(['b'],'user');assert.deepEqual(hubB.selected(),['b']);assert.equal(calls,1);
+ off();hubA.setSelected(['a'],'user');assert.deepEqual(hubB.selected(),['b']);
+});
