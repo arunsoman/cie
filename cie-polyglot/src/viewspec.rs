@@ -162,7 +162,7 @@ fn produce_workflows(conn: &Connection, specs: &mut BTreeMap<String, Value>) -> 
     }
     let mut elements: Vec<Value> = Vec::new();
     let mut id_by_row: BTreeMap<i64, String> = BTreeMap::new();
-    for (row, wf, kind, epi, fog, depth, evidence, qname, wname) in &nodes {
+    for (row, wf, kind, _epi, fog, depth, evidence, qname, wname) in &nodes {
         let label = qname.clone().unwrap_or_else(|| kind.to_string());
         let el_id = format!("wf{wf}:{label}:{row}");
         id_by_row.insert(*row, el_id.clone());

@@ -149,7 +149,7 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
     let mut file_container: BTreeMap<i64, i64> = BTreeMap::new();
     {
         let mut manifest_dirs: Vec<(String, String)> = Vec::new(); // (dir, tool)
-        for (id, path) in &files {
+        for (_id, path) in &files {
             for (m, tool) in MANIFESTS {
                 if path == *m || path.ends_with(&format!("/{m}")) {
                     let dir = path
@@ -671,7 +671,7 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM concept_node_symbols WHERE symbol_id = (SELECT id FROM symbols WHERE name='OrderRepository')", [], |r| r.get(0))
             .unwrap();
         assert_eq!(syms, 1);
-        assert!(rep.classes_linked >= 0);
+        assert!(rep.components >= 1, "the suffix group node is a component");
     }
 
     #[test]

@@ -21,8 +21,6 @@
 //! * `RUNTIME_OBSERVED` — reserved for the slice-20 runtime layer, never
 //!   written by static detection.
 
-use std::collections::BTreeMap;
-
 use rusqlite::Connection;
 
 use crate::schema::Lang;

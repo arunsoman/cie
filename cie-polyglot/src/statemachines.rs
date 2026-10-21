@@ -11,8 +11,6 @@
 //! defines detection, not storage); every row cites its evidence node and,
 //! for non-Fact tiers, carries the mandated counter-argument/fog-reason.
 
-use std::collections::BTreeMap;
-
 use rusqlite::Connection;
 
 use crate::schema::Lang;
