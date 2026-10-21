@@ -774,35 +774,3 @@ mod tests {
     }
 }
 
-#[cfg(test)]
-mod debug_tmp {
-    use super::*;
-    #[test]
-    fn debug_full_detect_pipeline() {
-        use crate::ir::{cache_source_bytes, create_ir_schema};
-        use crate::schema::{create_schema, ingest_parsed_file, IngestStats};
-        let conn = rusqlite::Connection::open_in_memory().unwrap();
-        create_schema(&conn).unwrap();
-        create_ir_schema(&conn).unwrap();
-        create_sm_schema(&conn).unwrap();
-        let mut st = IngestStats::default();
-        let src = "enum OrderState { DRAFT, PAID, SHIPPED }\npublic class Fulfilment {\n    void advance(OrderState state) {\n        switch (state) {\n            case DRAFT: state = PAID; break;\n            case PAID: state = SHIPPED; break;\n        }\n    }\n}\n";
-        let f = ingest_parsed_file(&conn, 1, 41, "F.java", crate::schema::Lang::Java, src, &mut st).unwrap();
-        cache_source_bytes(&conn, f, src).unwrap();
-        let rep = detect(&conn).unwrap();
-        println!("REPORT: {rep:?}");
-        let n: i64 = conn.query_row("SELECT COUNT(*) FROM state_machines", [], |r| r.get(0)).unwrap();
-        println!("ROWS: {n}");
-    }
-
-    #[test]
-    fn debug_java_switch_intermediates() {
-        let lang = Lang::Java;
-        let src = "enum OrderState { DRAFT, PAID, SHIPPED }\npublic class Fulfilment {\n    void advance(OrderState state) {\n        switch (state) {\n            case DRAFT: state = PAID; break;\n            case PAID: state = SHIPPED; break;\n        }\n    }\n}\n";
-        let tree = parse(lang, src.as_bytes()).unwrap();
-        let enums = enum_decls(lang, tree.root_node(), src.as_bytes());
-        println!("ENUMS: {enums:?}");
-        let switches = switch_stmts(lang, tree.root_node(), src.as_bytes());
-        println!("SWITCHES: {switches:?}");
-    }
-}
