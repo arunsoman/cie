@@ -25,3 +25,4 @@
 
 pub mod schema;
 pub mod uast;
+pub mod ir;
