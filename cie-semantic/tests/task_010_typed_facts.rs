@@ -10,6 +10,7 @@ use cie_semantic::facts::{CallSite, Callee, SymbolFact, SymbolKind, TypedFacts};
 
 fn sym_fact(id: u32, kind: SymbolKind) -> SymbolFact {
     SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(id),
         kind,
         name: format!("sym{id}"),

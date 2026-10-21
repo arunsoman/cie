@@ -39,6 +39,7 @@ import {
   Gauge,
   FileText,
   GraduationCap,
+  Database,
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
 import { AtlasPersonaMenu } from "@/components/cie/atlas-persona-menu";
@@ -51,6 +52,7 @@ const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 const MASTER_VIEWS: StageView[] = ["mastery"];
 const ATLAS_VIEWS: StageView[] = ["atlas"];
+const ADMIN_VIEWS: StageView[] = ["admin"];
 
 function NavButton({ children, active, ...props }: { children: React.ReactNode; active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   // Spreads Radix's trigger props through — a custom trigger child that
@@ -136,6 +138,9 @@ export function Topbar() {
           </NavButton>
           <NavButton active={MASTER_VIEWS.includes(view)} onClick={go("mastery")} title="The guided journey over this project — CIE guides, you verify">
             <GraduationCap className="h-4 w-4" aria-hidden /> Master
+          </NavButton>
+          <NavButton active={ADMIN_VIEWS.includes(view)} onClick={go("admin")} title="Every data structure CIE holds for this project — query and browse it directly">
+            <Database className="h-4 w-4" aria-hidden /> Admin
           </NavButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -250,6 +255,9 @@ export function Topbar() {
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Master it</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("mastery")} className={view === "mastery" ? "bg-emerald-50" : ""}>Master this codebase</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Admin</DropdownMenuLabel>
+              <DropdownMenuItem onClick={go("admin")} className={view === "admin" ? "bg-emerald-50" : ""}>Query every data structure</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Look around</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("start")} className={view === "start" ? "bg-emerald-50" : ""}>Start here</DropdownMenuItem>

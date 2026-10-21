@@ -69,6 +69,7 @@ fn walk_c(ctx: &mut CCtx, node: tree_sitter::Node) {
             let is_test = name.starts_with("test_");
             let id = ctx.id();
             ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id,
                 kind: if is_test { SymbolKind::Test } else { SymbolKind::Function },
                 name: name.clone(),
@@ -214,6 +215,7 @@ impl CAdapter {
             next_id: 1,
         };
         ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: module_id,
             kind: SymbolKind::Module,
             name: module.clone(),

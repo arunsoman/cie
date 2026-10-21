@@ -115,6 +115,7 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
         parent: None,
         rev: 0,
         doc: None,
+        annotations: vec![],
     });
 
     let mut ctx = Ctx {
@@ -242,8 +243,31 @@ fn push_symbol(
         },
         rev: 0,
         doc,
+        annotations: decorators_of(node, ctx.bytes),
     });
     id
+}
+
+/// `@app.route("/x")` etc, exact source text. A decorated def's immediate
+/// parent is a `decorated_definition` node, with each `decorator` as a
+/// preceding sibling of the function_definition/class_definition child —
+/// never a descendant of it, so this only looks at direct siblings, exactly
+/// where `decorated_definition`'s own walk (above) records them as calls.
+fn decorators_of(node: Node, bytes: &[u8]) -> Vec<String> {
+    let Some(parent) = node.parent() else {
+        return vec![];
+    };
+    if parent.kind() != "decorated_definition" {
+        return vec![];
+    }
+    let mut out = vec![];
+    let mut c = parent.walk();
+    for child in parent.children(&mut c) {
+        if child.kind() == "decorator" {
+            out.push(text(child, bytes).trim().to_string());
+        }
+    }
+    out
 }
 
 fn docstring_of(body: Node, bytes: &[u8]) -> Option<String> {

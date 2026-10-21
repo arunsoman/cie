@@ -10,6 +10,11 @@ export interface SymbolInfo {
   lang: string;
   parent: number;
   doc?: string;
+  /** Annotations/decorators/attributes on this symbol's own declaration,
+   *  exactly as written (`@Service`, `@app.route("/x")`, `#[tokio::main]`,
+   *  `[Authorize]`...). Empty when the language has none, or none were
+   *  written — never inferred. */
+  annotations?: string[];
 }
 
 export interface SummaryInfo {
@@ -22,6 +27,12 @@ export interface SummaryInfo {
   exceptions: string[];
   callees: string[];
   unresolved_callees: string[];
+  /** Reverse of `callees`: every symbol id whose own summary names this one
+   *  as a callee, across the whole revision (SymbolInfo.id, not qual_name —
+   *  callees is typed string[] above but both are numeric SymbolIds on the
+   *  wire; join against SymbolInfo.id, not by name). Derived from the
+   *  resolved call graph, not independently extracted. */
+  callers?: number[];
   tags: string[];
   rev: number;
   complete: boolean;

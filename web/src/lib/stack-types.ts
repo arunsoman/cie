@@ -179,6 +179,9 @@ export interface JvmConfigCls {
   lang: string;
   /** "configuration" | "security" | "feign" | "messaging" */
   kind: string;
+  /** Every annotation on this class, as written — not just the one that
+   *  classified it (`@Configuration`, `@EnableWebSecurity`, ...). */
+  annotations?: string[];
 }
 
 export interface JvmService {
@@ -187,6 +190,9 @@ export interface JvmService {
   line: number;
   lang: string;
   injections: Injection[];
+  /** Every annotation on this class, as written (`@Service`, plus any
+   *  others present — `@Transactional`, `@Primary`, ...). */
+  annotations?: string[];
 }
 
 export interface Injection {
@@ -201,6 +207,8 @@ export interface JvmRepository {
   lang: string;
   extends: string; // the interface clause as written
   entity?: string;
+  /** Every annotation on this class, as written (`@Repository`, ...). */
+  annotations?: string[];
 }
 
 export interface JvmEntity {
@@ -210,6 +218,9 @@ export interface JvmEntity {
   lang: string;
   table?: string;
   props: Prop[];
+  /** Every annotation on this class, as written (`@Entity`, `@Table(...)`,
+   *  `@EntityListeners(...)`, ...). */
+  annotations?: string[];
 }
 
 export interface Prop {
@@ -224,6 +235,9 @@ export interface JvmScheduled {
   trigger: string;
   rel: string;
   line: number;
+  /** Every annotation on this method, as written — `@Scheduled(...)` plus
+   *  any others present. */
+  annotations?: string[];
 }
 
 export interface JvmListener {

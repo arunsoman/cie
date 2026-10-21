@@ -18,6 +18,7 @@ export type AtlasPanelId =
   | "appentry"
   | "svcentry"
   | "components"
+  | "hierarchy"
   | "sequence"
   | "dataflow"
   | "flow";
@@ -42,7 +43,7 @@ export const PERSONA_PRESETS: Record<PersonaId, PersonaPreset> = {
     defaultFactsOnly: false,
     hero: "containers",
     // charter §4.2: containers → entry points/routes → components → flow → dataflow
-    planOrder: ["containers", "appentry", "svcentry", "components", "flow", "dataflow"],
+    planOrder: ["containers", "appentry", "svcentry", "components", "hierarchy", "flow", "dataflow"],
     defaultScope: "default-container",
   },
   reviewer: {
@@ -52,7 +53,7 @@ export const PERSONA_PRESETS: Record<PersonaId, PersonaPreset> = {
     defaultFactsOnly: true,
     hero: "svcentry",
     // ux-spec §6 planOrder maps onto today's panels: entry/routes, flow, dataflow (writes-first), components
-    planOrder: ["svcentry", "appentry", "flow", "dataflow", "components", "sequence"],
+    planOrder: ["svcentry", "appentry", "flow", "dataflow", "components", "hierarchy", "sequence"],
     defaultScope: "system",
   },
   architect: {
@@ -61,7 +62,7 @@ export const PERSONA_PRESETS: Record<PersonaId, PersonaPreset> = {
     purpose: "whole-system structure with inferred structure named honestly (full detail)",
     defaultFactsOnly: false,
     hero: "containers",
-    planOrder: ["containers", "components", "flow", "dataflow", "sequence"],
+    planOrder: ["containers", "components", "hierarchy", "flow", "dataflow", "sequence"],
     defaultScope: "system",
   },
   auditor: {
@@ -71,7 +72,7 @@ export const PERSONA_PRESETS: Record<PersonaId, PersonaPreset> = {
     defaultFactsOnly: true,
     hero: "svcentry",
     // ux-spec §8: system-wide routes, externals, findings, cross-boundary writes
-    planOrder: ["svcentry", "dataflow", "flow", "components", "containers"],
+    planOrder: ["svcentry", "dataflow", "flow", "components", "hierarchy", "containers"],
     defaultScope: "system",
   },
   consultant: {
@@ -80,7 +81,7 @@ export const PERSONA_PRESETS: Record<PersonaId, PersonaPreset> = {
     purpose: "auto-focus the busiest container, then walk it like a fresher",
     defaultFactsOnly: false,
     hero: "containers",
-    planOrder: ["containers", "appentry", "components", "flow", "dataflow"],
+    planOrder: ["containers", "appentry", "components", "hierarchy", "flow", "dataflow"],
     defaultScope: "default-container",
     behavesAsReviewerWithChangeContext: true,
   },

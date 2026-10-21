@@ -177,6 +177,7 @@ mod tests {
 
     fn fact(id: u32, qual: &str) -> SymbolFact {
         SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(id),
             kind: SymbolKind::Function,
             name: qual.rsplit("::").next().unwrap().into(),

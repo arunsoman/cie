@@ -472,6 +472,7 @@ mod tests {
         files.shrink_to_fit();
         let symbols = vec![
             SymbolFact {
+            annotations: Vec::new(),
                 id: SymbolId(1),
                 kind: SymbolKind::Class,
                 name: "Cart".into(),
@@ -483,6 +484,7 @@ mod tests {
                 doc: None,
             },
             SymbolFact {
+            annotations: Vec::new(),
                 id: SymbolId(2),
                 kind: SymbolKind::Class,
                 name: "CartItem".into(),
@@ -573,6 +575,7 @@ mod tests {
             files.push(path);
             let sid = SymbolId(i + 10);
             symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id: sid,
                 kind: SymbolKind::Function,
                 name: format!("f{i}"),

@@ -404,6 +404,7 @@ mod tests {
         let mut f = LangFacts::new("svc/flows.py", LangId::Python, "test");
         // ids: 0 module, 1 run, 2 compute, 3 save
         let mk = |id: u32, name: &str, qual: &str, kind: SymbolKind, start: u32, end: u32| SymbolFact {
+            annotations: Vec::new(),
             id: cie_core::types::SymbolId(id),
             kind,
             name: name.into(),

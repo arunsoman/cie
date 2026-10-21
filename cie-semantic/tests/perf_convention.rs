@@ -16,6 +16,7 @@ fn measure_lookup_ns_50k_samples() -> f64 {
     let mut facts = Vec::new();
     for i in 0..50_000u32 {
         facts.push(SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(i),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: format!("fn_{i}"),

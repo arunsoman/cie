@@ -117,6 +117,109 @@ function layoutTree(
   return pos;
 }
 
+/** Sequence lanes — `spec.kind === "sequence"` strategy name "sequence-lanes"
+ *  (chat-chart.ts's `layoutFor`), registered in viz-adapter's G6_LAYOUTS so
+ *  the negotiator doesn't substitute it away, handled here the same way
+ *  tree strategies are: pre-layout client-side, G6 only renders.
+ *
+ *  chartView()'s sequence branch (chart-spec.ts) only gives us one flat
+ *  element per message, labelled `"${from} → ${to}: ${msg}"`, plus a
+ *  call-order chain edge between consecutive elements — there is no
+ *  participant/lane field to read. Parsing that label back into
+ *  {from, to, msg} is honest (it's the exact string chartView built, from
+ *  the exact `from`/`to` buildSequenceSpec already recorded) and keeps this
+ *  entirely a presentation-layer change — nothing upstream moves. The
+ *  call-order chain edges are NOT rendered here (they don't mean anything
+ *  in lane-space); each message element becomes its own real, clickable
+ *  edge between two synthetic per-row anchor nodes on its lanes instead —
+ *  a self-call (from === to) gets its anchor offset sideways so the loop
+ *  stays visible instead of collapsing to a point. */
+function parseSequenceLabel(
+  label: string,
+): { from: string; to: string; msg: string } | null {
+  const arrow = label.indexOf(" → ");
+  if (arrow < 0) return null;
+  const from = label.slice(0, arrow);
+  const rest = label.slice(arrow + 3);
+  const colon = rest.indexOf(": ");
+  if (colon < 0) return null;
+  return { from, to: rest.slice(0, colon), msg: rest.slice(colon + 2) };
+}
+
+function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
+  const parsed = spec.elements.map((e) => ({ e, p: parseSequenceLabel(e.label) }));
+  const lanes: string[] = [];
+  for (const { p } of parsed) {
+    if (!p) continue;
+    if (!lanes.includes(p.from)) lanes.push(p.from);
+    if (!lanes.includes(p.to)) lanes.push(p.to);
+  }
+  const LANE_W = 170, HEADER_Y = 30, HEADER_H = 32, ROW_H = 56, SELF_DX = 56;
+  const laneX = new Map(lanes.map((l, i) => [l, 60 + i * LANE_W]));
+  const footerY = HEADER_Y + HEADER_H + 40 + parsed.length * ROW_H + 20;
+  container.style.height = `${Math.max(280, Math.min(900, footerY + HEADER_H + 30))}px`;
+
+  const nodes: { id: string; style: Record<string, unknown>; data: Record<string, unknown> }[] = [];
+  for (const lane of lanes) {
+    const x = laneX.get(lane)!;
+    const w = boxWidth(lane);
+    for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
+      nodes.push({
+        id: `lane:${lane}:${key}`,
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane, labelFontSize: 10.5, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        data: {},
+      });
+    }
+  }
+  const edges: { id: string; source: string; target: string; style: Record<string, unknown>; data?: Record<string, unknown> }[] = [];
+  for (const lane of lanes) {
+    edges.push({
+      id: `lifeline:${lane}`,
+      source: `lane:${lane}:top`,
+      target: `lane:${lane}:bottom`,
+      style: { stroke: "#9aa39c", lineWidth: 1.2, lineDash: [3, 4], endArrow: false },
+    });
+  }
+  parsed.forEach(({ e, p }, i) => {
+    const y = HEADER_Y + HEADER_H + 40 + i * ROW_H;
+    const self = !!p && p.from === p.to;
+    const fromX = p ? laneX.get(p.from)! : 60;
+    const toX = p ? (self ? fromX + SELF_DX : laneX.get(p.to)!) : 60;
+    const fromId = `${e.id}::from`, toId = `${e.id}::to`;
+    nodes.push({ id: fromId, style: { x: fromX, y, size: 1, opacity: 0 }, data: {} });
+    nodes.push({ id: toId, style: { x: toX, y: self ? y + ROW_H * 0.55 : y, size: 1, opacity: 0 }, data: {} });
+    const st = STROKE[e.displayMode] ?? STROKE.Fact;
+    edges.push({
+      id: e.id,
+      source: fromId,
+      target: toId,
+      style: {
+        stroke: st,
+        lineDash: DASH[e.displayMode],
+        lineWidth: e.displayMode === "Fact" ? 1.8 : 1.4,
+        endArrow: true,
+        labelText: p?.msg ?? e.label,
+        labelFontSize: 10.5,
+        labelAutoRotate: false,
+        labelBackground: true,
+        labelBackgroundFill: "#f7f8f4",
+      },
+      data: { label: p?.msg ?? e.label, displayMode: e.displayMode },
+    });
+  });
+
+  return new Graph({
+    container,
+    autoResize: true,
+    autoFit: "view",
+    padding: 20,
+    data: { nodes, edges },
+    node: { type: "rect" },
+    edge: { type: "polyline", style: { router: { type: "orth" } } },
+    behaviors: ["drag-canvas", "zoom-canvas"],
+  });
+}
+
 /** The epistemic canvas: host-render an already-gated, adapter-prepared
  *  ViewSpec. Returns a RenderHandle with the patch-1 selection surface. */
 async function renderSpecG6(
@@ -139,7 +242,9 @@ async function renderSpecG6(
 
   let graph: Graph;
 
-  if (TREE_LAYOUTS.has(strategy)) {
+  if (strategy === "sequence-lanes") {
+    graph = renderSequence(container, spec);
+  } else if (TREE_LAYOUTS.has(strategy)) {
     // Pre-layout client-side (the concept-tree math), then render.
     const pos = layoutTree(spec, strategy);
     const byId = new Map(spec.elements.map((e) => [e.id, e]));
@@ -235,12 +340,20 @@ async function renderSpecG6(
   };
   graph.on("node:click", onClick);
   graph.on("edge:click", onClick);
+  // Custom strategies (sequence-lanes, tree) don't render every id in
+  // spec.elements/spec.edges 1:1 (e.g. the "order:N" chain edges built for
+  // sequence specs are deliberately skipped by renderSequence) — restrict
+  // the highlight sync to ids the live graph actually has, or
+  // setElementState throws "Unknown element type of id" on unmatched ones.
+  const knownIds = new Set([
+    ...graph.getNodeData().map((n) => n.id),
+    ...graph.getEdgeData().map((e) => e.id),
+  ]);
   const offHighlight = hub.subscribe((ids) => {
     const states = Object.fromEntries(
-      [...spec.elements, ...spec.edges].map((e) => [
-        e.id,
-        ids.includes(e.id) ? ["selected"] : [],
-      ]),
+      [...spec.elements, ...spec.edges]
+        .filter((e) => knownIds.has(e.id))
+        .map((e) => [e.id, ids.includes(e.id) ? ["selected"] : []]),
     );
     void graph.setElementState(states, false);
   });

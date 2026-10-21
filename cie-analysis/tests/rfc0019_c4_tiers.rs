@@ -40,6 +40,7 @@ const F8: &str = "misc/payments.py";
 
 fn fact(id: u32, kind: SymbolKind, name: &str, qual: &str, file: u32, parent: Option<u32>) -> SymbolFact {
     SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(id),
         kind,
         name: name.into(),
@@ -124,6 +125,7 @@ fn stack() -> StackReport {
                 line: 5,
                 lang: "kotlin".into(),
                 injections: vec![],
+            annotations: vec![],
             }],
             repositories: vec![JvmRepository {
                 name: "InvoiceRepository".into(),
@@ -132,6 +134,7 @@ fn stack() -> StackReport {
                 lang: "kotlin".into(),
                 extends: "JpaRepository<Invoice, Long>".into(),
                 entity: Some("Invoice".into()),
+            annotations: vec![],
             }],
             entities: vec![JvmEntity {
                 name: "Invoice".into(),
@@ -140,6 +143,7 @@ fn stack() -> StackReport {
                 lang: "kotlin".into(),
                 table: None,
                 props: vec![],
+            annotations: vec![],
             }],
             scheduled_in: vec![],
             listeners: vec![],

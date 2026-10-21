@@ -176,8 +176,21 @@ export function ChatChart({
             if (entry) pick(entry);
           },
         );
+        // Merge chat-context chips with whatever the view itself flagged
+        // selected (ChatNode.selected — e.g. the Atlas scope ringing the
+        // container a table row resolved to). One call: this is the ONLY
+        // place that sets the initial selection, so neither source can
+        // silently overwrite the other.
+        const flaggedSelected = view.elements
+          .filter((e) => e.fields?.selected)
+          .map((e) => e.id);
         owned.setSelected(
-          useCie.getState().chatContext.map((c) => c.id),
+          [
+            ...new Set([
+              ...useCie.getState().chatContext.map((c) => c.id),
+              ...flaggedSelected,
+            ]),
+          ],
           "programmatic",
         );
       } catch (err) {

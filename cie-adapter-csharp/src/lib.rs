@@ -43,6 +43,18 @@ fn children_of<'a>(node: tree_sitter::Node<'a>) -> Vec<tree_sitter::Node<'a>> {
     node.children(&mut c).collect()
 }
 
+/// `[Authorize]`, `[HttpGet("/x")]` etc, exact source text. `attribute_list`
+/// is a direct (unnamed-field) child of the declaration it decorates in
+/// tree-sitter-c-sharp's grammar — never a `modifiers` field (there isn't
+/// one for class/method declarations in this grammar).
+fn annotations_of(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
+    children_of(node)
+        .into_iter()
+        .filter(|c| c.kind() == "attribute_list")
+        .map(|c| text_of(c, bytes).trim().to_string())
+        .collect()
+}
+
 struct CsCtx<'a> {
     bytes: &'a [u8],
     facts: LangFacts,
@@ -93,6 +105,7 @@ fn walk_cs(ctx: &mut CsCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             ctx.class_stack.push(id);
             walk_children(ctx, node);
@@ -144,6 +157,7 @@ fn walk_cs(ctx: &mut CsCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             let prev = ctx.func;
             ctx.func = id;
@@ -284,6 +298,7 @@ impl CSharpAdapter {
             parent: None,
             rev: 0,
             doc: None,
+            annotations: vec![],
         });
         // Pre-pass: interface names must be known before the main walk so
         // interface-typed parameters bind regardless of traversal order.

@@ -23,6 +23,7 @@ const REV: RevId = 11;
 
 fn sym(id: u32, name: &str) -> SymbolFact {
     SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(id),
         kind: SymbolKind::Function,
         name: name.to_string(),

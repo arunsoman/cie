@@ -20,34 +20,29 @@
 // (dashed / "inferred"), and the Facts-only switch filters the whole
 // dashboard at once.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, Rocket, Server, MousePointerClick, FileCode, FlaskConical, ArrowDownRight, ArrowUpRight, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ChevronRight, Home, Layers, Route, Share2, Boxes, Workflow, Rocket, Server, Network, MousePointerClick, ShieldCheck, Maximize2, Minimize2, Gauge, Flame, GitCommitHorizontal } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { planSheet } from "@/lib/chart-plan";
 import { CodePopup, type PopupRequest } from "./code-popup";
-import { SelectedContextPanel } from "./selected-context-panel";
 import {
   breadcrumbOf,
   buildComponentSpec,
   buildDataFlowSpec,
   buildFlowSpec,
-  calleesOfSym,
-  callersOf,
+  conceptNodeFor,
+  conceptResolve,
   containerOfPath,
-  symbolsOfModule,
+  graphOf,
   symbolByQualName,
-  testsReaching,
   type AtlasRef,
-  type RelativeSymbol,
 } from "@/lib/atlas";
 import { buildC4Spec, computeTopFlows, traceFlow, buildSequenceSpec, type MasteryRow } from "@/lib/mastery";
-import { buildComplexitySpec, buildCoverageHeatmapSpec, buildHotspotSpec, buildPerFileChurnSpec } from "@/lib/quality";
+import { buildComplexitySpec, buildConceptTreeSpec, buildCoverageHeatmapSpec, buildHotspotSpec, buildPerFileChurnSpec } from "@/lib/quality";
 import { ChatChart, type DiagramSelection } from "@/components/cie/chat-chart";
 import type { ChatChartSpec, ElementLoc } from "@/lib/chat-chart";
 import type { SymbolInfo } from "@/lib/cie-types";
@@ -61,6 +56,7 @@ const PANELS = [
   { id: "appentry", label: "Application entry points", icon: Rocket },
   { id: "svcentry", label: "Service entry points", icon: Server },
   { id: "components", label: "Components", icon: Layers },
+  { id: "hierarchy", label: "Hierarchy", icon: Network },
   { id: "sequence", label: "Sequence", icon: Route },
   { id: "dataflow", label: "Data flow", icon: Share2 },
   { id: "flow", label: "Flow", icon: Workflow },
@@ -69,20 +65,44 @@ const PANELS = [
 type PanelId = (typeof PANELS)[number]["id"];
 
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, sourceRoot, persona, personaDisclosure, setPendingAsk, chatContext, addChip, removeChip } = useCie();
+  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, persona, personaDisclosure, setPendingAsk, addChip, removeChip } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders
   // plan.rows in reading order instead of a hand-coded sequence.
   const plan = useMemo(() => planSheet(persona, { factsOnlyOverride: atlasFactsOnly }), [persona, atlasFactsOnly]);
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
-  const [railOpen, setRailOpen] = useState(true);
   const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
 
   const primary = atlasSelection.primary;
   const containerRef = primary?.kind === "container" ? primary : null;
   const moduleRef = primary?.kind === "module" ? primary : null;
   const symbolRef = primary?.kind === "symbol" ? primary : null;
-  const scopeId = containerRef?.id ?? null; // every panel reads this one filter
+  const conceptRef = primary?.kind === "concept" ? primary : null;
+  // A concept rarely names a container directly — resolve its own symbol
+  // set to the container(s) that hold them (see conceptResolve), most
+  // populated first, so picking a concept scopes Containers/Components/Data
+  // flow exactly like picking that container would. The Flow panel (and the
+  // sequence trace below) stay MORE precise than this: they filter to the
+  // concept's exact symbols, not its whole container.
+  const conceptScope = useMemo(() => {
+    if (!report || !conceptRef) return null;
+    return conceptResolve(report, conceptRef, stack?.apps ?? null);
+  }, [report, conceptRef, stack]);
+  // A symbol picked straight off the Application/Service entry-point tables
+  // (onPickMain/onPickRoute) carries no container of its own — resolve it
+  // from the symbol's file the same way a concept resolves to one, so
+  // picking "GwApplication" scopes Containers/Components/Data flow/the
+  // entry tables to api-gw instead of leaving every other panel unscoped.
+  const symbolScope = symbolRef?.loc?.file ? containerOfPath(symbolRef.loc.file, stack?.apps ?? null) : null;
+  const scopeId = containerRef?.id ?? conceptScope?.containers[0] ?? symbolScope ?? null; // every panel reads this one filter
+  // The concept tree node that best represents whatever IS selected, from
+  // any panel — a container, a module, a symbol, or a concept itself — so
+  // Hierarchy focuses in step with the rest of the atlas instead of only
+  // ever driving it. Null (no focus) when nothing resolves to a concept.
+  const focusConceptId = useMemo(() => {
+    if (!report || !concepts) return null;
+    return conceptNodeFor(concepts, primary, report);
+  }, [concepts, primary, report]);
 
   // A flow pick is stamped with the scope it was made under — when the scope
   // moves the pick no longer matches and is ignored (released), so the panel
@@ -112,11 +132,11 @@ export function AtlasView() {
     // §6.5), and image-only compose services draw as the C4 Context
     // externals they are — the old two-arg call silently bypassed both
     const s = buildC4Spec(report, stack, "Containers — how the repo itself is laid out");
-    if (s && containerRef) {
-      s.nodes = s.nodes?.map((n) => (n.id === containerRef.id ? { ...n, selected: true } : n));
+    if (s && scopeId) {
+      s.nodes = s.nodes?.map((n) => (n.id === scopeId ? { ...n, selected: true } : n));
     }
     return s;
-  }, [report, stack, containerRef]);
+  }, [report, stack, scopeId]);
 
   const compSpec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
@@ -146,6 +166,15 @@ export function AtlasView() {
     return buildDataFlowSpec(report, scopeId);
   }, [report, scopeId]);
 
+  // ---- hierarchy: the concept tree itself. Centred on whatever's selected
+  // anywhere in the atlas (focusConceptId) — same "every panel re-derives
+  // from the one Selection Context" rule as every other panel, just reading
+  // the concept join instead of the container string. ----
+  const conceptSpec = useMemo<ChatChartSpec | null>(() => {
+    if (!concepts) return null;
+    return buildConceptTreeSpec(concepts, focusConceptId);
+  }, [concepts, focusConceptId]);
+
   // ---- entry-point tables — the tech-stack artifact's own mains/routes,
   // scoped to the selected container like every other panel. Neither table
   // invents anything: a row exists only because cie-stack parsed it from the
@@ -174,9 +203,24 @@ export function AtlasView() {
     if (!flows.length || flows[0].entryId == null) return null;
     return { entryId: Number(flows[0].entryId), label: flows[0].title };
   }, [symbolRef, picked, scopeId, flows]);
+  // A concept has no single qual_name of its own — walk its member symbols
+  // (most-called-into first, the same "likely entry" heuristic computeTopFlows
+  // uses elsewhere) and trace from whichever one the engine actually
+  // recorded calls for, so picking a concept auto-traces ITS flow instead of
+  // falling through to the scope's generic top flow.
+  const conceptEntryQual = useMemo(() => {
+    if (!report || !conceptRef?.symbolIds?.length) return null;
+    const g = graphOf(report);
+    const members = conceptRef.symbolIds
+      .map((id) => report.symbols.find((s) => Number(s.id) === id))
+      .filter((s): s is SymbolInfo => !!s);
+    if (!members.length) return null;
+    const withCalls = members.find((s) => (g.calleesOf.get(Number(s.id))?.length ?? 0) > 0) ?? members[0];
+    return withCalls.qual_name || withCalls.name;
+  }, [report, conceptRef]);
   const seqTrace = useMemo(() => {
     if (!report) return null;
-    const qual = symbolRef?.id ?? picked?.label ?? autoFlow?.label;
+    const qual = symbolRef?.id ?? conceptEntryQual ?? picked?.label ?? autoFlow?.label;
     const entryId = qual ? (symbolByQualName(report, qual)?.id ?? picked?.entryId ?? autoFlow?.entryId) : autoFlow?.entryId;
     if (entryId == null) return null;
     const res = traceFlow(report, Number(entryId));
@@ -212,15 +256,6 @@ export function AtlasView() {
   // evidence, never a scope (G2); the grouped-out box opens the G1
   // disclosure popup (the ledger rows), never a scope.
   const [popup, setPopup] = useState<PopupRequest | null>(null);
-  // G5 — exclusivity of subject: the flow/sequence subject is either the
-  // scope (R3 panels) or the selection (R4), never both visible at once.
-  const r4Active = chatContext.length > 0;
-  const [g5Reopened, setG5Reopened] = useState<string | null>(null);
-  useEffect(() => {
-    if (!r4Active) setG5Reopened(null); // chips at zero → everything restores
-  }, [r4Active]);
-  const g5Collapsible = (panel: string) =>
-    r4Active && g5Reopened !== panel && (panel === "flow" || panel === "dataflow" || panel === "sequence");
   const [disclosure, setDisclosure] = useState<{ title: string; rows: NonNullable<ChatChartSpec["hidden"]> } | null>(null);
   const openPopup = (loc: ElementLoc | undefined | null, label: string, kind?: string, certainty?: PopupRequest["certainty"]) => {
     if (!loc?.file) return;
@@ -302,6 +337,25 @@ export function AtlasView() {
     const sym = symbolByQualName(report, qual);
     openPopup(sel.loc ?? locOfSym(report, sym), qual, "call");
   };
+  const onHierarchyClick = (sel: DiagramSelection) => {
+    if (sel.kind !== "node") return;
+    if (!report || !concepts) return;
+    const node = concepts.nodes.find((n) => String(n.id) === sel.id || `c${n.id}` === sel.id);
+    if (!node) return;
+    const symbolIds = node.symbols ?? [];
+    // Anchor the concept's loc at a symbol that actually sits in its
+    // MAJORITY container (same container conceptResolve/scopeId pick) —
+    // not just symbolIds[0], which can land in a different container than
+    // the one every other panel scopes to and desync the breadcrumb from
+    // the "every other panel shows X only" banner.
+    const resolved = conceptResolve(report, { kind: "concept", id: String(node.id), label: node.label, symbolIds }, stack?.apps ?? null);
+    const primaryContainer = resolved.containers[0] ?? null;
+    const anchorFile = primaryContainer ? resolved.files.find((f) => containerOfPath(f, stack?.apps ?? null) === primaryContainer) : resolved.files[0];
+    const anchorSym = anchorFile ? symbolIds.map((id) => report.symbols.find((s) => Number(s.id) === id)).find((s) => s && report.files[s.loc.file] === anchorFile) : null;
+    const loc = anchorSym ? locOfSym(report, anchorSym) : undefined;
+    setAtlasSelection({ kind: "concept", id: String(node.id), label: node.label, symbolIds, loc });
+    addChip({ id: `concept:${node.id}`, label: node.label, kind: "concept", revision: report.rev ?? 0, files: loc?.file ? [loc.file] : [], loc, sourceTitle: "Atlas" });
+  };
   const onFlowClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
     if (!report) return;
@@ -343,6 +397,7 @@ export function AtlasView() {
   const shownC4 = shown(c4Spec);
   const shownComp = shown(compSpec);
   const shownFlow = shown(dataflowSpec);
+  const shownHierarchy = shown(conceptSpec);
   const shownSeq = shown(seqSpec);
   const shownFlowChart = shown(flowBuild?.spec ?? null);
   // expanded-panel variants (full detail), same Facts-only filter as the cards
@@ -386,6 +441,10 @@ export function AtlasView() {
     if (id === "dataflow")
       return shownFlow ? <ChatChart spec={shownFlow} onSelectElement={onDataflowClick} /> : (
         <HonestEmpty scope={scopeId} what="recorded reads and writes" />
+      );
+    if (id === "hierarchy")
+      return shownHierarchy ? <ChatChart spec={shownHierarchy} onSelectElement={onHierarchyClick} /> : (
+        <HonestEmpty scope={scopeId} what="a concept tree (needs concepts.json)" />
       );
     if (id === "flow")
       return shownFlowChart ? <ChatChart spec={shownFlowChart} onSelectElement={onFlowClick} /> : (
@@ -436,17 +495,6 @@ export function AtlasView() {
               up one level
             </Button>
           )}
-          {primary && (
-            <button
-              type="button"
-              onClick={() => setRailOpen((o) => !o)}
-              className="h-6 px-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1 text-[11px]"
-              aria-label={railOpen ? "Hide the selection panel" : "Show the selection panel"}
-            >
-              {railOpen ? <PanelRightClose className="h-3.5 w-3.5" aria-hidden /> : <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />}
-              {railOpen ? "hide panel" : "details"}
-            </button>
-          )}
           <label className="flex items-center gap-1.5 text-[11px] text-stone-500 cursor-pointer select-none pr-1">
             <Switch checked={atlasFactsOnly} onCheckedChange={setAtlasFactsOnly} aria-label="Facts only" className="scale-90" />
             Facts only
@@ -462,7 +510,7 @@ export function AtlasView() {
                 id={expandedPanel.id}
                 icon={expandedPanel.icon}
                 label={expandedPanel.label}
-                scopedTo={expandedPanel.id === "containers" ? null : scopeId}
+                scopedTo={expandedPanel.id === "containers" || expandedPanel.id === "hierarchy" ? null : scopeId}
                 expanded
                 onToggle={() => setExpanded(null)}
               >
@@ -471,39 +519,24 @@ export function AtlasView() {
             </div>
           ) : (
             <>
-            {r4Active && !g5Reopened && (
-              <div className="lg:col-span-2 mb-1" data-testid="r4-slot">
-                <SelectedContextPanel />
-              </div>
-            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {[plan.hero, ...plan.rows].map((row) => {
                 const meta = PANELS.find((p) => p.id === row.panel);
                 if (!meta) return null;
-                // G5: the collapsed caption keeps the panel's place and count
-                if (g5Collapsible(row.panel)) {
-                  const count = row.panel === "sequence" ? "" : "";
-                  return (
-                    <button
-                      key={row.panel}
-                      type="button"
-                      onClick={() => setG5Reopened(row.panel)}
-                      data-testid={`g5-collapsed-${row.panel}`}
-                      className="lg:col-span-2 flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-left text-[11px] text-stone-500 hover:bg-stone-100"
-                    >
-                      <span className="font-semibold text-stone-600">{meta.label}</span>
-                      <span>{count}showing selection-scoped below — click to re-open in place</span>
-                    </button>
-                  );
-                }
-                const wide = row.panel === "containers" || row.panel === "flow";
+                const wide = row.panel === "containers" || row.panel === "flow" || row.panel === "hierarchy";
                 const panel = (
                   <Panel
                     id={meta.id}
                     icon={meta.icon}
                     label={meta.label}
-                    scopeNote={row.panel === "flow" && flowBuild ? `level: ${flowBuild.label}` : row.why || null}
-                    scopedTo={row.panel === "containers" || row.panel === "flow" ? null : scopeId}
+                    scopeNote={
+                      row.panel === "flow" && flowBuild
+                        ? `level: ${flowBuild.label}`
+                        : row.panel === "hierarchy"
+                          ? (focusConceptId != null ? "focused on the current selection" : row.why || null)
+                          : row.why || null
+                    }
+                    scopedTo={row.panel === "containers" || row.panel === "flow" || row.panel === "hierarchy" ? null : scopeId}
                     onToggle={() => setExpanded(meta.id)}
                   >
                     {body(meta.id)}
@@ -522,11 +555,6 @@ export function AtlasView() {
               {hasChurn && <QualityPanel icon={GitCommitHorizontal} label="Churn per file" scopedTo={scopeId} spec={churnSpec} scopeWhat="files with churn" />}
               {hasHot && <QualityPanel icon={Flame} label="Hot spots" scopedTo={scopeId} spec={hotSpec} scopeWhat="ranked files" />}
             </div>
-            {r4Active && g5Reopened && (
-              <div className="mt-3" data-testid="r4-slot">
-                <SelectedContextPanel />
-              </div>
-            )}
             </>
           )}
           {!expandedPanel && (
@@ -542,22 +570,6 @@ export function AtlasView() {
           )}
         </div>
       </div>
-
-      {/* the detail rail (PRD §5.6): evidence, callers, callees, tests, IDE links */}
-      {primary && railOpen && (
-        <div className="hidden md:block w-80 shrink-0 border-l border-stone-200 bg-stone-50/60">
-          <ScrollArea className="h-full">
-            <DetailRail
-              primary={primary}
-              onPickRef={(ref) => setAtlasSelection(ref)}
-              onOpenCode={(loc, label) =>
-                openSourceViewer({ file: loc.file, byteStart: loc.byteStart, byteEnd: loc.byteEnd, elName: label, chartTitle: "Atlas detail panel" })
-              }
-              sourceRoot={sourceRoot}
-            />
-          </ScrollArea>
-        </div>
-      )}
 
       {/* RFC-0024 stage 3 — the popup layer floats above all regions; it
           never claims grid space (§1). POPUP replaced jump-to-source. */}
@@ -816,246 +828,6 @@ function ServiceEntryTable({ rows, onPick }: { rows: RouteSite[]; onPick: (r: Ro
         {order.length} controller/router(s), {rows.length} route(s) — read from route annotations as written; click a route to open its handler (and re-centre Sequence/Flow on it, when the engine can match it to a symbol).
       </p>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Detail rail (PRD §5.6 + §9): Evidence & Provenance, Callers, Callees,
-// Tests that reach here, and honest IDE deep links.
-// ---------------------------------------------------------------------------
-
-function DetailRail({
-  primary,
-  onPickRef,
-  onOpenCode,
-  sourceRoot,
-}: {
-  primary: AtlasRef;
-  onPickRef: (ref: AtlasRef) => void;
-  onOpenCode: (loc: { file: string; byteStart?: number; byteEnd?: number }, label: string) => void;
-  sourceRoot: string | null;
-}) {
-  const report = useCie((s) => s.report);
-  const [ideFor, setIdeFor] = useState<"vscode" | "cursor" | "jetbrains">("vscode");
-  if (!report) return null;
-
-  const sym = primary.kind === "symbol" ? symbolByQualName(report, primary.id) : null;
-  const file = primary.kind === "module" ? primary.id : primary.kind === "symbol" ? sym?.loc.file != null ? report.files[sym.loc.file] : undefined : primary.loc?.file;
-  // IDE deep link (PRD §9): vscode://file/<abs> etc. Only for local-folder
-  // projects — uploads and URL clones have no path on this machine, and the
-  // rail says so instead of linking to nothing. Byte offsets are resolved to
-  // a line only inside the source panel, where the real content is present.
-  const ideHref = sourceRoot && file ? `${ideFor === "vscode" ? "vscode://file/" : ideFor === "cursor" ? "cursor://file/" : "jetbrains://idea/open?file="}${sourceRoot}/${file}` : null;
-
-  return (
-    <div className="p-3 space-y-3 text-xs">
-      <div>
-        <p className="text-[10px] uppercase tracking-wide text-stone-400 font-semibold">Selected</p>
-        <p className="text-[13px] font-semibold text-stone-800 break-words">{primary.label}</p>
-        <p className="text-[11px] text-stone-500">
-          {primary.kind === "symbol" ? "a named thing (function/class)" : primary.kind === "module" ? "a module — one file" : primary.kind === "container" ? "a container — one top-level folder" : primary.kind === "store" ? "a data store" : "an element"}
-          {file ? ` · ${file}` : ""}
-        </p>
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          {file && (
-            <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => onOpenCode({ file, byteStart: primary.loc?.byteStart, byteEnd: primary.loc?.byteEnd }, primary.label)}>
-              <FileCode className="h-3 w-3 mr-1" aria-hidden /> Open the code
-            </Button>
-          )}
-          {file && sourceRoot && ideHref && (
-            <a href={ideHref} title="Open this file in your IDE" className="h-6 px-2 inline-flex items-center rounded-md border border-stone-300 bg-white text-[11px] text-stone-600 hover:bg-stone-100">
-              <ExternalLink className="h-3 w-3 mr-1" aria-hidden /> {ideFor}
-            </a>
-          )}
-        </div>
-        {file && sourceRoot && (
-          <p className="mt-1 flex gap-2 text-[10px] text-stone-400">
-            {(["vscode", "cursor", "jetbrains"] as const).map((i) => (
-              <button key={i} type="button" onClick={() => setIdeFor(i)} className={ideFor === i ? "underline text-stone-600" : "hover:text-stone-600"}>
-                {i}
-              </button>
-            ))}
-            <span>· deep link only for local folders — uploads/URL clones have no path on this machine</span>
-          </p>
-        )}
-        {file && !sourceRoot && (
-          <p className="mt-1 text-[10px] text-stone-400">IDE deep links need a local folder — this project has no readable path here, so the panel serves the code instead.</p>
-        )}
-      </div>
-
-      {sym && <SymbolRelatives report={report} sym={sym} onPickRef={onPickRef} onOpenCode={onOpenCode} />}
-
-      {primary.kind === "module" && (
-        <RailSection title="What the engine recorded">
-          <ul className="space-y-1">
-            {symbolsOfModule(report, primary.id).slice(0, 8).map((s) => (
-              <li key={s.id}>
-                <button type="button" className="text-left text-emerald-800 hover:underline" onClick={() => onPickRef({ kind: "symbol", id: s.qual_name || s.name, label: s.name, loc: { file: primary.id, byteStart: s.loc.start, byteEnd: s.loc.end } })}>
-                  {s.name}()
-                </button>
-              </li>
-            ))}
-          </ul>
-        </RailSection>
-      )}
-
-      {primary.kind === "container" && <ContainerEvidence report={report} container={primary.id} />}
-
-      {primary.kind === "store" && (
-        <RailSection title="Why this store is here">
-          <p className="text-[11px] text-stone-500">
-            {primary.id.startsWith("store:")
-              ? "The code's own records name it in reads/writes — it is drawn because real symbols touch it, not because a doc said so."
-              : "A schema file in the repo — the store the code itself declares."}
-          </p>
-        </RailSection>
-      )}
-
-      <Separator />
-      <EvidenceNote report={report} />
-    </div>
-  );
-}
-
-function RailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wide text-stone-400 font-semibold">{title}</p>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
-
-/** Callers / callees / tests that reach here — straight from the shared call
- *  graph; each row carries its Fact/Inference status and opens the code. */
-function SymbolRelatives({
-  report,
-  sym,
-  onPickRef,
-  onOpenCode,
-}: {
-  report: LoadedReport;
-  sym: SymbolInfo;
-  onPickRef: (ref: AtlasRef) => void;
-  onOpenCode: (loc: { file: string; byteStart?: number; byteEnd?: number }, label: string) => void;
-}) {
-  const id = Number(sym.id);
-  const callers = callersOf(report, id);
-  const callees = calleesOfSym(report, id);
-  const tests = testsReaching(report, id);
-  const fileOfRel = (r: RelativeSymbol) => r.file;
-
-  const pick = (r: RelativeSymbol): AtlasRef => ({ kind: "symbol", id: r.qualName, label: r.qualName, loc: { file: r.file, byteStart: r.byteStart, byteEnd: r.byteEnd } });
-
-  return (
-    <>
-      <RailSection title={`Callers (${callers.length})`}>
-        {callers.length ? (
-          <ul className="space-y-1">
-            {callers.slice(0, 6).map((c) => (
-              <li key={c.id} className="flex items-baseline justify-between gap-1">
-                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
-                  {c.qualName}
-                </button>
-                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open ${c.qualName} in the source panel`} onClick={() => onOpenCode({ file: fileOfRel(c), byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
-                  <FileCode className="h-3 w-3" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[11px] text-stone-500">No recorded caller — reached from outside the indexed calls, or an entry point.</p>
-        )}
-      </RailSection>
-      <RailSection title={`Callees (${callees.length})`}>
-        {callees.length ? (
-          <ul className="space-y-1">
-            {callees.slice(0, 6).map((c) => (
-              <li key={c.id} className="flex items-baseline justify-between gap-1">
-                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
-                  {c.qualName}
-                </button>
-                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open ${c.qualName} in the source panel`} onClick={() => onOpenCode({ file: c.file, byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
-                  <FileCode className="h-3 w-3" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[11px] text-stone-500">No resolved callee recorded.</p>
-        )}
-      </RailSection>
-      <RailSection title={`Tests that reach here (${tests.length})`}>
-        {tests.length ? (
-          <ul className="space-y-1">
-            {tests.slice(0, 4).map((c) => (
-              <li key={c.id} className="flex items-baseline justify-between gap-1">
-                <button type="button" className="text-emerald-800 hover:underline text-left truncate" onClick={() => onPickRef(pick(c))}>
-                  {c.qualName}
-                </button>
-                <button type="button" className="text-stone-400 hover:text-stone-700 shrink-0" aria-label={`Open the test ${c.qualName}`} onClick={() => onOpenCode({ file: c.file, byteStart: c.byteStart, byteEnd: c.byteEnd }, c.qualName)}>
-                  <FlaskConical className="h-3 w-3" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[11px] text-stone-500">No test file reaches this symbol through recorded calls — a gap worth knowing, stated plainly.</p>
-        )}
-      </RailSection>
-      <SummaryEvidence report={report} symId={id} />
-    </>
-  );
-}
-
-/** Per-symbol evidence: the engine's own summary record, never paraphrased
- *  into more certainty than it carries. */
-function SummaryEvidence({ report, symId }: { report: LoadedReport; symId: number }) {
-  const sum = report.summaries.find((s) => Number(s.sym) === symId);
-  return (
-    <RailSection title="Evidence & provenance">
-      {sum ? (
-        <ul className="space-y-0.5 text-[11px] text-stone-600">
-          <li className="flex items-center gap-1.5">
-            <ShieldCheck className={`h-3 w-3 ${sum.complete ? "text-emerald-600" : "text-amber-500"}`} aria-hidden />
-            {sum.complete ? "complete — the engine fully read this symbol" : "incomplete — the engine says this summary is partial"}
-          </li>
-          {sum.reads.length > 0 && <li>reads: {sum.reads.slice(0, 3).join(", ")}</li>}
-          {sum.writes.length > 0 && <li>writes: {sum.writes.slice(0, 3).join(", ")}</li>}
-          {sum.effects.length > 0 && <li>effects: {sum.effects.slice(0, 3).join(", ")}</li>}
-          {sum.unresolved_callees.length > 0 && <li className="text-amber-700">names it reaches for that the engine could not resolve: {sum.unresolved_callees.slice(0, 2).join(", ")}</li>}
-        </ul>
-      ) : (
-        <p className="text-[11px] text-stone-500">No summary record for this symbol — shown as inferred everywhere, never as fact.</p>
-      )}
-    </RailSection>
-  );
-}
-
-function ContainerEvidence({ report, container }: { report: LoadedReport; container: string }) {
-  const files = report.files.filter((f) => containerOfPath(f) === container);
-  const syms = files.length ? report.symbols.filter((s) => files.includes(report.files[s.loc.file])) : [];
-  return (
-    <RailSection title="What lives here">
-      <ul className="space-y-0.5 text-[11px] text-stone-600">
-        <li>{files.length} file(s), {syms.length} named thing(s) — counted, not guessed.</li>
-        <li>The Components view zooms into exactly these files.</li>
-      </ul>
-    </RailSection>
-  );
-}
-
-/** Project-level provenance: where every picture on this page comes from. */
-function EvidenceNote({ report }: { report: LoadedReport }) {
-  const ev = report.evidence;
-  return (
-    <RailSection title="Provenance for this whole page">
-      <ul className="space-y-0.5 text-[11px] text-stone-600">
-        <li>Every box and arrow is built from report.json — the engine's own export — through the same chart engines the chat uses.</li>
-        <li>Unresolved calls recorded: {ev.unresolved.length}. Unsupported constructs: {ev.unsupported.length}. Both stay named, never dropped.</li>
-        <li>Assumptions on record: {ev.assumptions.length ? ev.assumptions.length : "none"}. Provenance: {ev.provenance}.</li>
-      </ul>
-    </RailSection>
   );
 }
 

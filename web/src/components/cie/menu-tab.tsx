@@ -35,6 +35,7 @@ import {
 import { useCie } from "@/lib/cie-store";
 import { buildCannedCharts } from "@/lib/canned-charts";
 import { ChatChart } from "@/components/cie/chat-chart";
+import { QuestionDrilldown } from "@/components/cie/menu-drilldown";
 import { NOT_YET, NOT_YET_COUNT, THEMES, REGISTRY_TOTAL, REGISTRY_DELIVERED, REGISTRY_PARTIAL, type ThemeId } from "@/lib/whats-next";
 import { buildStoryCards, sourceLine, etlLine, type StoryCard as StoryCardT } from "@/lib/stories";
 
@@ -62,6 +63,11 @@ export function MenuView() {
   const [activeId, setActiveId] = useState<string>(charts[0]?.id ?? "");
   const active = charts.find((c) => c.id === activeId) ?? charts[0];
 
+  // Picking a question opens its DRILL: a linked dashboard of charts + a
+  // code viewer (menu-drilldown.tsx), with a back affordance to this list.
+  const [drillId, setDrillId] = useState<string | null>(null);
+  const drilled = drillId ? charts.find((c) => c.id === drillId) : undefined;
+
   const [theme, setTheme] = useState<ThemeId | "all">("all");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -86,6 +92,14 @@ export function MenuView() {
 
   if (!report) return null;
 
+  // ---------- drill mode: one question's interactive dashboard ------------
+  if (drilled)
+    return (
+      <div className="space-y-4">
+        <QuestionDrilldown key={drilled.id} chart={drilled} onBack={() => setDrillId(null)} />
+      </div>
+    );
+
   return (
     <div className="space-y-6">
       {/* ---------- One-tap charts ---------- */}
@@ -94,12 +108,11 @@ export function MenuView() {
           <BarChart3 className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
           <p>
             <span className="font-semibold">Charts with zero typing. </span>
-            Tap a question below and the picture appears instantly — worked out
-            directly from your loaded report, no waiting. The <span className="font-medium">Health</span> and{" "}
-            <span className="font-medium">Quality metrics</span> groups come from the project&apos;s collected
-            quality data (extract → transform → load, formulas shown). Tap any element inside a chart
-            to start a conversation about it. For anything more open-ended, the{" "}
-            <span className="font-medium">chat on the right</span> is still there.
+            Tap a question below and its dashboard opens instantly — linked charts (pick a file, an error kind, an urgency…), the matching rows,
+            and a code viewer that stays empty until you choose something — all worked out directly from your loaded report, no waiting. The{" "}
+            <span className="font-medium">Health</span> and <span className="font-medium">Quality metrics</span> groups come from the project&apos;s
+            collected quality data (extract → transform → load, formulas shown). Every dashboard has a <span className="font-medium">back</span> to the
+            questions. For anything more open-ended, the <span className="font-medium">chat on the right</span> is still there.
           </p>
         </CardContent>
       </Card>
@@ -121,7 +134,10 @@ export function MenuView() {
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setActiveId(c.id)}
+                        onClick={() => {
+                          setActiveId(c.id);
+                          setDrillId(c.id);
+                        }}
                         aria-pressed={isActive}
                         className={`w-full text-left rounded-xl border px-3.5 py-2.5 transition-colors ${
                           isActive

@@ -127,6 +127,18 @@ impl LightLang {
         }
     }
 
+    /// Decorator/attribute node kinds this grammar uses — `@Foo` in
+    /// JS/TS/Tsx is a `decorator` node, `#[foo]` in Rust is an
+    /// `attribute_item`. Go has no such construct (empty, honestly: not a
+    /// gap, the language just doesn't have one).
+    fn annotation_kinds(&self) -> &'static [&'static str] {
+        match self {
+            LightLang::JavaScript | LightLang::TypeScript | LightLang::Tsx => &["decorator"],
+            LightLang::Rust => &["attribute_item"],
+            LightLang::Go => &[],
+        }
+    }
+
     fn unsupported(&self) -> Vec<String> {
         let mut u = vec![
             "deep_dataflow_unavailable".into(),
@@ -298,6 +310,7 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
         parent: None,
         rev: 0,
         doc: None,
+        annotations: vec![],
     });
 
     let mut ctx = LightCtx {
@@ -318,6 +331,45 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
     let root = tree.root_node();
     walk_light(&mut facts, &mut ctx, root);
     facts
+}
+
+/// Decorators/attributes are preceding siblings of the declaration they
+/// apply to in these grammars (never children), so this walks backward from
+/// `node` through its parent's children, collecting the consecutive run of
+/// annotation-kind nodes immediately before it — stopping at the first
+/// non-annotation sibling — then restores source order. Each entry is the
+/// exact source text, as written.
+fn annotations_before<'a>(node: Node<'a>, lang: LightLang, bytes: &[u8]) -> Vec<String> {
+    let kinds = lang.annotation_kinds();
+    if kinds.is_empty() {
+        return vec![];
+    }
+    let Some(parent) = node.parent() else {
+        return vec![];
+    };
+    let siblings: Vec<Node> = {
+        let mut c = parent.walk();
+        parent.children(&mut c).collect()
+    };
+    let Some(idx) = siblings.iter().position(|s| s.id() == node.id()) else {
+        return vec![];
+    };
+    let mut out = vec![];
+    let mut i = idx;
+    while i > 0 {
+        i -= 1;
+        let s = siblings[i];
+        if kinds.contains(&s.kind()) {
+            out.push(text(s, bytes).trim().to_string());
+        } else if s.is_named() {
+            break;
+        }
+        // unnamed/anonymous tokens (whitespace is not a node; this mostly
+        // catches stray punctuation some grammars emit) are skipped without
+        // stopping the scan.
+    }
+    out.reverse();
+    out
 }
 
 fn push_light_symbol(
@@ -353,6 +405,7 @@ fn push_light_symbol(
         },
         rev: 0,
         doc: doc_comment_of(node, ctx.lang, ctx.bytes),
+        annotations: annotations_before(node, ctx.lang, ctx.bytes),
     });
     id
 }

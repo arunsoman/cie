@@ -385,6 +385,7 @@ mod tests {
     fn fixture() -> Vec<LangFacts> {
         let mut f = LangFacts::new("a.py", cie_semantic::LangId::Python, "test");
         f.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(0),
             kind: SymbolKind::Function,
             name: "run".into(),
@@ -396,6 +397,7 @@ mod tests {
             doc: None,
         });
         f.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(1),
             kind: SymbolKind::Function,
             name: "authorize".into(),

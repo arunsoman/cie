@@ -90,6 +90,21 @@ pub struct Annot {
     pub line: u32,
 }
 
+/// Reconstruct `@Name` / `@Name(args)` from a parsed `Annot` — the same
+/// shape the source wrote, from the name/args this file already split it
+/// into (see `split_ann`).
+fn render_ann(a: &Annot) -> String {
+    if a.args.is_empty() {
+        format!("@{}", a.name)
+    } else {
+        format!("@{}({})", a.name, a.args)
+    }
+}
+
+fn render_anns(anns: &[Annot]) -> Vec<String> {
+    anns.iter().map(render_ann).collect()
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ClassNode {
     pub name: String,
@@ -1112,6 +1127,7 @@ pub fn assemble(all: Vec<ClassNode>, dir: &str) -> Assembled {
                 line: c.line,
                 lang: c.lang.clone(),
                 injections: c.injections.clone(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.contains(&"Repository")
             || c.repo_extends.is_some()
@@ -1124,6 +1140,7 @@ pub fn assemble(all: Vec<ClassNode>, dir: &str) -> Assembled {
                 lang: c.lang.clone(),
                 extends: c.repo_extends.clone().unwrap_or_default(),
                 entity: c.repo_entity.clone(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.contains(&"Entity") {
             jvm.entities.push(JvmEntity {
@@ -1140,6 +1157,7 @@ TABLE_NAME_RE.captures(&a.args)
                             .and_then(|m| m.get(1).map(|g| g.as_str().to_string()))
                     }),
                 props: c.props.clone(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.contains(&"Configuration") || names.contains(&"SpringBootConfiguration") {
             jvm.config_classes.push(JvmConfigCls {
@@ -1148,6 +1166,7 @@ TABLE_NAME_RE.captures(&a.args)
                 line: c.line,
                 lang: c.lang.clone(),
                 kind: "configuration".into(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.contains(&"EnableWebSecurity") {
             jvm.config_classes.push(JvmConfigCls {
@@ -1156,6 +1175,7 @@ TABLE_NAME_RE.captures(&a.args)
                 line: c.line,
                 lang: c.lang.clone(),
                 kind: "security".into(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.contains(&"FeignClient") {
             jvm.config_classes.push(JvmConfigCls {
@@ -1164,6 +1184,7 @@ TABLE_NAME_RE.captures(&a.args)
                 line: c.line,
                 lang: c.lang.clone(),
                 kind: "feign".into(),
+                annotations: render_anns(&c.anns),
             });
         } else if names.iter().any(|n| matches!(*n, "EnableFeignClients" | "EnableKafka" | "EnableScheduling" | "EnableJpaRepositories")) {
             jvm.config_classes.push(JvmConfigCls {
@@ -1172,6 +1193,7 @@ TABLE_NAME_RE.captures(&a.args)
                 line: c.line,
                 lang: c.lang.clone(),
                 kind: "messaging".into(),
+                annotations: render_anns(&c.anns),
             });
         }
 
@@ -1183,6 +1205,7 @@ TABLE_NAME_RE.captures(&a.args)
                     trigger: s.args.clone(),
                     rel: c.rel.clone(),
                     line: m.line,
+                    annotations: render_anns(&m.anns),
                 });
             }
             for a in &m.anns {

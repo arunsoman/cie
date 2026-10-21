@@ -24,16 +24,22 @@ import { buildCallGraph, fileOf, type CallGraph, FULL_VIEW_CAP, type Detail } fr
 // Selection Context — the single object every atlas view reads and writes
 // ---------------------------------------------------------------------------
 
-export type AtlasScope = "system" | "container" | "module" | "symbol";
+export type AtlasScope = "system" | "container" | "module" | "symbol" | "concept";
 
 /** What the user last clicked. `id` is the same string the views key on:
  *  container = top-level folder name (or "(project root)"), module = file
- *  path, symbol = qual_name, store = file path of a data store. */
+ *  path, symbol = qual_name, store = file path of a data store, concept =
+ *  the concept tree's own node id (ConceptNode.id, as a string). */
 export interface AtlasRef {
-  kind: "container" | "module" | "symbol" | "store" | "external" | "edge";
+  kind: "container" | "module" | "symbol" | "store" | "external" | "edge" | "concept";
   id: string;
   label: string;
   loc?: ElementLoc;
+  /** kind:"concept" only — the concept's own member symbols (ConceptNode.
+   *  symbols), the join key every other panel scopes by. A concept scopes
+   *  to EXACTLY these symbols (and the files/container they resolve to),
+   *  not to the coarser container its files happen to sit in. */
+  symbolIds?: number[];
 }
 
 export interface AtlasSelection {
@@ -92,8 +98,40 @@ export function scopeForRef(ref: AtlasRef): AtlasScope {
     case "module": return "module";
     case "store": return "module"; // a store scopes the module list around its readers/writers
     case "symbol": return "symbol";
+    case "concept": return "concept";
     default: return "system";
   }
+}
+
+/** Resolve a concept's own symbol set to real files (via the shared symbol
+ *  table) and its containing container(s) — the join from "a concept was
+ *  picked" to "these are the same files/symbols every other panel already
+ *  knows how to filter by". A concept usually sits inside one container
+ *  (Services/Subdomains are built under one Container node — see
+ *  `dagComponentsOf`); when its symbols genuinely span more than one
+ *  (an FCA/behavior concept can), every container touched is returned, most
+ *  populated first, so callers that want ONE container (C4/Components/Data
+ *  flow panels, which are single-container scoped today) can take the
+ *  first and the Flow/Sequence panels — which filter by the exact symbol
+ *  set instead — stay fully precise regardless. */
+export function conceptResolve(
+  report: CieReport,
+  ref: AtlasRef,
+  apps?: { dir: string }[] | null
+): { files: string[]; containers: string[]; symbolIds: number[] } {
+  const symbolIds = ref.symbolIds ?? [];
+  const files = new Set<string>();
+  const containerCount = new Map<string, number>();
+  for (const id of symbolIds) {
+    const sym = report.symbols.find((s) => Number(s.id) === id);
+    const f = sym ? fileOf(report, sym) : undefined;
+    if (!f) continue;
+    files.add(f);
+    const c = containerOfPath(f, apps);
+    containerCount.set(c, (containerCount.get(c) ?? 0) + 1);
+  }
+  const containers = [...containerCount.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  return { files: [...files], containers, symbolIds };
 }
 
 /** Breadcrumb trail: System › container › module › symbol(). Clicking any
@@ -114,6 +152,9 @@ export function breadcrumbOf(sel: AtlasSelection, apps?: { dir: string }[] | nul
   }
   if (p.kind === "symbol") {
     trail.push({ scope: "symbol", ref: p });
+  }
+  if (p.kind === "concept") {
+    trail.push({ scope: "concept", ref: p });
   }
   return trail;
 }
@@ -576,12 +617,18 @@ export function buildDataFlowSpec(report: CieReport, container: string | null, t
     .slice(0, MAX_STORES);
   for (const [name, hit] of namedShown) {
     if (!hit.readers.size && !hit.writers.size) continue;
+    // A named store (e.g. "db", "fs") is not itself a file — anchor its
+    // evidence at the first recorded site that touches it, so the box
+    // resolves to real evidence instead of being dropped (and its writes/
+    // reads edges with it).
+    const anchor = [...hit.writers, ...hit.readers][0];
     nodes.push({
       id: `store:${name}`,
       title: name,
       kind: "store",
       lines: [`${hit.writers.size} writer(s) · ${hit.readers.size} reader(s)`, "as named in the code's own records"],
       certainty: "Fact",
+      loc: anchor ? { file: anchor } : undefined,
     });
     for (const w of hit.writers) {
       if (!modulesShown.has(w) && inScope(w)) modulesShown.add(w);
@@ -678,7 +725,7 @@ function specOf(kind: ChatChartSpec["kind"], title: string, tell?: string): Chat
 // second implementation to drift.
 // ---------------------------------------------------------------------------
 
-export type FlowLevel = "system" | "container" | "module" | "symbol";
+export type FlowLevel = "system" | "container" | "module" | "symbol" | "concept";
 
 export interface FlowBuild {
   level: FlowLevel;
@@ -696,6 +743,7 @@ const FLOW_HONESTY =
 export function buildFlowSpec(report: CieReport, sel: AtlasSelection, apps?: { dir: string }[] | null): FlowBuild {
   const ref = sel.primary;
   if (ref?.kind === "symbol") return flowOfFunction(report, ref);
+  if (ref?.kind === "concept") return flowOfConcept(report, ref, apps);
   if (ref?.kind === "module") return flowOfComponent(report, ref.id);
   if (ref?.kind === "container") return flowOfContainer(report, ref.id, apps);
   return flowOfSystem(report, ref, apps);
@@ -923,11 +971,134 @@ function flowOfComponent(report: CieReport, file: string): FlowBuild {
   return { level: "module", label: `inside ${file.split("/").pop() ?? file}`, spec };
 }
 
+/** concept scope — a concept tree node's OWN symbol set as a flow, exactly
+ *  like `flowOfComponent` but keyed on an arbitrary symbol-id set (a concept
+ *  rarely spans a whole file, and can span more than one) instead of "every
+ *  symbol in one file". This is the precise case: Containers/Components/Data
+ *  flow fall back to the concept's container (see `conceptResolve`), but
+ *  Flow — like Sequence's entry pick — can filter to the concept's exact
+ *  members, so drilling into a Service or a UseCase shows only its own
+ *  functions, not its whole container. */
+function flowOfConcept(report: CieReport, ref: AtlasRef, apps?: { dir: string }[] | null): FlowBuild {
+  const g = graphOf(report);
+  const memberIds = new Set(ref.symbolIds ?? []);
+  const members = report.symbols.filter((s) => memberIds.has(Number(s.id)));
+  if (!members.length) return { level: "concept", label: ref.label, spec: null };
+  const shown = members.slice(0, MAX_FLOW_NODES);
+  const rest = members.length - shown.length;
+  const shownIds = new Set(shown.map((s) => Number(s.id)));
+
+  const externalCallers = new Map<string, string[]>();
+  const externalCallees = new Map<string, string[]>();
+  for (const s of shown) {
+    const id = Number(s.id);
+    const qual = s.qual_name || s.name;
+    for (const [from, callees] of g.calleesOf) {
+      if (shownIds.has(from)) continue;
+      if (!callees.includes(id)) continue;
+      const caller = g.byId.get(from);
+      if (!caller) continue;
+      const list = externalCallers.get(qual) ?? [];
+      list.push(caller.qual_name || caller.name);
+      externalCallers.set(qual, list);
+    }
+    for (const c of g.calleesOf.get(id) ?? []) {
+      if (shownIds.has(c)) continue;
+      const callee = g.byId.get(c);
+      if (!callee) continue;
+      const list = externalCallees.get(qual) ?? [];
+      list.push(callee.qual_name || callee.name);
+      externalCallees.set(qual, list);
+    }
+  }
+
+  const nodes: UmlNode[] = shown.map((s) => {
+    const sum = g.sumBySym.get(Number(s.id));
+    const qual = s.qual_name || s.name;
+    const file = fileOf(report, s);
+    const lines: string[] = [];
+    if (file) lines.push(containerOfPath(file, apps));
+    if (externalCallers.has(qual)) lines.push("called from outside this concept");
+    if (sum?.writes?.length) lines.push(`writes ${sum.writes.slice(0, 1).join(", ")}`);
+    else if (sum?.effects?.length) lines.push(`touches: ${sum.effects.slice(0, 2).join(", ")}`);
+    if (!lines.length) lines.push("local computation");
+    return {
+      id: qual,
+      title: `${s.name}()`,
+      kind: "function",
+      lines,
+      certainty: "Fact" as const,
+      loc: file ? { file, byteStart: s.loc.start, byteEnd: s.loc.end } : undefined,
+    };
+  });
+  const inIds = new Set(nodes.map((n) => n.id));
+  if (externalCallers.size) {
+    const names = [...new Set([...externalCallers.values()].flat())].slice(0, 3);
+    nodes.unshift({
+      id: "fl-callers-elsewhere",
+      title: "called from outside this concept",
+      kind: "module",
+      lines: names.length ? names.map((n) => `${n}()`) : ["callers the engine resolved outside this concept"],
+      more: [...new Set([...externalCallers.values()].flat())].length - names.length || undefined,
+      certainty: "Fact",
+    });
+  }
+  if (rest > 0) nodes.push({ id: "…more-symbols", title: `…and ${rest} more named thing(s)`, kind: "module", lines: ["smaller — grouped out of this picture, not hidden"], certainty: "Inference" });
+  if (externalCallees.size) {
+    const names = [...new Set([...externalCallees.values()].flat())].slice(0, 3);
+    nodes.push({
+      id: "fl-out-elsewhere",
+      title: "calls outside this concept",
+      kind: "module",
+      lines: names.length ? names.map((n) => `${n}()`) : ["callees the engine resolved outside this concept"],
+      more: [...new Set([...externalCallees.values()].flat())].length - names.length || undefined,
+      certainty: "Fact",
+    });
+  }
+
+  const links: UmlLink[] = [];
+  const seenEdge = new Set<string>();
+  for (const s of shown) {
+    const from = s.qual_name || s.name;
+    if (!inIds.has(from)) continue;
+    for (const c of g.calleesOf.get(Number(s.id)) ?? []) {
+      if (!shownIds.has(c)) continue;
+      const callee = g.byId.get(c);
+      if (!callee) continue;
+      const to = callee.qual_name || callee.name;
+      if (!inIds.has(to) || to === from) continue;
+      const key = `${from}->${to}`;
+      if (seenEdge.has(key)) continue;
+      seenEdge.add(key);
+      links.push({ from, to, label: "calls", certainty: "Fact" });
+    }
+  }
+  for (const [qual] of externalCallers) {
+    if (inIds.has(qual)) links.push({ from: "fl-callers-elsewhere", to: qual, label: "calls", certainty: "Fact" });
+  }
+  for (const [qual] of externalCallees) {
+    if (inIds.has(qual)) links.push({ from: qual, to: "fl-out-elsewhere", label: "calls", certainty: "Fact" });
+  }
+
+  const spec = specOf("flow", `Flow of ${ref.label} — function by function`, FLOW_HONESTY);
+  spec.nodes = nodes;
+  spec.links = links;
+  spec.source = "concepts.json — this concept's own member symbols; report.json for their recorded calls";
+  return { level: "concept", label: `inside ${ref.label}`, spec };
+}
+
 /** level 3 — one function, step by step: start → what it reads → each
  *  recorded callee (in recorded order) → what it writes and touches → end,
  *  with the failure path and loops drawn when the summary records them.
  *  The engine does not trace executions — the tell says so, every box still
  *  opens the exact code. */
+/** A real flowchart: ellipse start/end, parallelogram input/output
+ *  (reads, writes & effects), rectangle process steps (each recorded
+ *  callee), and diamond decisions for the two conditions the behaviour
+ *  summary actually records — `has_loops` and `has_failure_path`/recorded
+ *  exceptions. Both stay genuine forks (Yes/No branches), not a single
+ *  dashed side-note: the underlying facts are unchanged from before, only
+ *  the shape now matches what they are. */
 function flowOfFunction(report: CieReport, ref: AtlasRef): FlowBuild {
   const sym = symbolByQualName(report, ref.id);
   const label = sym ? `${sym.name}()` : ref.label;
@@ -940,20 +1111,36 @@ function flowOfFunction(report: CieReport, ref: AtlasRef): FlowBuild {
   const qual = sym.qual_name || sym.name;
 
   const nodes: UmlNode[] = [
-    { id: "fl-start", title: "start", kind: "step", lines: [`${qual}() begins`], certainty: "Fact", loc },
+    { id: "fl-start", title: "Start", kind: "start", lines: [`${qual}() begins`], certainty: "Fact", loc },
   ];
+  const links: UmlLink[] = [];
+  let cursor = "fl-start";
+  let nextLabel = "then";
+  const advance = (nodeId: string, certainty: "Fact" | "Inference" = "Fact") => {
+    links.push({ from: cursor, to: nodeId, label: nextLabel, certainty });
+    cursor = nodeId;
+    nextLabel = "then";
+  };
+
+  // loops — an early decision: does the body repeat? `has_loops` is a
+  // recorded fact; which branch any one call actually takes is not, so
+  // both arrows out of the diamond stay dashed/Inference, the same
+  // honesty rule the side-branch this replaces already used.
+  if (sum?.has_loops) {
+    nodes.push({ id: "fl-loop-check", title: "Loops?", kind: "decision", lines: ["the summary records a loop in the body"], certainty: "Fact", loc });
+    advance("fl-loop-check");
+    nodes.push({ id: "fl-loop", title: "repeat body", kind: "function", lines: ["the body can repeat"], certainty: "Inference", loc });
+    links.push({ from: "fl-loop-check", to: "fl-loop", label: "Yes", certainty: "Inference", dashed: true });
+    links.push({ from: "fl-loop", to: "fl-loop-check", label: "then", certainty: "Inference", dashed: true });
+    nextLabel = "No";
+  }
+
   const reads = [...new Set(sum?.reads ?? [])];
   if (reads.length) {
-    nodes.push({
-      id: "fl-reads",
-      title: "reads",
-      kind: "step",
-      lines: reads.slice(0, 3),
-      more: reads.length - 3 || undefined,
-      certainty: "Fact",
-      loc,
-    });
+    nodes.push({ id: "fl-reads", title: "reads", kind: "io", lines: reads.slice(0, 3), more: reads.length - 3 || undefined, certainty: "Fact", loc });
+    advance("fl-reads");
   }
+
   // each recorded callee, in recorded order — the flow's main path
   const stepIds: string[] = [];
   const seenStep = new Set<string>();
@@ -980,11 +1167,28 @@ function flowOfFunction(report: CieReport, ref: AtlasRef): FlowBuild {
       certainty: "Fact",
       loc: cfile ? { file: cfile, byteStart: callee.loc.start, byteEnd: callee.loc.end } : undefined,
     });
+    advance(cqual);
   }
   const truncatedSteps = Math.max(0, (g.calleesOf.get(id) ?? []).length - stepIds.length);
   if (truncatedSteps > 0) {
     nodes.push({ id: "fl-more-steps", title: `…and ${truncatedSteps} more call(s)`, kind: "module", lines: ["smaller — grouped out of this picture, not hidden"], certainty: "Inference" });
+    links.push({ from: stepIds.length ? stepIds[stepIds.length - 1] : "fl-start", to: "fl-more-steps", label: "then", certainty: "Inference", dashed: true });
   }
+
+  const writes = [...new Set(sum?.writes ?? [])];
+  const effects = [...new Set((sum?.effects ?? []).map((e) => e))].slice(0, 2);
+  if (writes.length || effects.length) {
+    nodes.push({
+      id: "fl-effects",
+      title: "writes & effects",
+      kind: "io",
+      lines: [...writes.slice(0, 2).map((w) => `writes ${w}`), ...effects],
+      certainty: "Fact",
+      loc,
+    });
+    advance("fl-effects");
+  }
+
   const unresolved = [...new Set(sum?.unresolved_callees ?? [])];
   if (unresolved.length) {
     nodes.push({
@@ -995,66 +1199,39 @@ function flowOfFunction(report: CieReport, ref: AtlasRef): FlowBuild {
       more: unresolved.length - 3 || undefined,
       certainty: "Inference",
     });
+    links.push({ from: cursor, to: "fl-unresolved", label: "also calls", certainty: "Inference", dashed: true });
   }
-  const writes = [...new Set(sum?.writes ?? [])];
-  const effects = [...new Set((sum?.effects ?? []).map((e) => e))].slice(0, 2);
-  if (writes.length || effects.length) {
-    nodes.push({
-      id: "fl-effects",
-      title: "writes & effects",
-      kind: "step",
-      lines: [...writes.slice(0, 2).map((w) => `writes ${w}`), ...effects],
-      certainty: "Fact",
-      loc,
-    });
-  }
+
+  // failure path — the late decision: did this call chain succeed?
+  // `has_failure_path`/recorded exceptions are facts; the diamond's two
+  // arrows are both Fact too (the summary records the branch exists),
+  // same certainty the single dashed edge this replaces carried.
   const exceptions = [...new Set(sum?.exceptions ?? [])];
   if (sum?.has_failure_path || exceptions.length) {
+    nodes.push({ id: "fl-fail-check", title: "Ok so far?", kind: "decision", lines: ["the summary records a failure path"], certainty: "Fact", loc });
+    advance("fl-fail-check");
     nodes.push({
       id: "fl-fail",
       title: "failure path",
-      kind: "step",
+      kind: "function",
       lines: exceptions.length ? exceptions.slice(0, 3) : ["the summary records a failure path"],
       certainty: "Fact",
       loc,
     });
+    links.push({ from: "fl-fail-check", to: "fl-fail", label: "No", certainty: "Fact", dashed: true });
+    nextLabel = "Yes";
   }
-  if (sum?.has_loops) {
-    nodes.push({
-      id: "fl-loop",
-      title: "loops",
-      kind: "step",
-      lines: ["the summary records a loop — the body can repeat"],
-      certainty: "Fact",
-      loc,
-    });
-  }
+
   nodes.push({
     id: "fl-end",
-    title: "end",
-    kind: "step",
+    title: "End",
+    kind: "end",
     lines: [sum ? (sum.complete ? "everything the summary records is drawn" : "summary incomplete — some behaviour stayed unrecorded") : "no behaviour summary was recorded for this symbol"],
     certainty: sum ? (sum.complete ? "Fact" : "Inference") : "Inference",
     loc,
   });
-
-  // the main chain, in recorded order
-  const chain: string[] = ["fl-start"];
-  if (reads.length) chain.push("fl-reads");
-  chain.push(...stepIds);
-  if (writes.length || effects.length) chain.push("fl-effects");
-  chain.push("fl-end");
-  const links: UmlLink[] = [];
-  for (let i = 0; i < chain.length - 1; i++) links.push({ from: chain[i], to: chain[i + 1], label: "then", certainty: "Fact" });
-  if (truncatedSteps > 0 && stepIds.length) links.push({ from: stepIds[stepIds.length - 1], to: "fl-more-steps", label: "then", certainty: "Inference", dashed: true });
-  else if (truncatedSteps > 0) links.push({ from: "fl-start", to: "fl-more-steps", label: "then", certainty: "Inference", dashed: true });
-  const branchFrom = chain[chain.length - 2] ?? "fl-start";
-  if (unresolved.length) links.push({ from: branchFrom, to: "fl-unresolved", label: "also calls", certainty: "Inference", dashed: true });
-  if (sum?.has_failure_path || exceptions.length) {
-    links.push({ from: branchFrom, to: "fl-fail", label: "when it fails", certainty: "Fact", dashed: true });
-    links.push({ from: "fl-fail", to: "fl-end", label: "then", certainty: "Fact", dashed: true });
-  }
-  if (sum?.has_loops) links.push({ from: "fl-start", to: "fl-loop", label: "can repeat", certainty: "Inference", dashed: true });
+  advance("fl-end", sum?.complete === false ? "Inference" : "Fact");
+  if (sum?.has_failure_path || exceptions.length) links.push({ from: "fl-fail", to: "fl-end", label: "then", certainty: "Fact", dashed: true });
 
   const spec = specOf("flow", `${qual}() — what happens, step by step`, FLOW_HONESTY);
   spec.nodes = nodes;
@@ -1118,4 +1295,38 @@ export function symbolByQualName(report: CieReport, qualName: string): SymbolInf
  *  has one (it usually does; absence is fine, the atlas works without it). */
 export function conceptNodeForFile(concepts: ConceptTree | null, file: string) {
   return concepts?.nodes.find((n) => n.label === file) ?? null;
+}
+
+/** The other half of the concept join: given whatever is currently
+ *  selected ANYWHERE in the atlas (a container, a module, a symbol, or a
+ *  concept itself), resolve the concept tree node that best represents it
+ *  — so the Hierarchy panel can focus/highlight in step with every other
+ *  panel, not just drive them. A symbol resolves to its most specific
+ *  containing concept (smallest symbol set that still contains it — the
+ *  project root lists every symbol, so the largest match is never the
+ *  useful one); a module to the Module node with that file's own label; a
+ *  container to the Container node with that name. Returns null when
+ *  there's nothing to focus (system scope, a store/external/edge pick, or
+ *  no concept tree loaded) — the Hierarchy panel then shows its default
+ *  top-level slice instead of narrowing. */
+export function conceptNodeFor(concepts: ConceptTree | null, ref: AtlasRef | null, report: CieReport): number | null {
+  if (!ref || !concepts?.nodes?.length) return null;
+  if (ref.kind === "concept") return Number(ref.id);
+  if (ref.kind === "module") return conceptNodeForFile(concepts, ref.id)?.id ?? null;
+  if (ref.kind === "container") {
+    const n = concepts.nodes.find((c) => c.kind === "Container" && (c.label === ref.id || containerOfPath(c.label) === ref.id));
+    return n?.id ?? null;
+  }
+  if (ref.kind === "symbol") {
+    const sym = symbolByQualName(report, ref.id);
+    if (!sym) return null;
+    const sid = Number(sym.id);
+    let best: ConceptTree["nodes"][number] | null = null;
+    for (const n of concepts.nodes) {
+      if (!n.symbols?.includes(sid)) continue;
+      if (!best || n.symbols.length < best.symbols.length) best = n;
+    }
+    return best?.id ?? null;
+  }
+  return null;
 }

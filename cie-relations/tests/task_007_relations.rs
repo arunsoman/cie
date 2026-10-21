@@ -40,6 +40,7 @@ fn task_007_builder_from_facts() {
     use cie_semantic::facts::{LangFacts, SymbolFact, SymbolKind, SymbolStore};
 
     let sym = |id: u32, parent: Option<u32>, qual: &str| SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(id),
         kind: if parent.is_some() {
             SymbolKind::Method

@@ -9,6 +9,7 @@ fn build_store(n: u32) -> SymbolStore {
     let mut facts = Vec::new();
     for i in 0..n {
         facts.push(cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(i),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: format!("fn_{i}"),

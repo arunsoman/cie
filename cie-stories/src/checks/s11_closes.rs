@@ -95,6 +95,7 @@ pub fn us_034() -> Result<(), String> {
     });
     f.async_facts.push(AsyncSite { symbol: SymbolId(2), kind: cie_semantic::facts::AsyncKind::Await, line: 5 });
     f.symbols.push(cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(1),
         kind: cie_semantic::facts::SymbolKind::Function,
         name: "f".into(),
@@ -504,6 +505,7 @@ pub fn us_089() -> Result<(), String> {
         stack: None,
         symbols: if present {
             vec![SymbolFact {
+            annotations: Vec::new(),
                 id: SymbolId(1),
                 kind: cie_semantic::facts::SymbolKind::Function,
                 name: "authorize".into(),

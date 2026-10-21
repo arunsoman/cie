@@ -238,6 +238,7 @@ fn walk_lua(ctx: &mut LuaCtx, node: tree_sitter::Node) {
             };
             let id = ctx.id();
             ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id,
                 kind,
                 name: name.clone(),
@@ -528,6 +529,7 @@ fn emit_anonymous_fn(ctx: &mut LuaCtx, fn_node: tree_sitter::Node, name: &str) {
     let is_test = last_segment(name).starts_with("test");
     let id = ctx.id();
     ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
         id,
         kind: if is_test { SymbolKind::Test } else { SymbolKind::Function },
         name: name.to_string(),
@@ -637,6 +639,7 @@ impl LuaAdapter {
             notes: BTreeSet::new(),
         };
         ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: module_id,
             kind: SymbolKind::Module,
             name: module.clone(),

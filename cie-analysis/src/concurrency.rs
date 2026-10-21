@@ -400,6 +400,7 @@ mod tests {
     fn sym(store: &mut Vec<SymbolFact>, name: &str, qual: &str) -> SymbolId {
         let id = SymbolId(store.len() as u32 + 1);
         store.push(SymbolFact {
+            annotations: Vec::new(),
             id,
             kind: SymbolKind::Function,
             name: name.into(),

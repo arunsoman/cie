@@ -1303,19 +1303,19 @@ export function buildCompanionChart(
  * ground the reply in the very code the user is looking at. The snippet is
  * optional and always verbatim: no snippet is sent rather than an invented one.
  */
-export function askAboutChartElement(
-  chartTitle: string | undefined,
-  el: { name: string; value?: number | string; loc?: ElementLoc; snippet?: string }
-): string {
-  const v = el.value !== undefined ? ` (value ${el.value})` : "";
-  const where = el.loc?.file
-    ? el.loc.line != null
-      ? ` in ${el.loc.file} at line ${el.loc.line}`
-      : ` in ${el.loc.file}`
-    : "";
-  const base = `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}${where}. What does the collected data say about it, and how was it collected?`;
-  return el.snippet && el.loc?.file ? `${base}\n\nThe code at that spot (${el.loc.file}${el.loc.line != null ? `, line ${el.loc.line}` : ""}):\n${el.snippet}` : base;
-}
+  export function askAboutChartElement(
+    chartTitle: string | undefined,
+    el: { name: string; value?: number | string; loc?: ElementLoc; snippet?: string }
+  ): string {
+    const v = el.value !== undefined ? ` (value ${el.value})` : "";
+    const where = el.loc?.file
+      ? el.loc.line != null
+        ? ` in ${el.loc.file} at line ${el.loc.line}`
+        : ` in ${el.loc.file}`
+      : "";
+    const base = `About the chart "${chartTitle ?? "untitled"}" — tell me about "${el.name}"${v}${where}. What does the collected data say about it, and how was it collected?`;
+    return el.snippet && el.loc?.file ? `${base}\n\nThe code at that spot (${el.loc.file}${el.loc.line != null ? `, line ${el.loc.line}` : ""}):\n${el.snippet}` : base;
+  }
 
 /** A small verbatim, line-numbered window around one line — built from real
  * content the caller already has (store sourceCache). Never guessed. */

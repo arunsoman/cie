@@ -115,6 +115,13 @@ impl TypeScriptAdapter {
                                 parent: None,
                                 rev: 0,
                                 doc: None,
+                                // This fallback path only fires when the
+                                // light engine's own pass (which already
+                                // records decorators, see light_engine.rs)
+                                // didn't already create this symbol as a
+                                // class — a rare edge case, not the common
+                                // interface-with-decorator path.
+                                annotations: vec![],
                             });
                             next_extra.0 += 1;
                         }

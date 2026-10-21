@@ -339,6 +339,7 @@ impl SqlAdapter {
             .replace('/', ".");
         let module_id = SymbolId(0);
         facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: module_id,
             kind: SymbolKind::Module,
             name: module.clone(),
@@ -411,6 +412,7 @@ impl SqlAdapter {
                     }
                 }
                 facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                     id,
                     kind: SymbolKind::Table,
                     name: name.clone(),
@@ -448,6 +450,7 @@ impl SqlAdapter {
                 let name = bare_name(&name);
                 let id = SymbolId(facts.symbols.len() as u32);
                 facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                     id,
                     kind: SymbolKind::View,
                     name: name.clone(),
@@ -490,6 +493,7 @@ impl SqlAdapter {
                 let name = bare_name(&name);
                 let id = SymbolId(facts.symbols.len() as u32);
                 facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                     id,
                     kind: SymbolKind::Function,
                     name: name.clone(),

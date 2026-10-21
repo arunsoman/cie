@@ -367,6 +367,7 @@ fn extract_shell(path: &str, src: &str) -> LangFacts {
         funcs,
     };
     ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
         id: ctx.module,
         kind: SymbolKind::Module,
         name: module.clone(),
@@ -401,6 +402,7 @@ fn extract_shell(path: &str, src: &str) -> LangFacts {
             let id = ctx.id();
             let is_test = name.starts_with("test_") || name.ends_with("_test");
             ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id,
                 kind: if is_test { SymbolKind::Test } else { SymbolKind::Function },
                 name: name.clone(),

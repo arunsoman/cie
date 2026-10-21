@@ -605,7 +605,23 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         rev,
         files: files_list,
         symbols: extracted.store.symbols.clone(),
-        summaries: analysis.summaries.values().cloned().collect(),
+        // `callers` is derived here, not extracted: a straight reverse of
+        // the already-resolved `callees` graph (analysis.reverse_deps, built
+        // once in cie-analysis::behavior alongside callees itself), so it's
+        // always exactly consistent with callees and costs no new parsing.
+        summaries: analysis
+            .summaries
+            .values()
+            .cloned()
+            .map(|mut s| {
+                s.callers = analysis
+                    .reverse_deps
+                    .get(&s.sym)
+                    .map(|set| set.iter().copied().collect())
+                    .unwrap_or_default();
+                s
+            })
+            .collect(),
         findings: analysis.findings.clone(),
         contracts: analysis.contracts.clone(),
         concepts: analysis.concepts.clone(),

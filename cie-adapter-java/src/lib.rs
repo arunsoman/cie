@@ -96,6 +96,7 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             ctx.class_stack.push(id);
             walk_children(ctx, node);
@@ -124,6 +125,7 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             // static/final/private declarations are Direct-capable targets.
             let mods = node
@@ -301,6 +303,33 @@ fn node_has_annotation(node: tree_sitter::Node, bytes: &[u8], ann: &str) -> bool
     false
 }
 
+/// Every annotation written directly on this declaration (class/interface/
+/// enum/method/constructor), exact source text. tree-sitter-java 0.23 nests
+/// a class/interface/enum's annotations inside its `modifiers` child
+/// (verified against node-types.json — `class_declaration`'s only generic
+/// child is `modifiers`), while a method/constructor can carry `annotation`/
+/// `marker_annotation` either as direct children or inside `modifiers` too
+/// — so this checks both shapes rather than assuming one.
+fn annotations_of(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
+    let mut out = vec![];
+    for child in children_of(node) {
+        match child.kind() {
+            "annotation" | "marker_annotation" => {
+                out.push(text_of(child, bytes).trim().to_string());
+            }
+            "modifiers" => {
+                for m in children_of(child) {
+                    if matches!(m.kind(), "annotation" | "marker_annotation") {
+                        out.push(text_of(m, bytes).trim().to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 fn children_of<'a>(node: tree_sitter::Node<'a>) -> Vec<tree_sitter::Node<'a>> {
     let mut c = node.walk();
     node.children(&mut c).collect()
@@ -374,6 +403,7 @@ impl JavaAdapter {
             parent: None,
             rev: 0,
             doc: None,
+            annotations: vec![],
         });
         walk_java(&mut ctx, tree.root_node());
         // throws-clause facts join throw/catch facts, sorted by line.

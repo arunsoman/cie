@@ -46,6 +46,7 @@ export type StageView =
   | "quality"
   | "mastery"
   | "atlas"
+  | "admin"
   | "chart";
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
@@ -456,6 +457,14 @@ export const useCie = create<CieState>((set, get) => ({
         const i = p.id.indexOf("/");
         return i > 0
           ? { atlasSelection: { primary: { kind: "container", id: p.id.slice(0, i), label: p.id.slice(0, i) }, scope: "container" } }
+          : { atlasSelection: ATLAS_RESET };
+      }
+      if (p.kind === "concept") {
+        const file = p.loc?.file;
+        const i = file ? file.indexOf("/") : -1;
+        const container = i > 0 ? file!.slice(0, i) : file ? "(project root)" : null;
+        return container
+          ? { atlasSelection: { primary: { kind: "container", id: container, label: container }, scope: "container" } }
           : { atlasSelection: ATLAS_RESET };
       }
       return { atlasSelection: ATLAS_RESET };

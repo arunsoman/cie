@@ -224,6 +224,7 @@ mod tests {
 
     fn sym(id: u32, qual: &str) -> SymbolFact {
         SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(id),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: qual.rsplit("::").next().unwrap().into(),

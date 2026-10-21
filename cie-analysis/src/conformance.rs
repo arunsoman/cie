@@ -556,7 +556,7 @@ pub fn bind_verifying_tests(store: &SymbolStore, summaries: &BTreeMap<SymbolId, 
 mod reachability_tests {
     use super::*;
     use cie_semantic::facts::{SymbolFact,SymbolKind};
-    fn symbol(id:u32,kind:SymbolKind)->SymbolFact { SymbolFact { id:SymbolId(id),kind,name:format!("arbitrary_{id}"),qual_name:format!("arbitrary_{id}"),loc:cie_core::SourceLocation::span_bytes(cie_core::FileId(0),0,1),lang:cie_semantic::LangId::Java,parent:None,rev:1,doc:None } }
+    fn symbol(id:u32,kind:SymbolKind)->SymbolFact { SymbolFact { annotations: Vec::new(), id:SymbolId(id),kind,name:format!("arbitrary_{id}"),qual_name:format!("arbitrary_{id}"),loc:cie_core::SourceLocation::span_bytes(cie_core::FileId(0),0,1),lang:cie_semantic::LangId::Java,parent:None,rev:1,doc:None } }
     fn contract()->Contract { Contract { introduced:None,verified_by:vec![],id:0,obligation:ObligationKind::MustAuthorize,expr:"requires authorization".into(),authority:Authority::Explicit,symbols:vec![SymbolId(0)],source:ContractSource::Docstring } }
     #[test]
     fn direct_transitive_annotation_tests_depth_cap_and_cycles() {

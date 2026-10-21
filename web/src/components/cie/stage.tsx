@@ -39,6 +39,7 @@ import { MenuView } from "@/components/cie/menu-tab";
 import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
 import { AtlasView } from "@/components/cie/atlas-view";
+import { CieAdminView } from "@/components/cie/cie-admin-view";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
 
@@ -56,6 +57,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
   atlas: { title: "Atlas", caption: "Four synchronized views over one selection — containers, components, sequence, data flow." },
+  admin: { title: "CIE Admin", caption: "Every data structure CIE holds for this project — query and browse it directly." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
   mastery: { title: "Master this codebase", caption: "Four sections: the paragraph, the mains, the routes, the flows." },
 };
@@ -140,10 +142,10 @@ export function Stage() {
         </div>
       ) : (
         <div key="doc-stage" className="flex-1 min-h-0 overflow-y-auto" data-view={view}>
-          {/* Atlas is a chart-dense dashboard, not prose — it gets the full
-              stage width (and manages its own padding) instead of the
-              reading-width column every other doc view uses. */}
-          {view === "atlas" ? <AtlasView /> : <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+          {/* Atlas and Admin are chart/table-dense dashboards, not prose —
+              they get the full stage width (and manage their own padding)
+              instead of the reading-width column every other doc view uses. */}
+          {view === "atlas" ? <AtlasView /> : view === "admin" ? <CieAdminView /> : <div className="p-4 sm:p-6 max-w-6xl mx-auto">
             {view === "start" && <StartView />}
             {view === "mindmap" && <MindmapView />}
             {view === "does" && <ConceptsView />}

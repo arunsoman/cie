@@ -24,6 +24,7 @@ fn fixture_error_handling_facts() -> Vec<LangFacts> {
     let mut f = LangFacts::new("pay.py", LangId::Python, "test-analyzer");
     f.symbols = vec![
         cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(0),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: "refund".into(),
@@ -35,6 +36,7 @@ fn fixture_error_handling_facts() -> Vec<LangFacts> {
             doc: None,
         },
         cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(1),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: "retry_scheduler".into(),
@@ -46,6 +48,7 @@ fn fixture_error_handling_facts() -> Vec<LangFacts> {
             doc: None,
         },
         cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(2),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: "settle_batch".into(),
@@ -103,6 +106,7 @@ fn fixture_error_handling_facts() -> Vec<LangFacts> {
     let mut g = LangFacts::new("misc.py", LangId::Python, "test-analyzer");
     g.symbols = vec![
         cie_semantic::facts::SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(3),
             kind: cie_semantic::facts::SymbolKind::Function,
             name: "notify_user".into(),

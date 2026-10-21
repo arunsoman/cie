@@ -104,6 +104,7 @@ impl SnapshotStoreExt for Store {
                 purged += 1;
             }
             sum.callees.retain(|c| !dead.contains(c));
+            sum.callers.retain(|c| !dead.contains(c));
         }
         snap.summaries.retain(|s| !dead.contains(&s.sym));
 
@@ -242,6 +243,7 @@ mod tests {
 
     fn fact(id: u32, name: &str, file: u32, parent: Option<u32>) -> SymbolFact {
         SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(id),
             kind: SymbolKind::Function,
             name: name.to_string(),

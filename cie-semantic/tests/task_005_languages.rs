@@ -12,6 +12,7 @@ use cie_semantic::LanguageTable;
 #[test]
 fn task_005_symbol_facts_and_v1_languages() {
     let fact = SymbolFact {
+            annotations: Vec::new(),
         id: SymbolId(1),
         kind: SymbolKind::Function,
         name: "authorize".to_string(),

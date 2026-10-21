@@ -83,6 +83,13 @@ pub struct FunctionSummary {
     pub callees: Vec<SymbolId>,
     /// Unresolved callee texts with reasons (evidence).
     pub unresolved_callees: Vec<String>,
+    /// Reverse of `callees`: every symbol whose OWN summary names this one
+    /// as a callee, across the whole revision. Derived, not extracted — a
+    /// single pass over every summary's `callees` after they're all built
+    /// (see `derive_callers` below), so it's always exactly consistent with
+    /// `callees` by construction and costs no new parsing.
+    #[serde(default)]
+    pub callers: Vec<SymbolId>,
     /// Distinct constant return values, if any return sites are constant.
     pub returns_constants: BTreeSet<String>,
     /// True when every return site is a constant and there is no raise.
@@ -111,6 +118,7 @@ impl FunctionSummary {
             path_conditions: vec![],
             callees: vec![],
             unresolved_callees: vec![],
+            callers: vec![],
             returns_constants: BTreeSet::new(),
             all_returns_constant: false,
             has_failure_path: false,

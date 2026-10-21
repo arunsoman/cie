@@ -14,3 +14,4 @@ skills/
 web/.env*.local
 download/
 scripts/askpass.sh
+.playwright-cli/

@@ -81,6 +81,7 @@ fn walk_php(ctx: &mut PhpCtx, node: tree_sitter::Node) {
             ctx.known_classes.push(name.clone());
             let id = ctx.id();
             ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id,
                 kind,
                 name: name.clone(),
@@ -108,6 +109,7 @@ fn walk_php(ctx: &mut PhpCtx, node: tree_sitter::Node) {
             let id = ctx.id();
             let is_test = name.starts_with("test");
             ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                 id,
                 kind: if is_test {
                     SymbolKind::Test
@@ -260,6 +262,7 @@ impl PhpAdapter {
             known_classes: vec![],
         };
         ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: module_id,
             kind: SymbolKind::Module,
             name: module.clone(),

@@ -57,6 +57,14 @@ pub struct SymbolFact {
     pub parent: Option<SymbolId>,
     pub rev: RevId,
     pub doc: Option<String>,
+    /// Annotations/decorators/attributes found directly on this symbol's
+    /// declaration, exactly as written (`@Service`, `@app.route("/x")`,
+    /// `#[tokio::main]`, `[Authorize]` ...). Never inferred — empty when the
+    /// language has no such construct, or none were written. Adapter-local
+    /// extraction; no cross-symbol resolution (a class's annotations don't
+    /// propagate to its methods).
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 impl SymbolFact {

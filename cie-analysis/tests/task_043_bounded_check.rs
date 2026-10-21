@@ -42,6 +42,7 @@ fn fixture_payment_paths() -> (
     // symbols: pay() at 0, charge() at 1 (positional store)
     let store = SymbolStore::build(vec![
         SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(0),
             kind: SymbolKind::Function,
             name: "pay".into(),
@@ -53,6 +54,7 @@ fn fixture_payment_paths() -> (
             doc: None,
         },
         SymbolFact {
+            annotations: Vec::new(),
             id: SymbolId(1),
             kind: SymbolKind::Function,
             name: "charge".into(),

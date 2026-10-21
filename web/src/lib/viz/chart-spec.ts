@@ -11,6 +11,7 @@ export interface ChartElement {
   parentId?: string;
   mode?: ViewElement["displayMode"];
   lines?: string[];
+  selected?: boolean;
 }
 /** The catalog bridge is total over the chat vocabulary. No drawing path
  * can infer evidence or upgrade a certainty category from a missing field. */
@@ -64,6 +65,7 @@ export function chartElements(
         files,
         mode: n.certainty,
         lines: n.lines,
+        selected: n.selected,
       };
     });
   if (spec.tree)
@@ -187,6 +189,7 @@ export function chartView(
           line: n.loc?.line ?? 0,
           evidence,
         })),
+        selected: n.selected || undefined,
       },
       parentId: n.parentId,
     });
@@ -271,9 +274,11 @@ export function chartView(
       strategy:
         spec.kind === "tree" || spec.kind === "mindmap"
           ? "compact-box"
-          : edges.length
-            ? "dagre"
-            : "grid",
+          : spec.kind === "sequence"
+            ? "sequence-lanes"
+            : edges.length
+              ? "dagre"
+              : "grid",
     },
     semanticHash: "",
     renderHash: "",

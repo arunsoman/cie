@@ -51,9 +51,49 @@ export const NODE_TYPE: Record<string, string> = {
   "stack-frame": "cie-flame-frame",
   process: "rect",
   decision: "diamond",
-  store: "rect",
+  store: "html",
   "board-card": "rect",
+  /** Flowchart shapes (catalog E1/"flow" spec kind) — a start/end terminator
+   *  reuses the "entity" ellipse; an input/output box (reads/writes, a
+   *  recorded data store) is a parallelogram, drawn as a real DOM element
+   *  (G6's `html` node) since G6 has no built-in parallelogram shape. */
+  start: "ellipse",
+  end: "ellipse",
+  io: "html",
 };
+
+/** The two `html`-rendered shapes share one clipped-div technique (a
+ *  border on a clip-path shape seams under G6's fractional zoom transform,
+ *  so the stroke is a second, inset, clipped layer instead — see the
+ *  CIE Diagram Shapes demo this was proven in). `io` draws a parallelogram
+ *  (flowchart input/output); `store` draws DFD's open-ended rectangle
+ *  (no left/right border). Both keep the SAME epistemic stroke/dash the
+ *  rest of the app uses (Fact/Inference/Hypothesis/Fog) — the shape carries
+ *  the node's ROLE, colour stays reserved for certainty, never role. */
+function htmlNodeInnerHTML(d: G6NodeDatum): string {
+  const stroke = STROKE[d.data.displayMode];
+  const dash = DASH[d.data.displayMode];
+  const borderStyle = dash ? "dashed" : "solid";
+  const label = String(d.data.label ?? "").replace(/</g, "&lt;");
+  const text =
+    `display:flex;align-items:center;justify-content:center;text-align:center;` +
+    `padding:0 12px;box-sizing:border-box;font:500 12px system-ui,sans-serif;color:#1b211e;`;
+  if (d.data.elementKind === "io") {
+    const clip = "polygon(14% 0,100% 0,86% 100%,0 100%)";
+    return (
+      `<div style="position:relative;width:100%;height:100%;">` +
+      `<div style="position:absolute;inset:0;clip-path:${clip};background:${stroke};"></div>` +
+      `<div style="position:absolute;inset:1.6px;clip-path:${clip};background:#fafaf9;${text}">${label}</div>` +
+      `</div>`
+    );
+  }
+  // store — DFD's open-ended rectangle: top + bottom border only.
+  return (
+    `<div style="width:100%;height:100%;background:#fafaf9;${text}` +
+    `border-top:1.6px ${borderStyle} ${stroke};border-bottom:1.6px ${borderStyle} ${stroke};">` +
+    `${label}</div>`
+  );
+}
 
 /** Unregistered name falls back to `circle`, never crashes. */
 export function nodeTypeFor(kind: string): string {
@@ -109,6 +149,7 @@ export const G6_LAYOUTS = [
   "indented",
   "cie-flame",
   "elk-layered",
+  "sequence-lanes",
 ] as const;
 
 /** Deterministic shape-based auto-selection (acyclic → dagre, tree →
@@ -257,53 +298,90 @@ export function graphOptions(spec: ViewSpec): Record<string, unknown> {
     node: {
       type: (d: G6NodeDatum) => nodeTypeFor(d.data.elementKind),
       style: {
-        lineDash: (d: G6NodeDatum) => DASH[d.data.displayMode],
-        stroke: (d: G6NodeDatum) => STROKE[d.data.displayMode],
+        lineDash: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "html"
+            ? undefined // the html shape draws its own dashed/solid border
+            : DASH[d.data.displayMode],
+        stroke: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "html"
+            ? "transparent" // ditto — the border lives inside the html shape
+            : STROKE[d.data.displayMode],
         lineWidth: (d: G6NodeDatum) =>
           d.data.displayMode === "Fact" ? 2 : 1.5,
-        fill: "#fafaf9",
-        size: (d: G6NodeDatum) =>
-          nodeTypeFor(d.data.elementKind) === "rect"
-            ? [
-                220,
-                46 +
-                  Math.min(
-                    8,
-                    Array.isArray(d.data.fields.bodyLines)
-                      ? d.data.fields.bodyLines.length
-                      : 0,
-                  ) *
-                    14,
-              ]
-            : 20 + d.data.salienceWeight * 40,
+        fill: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "html" ? "transparent" : "#fafaf9",
+        size: (d: G6NodeDatum) => {
+          const t = nodeTypeFor(d.data.elementKind);
+          const lines = Array.isArray(d.data.fields.bodyLines)
+            ? d.data.fields.bodyLines.length
+            : 0;
+          if (t === "rect") return [220, 46 + Math.min(8, lines) * 14];
+          if (t === "diamond") return [200, 120]; // flowchart decision — room to wrap a question
+          if (t === "ellipse") return [150, 56]; // start/end terminator
+          if (t === "html") return [190, 54]; // io parallelogram / DFD store
+          return 20 + d.data.salienceWeight * 40;
+        },
         labelText: (d: G6NodeDatum) =>
-          [
-            d.data.label,
-            ...(Array.isArray(d.data.fields.bodyLines)
-              ? d.data.fields.bodyLines
-                  .slice(0, 8)
-                  .map((line: unknown) =>
-                    String((line as { text?: unknown }).text ?? ""),
-                  )
-              : []),
-            ...(d.data.displayMode === "Fact" ? [] : [d.data.displayMode]),
-          ].join("\n"),
+          nodeTypeFor(d.data.elementKind) === "html"
+            ? "" // the html shape renders its own label text
+            : [
+                d.data.label,
+                ...(Array.isArray(d.data.fields.bodyLines)
+                  ? d.data.fields.bodyLines
+                      .slice(0, 8)
+                      .map((line: unknown) =>
+                        String((line as { text?: unknown }).text ?? ""),
+                      )
+                  : []),
+                ...(d.data.displayMode === "Fact" ? [] : [d.data.displayMode]),
+              ].join("\n"),
         labelPlacement: "center",
         labelFontSize: 11,
         labelWordWrap: true,
-        labelWordWrapWidth: 200,
+        labelWordWrapWidth: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "diamond" ? 110 : 200,
+        labelMaxLines: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "diamond" ? 3 : 10,
         badge: (d: G6NodeDatum) =>
           d.data.displayMode === "Fog"
             ? [{ text: "?", placement: "right-top" }]
             : [],
+        innerHTML: (d: G6NodeDatum) =>
+          nodeTypeFor(d.data.elementKind) === "html"
+            ? htmlNodeInnerHTML(d)
+            : undefined,
+      },
+      // The "selected" G6 element state (set by a click inside this canvas,
+      // or programmatically — e.g. the Atlas scope ringing the container a
+      // table row resolved to) had no visible style of its own: the base
+      // `style` functions above fully determine stroke/lineWidth from
+      // displayMode alone, so setElementState(id, ["selected"]) changed
+      // nothing a viewer could see. This state override is what actually
+      // draws the ring; without it "selected" is just an internal flag.
+      state: {
+        selected: {
+          lineWidth: 3,
+          stroke: "#1783ff",
+          shadowColor: "#1783ff",
+          shadowBlur: 10,
+        },
       },
     },
     edge: {
+      type: "polyline",
       style: {
+        router: { type: "orth" },
         lineDash: (d: G6EdgeDatum) => EDGE_DASH[d.data.displayMode],
         stroke: (d: G6EdgeDatum) => STROKE[d.data.displayMode],
         endArrow: true,
         labelText: (d: G6EdgeDatum) => d.data.edgeKind,
+        labelAutoRotate: false,
+      },
+      state: {
+        selected: {
+          lineWidth: 3,
+          stroke: "#1783ff",
+        },
       },
     },
     layout,

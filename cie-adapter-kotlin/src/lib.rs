@@ -105,6 +105,23 @@ fn has_annotation(node: tree_sitter::Node, bytes: &[u8], ann: &str) -> bool {
         .any(|c| c.kind() == "modifiers" && text_of(*c, bytes).contains(ann))
 }
 
+/// Every annotation written directly on this declaration, exact source
+/// text. Kotlin nests annotations inside a `modifiers` wrapper child (unlike
+/// Java, where they're direct children) — `@Service`, `@Scheduled(...)`.
+fn annotations_of(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
+    let mut out = vec![];
+    for child in children_of(node) {
+        if child.kind() == "modifiers" {
+            for m in children_of(child) {
+                if matches!(m.kind(), "annotation" | "marker_annotation") {
+                    out.push(text_of(m, bytes).trim().to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 fn walk_children(ctx: &mut KotlinCtx, node: tree_sitter::Node) {
     for child in children_of(node) {
         walk_kotlin(ctx, child);
@@ -219,6 +236,7 @@ fn walk_kotlin(ctx: &mut KotlinCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             ctx.fun_names.insert(name);
             let prev = ctx.func;
@@ -243,6 +261,7 @@ fn walk_kotlin(ctx: &mut KotlinCtx, node: tree_sitter::Node) {
                 parent: ctx.class_stack.last().copied(),
                 rev: 0,
                 doc: None,
+                annotations: annotations_of(node, ctx.bytes),
             });
             let prev = ctx.func;
             ctx.func = id;
@@ -447,6 +466,7 @@ fn push_class(ctx: &mut KotlinCtx, node: tree_sitter::Node, name: String, kind: 
         parent: ctx.class_stack.last().copied(),
         rev: 0,
         doc: None,
+        annotations: annotations_of(node, ctx.bytes),
     });
     ctx.class_stack.push(id);
     walk_children(ctx, node);
@@ -575,6 +595,7 @@ impl KotlinAdapter {
             parent: None,
             rev: 0,
             doc: None,
+            annotations: vec![],
         });
         walk_kotlin(&mut ctx, tree.root_node());
         // Honesty notes: build-script shape + per-file syntax judgment.

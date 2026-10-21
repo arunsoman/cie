@@ -83,6 +83,7 @@ fn walk_cpp(ctx: &mut CppCtx, node: tree_sitter::Node) {
             if !name.is_empty() {
                 let id = ctx.id();
                 ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                     id,
                     kind: SymbolKind::Class,
                     name: name.clone(),
@@ -133,6 +134,7 @@ fn walk_cpp(ctx: &mut CppCtx, node: tree_sitter::Node) {
                 let id = ctx.id();
                 let is_test = name.starts_with("test");
                 ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
                     id,
                     kind: if ctx.class_stack.last().is_some() {
                         SymbolKind::Method
@@ -308,6 +310,7 @@ impl CppAdapter {
             next_id: 1,
         };
         ctx.facts.symbols.push(SymbolFact {
+            annotations: Vec::new(),
             id: module_id,
             kind: SymbolKind::Module,
             name: module.clone(),

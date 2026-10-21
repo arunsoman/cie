@@ -159,6 +159,10 @@ pub struct JvmConfigCls {
     pub line: u32,
     pub lang: String, // "java" | "kotlin"
     pub kind: String, // "configuration" | "security" | "feign" | "messaging"
+    /// Every annotation on this class, as written (`@Configuration`,
+    /// `@EnableWebSecurity`, ...) — not just the one that classified it.
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +173,10 @@ pub struct JvmService {
     pub line: u32,
     pub lang: String,
     pub injections: Vec<Injection>,
+    /// Every annotation on this class, as written (`@Service`, plus any
+    /// others present — `@Transactional`, `@Primary`, ...).
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -187,6 +195,9 @@ pub struct JvmRepository {
     pub lang: String,
     pub extends: String, // the interface clause as written
     pub entity: Option<String>,
+    /// Every annotation on this class, as written (`@Repository`, ...).
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +209,10 @@ pub struct JvmEntity {
     pub lang: String,
     pub table: Option<String>,
     pub props: Vec<Prop>,
+    /// Every annotation on this class, as written (`@Entity`, `@Table(...)`,
+    /// `@EntityListeners(...)`, ...).
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -216,6 +231,10 @@ pub struct JvmScheduled {
     pub trigger: String,
     pub rel: String,
     pub line: u32,
+    /// Every annotation on this method, as written — `@Scheduled(...)` plus
+    /// any others present (`@Transactional`, ...).
+    #[serde(default)]
+    pub annotations: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
