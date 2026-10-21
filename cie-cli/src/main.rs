@@ -142,7 +142,9 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Generate the built-in sample repository with real dated history (US-007)
+    /// Generate the built-in sample repository with real dated history (US-007).
+    /// Refuses a path inside an existing git repository: the sample's commits
+    /// must land in their own repo, never in the host's (with its dirty files).
     Sample {
         path: PathBuf,
         #[arg(long)]

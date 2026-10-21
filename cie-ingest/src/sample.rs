@@ -15,6 +15,14 @@
 //! * refusal rules are explicit: existing non-empty directory (unless
 //!   `force`), missing git binary, or a failed commit — never a half-built
 //!   sample presented as complete;
+//! * the target must be its OWN repository: a path inside an existing repo
+//!   is refused before anything is written — sample commits must never land
+//!   in (or sweep uncommitted files from) a host repository. `git` walks up
+//!   the tree, so "is this a repo" probes lie for subdirectories; the check
+//!   therefore compares `rev-parse --show-toplevel` with the target itself.
+//!   As belt-and-suspenders, every git invocation is pinned to the sample's
+//!   own absolute GIT_DIR/GIT_WORK_TREE, so no probe bug can ever commit
+//!   into someone else's repo;
 //! * `--force` regenerates ONLY directories this generator created (proven
 //!   by the `.cie-sample` marker): it resets them to the plan. Anything else
 //!   is refused — user data can never be touched, history never rewritten
@@ -135,6 +143,28 @@ const SAMPLE_APP: &[SampleCommit] = &[
     },
 ];
 
+/// The work-tree toplevel that contains `dir`, if `git` finds one from
+/// there. Unlike a bare "inside a repo" probe (`git_ok`, which walks up and
+/// answers true for any subdirectory of a repository), this returns WHICH
+/// tree was found, letting the caller tell "root IS a repo" apart from
+/// "root sits INSIDE one".
+fn work_tree_toplevel(dir: &Path) -> Option<PathBuf> {
+    let out = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(s))
+    }
+}
+
 /// Generate the sample repository at `root` (created; must be absent/empty
 /// unless `opts.force`, in which case new commits append to existing history).
 pub const MARKER: &str = ".cie-sample";
@@ -182,18 +212,40 @@ pub fn generate(root: &Path, opts: &SampleOptions) -> Result<SampleReport, Strin
         std::fs::create_dir_all(root)
             .map_err(|e| format!("cannot create {}: {e}", root.display()))?;
     }
-    if !git_ok(root) && !git_ok(root.parent().unwrap_or(root)) {
-        // `git init` below would still fail; probe the binary explicitly so
-        // the error names the real cause (no git vs not-a-repo are different).
+    // The incident guard, BEFORE anything is written: if the nearest repo
+    // found from `root` is not `root` itself, the target sits inside a host
+    // repository. A naive `git_ok`-gated init would skip `git init` there
+    // and every add/commit below would silently land in the ENCLOSING repo
+    // (sweeping its uncommitted files via `add -A`). Refuse instead.
+    let root_abs = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    if let Some(t) = work_tree_toplevel(root) {
+        if t != root_abs {
+            return Err(format!(
+                "refusing to generate {}: it sits inside an existing git repository ({}) — sample commits must land in their own repo, never in yours (run `cie sample` on a path outside any repository)",
+                root.display(),
+                t.display()
+            ));
+        }
+    }
+
+    // Probe the binary only when a repo still has to be created, so the
+    // error names the real cause (no git vs not-a-repo are different).
+    let needs_init = !root.join(".git").exists();
+    if needs_init {
         let probe = Command::new("git").arg("--version").output();
         if !matches!(probe, Ok(ref o) if o.status.success()) {
             return Err("git binary not found — the sample generator needs git to create real dated history (nothing was written to history; files may exist)".into());
         }
     }
 
+    // Physical isolation: every invocation is pinned to the sample's own
+    // .git and work tree, so even if a probe above were wrong, git cannot
+    // touch another repository's index, refs or object store.
+    let git_dir = root_abs.join(".git");
     let run = |args: &[&str], date: Option<&str>| -> Result<String, String> {
         let mut c = Command::new("git");
         c.args(args).current_dir(root);
+        c.env("GIT_DIR", &git_dir).env("GIT_WORK_TREE", &root_abs);
         if let Some(d) = date {
             c.env("GIT_AUTHOR_DATE", d).env("GIT_COMMITTER_DATE", d);
         }
@@ -210,7 +262,7 @@ pub fn generate(root: &Path, opts: &SampleOptions) -> Result<SampleReport, Strin
 
     // Fresh tree: init with a deterministic branch name + identity. An
     // existing repo (force) keeps its config and branch.
-    if !git_ok(root) {
+    if needs_init {
         if run(&["init", "-b", "main"], None).is_err() {
             run(&["init"], None)?;
             run(&["symbolic-ref", "HEAD", "refs/heads/main"], None).ok();
@@ -237,6 +289,8 @@ pub fn generate(root: &Path, opts: &SampleOptions) -> Result<SampleReport, Strin
         let staged = Command::new("git")
             .args(["diff", "--cached", "--quiet"])
             .current_dir(root)
+            .env("GIT_DIR", &git_dir)
+            .env("GIT_WORK_TREE", &root_abs)
             .status()
             .map_err(|e| format!("git diff spawn failed: {e}"))?;
         if staged.success() {
@@ -247,6 +301,8 @@ pub fn generate(root: &Path, opts: &SampleOptions) -> Result<SampleReport, Strin
         let ok = Command::new("git")
             .args(["commit", "-m", step.subject, "--no-verify", "--quiet"])
             .current_dir(root)
+            .env("GIT_DIR", &git_dir)
+            .env("GIT_WORK_TREE", &root_abs)
             .env("GIT_AUTHOR_NAME", "CIE Sample")
             .env("GIT_AUTHOR_EMAIL", "sample@cie.local")
             .env("GIT_COMMITTER_NAME", "CIE Sample")
@@ -310,6 +366,20 @@ mod tests {
         let out = crate::history::git(&dir, &["log", "--format=%ad", "--date=iso", "-1"])
             .expect("git log");
         assert!(out.contains("2026-01-15"), "tip date: {out}");
+        // the sample must be its OWN repo — regression guard for the git-walks-up
+        // bug where a fresh subdir of a host repo skipped `git init` and the
+        // sample's commits landed in the enclosing repository
+        let top = Command::new("git")
+            .args(["rev-parse", "--show-toplevel"])
+            .current_dir(&dir)
+            .output()
+            .expect("rev-parse");
+        let top = String::from_utf8_lossy(&top.stdout).trim().to_string();
+        assert_eq!(
+            Path::new(&top),
+            std::fs::canonicalize(&dir).unwrap().as_path(),
+            "sample must be its own work-tree toplevel, got {top}"
+        );
         // force re-run regenerates OUR sample from the plan (marker proves
         // ownership): full 5-commit history again, nothing user-owned touched
         let rep2 = generate(&dir, &SampleOptions { force: true }).expect("force generate");
@@ -331,5 +401,59 @@ mod tests {
         let err = generate(&dir, &SampleOptions { force: true }).unwrap_err();
         assert!(err.contains("refusing") && err.contains("marker"), "{err}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sample_refuses_target_inside_an_existing_repo_and_leaves_it_untouched() {
+        // The incident shape: `cie sample demo-sample` run inside a host repo.
+        // git walks up, so the fresh subdirectory looked like "already a repo",
+        // init was skipped, and the sample's add/commit hit the HOST repo.
+        let host = std::env::temp_dir().join(format!("cie-sample-host-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&host);
+        std::fs::create_dir_all(&host).unwrap();
+        let git = |args: &[&str]| {
+            let o = Command::new("git")
+                .args(args)
+                .current_dir(&host)
+                .env("GIT_AUTHOR_NAME", "t")
+                .env("GIT_AUTHOR_EMAIL", "t@t")
+                .env("GIT_COMMITTER_NAME", "t")
+                .env("GIT_COMMITTER_EMAIL", "t@t")
+                .output()
+                .expect("git spawn");
+            assert!(
+                o.status.success(),
+                "git {args:?} failed: {}",
+                String::from_utf8_lossy(&o.stderr)
+            );
+            o.stdout.clone()
+        };
+        git(&["init", "-b", "main"]);
+        std::fs::write(host.join("host.txt"), b"host\n").unwrap();
+        git(&["add", "-A"]);
+        git(&["commit", "-m", "host", "--quiet"]);
+        let commits_before = git(&["rev-list", "--count", "HEAD"]);
+
+        // fresh EMPTY subdir inside the host repo — the exact incident input
+        let target = host.join("demo-sample");
+        std::fs::create_dir_all(&target).unwrap();
+        let err = generate(&target, &SampleOptions::default()).unwrap_err();
+        assert!(
+            err.contains("refusing") && err.contains("existing git repository"),
+            "{err}"
+        );
+        // the host repo is untouched: same history, clean status, target empty
+        assert_eq!(git(&["rev-list", "--count", "HEAD"]), commits_before);
+        let st = git(&["status", "--porcelain"]);
+        assert!(
+            st.is_empty(),
+            "host repo dirtied by sample generation: {}",
+            String::from_utf8_lossy(&st)
+        );
+        assert!(
+            target.read_dir().unwrap().next().is_none(),
+            "target must not be written before the refusal"
+        );
+        let _ = std::fs::remove_dir_all(&host);
     }
 }
