@@ -27,3 +27,4 @@ pub mod schema;
 pub mod uast;
 pub mod ir;
 pub mod frameworks;
+pub mod c4;
