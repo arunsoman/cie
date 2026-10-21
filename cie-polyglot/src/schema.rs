@@ -485,6 +485,23 @@ fn ingest_tx(
     // symbol row id by declaration ast id (for parent_symbol_id + qual fix)
     let mut sym_ids: BTreeMap<i64, i64> = BTreeMap::new();
 
+    // prepared once per file, reused for every node in the walk — the old
+    // code re-parsed the INSERT SQL for every ast node and symbol
+    let mut ast_ins = conn
+        .prepare_cached(
+            "INSERT INTO ast_nodes(file_id, parent_id, kind_id, child_index, start_byte, end_byte,
+                 start_row, start_col, end_row, end_col, is_named, is_error, is_missing, text_id, shape_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut sym_ins = conn
+        .prepare_cached(
+            "INSERT INTO symbols(file_id, ast_node_id, name, qual_name, kind, parent_symbol_id,
+                 start_byte, end_byte, sig_end_byte, subtree_hash, annotations)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        )
+        .map_err(|e| e.to_string())?;
+
     while let Some(row) = stack.pop() {
         let node = row.node;
         let kind_name = node.kind();
@@ -498,11 +515,8 @@ fn ingest_tx(
         let shape = shape_hash(node);
         let is_decl = decls.contains_key(kind_name);
 
-        conn.execute(
-            "INSERT INTO ast_nodes(file_id, parent_id, kind_id, child_index, start_byte, end_byte,
-                 start_row, start_col, end_row, end_col, is_named, is_error, is_missing, text_id, shape_hash)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            rusqlite::params![
+        ast_ins
+            .execute(rusqlite::params![
                 file_id,
                 row.parent,
                 kind_id,
@@ -518,9 +532,8 @@ fn ingest_tx(
                 node.is_missing() as i64,
                 if text_id < 0 { None } else { Some(text_id) },
                 shape
-            ],
-        )
-        .map_err(|e| e.to_string())?;
+            ])
+            .map_err(|e| e.to_string())?;
         let ast_id = conn.last_insert_rowid();
         stats.ast_nodes += 1;
 
@@ -546,11 +559,8 @@ fn ingest_tx(
                         .qualifier
                         .last()
                         .and_then(|(ast_id, _)| sym_ids.get(ast_id).copied());
-                    conn.execute(
-                        "INSERT INTO symbols(file_id, ast_node_id, name, qual_name, kind, parent_symbol_id,
-                             start_byte, end_byte, sig_end_byte, subtree_hash, annotations)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                        rusqlite::params![
+                    sym_ins
+                        .execute(rusqlite::params![
                             file_id,
                             ast_id,
                             name,
@@ -562,9 +572,8 @@ fn ingest_tx(
                             Option::<i64>::None,
                             shape,
                             Option::<String>::None
-                        ],
-                    )
-                    .map_err(|e| e.to_string())?;
+                        ])
+                        .map_err(|e| e.to_string())?;
                     let sym_row = conn.last_insert_rowid();
                     stats.symbols += 1;
                     sym_ids.insert(ast_id, sym_row);

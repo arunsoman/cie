@@ -1,5 +1,57 @@
 # Changelog
 
+## 1.3.3 — polyglot pipeline: mathematically faster detection + bulk persistence (2026-10-21)
+
+Same outputs, no threads — the speed comes from algorithms, data
+structures and write batching. Measured on this repository
+(5,210 lowered symbols): the full `cie polyglot` pipeline previously
+could not finish inside 10 minutes; it now completes in ~81 s.
+On the cie-polyglot subtree: duplicates 3.44 s → 30 ms (113×),
+ingest+lower 3.68 s → 1.00 s.
+
+- **Duplicates engine (§23)** — rewritten as threshold all-pairs cosine
+  over a DENSE op-bag space: one shared vocabulary (sorted op names →
+  u32 dims; ascending dim == the old BTreeMap's string order, so every
+  similarity is BIT-IDENTICAL to brute force), norms computed once per
+  symbol instead of twice per pair, exact-hash grouping (O(n)) emitting
+  canonical Fact rows with no cosine, and an inverted index whose scan
+  walks each vector's dims in descending weight with a Cauchy–Schwarz
+  remainder abort — any pair below the 0.40 floor is provably
+  unreachable through the unscanned tail, so sub-threshold pairs are
+  never enumerated. Equivalence is enforced in-test against the kept
+  brute-force reference: identical rows (similarity bits, tiers,
+  detection, counter-arguments, canonical winner), identical totals,
+  identical per-symbol hidden counts, over a corpus with exact dups,
+  near dups, weak pairs and a hidden residual (54 crate tests).
+- **Hidden pairs are counted, not materialized** — the old engine wrote
+  one row PER sub-floor pair (O(n²) rows read only as per-symbol
+  counts); they now live in `duplicate_gaps(symbol_id, hidden_count)`,
+  one row per symbol, and the impact/duplicate spec reads the same
+  number from there. On this repo: ~1.02M hidden pair rows never
+  written.
+- **Bulk persistence** — the §23.3 canonical winner is computed up
+  front and written with each row; the whole output (12.5M shown rows
+  on this repo) goes in ONE transaction instead of one auto-commit
+  INSERT per pair, replacing the old post-hoc full-table UPDATE per
+  family member (every pair got a row, hidden included, so the
+  brute-force family walk always reduced to the global argmax —
+  preserved exactly and documented).
+- **Ingest/lowering** — one transaction per pass instead of per-row
+  autocommit; the call-name index is loaded once per run instead of
+  re-scanning all symbols PER FILE (was O(files × symbols)); one
+  span→node index per file replaces a full-tree DFS per symbol (×2)
+  and per call (was O((symbols+calls) × nodes) per file); `AstIdMap`
+  lookups no longer allocate a kind String at every ancestor level;
+  prepared statements across the ast/symbol/block/instruction/edge/
+  call/meta write loops.
+- Known remainders (named, not hidden): ingest is now the dominant
+  phase (~61 s of 81 s — per-file ingest transactions, and shape_hash
+  walks each node's whole subtree); the §23 cosine treats every op as
+  equally informative, so on this repo 12.5M of 13.6M pairs land above
+  the floor — correct per spec, but the signal wants IDF weighting,
+  which would change similarities and is a semantic decision, not a
+  speed one.
+
 ## 1.3.2 — `cie sample` git isolation: refuse targets inside a host repo (2026-10-21)
 
 Retires the incident warned about in 1.3.1: running `cie sample

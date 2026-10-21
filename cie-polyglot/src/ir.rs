@@ -21,7 +21,7 @@
 //! flow seed tables (verified grammar kind names, same discipline as the
 //! UAST seed).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use rusqlite::Connection;
 
@@ -569,10 +569,12 @@ fn classify_call(call: tree_sitter::Node, seed: &CfSeed) -> &'static str {
 }
 
 /// Map tree-sitter node ids to the ast_nodes row ids written by slice 9,
-/// keyed by (start_byte, end_byte, grammar kind).
+/// keyed by (start_byte, end_byte) with the grammar kinds bucketed per span —
+/// a hash lookup plus a tiny kind scan instead of a BTreeMap probe that
+/// allocated a kind String at every ancestor level of every query.
 #[derive(Clone)]
 struct AstIdMap {
-    by_span_kind: BTreeMap<(usize, usize, String), i64>,
+    by_span: HashMap<(usize, usize), Vec<(Box<str>, i64)>>,
 }
 
 impl AstIdMap {
@@ -596,20 +598,25 @@ impl AstIdMap {
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
-        let mut m = BTreeMap::new();
+        let mut m: HashMap<(usize, usize), Vec<(Box<str>, i64)>> = HashMap::new();
         for (s, e, k, id) in rows {
-            m.insert((s, e, k), id);
+            let bucket = m.entry((s, e)).or_default();
+            // same last-wins semantics as the old BTreeMap over the same rows
+            match bucket.iter_mut().find(|(kk, _)| &**kk == k) {
+                Some(slot) => slot.1 = id,
+                None => bucket.push((k.into_boxed_str(), id)),
+            }
         }
-        Ok(AstIdMap { by_span_kind: m })
+        Ok(AstIdMap { by_span: m })
     }
     fn id_of(&self, node: tree_sitter::Node) -> Option<i64> {
         let mut n = Some(node);
         while let Some(x) = n {
-            if let Some(id) = self
-                .by_span_kind
-                .get(&(x.start_byte(), x.end_byte(), x.kind().to_string()))
-            {
-                return Some(*id);
+            if let Some(bucket) = self.by_span.get(&(x.start_byte(), x.end_byte())) {
+                let kind = x.kind();
+                if let Some((_, id)) = bucket.iter().find(|(k, _)| &**k == kind) {
+                    return Some(*id);
+                }
             }
             n = x.parent();
         }
@@ -622,7 +629,9 @@ impl AstIdMap {
 // ---------------------------------------------------------------------------
 
 /// §11.10: store the file source (zstd) so lowering re-parses without the
-/// original tree on disk.
+/// original tree on disk. One bulk transaction — a commit per file would
+/// fsync the store n times for data nobody reads until lowering starts.
+/// Must not be called with a transaction already open on `conn`.
 pub fn store_sources(conn: &Connection, root: &std::path::Path) -> Result<usize, String> {
     let mut count = 0usize;
     let files: Vec<(i64, String)> = {
@@ -636,17 +645,26 @@ pub fn store_sources(conn: &Connection, root: &std::path::Path) -> Result<usize,
             .map_err(|e| e.to_string())?;
         rows
     };
-    for (id, rel) in files {
-        let p = root.join(&rel);
-        let bytes = std::fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
-        conn.execute(
-            "INSERT OR REPLACE INTO file_source_cache(file_id, zstd_bytes, revision)
-             SELECT ?1, ?2, revision FROM files WHERE id = ?1",
-            rusqlite::params![id, zstd::bulk::compress(&bytes, 3).map_err(|e| e.to_string())?],
-        )
-        .map_err(|e| e.to_string())?;
-        count += 1;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    {
+        let mut ins = tx
+            .prepare_cached(
+                "INSERT OR REPLACE INTO file_source_cache(file_id, zstd_bytes, revision)
+                 SELECT ?1, ?2, revision FROM files WHERE id = ?1",
+            )
+            .map_err(|e| e.to_string())?;
+        for (id, rel) in files {
+            let p = root.join(&rel);
+            let bytes = std::fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+            ins.execute(rusqlite::params![
+                id,
+                zstd::bulk::compress(&bytes, 3).map_err(|e| e.to_string())?
+            ])
+            .map_err(|e| e.to_string())?;
+            count += 1;
+        }
     }
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(count)
 }
 
@@ -676,11 +694,16 @@ pub struct LowerReport {
 /// Lower every symbol in the store (§15): re-parse from the source cache,
 /// locate each symbol's decl node by span, build the CFG, write
 /// blocks/instructions/edges/calls + ir_hash/ir_vec.
+///
+/// One bulk transaction for the whole pass and one shared name→id map: the
+/// lowering writes were previously auto-committed per row and the call-name
+/// index was rebuilt with a full symbols scan PER FILE (O(files × symbols)).
 pub fn lower_all(conn: &Connection) -> Result<LowerReport, String> {
-    uast::normalize(conn)?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    uast::normalize(&tx)?;
     let mut report = LowerReport::default();
     let files: Vec<(i64, String)> = {
-        let mut stmt = conn
+        let mut stmt = tx
             .prepare("SELECT id, path FROM files ORDER BY id")
             .map_err(|e| e.to_string())?;
         let rows = stmt
@@ -690,9 +713,28 @@ pub fn lower_all(conn: &Connection) -> Result<LowerReport, String> {
             .map_err(|e| e.to_string())?;
         rows
     };
+    // call resolution is by name match; ambiguity resolves to the first
+    // registered id and the callee_text is always preserved so nothing is
+    // hidden. Identical content to the old per-file rebuild (ORDER BY id,
+    // first wins) — loaded once instead of once per file.
+    let name_ids: BTreeMap<String, i64> = {
+        let mut stmt = tx
+            .prepare("SELECT name, id FROM symbols ORDER BY id")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let mut m = BTreeMap::new();
+        for (n, id) in rows {
+            m.entry(n).or_insert(id);
+        }
+        m
+    };
     for (file_id, path) in files {
         let Some(lang) = Lang::from_path(&path) else { continue };
-        let compressed: Vec<u8> = conn
+        let compressed: Vec<u8> = tx
             .query_row(
                 "SELECT zstd_bytes FROM file_source_cache WHERE file_id = ?1",
                 rusqlite::params![file_id],
@@ -700,8 +742,9 @@ pub fn lower_all(conn: &Connection) -> Result<LowerReport, String> {
             )
             .map_err(|e| e.to_string())?;
         let src = zstd::bulk::decompress(&compressed, 16 << 20).map_err(|e| e.to_string())?;
-        lower_file(conn, file_id, lang, &src, &mut report)?;
+        lower_file(&tx, file_id, lang, &src, &name_ids, &mut report)?;
     }
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(report)
 }
 
@@ -710,6 +753,7 @@ pub fn lower_file(
     file_id: i64,
     lang: Lang,
     src: &[u8],
+    name_ids: &BTreeMap<String, i64>,
     report: &mut LowerReport,
 ) -> Result<(), String> {
     let mut parser = tree_sitter::Parser::new();
@@ -736,26 +780,14 @@ pub fn lower_file(
         rows
     };
 
-    // name → symbol id across the store (call resolution is by name match;
-    // ambiguity resolves to the first registered id and the callee_text is
-    // always preserved so nothing is hidden)
-    let mut name_ids: BTreeMap<String, i64> = BTreeMap::new();
-    {
-        let mut stmt = conn
-            .prepare("SELECT name, id FROM symbols ORDER BY id")
-            .map_err(|e| e.to_string())?;
-        let rows = stmt
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
-        for (n, id) in rows {
-            name_ids.entry(n).or_insert(id);
-        }
-    }
+    // one walk of the tree per FILE, not one walk per symbol (and per call):
+    // span → node, built in the same stack-DFS order the old tree_by_span used
+    // (children pushed in order, popped in reverse; first encounter wins), so
+    // lookups return exactly the node tree_by_span would have returned.
+    let span_index: HashMap<(usize, usize), tree_sitter::Node> = build_span_index(root);
 
     for (sym_id, sb, eb) in syms {
-        let Some(decl) = find_span_node(root, sb, eb) else {
+        let Some(&decl) = span_index.get(&(sb, eb)) else {
             continue;
         };
         let mut ctx = LowerCtx {
@@ -770,6 +802,13 @@ pub fn lower_file(
         let (entry, exit) = ctx.lower_body(decl, &ast_map);
         let block_rows = write_cfg(conn, sym_id, &ctx, entry, exit, report)?;
 
+        let mut call_ins = conn
+            .prepare_cached(
+                "INSERT INTO calls(file_id, call_node_id, caller_symbol_id, callee_symbol_id, callee_text,
+                     resolution, stmt_index, block_id, call_kind, throws_set, guard_summary)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            )
+            .map_err(|e| e.to_string())?;
         for c in &ctx.calls {
             let callee_id = c
                 .callee_text
@@ -777,13 +816,11 @@ pub fn lower_file(
                 .and_then(last_name_segment)
                 .and_then(|n| name_ids.get(n).copied());
             let resolution = if callee_id.is_some() { "RESOLVED" } else { "UNRESOLVED" };
-            conn.execute(
-                "INSERT INTO calls(file_id, call_node_id, caller_symbol_id, callee_symbol_id, callee_text,
-                     resolution, stmt_index, block_id, call_kind, throws_set, guard_summary)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                rusqlite::params![
+            let call_node = span_index.get(&c.span).copied().unwrap_or(root);
+            call_ins
+                .execute(rusqlite::params![
                     file_id,
-                    ast_map.id_of(tree_by_span(root, c.span)),
+                    ast_map.id_of(call_node),
                     sym_id,
                     callee_id,
                     c.callee_text,
@@ -797,9 +834,8 @@ pub fn lower_file(
                         Some(serde_json::to_vec(&ctx.throws_in_body).map_err(|e| e.to_string())?)
                     },
                     c.guard
-                ],
-            )
-            .map_err(|e| e.to_string())?;
+                ])
+                .map_err(|e| e.to_string())?;
             report.calls += 1;
             if callee_id.is_some() {
                 report.calls_resolved += 1;
@@ -812,25 +848,23 @@ pub fn lower_file(
     Ok(())
 }
 
-fn tree_by_span<'t>(root: tree_sitter::Node<'t>, span: (usize, usize)) -> tree_sitter::Node<'t> {
+/// span → node over the whole file, first encounter wins — the same stack-DFS
+/// order and the same winner as the old per-query tree_by_span walk (children
+/// pushed in order, popped in reverse), so every lookup is the node the old
+/// code would have found, at O(1) instead of O(nodes).
+fn build_span_index<'t>(
+    root: tree_sitter::Node<'t>,
+) -> HashMap<(usize, usize), tree_sitter::Node<'t>> {
+    let mut map: HashMap<(usize, usize), tree_sitter::Node<'t>> = HashMap::new();
     let mut stack = vec![root];
     while let Some(n) = stack.pop() {
-        if (n.start_byte(), n.end_byte()) == span {
-            return n;
-        }
+        map.entry((n.start_byte(), n.end_byte())).or_insert(n);
         let mut c = n.walk();
         let ch: Vec<tree_sitter::Node<'t>> = n.children(&mut c).collect();
         drop(c);
         stack.extend(ch);
     }
-    root
-}
-
-fn find_span_node<'t>(root: tree_sitter::Node<'t>, sb: usize, eb: usize) -> Option<tree_sitter::Node<'t>> {
-    tree_by_span(root, (sb, eb))
-        .start_byte()
-        .eq(&sb)
-        .then_some(tree_by_span(root, (sb, eb)))
+    map
 }
 
 fn callee_text_of<'t>(call: tree_sitter::Node<'t>, src: &'t [u8]) -> Option<String> {
@@ -857,55 +891,73 @@ fn write_cfg(
     report: &mut LowerReport,
 ) -> Result<Vec<i64>, String> {
     let mut block_rows: Vec<i64> = Vec::with_capacity(ctx.cfg.blocks.len());
-    for (i, b) in ctx.cfg.blocks.iter().enumerate() {
-        let kind = if i == entry {
-            "entry"
-        } else if i == exit {
-            "exit"
-        } else {
-            b.kind
-        };
-        conn.execute(
-            "INSERT INTO ir_blocks(symbol_id, block_index, kind) VALUES (?1, ?2, ?3)",
-            rusqlite::params![sym_id, i as i64, kind],
-        )
-        .map_err(|e| e.to_string())?;
-        let row = conn.last_insert_rowid();
-        block_rows.push(row);
-        report.blocks += 1;
-        for (j, ins) in b.instrs.iter().enumerate() {
-            conn.execute(
+    {
+        // prepared once and reused across every block/instruction/edge —
+        // these loops were the hottest write path in the store
+        let mut block_ins = conn
+            .prepare_cached("INSERT INTO ir_blocks(symbol_id, block_index, kind) VALUES (?1, ?2, ?3)")
+            .map_err(|e| e.to_string())?;
+        let mut instr_ins = conn
+            .prepare_cached(
                 "INSERT INTO ir_instructions(block_id, inst_index, op, operands, ast_node_id, span_start, span_end)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                rusqlite::params![
-                    row,
-                    j as i64,
-                    ins.op,
-                    ins.operands,
-                    ins.ast_node_id,
-                    ins.span.0 as i64,
-                    ins.span.1 as i64
-                ],
             )
             .map_err(|e| e.to_string())?;
-            report.instructions += 1;
+        for (i, b) in ctx.cfg.blocks.iter().enumerate() {
+            let kind = if i == entry {
+                "entry"
+            } else if i == exit {
+                "exit"
+            } else {
+                b.kind
+            };
+            block_ins
+                .execute(rusqlite::params![sym_id, i as i64, kind])
+                .map_err(|e| e.to_string())?;
+            let row = conn.last_insert_rowid();
+            block_rows.push(row);
+            report.blocks += 1;
+            for (j, ins) in b.instrs.iter().enumerate() {
+                instr_ins
+                    .execute(rusqlite::params![
+                        row,
+                        j as i64,
+                        ins.op,
+                        ins.operands,
+                        ins.ast_node_id,
+                        ins.span.0 as i64,
+                        ins.span.1 as i64
+                    ])
+                    .map_err(|e| e.to_string())?;
+                report.instructions += 1;
+            }
         }
     }
-    for (from, to, kind) in &ctx.cfg.edges {
-        conn.execute(
-            "INSERT OR IGNORE INTO ir_edges(from_block_id, to_block_id, kind) VALUES (?1, ?2, ?3)",
-            rusqlite::params![block_rows[*from], block_rows[*to], kind],
-        )
-        .map_err(|e| e.to_string())?;
-        report.edges += 1;
+    {
+        let mut edge_ins = conn
+            .prepare_cached(
+                "INSERT OR IGNORE INTO ir_edges(from_block_id, to_block_id, kind) VALUES (?1, ?2, ?3)",
+            )
+            .map_err(|e| e.to_string())?;
+        for (from, to, kind) in &ctx.cfg.edges {
+            edge_ins
+                .execute(rusqlite::params![block_rows[*from], block_rows[*to], kind])
+                .map_err(|e| e.to_string())?;
+            report.edges += 1;
+        }
     }
     // ANL-05 rename-stable hash + §15 ir_vec (op bag + edge count), stored
     // in ir_meta for the duplicates slice to consume.
     let (hash, vec) = ir_hash_vec(ctx);
-    conn.execute(
+    conn.prepare_cached(
         "INSERT OR REPLACE INTO ir_meta(symbol_id, ir_hash, ir_vec) VALUES (?1, ?2, ?3)",
-        rusqlite::params![sym_id, hash, serde_json::to_vec(&vec).map_err(|e| e.to_string())?],
     )
+    .map_err(|e| e.to_string())?
+    .execute(rusqlite::params![
+        sym_id,
+        hash,
+        serde_json::to_vec(&vec).map_err(|e| e.to_string())?
+    ])
     .map_err(|e| e.to_string())?;
     Ok(block_rows)
 }
