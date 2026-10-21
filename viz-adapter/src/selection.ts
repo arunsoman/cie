@@ -73,23 +73,21 @@ export function createSelectionHub(): SelectionHub {
         return;
       }
 
-      current = [...ids];
-      notifying = true;
-      try {
-        for (const l of [...listeners]) l(current, origin);
-      } finally {
-        notifying = false;
-      }
-
-      // The single deferred pass: if a listener moved the selection while
-      // we were notifying, fire once more with the newest set (and only
-      // once — this pass itself ignores further re-entrancy by the same
-      // guards above).
-      if (pending) {
-        const next = pending;
-        pending = null;
-        if (!sameSet(next.ids, current)) hub.setSelected(next.ids, next.origin);
-      }
+      const notify = (value: string[], source: SelectionOrigin) => {
+        current = [...value];
+        notifying = true;
+        try {
+          for (const l of [...listeners]) l([...current], source);
+        } finally {
+          notifying = false;
+        }
+      };
+      notify(ids, origin);
+      // Bound conflicting listeners to ONE deferred notification.
+      const next = pending;
+      pending = null;
+      if (next && !sameSet(next.ids, current)) notify(next.ids, next.origin);
+      pending = null;
     },
 
     selected() {

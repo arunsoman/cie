@@ -104,3 +104,12 @@ describe('selection hub — RFC-0024 patch 1 (RenderHandle.onSelection / setSele
     expect(logB).toEqual([['x']]);
   });
 });
+
+ it('bounds conflicting feedback and isolates listener mutations', () => {
+   const hub = createSelectionHub();
+   let calls = 0;
+   hub.subscribe(ids => { calls++; hub.setSelected(ids[0] === 'a' ? ['b'] : ['a'], 'programmatic'); ids.push('mutation'); });
+   hub.setSelected(['a'], 'user');
+   expect(calls).toBe(2);
+   expect(hub.selected()).toEqual(['b']);
+ });
