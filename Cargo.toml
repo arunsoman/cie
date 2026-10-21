@@ -42,6 +42,7 @@ members = [
     "cie-server",
     "cie-viz",
     "cie-stories",
+    "cie-polyglot",
 ]
 
 [workspace.package]
@@ -142,6 +143,7 @@ cie-drift = { path = "cie-drift" }
 cie-cli = { path = "cie-cli" }
 cie-viz = { path = "cie-viz" }
 cie-server = { path = "cie-server" }
+cie-polyglot = { path = "cie-polyglot" }
 
 [profile.release]
 opt-level = 3
