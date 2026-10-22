@@ -779,3 +779,22 @@ Stage Summary:
 - A1 DONE: induction chain is primary DAG structure; A2 VERIFIED (parent/extra_edges/intent serialize into concepts.json — produce.rs already emits both; serde test pins it).
 - Key decisions: primary chain (not extra edges) so TASK-082 invalidation waves follow the true data dependency (broader extent contains narrower); broadest-cover pick = ascending lattice index (deterministic); functions stay view-layer expansions (DAG remains class/module-grained).
 - Next: A3 (enriched LLM pass-2 labeling — extent's function evidence into label_concept), A4 (CLI --llm provider wiring; make_provider already exists at cie-cli/src/main.rs:1191), A5 (usecase-first projection emission).
+
+---
+Task ID: A3 + A4
+Agent: main (Z.ai)
+Task: Enriched pass-2 labeling (the LLM names the story, fed the cluster's member evidence) + complete the provider wiring so every label-producing command can reach a real backend.
+
+Work Log:
+- Discovered A4 was ~90% built: IngestOptions already carries no_llm/llm/llm_budget_usd and the ingest labeler already routes through cie_llm::Labeler + Budget + persisted cache. Real gaps: `cie concepts` hard-wired offline (no flags), `cie analyze` hardcoded llm_budget_usd=1.0.
+- Found + fixed a second latent bug: OfflineProvider's splitn(2,':') consumed the LABEL:/EXPLAIN: prefix before the branch checks, so EVERY structured prompt fell to the catch-all prettify(body) — concept labels came out mangled ("Concept:money:money movement"), symbol labels carried kind suffixes, the EXPLAIN branch was dead code. Prefixes now match the full prompt (strip_prefix); offline concept labels read the mechanical fallback; EXPLAIN works for the first time.
+- Cache namespace bumped offline-v1 -> offline-v2 for the LABELER only (embedding provider id stays offline-v1 — vector_store pins it; rfc0022 unaffected). Cached records store the namespace as model_id so provenance is self-describing. Old broken-parse cache entries are naturally invalidated.
+- A3: LabelFn gained a third param (&[LabelSymbolEvidence]); hierarchy builds it from the extent (bounded 12, SymbolId order, names+tags+effects); cie-llm gained the mirrored ConceptEvidence + a FUNCTIONS: prompt section in label_concept; cie-ingest converts at the boundary (no dep edge cie-analysis->cie-llm). Offline ignores evidence (honest: it cannot read code); llm-source labels still bind only inert LlmCandidate rules (TASK-079 intact).
+- New tests: cie-llm capturing-provider asserts the enriched prompt reaches the model (Mutex-based, LlmProvider is Send+Sync); offline parse tests (concept fallback, clean symbol labels, EXPLAIN sentence); fca_induction_chain evidence-visibility test (names in extent order, tags ride along, one bundle per surviving usecase). Updated suppliers: rfc0019 label_offline, cli common/mod.rs (acc12 model_id, acc14 + llm_labeler closure), task_063 assertions.
+- E2E verified with the rebuilt binary: `concepts --llm-provider openai --llm-budget-usd 0.5` on a fresh repo falls back silently (no OPENAI key) and labels are clean ("money movement"); `--no-llm` md output works. Cleaned an accidental .cie/ store my earlier inspection run left in tests/fixtures/cart (caused 2 transient fs::copy test failures).
+- Gates: cie-llm, cie-analysis, cie-ingest, cie-cli (incl. binary) all green. CHANGELOG 1.4.4; commit bdbb78c pushed; fetch-verified local == origin/main.
+
+Stage Summary:
+- A3 DONE, A4 DONE. Concept labels are now clean + evidence-fed; provider reachable from ingest/analyze/concepts with budget + silent fallback + persistent cache.
+- Remaining in Phase A: A5 (usecase-first projection emission in the artifact — may be largely free now that the chain is primary and serde emits parent/extra_edges; needs a deliberate artifact-shape decision for the web mapper).
+- Next after A5: Phase B (B1 store slot + consumers, B2 mapper + vitest gate(), B3 concept-diagrams.ts flowchart/sequence ViewSpecs), then Phase C UI surfaces + chat integration.
