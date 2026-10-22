@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.1 — Ask CIE draws the named diagrams (2026-10-22)
+
+Chat integration: "draw the C4 architecture" typed into Ask CIE now opens
+the engine's OWN artifact on the canvas — not the store-derived stand-in.
+
+- **Intent module** (`web/src/lib/polyglot-chat.ts`) — conservative
+  vocabularies for the four named kinds (C4/architecture, state machines,
+  workflows, impact views); resolves the artifact from the bundle (a named
+  machine or impact center wins over the first in stable order), maps and
+  gates it, and writes the instant answer from counted facts (element
+  count, footer certainty split, gap count). A kind the bundle doesn't
+  hold is an honest "the pass named no X — what it did name: …" answer,
+  never the stand-in drawn as if it were named. Deliberately NOT hijacked:
+  bare "impact" questions (they keep the live `cie impact --symbol` path),
+  "who calls whom" (keeps the report-based call flow), and bare "pipeline"
+  (not a drawing ask).
+- **Fast-path order** (`web/src/components/cie/chat-panel.tsx`) — the
+  polyglot path runs after story/quality and BEFORE the mastery journey:
+  the journey's `\bc4\b` prompt used to win and draw its file-table C4.
+  When the bundle carries the kind, the byte-cited artifact wins; without
+  a bundle every old path stands unchanged, and the journey still owns
+  "the big picture" / "containers" asks so its chip remains earnable.
+- **Canvas slot** (`web/src/lib/cie-store.ts`) — `canvasPolyglot` (the
+  bundle key) rides beside `canvasChart`; the two senders are mutually
+  exclusive; both clear on project switches. The stage renders it through
+  the exported `ArtifactCanvas` (new `big` variant, 640px) — same mapper,
+  same gate, same negotiation as the Named-diagrams section, with its own
+  toolbar title, footer line and close button (`stage.tsx`).
+- **Discoverability** — "Draw the C4 architecture" joined the composer's
+  starter questions.
+- **Tests** — `web/test/polyglot-chat.test.cjs` (12 tests: intent vocab,
+  no-hijack guarantees, named/default picks, kind misses, empty bundle,
+  gate refusal as a named result, fixture-backed gate re-runs); the
+  browser smoke gained two steps (chat→canvas on the five-service demo;
+  the honest stand-in fallback without a bundle).
+
 ## 1.4.0 — the web UI renders the polyglot layer: Named diagrams (2026-10-22)
 
 The last mile of the PRD v2.0 seam, client side. The engine and the server

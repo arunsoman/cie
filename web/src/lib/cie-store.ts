@@ -116,6 +116,7 @@ interface CieState {
   // workspace state
   view: StageView; // what the middle stage shows
   canvasChart: ChatChartSpec | null; // the chart sent to the canvas (view === "chart")
+  canvasPolyglot: string | null; // the named-diagram bundle key on the canvas (view === "chart") — mutually exclusive with canvasChart
   mapSelected: VizElement | null; // map bubble picked; the chat offers it as a referent
   llm: LlmConfig; // who answers — hydrated from localStorage after mount
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
@@ -163,6 +164,7 @@ interface CieState {
   setJobId: (id: string | null) => void;
   setView: (v: StageView) => void;
   openChartOnCanvas: (spec: ChatChartSpec) => void;
+  openPolyglotOnCanvas: (artifact: string) => void; // a named diagram the chat asked for
   closeCanvasChart: () => void;
   setMapSelected: (el: VizElement | null) => void;
   setPendingAsk: (q: string | null) => void;
@@ -238,6 +240,7 @@ export const useCie = create<CieState>((set, get) => ({
   pendingTrace: null,
   view: "start",
   canvasChart: null,
+  canvasPolyglot: null,
   mapSelected: null,
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
@@ -311,6 +314,7 @@ export const useCie = create<CieState>((set, get) => ({
         repoScan: null,
         view: "start",
         canvasChart: null,
+        canvasPolyglot: null,
         mapSelected: null,
   chatContext: [],
         // The sample project has no local-folder root on this machine.
@@ -367,6 +371,7 @@ export const useCie = create<CieState>((set, get) => ({
       // A new project starts on its own front page, not on an old chart.
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
+      canvasPolyglot: null,
       mapSelected: null,
   chatContext: [],
       atlasSelection: ATLAS_RESET,
@@ -393,8 +398,12 @@ export const useCie = create<CieState>((set, get) => ({
 
   setView: (v) => set({ view: v }),
 
-  openChartOnCanvas: (spec) => set({ canvasChart: spec, view: "chart" }),
-  closeCanvasChart: () => set({ canvasChart: null, view: "start" }),
+  // The two canvas senders are mutually exclusive: opening one closes the
+  // other, so the stage never has to arbitrate between a chat chart and a
+  // named diagram occupying the same view slot.
+  openChartOnCanvas: (spec) => set({ canvasChart: spec, canvasPolyglot: null, view: "chart" }),
+  openPolyglotOnCanvas: (artifact) => set({ canvasPolyglot: artifact, canvasChart: null, view: "chart" }),
+  closeCanvasChart: () => set({ canvasChart: null, canvasPolyglot: null, view: "start" }),
 
   setMapSelected: (el) =>
     set((s) => ({

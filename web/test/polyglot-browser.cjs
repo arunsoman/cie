@@ -1,8 +1,10 @@
 // Named diagrams (PRD v2.0 §25) — real production Next server, the real
 // engine-generated demo bundle, no mocks. Proves the client seam end to
 // end: the bundle loads with the sample, every artifact the engine emitted
-// appears in the picker, the mapped specs render on the gated canvas, and
-// a workspace without a bundle gets the honest empty state.
+// appears in the picker, the mapped specs render on the gated canvas, the
+// CHAT draws the real C4 when asked ("draw the C4 architecture"), and a
+// workspace without a bundle gets the honest empty state plus the honest
+// fallback answer.
 const {spawn}=require('node:child_process'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
 (async()=>{
@@ -59,6 +61,20 @@ const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
    assert.match(text,/Impact — /);
   });
 
+  await step('chat: "draw the C4 architecture" answers instantly and opens the REAL artifact on the canvas',async()=>{
+   await page.getByLabel('Your question').fill('draw the C4 architecture');
+   await page.getByRole('button',{name:'Send question',exact:true}).click();
+   // the answer bubble is the instant-path text about the engine's own artifact
+   await page.getByText(/is on the canvas/).waitFor();
+   await page.getByText(/Drawn instantly from your loaded report/).waitFor();
+   // the stage switched to the big named diagram (not a ChatChart)
+   const card=page.locator('[data-polyglot-artifact="c4"]');
+   await card.waitFor();
+   await waitSettled('[data-polyglot-artifact="c4"]');
+   assert.match(await card.innerText(),/How sure:/);
+   assert.doesNotMatch(await page.locator('main').innerText(),/No chart on the canvas right now/);
+  });
+
   await step('no client exceptions',async()=>assert.deepEqual(errors,[]));
 
   await step('a workspace without a bundle gets the honest empty state',async()=>{
@@ -72,6 +88,18 @@ const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
    const empty=page.getByText('No named diagrams for this project');
    await empty.waitFor();
    await page.getByText(/What the engine can.t evidence, it doesn.t draw/).waitFor();
+  });
+
+  await step('chat fallback without a bundle: the same ask still draws the honest stand-in chart',async()=>{
+   await page.getByLabel('Your question').fill('draw the C4 architecture');
+   await page.getByRole('button',{name:'Send question',exact:true}).click();
+   // no bundle → the module never answers; mastery's journey C4 (or
+   // draw-anything's UML) draws the store-derived stand-in — never a fake
+   // named diagram
+   const chart=page.locator('[data-cie-chart="c4"], [data-cie-chart="uml"]');
+   await chart.waitFor();
+   await page.waitForFunction(()=>{const el=document.querySelector('[data-cie-chart="c4"], [data-cie-chart="uml"]');return el&&/Rendered:|declined/i.test(el.innerText);},null,{timeout:30000});
+   assert.doesNotMatch(await page.locator('main').innerText(),/Named diagram/);
   });
 
   console.log(JSON.stringify({passed:passed.length,browser:browser.version(),singleProcess:process.env.CIE_BROWSER_SINGLE_PROCESS==='1'}));

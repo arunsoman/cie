@@ -16,7 +16,8 @@
     "test:rfc0023": "node --test test/rfc0023.test.cjs",
     "test:rfc0023:browser": "node test/rfc0023-browser.cjs",
     "test:polyglot": "node --test test/polyglot-bundle.test.cjs",
-    "test:polyglot:browser": "node test/polyglot-browser.cjs"
+    "test:polyglot:browser": "node test/polyglot-browser.cjs",
+    "test:polyglot:chat": "node --test test/polyglot-chat.test.cjs"
   },
   "dependencies": {
     "@antv/g6": "^5.1.1",

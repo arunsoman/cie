@@ -14,7 +14,7 @@
 //   │         map (hover 350 ms, L pause, Esc close)      │
 //   └ footer: what the picture knows, and how sure it is ┘
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Map as MapIcon, Maximize2, Sparkles } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
@@ -39,7 +39,13 @@ import { MenuView } from "@/components/cie/menu-tab";
 import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
 import { AtlasView } from "@/components/cie/atlas-view";
-import { PolyglotView } from "@/components/cie/polyglot-views";
+import { PolyglotView, ArtifactCanvas } from "@/components/cie/polyglot-views";
+import {
+  artifactKind,
+  artifactMeta,
+  mapPolyglotSpec,
+  type PolyglotArtifact,
+} from "@/lib/viz/polyglot-spec";
 import { CieAdminView } from "@/components/cie/cie-admin-view";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
@@ -65,8 +71,14 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
 };
 
 export function Stage() {
-  const { view, loading, viewspec, canvasChart } = useCie();
+  const { view, loading, viewspec, canvasChart, canvasPolyglot } = useCie();
   const canvas = CANVAS_VIEWS.includes(view);
+  // A named diagram on the canvas gets its own title — it is the engine's
+  // own artifact, not a chart derived from the loaded report.
+  const meta =
+    view === "chart" && canvasPolyglot
+      ? { title: "Named diagram", caption: "The engine's own C4 / machine / flow / impact picture — asked for from the chat." }
+      : TITLES[view];
   // Destructured on purpose: the hooks lint treats member access on a
   // hook-returned object as ref access during render.
   const { attach, zoom, zoomBy, fit, cameraProps } = useCamera(canvas);
@@ -82,8 +94,6 @@ export function Stage() {
       return () => cancelAnimationFrame(id);
     }
   }, [view, canvas, fit]);
-
-  const meta = TITLES[view];
 
   return (
     <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-white" aria-label="Chart workspace">
@@ -124,6 +134,8 @@ export function Stage() {
           >
             {view === "map" ? (
               <MapViewSection />
+            ) : canvasPolyglot ? (
+              <PolyglotOnCanvas name={canvasPolyglot} />
             ) : canvasChart ? (
               <ChartOnCanvas />
             ) : (
@@ -179,7 +191,12 @@ export function Stage() {
               {viewspec.footer.caption && <span className="text-stone-400">· “{viewspec.footer.caption}”</span>}
             </span>
           )}
-          {view === "chart" && canvasChart && (
+          {view === "chart" && canvasPolyglot && (
+            <span className="text-stone-400 truncate">
+              named by the polyglot layer — every box cites the bytes that earned it.
+            </span>
+          )}
+          {view === "chart" && !canvasPolyglot && canvasChart && (
             <span className="text-stone-400 truncate">
               {canvasChart.catalog ? `catalog ${canvasChart.catalog} · ` : ""}drawn from your loaded report — the chat keeps the small version.
             </span>
@@ -213,6 +230,40 @@ function ChartOnCanvas() {
         className="mt-3 text-xs text-stone-500 hover:text-stone-800 underline"
       >
         Close this chart and go back to Start here
+      </button>
+    </div>
+  );
+}
+
+/** A named diagram the chat asked for — the engine's own artifact, mapped
+ *  and gated exactly like the Named-diagrams section renders it, just on
+ *  the big canvas. */
+function PolyglotOnCanvas({ name }: { name: string }) {
+  const { polyglotSpecs, report, closeCanvasChart } = useCie();
+  const artifact = useMemo<PolyglotArtifact | null>(() => {
+    if (!polyglotSpecs) return null;
+    const spec = polyglotSpecs.specs[name];
+    if (!spec) return null;
+    const { view, violations } = mapPolyglotSpec(spec, {
+      revision: report?.rev ?? 0,
+      artifact: name,
+    });
+    return { name, kind: artifactKind(name), ...artifactMeta(name, spec), spec, view, violations };
+  }, [polyglotSpecs, report?.rev, name]);
+  if (!artifact) return null;
+  return (
+    <div className="p-4 sm:p-6 w-full max-w-5xl">
+      <Card className="border-stone-200 shadow-sm w-full">
+        <CardContent className="p-5 w-full">
+          <ArtifactCanvas artifact={artifact} big />
+        </CardContent>
+      </Card>
+      <button
+        type="button"
+        onClick={closeCanvasChart}
+        className="mt-3 text-xs text-stone-500 hover:text-stone-800 underline"
+      >
+        Close this diagram and go back to Start here
       </button>
     </div>
   );

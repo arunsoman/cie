@@ -25,6 +25,7 @@ import { buildDigest } from "@/lib/chat-digest";
 import { scopeDigest, scopeChatDigest } from "@/lib/scope-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
+import { tryPolyglotDraw } from "@/lib/polyglot-chat";
 import { tryAnswerStory } from "@/lib/stories";
 import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus, findSymbolInQuestion } from "@/lib/quality";
 import { buildTraceAnswer, tryAnswerMastery, type MasteryCtx } from "@/lib/mastery";
@@ -44,6 +45,7 @@ function cut8(items: string[]): string {
 
 const STARTERS = [
   "What should I fix first?",
+  "Draw the C4 architecture",
   "Show me a UML diagram of this project",
   "Are there any problems with secrets or passwords?",
   "Can I trust this report? What did CIE not check?",
@@ -96,9 +98,9 @@ export function Formatted({ text }: { text: string }) {
 export function ChatPanel() {
   const {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
-    llm, setLlmSettingsOpen, openChartOnCanvas, mapSelected, setMapSelected, deps, runtime,
-    stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
-    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext,
+    llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, mapSelected, setMapSelected,
+    deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
+    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs,
   } = useCie();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -217,7 +219,24 @@ export function ChatPanel() {
       return;
     }
 
-    // ---- fast path 2: the journey's canonical prompts are answered
+    // ---- fast path 2a: named-diagram requests are answered from the
+    // polyglot bundle when the pass produced one — the engine's OWN C4 /
+    // machines / workflows / impact views (byte-cited, footer-counted),
+    // not the store-derived stand-ins the general drawer builds. This
+    // runs BEFORE the journey's C4 prompt (mastery draws its big picture
+    // from the file table; the bundle's named artifact is strictly
+    // stronger evidence, so it wins when it exists) and before
+    // draw-anything, whose stand-ins remain the honest fallback when no
+    // bundle was produced. A kind the bundle doesn't hold gets the honest
+    // count answer, never the stand-in drawn as if it were named. ----
+    const polyAns = tryPolyglotDraw(question, polyglotSpecs);
+    if (polyAns) {
+      respond({ content: polyAns.answer, instant: true });
+      if (polyAns.artifact) openPolyglotOnCanvas(polyAns.artifact);
+      return;
+    }
+
+    // ---- fast path 2b: the journey's canonical prompts are answered
     // locally, from the loaded exports — instant, cited, interactive cards
     // (entry points / flows / trace with the verify loop / 5 things). ----
     const masteryCtx: MasteryCtx = { report, concepts, stack, deps, cochange, overlap, drift, label };
@@ -239,7 +258,7 @@ export function ChatPanel() {
       return;
     }
 
-    // ---- fast path 2b: drawing requests are built locally from the loaded
+    // ---- fast path 2c: drawing requests are built locally from the loaded
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
     const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {

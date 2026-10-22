@@ -131,8 +131,9 @@ export function PolyglotView() {
 }
 
 /** One artifact on the gated canvas — the same negotiation the chat chart
- *  uses, pointed at a mapped bundle spec. */
-function ArtifactCanvas({ artifact }: { artifact: PolyglotArtifact }) {
+ *  uses, pointed at a mapped bundle spec. Exported for the stage: a named
+ *  diagram the CHAT asked for renders here too, just bigger (`big`). */
+export function ArtifactCanvas({ artifact, big = false }: { artifact: PolyglotArtifact; big?: boolean }) {
   const { report, addChip, openSourceViewer } = useCie();
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<RenderHandle | null>(null);
@@ -274,7 +275,7 @@ function ArtifactCanvas({ artifact }: { artifact: PolyglotArtifact }) {
       {view && !!view.elements.length && (
         <div
           ref={host}
-          className="mt-2 w-full h-[440px] rounded-lg border border-stone-200 bg-white"
+          className={`mt-2 w-full rounded-lg border border-stone-200 bg-white ${big ? "h-[640px]" : "h-[440px]"}`}
           role="img"
           aria-label={`${artifact.label} canvas`}
         />
