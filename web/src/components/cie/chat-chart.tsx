@@ -102,15 +102,15 @@ export function ChatChart({
   callback.current = onSelectElement;
   const pick = useCallback(
     (entry: ChartElement) => {
-      addChip({
-        id: entry.id,
-        label: entry.label,
-        kind: entry.kind,
-        revision: report?.rev ?? 0,
-        loc: entry.loc,
-        files: entry.files,
-      });
-      if (callback.current)
+      // When the host supplies onSelectElement it owns the interaction: its
+      // handlers add their own canonical, richer chips (the atlas's
+      // `container:` / `concept:` / `main:` / `route:` ids carry the report's
+      // file lists and provenance) or deliberately open a popup instead.
+      // Adding the raw-entry chip here TOO used to double-add under a
+      // different id — one click, two chips. Callback-less hosts (the chat
+      // answers, the one-tap menu, the big canvas) have no other chip path,
+      // so the raw chip belongs to them.
+      if (callback.current) {
         callback.current({
           kind:
             entry.kind === "edge"
@@ -125,7 +125,17 @@ export function ChatChart({
           label: entry.label,
           loc: entry.loc,
         });
-      else if (entry.loc?.file)
+        return;
+      }
+      addChip({
+        id: entry.id,
+        label: entry.label,
+        kind: entry.kind,
+        revision: report?.rev ?? 0,
+        loc: entry.loc,
+        files: entry.files,
+      });
+      if (entry.loc?.file)
         openSourceViewer({
           ...entry.loc,
           elName: entry.label,

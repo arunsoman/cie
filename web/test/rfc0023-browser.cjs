@@ -4,8 +4,8 @@ const { chromium } = require("playwright"),
 (async () => {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: process.env.CIE_CHROMIUM || "/usr/bin/chromium",
-    args: ["--no-sandbox"],
+    ...(process.env.CIE_CHROMIUM ? { executablePath: process.env.CIE_CHROMIUM } : {}),
+    args: process.env.CIE_BROWSER_SINGLE_PROCESS === "1" ? ["--no-sandbox", "--no-zygote", "--single-process"] : [],
   });
   try {
     const page = await browser.newPage({
@@ -57,7 +57,9 @@ const { chromium } = require("playwright"),
       .waitFor();
     console.log("PASS container selection drills and adds context");
     await page.getByRole("switch", { name: "Facts only", exact: true }).click();
-    const input = page.getByPlaceholder("Ask about your selections…");
+    // the placeholder is dynamic now (RFC-0024 scoped digests) — the input's
+    // aria-label is the stable handle
+    const input = page.getByLabel("Your question");
     await input.fill("Show me a UML diagram");
     await input.press("Enter");
     await page
@@ -65,12 +67,8 @@ const { chromium } = require("playwright"),
       .first()
       .waitFor();
     console.log("PASS selection-scoped local answer with honesty header");
-    await page
-      .getByRole("button", {
-        name: "Answer from the whole project",
-        exact: true,
-      })
-      .click();
+    // the one-tap whole-project release is the chips row's "clear all" now
+    await page.getByRole("button", { name: "clear all", exact: true }).click();
     assert.equal(
       await page
         .getByRole("button", { name: /Remove .* from answer context/ })

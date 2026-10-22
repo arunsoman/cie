@@ -526,11 +526,9 @@ export function ChatPanel() {
         )}
       </div>
 
-      <ContextChips />
-
       {/* RFC-0024 stage 4 — the R5a CONTEXT CHIPS row lives in the Ask-CIE
           dock, above the composer (§1); the payload carries the scope at
-          stage 5. */}
+          stage 5. A stray second mount used to render every chip twice. */}
       <ContextChips />
 
       {/* composer */}
