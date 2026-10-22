@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.5.0 — Phase C: the usecase-first UI — stories, and each one draws (2026-10-22)
+
+Phase C of the concepts plan (A1–A6 engine truth + B1–B3 browser seam
+landed earlier): the usecase-first projection the engine computed is now
+browsable, and every story draws its own flowchart and sequence — from
+the section, and from Ask CIE by name.
+
+- **Demo data regenerated on the Phase-A engine** — all three samples'
+  `report.json` now carries the A5 `usecase_view` (bankapp 40 records /
+  29 with real broader-story chains; polyglot 7/6; spring 2/0, honestly
+  short) and `concepts.json` carries the A1 induction chains. The
+  polyglot bundle's 37 specs keep every evidence file inside the
+  refreshed file list.
+- **`UsecasesView`** (Explore → "Usecases — the stories, drawn") — reads
+  the engine's own projection, re-derives nothing: chain words
+  ("part of X → Y → Project"), intent badges with confidence and
+  provenance, narrower stories, the resolved member table (name, owner,
+  file:line — tap opens the code exactly there), and the class cut as
+  counted chips. A projection-less artifact (pre-A5) says so honestly and
+  still draws — the mappers need only the recorded extent.
+- **`ConceptDiagramCanvas`** — the concept twin of the named-diagram
+  canvas: same negotiation, same click→chip→source law, epistemic footer,
+  gap disclosures (the no-internal-calls gap says members act
+  independently), mermaid/png export, layout select. Gate refusal is a
+  NAMED clause; nothing renders.
+- **A third canvas slot** — `openConceptOnCanvas(conceptId, kind)` is
+  mutually exclusive with the chat-chart and named-diagram slots; the
+  stage titles it "Usecase diagram" and the footer states the membership
+  law (membership is the engine's, never a label's guess).
+- **Ask CIE draws the story** — "draw the flowchart of \<usecase\>" /
+  "show the sequence diagram of \<usecase\>" resolve word-bounded (longest
+  label wins, then member match scoped to the most specific named
+  symbol), and the answer quotes the same counts the canvas renders. The
+  refusal ladder is honest: a named nothing is refused by name with the
+  counted menu; a member no usecase claims gets its own wording; a member
+  in two stories is refused with both names, never merged; a bare "draw
+  the flowchart" still belongs to draw-anything, and a bare "sequence"
+  never fires.
+- **Repair** — concept-diagrams.ts's `Boolean(useOwner)` never narrowed
+  in tsc (B3's one latent typecheck error); explicit undefined check.
+- **Tests** — web: concept-chat 14 (vocabulary + no-hijack, resolution,
+  refusal ladder, counts-drift guard, real demo data) + concept-diagrams
+  9 + concept-browser smoke 7 steps on the production server; polyglot
+  suites 21/21; tsc and build clean.
+
 ## 1.4.6 — Phase B: a concept renders — flowchart + sequence ViewSpecs (2026-10-22)
 
 B3 of the concepts plan (B1 store slot + guarded consumers and B2's
