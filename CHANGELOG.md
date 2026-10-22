@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.4.2 — duplicates: a class and its functions are not duplicates (2026-10-22)
+
+Behavioral change in `duplicates.detect` (PRD v2.0 §23), user-reported: a
+pair where one symbol is a container kind (`class`, `trait`) and the other
+a member kind (`function`, `method`) is never a duplicate — the member is
+*defined inside* the container, so its op-bag is a subset of the
+container's by construction and the similarity is containment geometry,
+not duplicated behavior. The sharpest edge: a class whose only content is
+one function shares that function's **exact** `ir_hash`, which used to
+surface as a canonical **Fact** pair at similarity 1.0.
+
+- **The rule** (`cie-polyglot/src/duplicates.rs`) — applied before every
+  tier, at both emission points: the exact-hash grouping (canonical Fact
+  rows) and the candidate scan (staging skips the pair entirely, saving
+  the cosine). Sibling pairs keep comparing — two functions, function ×
+  method, two classes, class × trait, across files included — where an
+  identical body in the same kind is a genuine duplicate.
+- **Honest accounting** — excluded pairs leave BOTH the shown set and the
+  hidden residual: `hidden_gaps = C(n,2) − skipped − pairs`, per-symbol
+  `hidden = n−1 − shown − skipped` (the skip count is exact arithmetic:
+  every container pairs with every member exactly once, no walk needed).
+  `DupReport` carries the new `skipped_kind_mismatch` counter; the CLI
+  summary, `bench_phases` and `dup_dump` print it.
+- **Brute-force reference mirrored** — the test reference implements the
+  same exclusion, so `indexed_engine_matches_brute_force_reference` still
+  pins rows, gaps, winner and now the skip count.
+- **Verification** — 2 new unit tests (class × its own function: no row,
+  skipped=1, gaps 0; the class-with-one-method duplicated across files:
+  all 4 class × function combinations excluded while the two REAL
+  duplicates — class × class, function × function — stay canonical Facts,
+  every surviving row same-kind). Before/after `dup_dump` on the
+  five-service sample: 581 → 355 shown pairs, 226 removed rows **all**
+  container × member (8 further sub-floor hidden pairs reclassified;
+  234 total excluded = the report's counter), 0 same-kind removals, 0
+  additions, 0 kept-pair changes (`scripts/check-kind-rule.py`). Workspace
+  531 tests green.
+
 ## 1.4.1 — Ask CIE draws the named diagrams (2026-10-22)
 
 Chat integration: "draw the C4 architecture" typed into Ask CIE now opens

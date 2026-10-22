@@ -1759,8 +1759,8 @@ fn run(cli: Cli) -> i32 {
                 }
                 if let Ok(r) = &dup {
                     println!(
-                        "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden)",
-                        r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps
+                        "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden; {} class/function containment pairs excluded)",
+                        r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps, r.skipped_kind_mismatch
                     );
                 }
                 if let Ok(Some(r)) = &runtime {

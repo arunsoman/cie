@@ -32,8 +32,8 @@ fn main() {
     let t = Instant::now();
     let dup = cie_polyglot::duplicates::detect(&conn).expect("duplicates");
     eprintln!(
-        "duplicates.detect {:>9.2?} | pairs={} canonical={} high={} medium={} low={} hidden={}",
-        t.elapsed(), dup.pairs, dup.canonical_hash, dup.high, dup.medium, dup.low, dup.hidden_gaps
+        "duplicates.detect {:>9.2?} | pairs={} canonical={} high={} medium={} low={} hidden={} skipped_class_fn={}",
+        t.elapsed(), dup.pairs, dup.canonical_hash, dup.high, dup.medium, dup.low, dup.hidden_gaps, dup.skipped_kind_mismatch
     );
 
     let w = std::io::BufWriter::new(std::io::stdout().lock());
@@ -77,6 +77,21 @@ fn dump_dup_tables(conn: &rusqlite::Connection, out: &mut dyn std::io::Write) {
             "duplicate_gaps\t{}\t{}",
             r.get::<_, i64>(0).unwrap(),
             r.get::<_, i64>(1).unwrap()
+        );
+    }
+
+    // symbol kinds — lets a before/after checker prove every removed pair
+    // was container × member (the exclusion rule), never a same-kind pair
+    let mut s = conn
+        .prepare("SELECT id, kind FROM symbols ORDER BY id")
+        .unwrap();
+    let mut q = s.query([]).unwrap();
+    while let Some(r) = q.next().unwrap() {
+        let _ = writeln!(
+            out,
+            "symbols\t{}\t{}",
+            r.get::<_, i64>(0).unwrap(),
+            r.get::<_, String>(1).unwrap()
         );
     }
 }

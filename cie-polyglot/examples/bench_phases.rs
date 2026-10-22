@@ -59,8 +59,8 @@ fn main() {
     println!("6. duplicates.detect  {:>10.2?}", t.elapsed());
     match dup {
         Ok(r) => println!(
-            "   shown={} (canon={} high={} med={} low={}) hidden={}",
-            r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps
+            "   shown={} (canon={} high={} med={} low={}) hidden={} skipped_class_fn={}",
+            r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps, r.skipped_kind_mismatch
         ),
         Err(e) => eprintln!("   duplicates failed: {e}"),
     }

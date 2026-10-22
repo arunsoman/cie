@@ -11,6 +11,19 @@
 //! | Low similarity | cosine 0.40–0.60 | Hypothesis with counter-argument (`ir-vec-cosine`) |
 //! | Below threshold | hidden | counted in gaps, never shown |
 //!
+//! One exclusion precedes every tier: a pair where one side is a container
+//! kind (`class`, `trait`) and the other a member kind (`function`,
+//! `method`) is never a duplicate. The member is *defined inside* the
+//! container, so its op-bag is a subset of the container's by construction
+//! — the similarity is containment geometry, not duplicated behavior (a
+//! class whose only content is one function even shares that function's
+//! exact `ir_hash`, which used to surface as a canonical Fact pair).
+//! Sibling pairs keep comparing: two functions, function × method, two
+//! classes, class × trait — including across files, where an identical
+//! body in the same kind is a genuine duplicate. Excluded pairs are
+//! counted (`skipped_kind_mismatch`), never shown and never counted as
+//! hidden — they are not duplicates at any tier.
+//!
 //! Canonical rule (§23.3): the duplicate with the most callers AND the most
 //! tests is canonical; the winner is computed over the whole pair set and
 //! marked `isCanonical`, so the visual can swap sides without re-detecting.
@@ -54,6 +67,9 @@ pub struct DupReport {
     pub low: usize,
     /// pairs below 0.40 similarity — hidden, counted (§23.2 last row)
     pub hidden_gaps: usize,
+    /// container × member pairs excluded before any tier: a class/trait and
+    /// a function/method defined inside it are containment, not duplication
+    pub skipped_kind_mismatch: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +195,60 @@ const C_CANONICAL: u8 = 0;
 const C_HIGH: u8 = 1;
 const C_MEDIUM: u8 = 2;
 const C_LOW: u8 = 3;
+
+// ---- symbol kinds and the container × member exclusion (§23 preamble) ----
+
+const K_OTHER: u8 = 0; // future kinds pair freely
+const K_CLASS: u8 = 1; // containers: their members are defined inside them
+const K_TRAIT: u8 = 2;
+const K_FUNCTION: u8 = 3; // members: functions and methods
+const K_METHOD: u8 = 4;
+
+fn kind_code(kind: &str) -> u8 {
+    match kind {
+        "class" => K_CLASS,
+        "trait" => K_TRAIT,
+        "function" => K_FUNCTION,
+        "method" => K_METHOD,
+        _ => K_OTHER,
+    }
+}
+
+#[inline]
+fn is_container(k: u8) -> bool {
+    k == K_CLASS || k == K_TRAIT
+}
+
+#[inline]
+fn is_member(k: u8) -> bool {
+    k == K_FUNCTION || k == K_METHOD
+}
+
+/// True when this pair must never be compared: one side is a class/trait,
+/// the other a function/method — the member lives inside the container, so
+/// the op-bag similarity is containment, not duplication.
+#[inline]
+fn kind_excluded(a: u8, b: u8) -> bool {
+    (is_container(a) && is_member(b)) || (is_member(a) && is_container(b))
+}
+
+/// Symbol kinds for the ir_meta id set, aligned with the `ids` order.
+fn load_kinds(conn: &Connection, ids: &[i64]) -> Result<Vec<u8>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, kind FROM symbols")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<BTreeMap<i64, String>, _>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+    let kinds = rows;
+    Ok(ids
+        .iter()
+        .map(|s| kinds.get(s).map(|k| kind_code(k)).unwrap_or(K_OTHER))
+        .collect())
+}
 
 /// Rows per multi-row INSERT. 512 × 4 params = 2048 bound parameters, well
 /// under SQLite's 32766 default limit; the VDBE amortizes one step/reset
@@ -374,6 +444,26 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
 
     let mut shown_deg = vec![0i64; n]; // partners at or above the floor
 
+    // -- 0. container × member exclusion bookkeeping ---------------------------
+    // A class/trait and a function/method are never duplicates (the member
+    // is defined inside the container — the op-bag similarity is pure
+    // containment). Excluded pairs leave BOTH the shown set and the hidden
+    // residual; the per-symbol skipped count is exact arithmetic, not a
+    // walk: every container pairs with every member exactly once.
+    let kind_of = load_kinds(conn, &ids)?;
+    let nc = kind_of.iter().filter(|k| is_container(**k)).count() as i64;
+    let nm = kind_of.iter().filter(|k| is_member(**k)).count() as i64;
+    let skipped_deg = |i: usize| -> i64 {
+        let k = kind_of[i];
+        if is_container(k) {
+            nm
+        } else if is_member(k) {
+            nc
+        } else {
+            0
+        }
+    };
+
     // -- 1. exact-hash grouping: canonical Fact rows, no cosine --------------
     // BTreeMap keyed by hash bytes: iteration order (and therefore the row
     // emission order) is identical to the previous pass. hash_gid gives the
@@ -433,8 +523,12 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                 let dim = bag.dims[k] as usize;
                 for &bi in &postings[dim] {
                     let b = bi as usize;
-                    if b == a || stamp[b] == this_gen || hash_gid[a] == hash_gid[b] {
-                        continue; // self / already staged this round / canonical row
+                    if b == a
+                        || stamp[b] == this_gen
+                        || hash_gid[a] == hash_gid[b]
+                        || kind_excluded(kind_of[a], kind_of[b])
+                    {
+                        continue; // self / staged this round / canonical row / containment
                     }
                     stamp[b] = this_gen;
                     touched_list.push(bi);
@@ -488,6 +582,12 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
             for i in 0..members.len() {
                 for j in i + 1..members.len() {
                     let (x, y) = (members[i] as usize, members[j] as usize);
+                    // a class whose only content is one function shares that
+                    // function's exact op-bag → same ir_hash group; containment
+                    // is not a canonical duplicate either
+                    if kind_excluded(kind_of[x], kind_of[y]) {
+                        continue;
+                    }
                     let (av, bv) = (ids[x], ids[y]);
                     feed_row(
                         &mut full,
@@ -558,7 +658,7 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
             .prepare("INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, ?2)")
             .map_err(|e| e.to_string())?;
         for (i, &s) in ids.iter().enumerate() {
-            let hidden = n as i64 - 1 - shown_deg[i];
+            let hidden = n as i64 - 1 - shown_deg[i] - skipped_deg(i);
             gap.execute(rusqlite::params![s, hidden])
                 .map_err(|e| e.to_string())?;
         }
@@ -567,9 +667,11 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     drop(_fk_guard); // restore FK enforcement before the caller sees the conn
 
     // every fed row landed in exactly one counted bucket; sub-floor
-    // candidates were never fed
+    // candidates were never fed; container × member pairs were never
+    // candidates at all (counted in skipped_kind_mismatch, not hidden)
     report.pairs = report.canonical_hash + report.high + report.medium + report.low;
-    report.hidden_gaps = n * (n - 1) / 2 - report.pairs;
+    report.skipped_kind_mismatch = (nc * nm) as usize;
+    report.hidden_gaps = n * (n - 1) / 2 - report.skipped_kind_mismatch - report.pairs;
     Ok(report)
 }
 
@@ -847,6 +949,69 @@ mod tests {
     }
 
     #[test]
+    fn class_and_its_function_are_not_duplicates() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // one class whose only content is one function — identical op-bags,
+        // so the pre-rule engine paired them as a canonical Fact pair at
+        // similarity 1.0. Containment is where the function is DEFINED,
+        // not a duplicate.
+        let a = "class Foo:\n    def bar(self):\n        if x > 1:\n            return audit(x)\n        return x\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.pairs, 0, "no pair between a class and its own function: {rep:?}");
+        assert_eq!(rep.skipped_kind_mismatch, 1, "the class × function pair is counted as excluded: {rep:?}");
+        assert_eq!(rep.hidden_gaps, 0, "containment is not a hidden duplicate either: {rep:?}");
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM duplicates", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 0, "no duplicates row is materialized");
+        // the per-symbol gap is zero too: the partner was excluded, not hidden
+        let gaps: i64 = conn
+            .query_row("SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(gaps, 0);
+    }
+
+    #[test]
+    fn duplicated_classes_and_methods_survive_the_kind_rule() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // the same class-with-one-method duplicated across two files: every
+        // class × function combination is excluded (containment), but the
+        // REAL duplicates — the two classes and the two functions — remain
+        // canonical Facts.
+        let a = "class Foo:\n    def bar(self):\n        if x > 1:\n            return audit(x)\n        return x\n";
+        let b = "class Foo2:\n    def bar2(self):\n        if x > 1:\n            return audit(x)\n        return x\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        let f2 = ingest_parsed_file(&conn, 1, 41, "b.py", Lang::Python, b, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        cache_source_bytes(&conn, f2, b).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.skipped_kind_mismatch, 4, "every class × function combination: {rep:?}");
+        assert_eq!(rep.canonical_hash, 2, "class × class and function × function survive: {rep:?}");
+        assert_eq!(rep.hidden_gaps, 0);
+        // both surviving rows are same-kind pairs
+        let stmt = "SELECT sa.kind, sb.kind FROM duplicates d \
+                    JOIN symbols sa ON sa.id = d.symbol_a \
+                    JOIN symbols sb ON sb.id = d.symbol_b";
+        let kinds: Vec<(String, String)> = conn
+            .prepare(stmt)
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(kinds.len(), 2);
+        for (ka, kb) in &kinds {
+            assert_eq!(ka, kb, "only same-kind pairs survive the rule");
+        }
+    }
+
+    #[test]
     fn identical_bodies_are_canonical_hash_fact() {
         let conn = setup();
         let mut st = IngestStats::default();
@@ -957,8 +1122,10 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // The brute-force reference: the pre-index engine, kept verbatim so the
-    // indexed engine can be proven equal to it (same rows, same gaps, same
+    // The brute-force reference: the pre-index engine, kept as the
+    // reference implementation of the SAME rule set (tiers, hidden
+    // residual, and the container × member exclusion) so the indexed
+    // engine can be proven equal to it (same rows, same gaps, same
     // canonical winner). Nothing in prod may call any of this.
     // -----------------------------------------------------------------------
     mod brute {
@@ -1002,8 +1169,15 @@ mod tests {
                 rows.into_iter().collect()
             };
             let ids: Vec<i64> = meta.keys().copied().collect();
+            let kind_of = super::super::load_kinds(conn, &ids).unwrap();
             for (i, &a) in ids.iter().enumerate() {
-                for &b in ids.iter().skip(i + 1) {
+                for (j, &b) in ids.iter().enumerate().skip(i + 1) {
+                    // container × member: containment, not duplication —
+                    // excluded before any tier, never materialized
+                    if super::super::kind_excluded(kind_of[i], kind_of[j]) {
+                        report.skipped_kind_mismatch += 1;
+                        continue;
+                    }
                     let (ha, va) = &meta[&a];
                     let (hb, vb) = &meta[&b];
                     let (tier, detection, epistemic, sim, counter): (&str, &str, &str, f64, Option<&str>);
@@ -1299,6 +1473,10 @@ mod tests {
         assert_eq!(rep_new.medium, rep_ref.medium);
         assert_eq!(rep_new.low, rep_ref.low);
         assert_eq!(rep_new.hidden_gaps, rep_ref.hidden_gaps);
+        assert_eq!(
+            rep_new.skipped_kind_mismatch, rep_ref.skipped_kind_mismatch,
+            "container × member exclusions"
+        );
 
         // identical rows: similarity bits, tiers, detection, winner, counter
         let rows_new = dump_rows(&conn_new);
