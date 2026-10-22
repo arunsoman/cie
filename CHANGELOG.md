@@ -1,5 +1,59 @@
 # Changelog
 
+## 1.6.0 — Phase D: the sweep — nested containment, fresh demo data, remembered stories (2026-10-22)
+
+Phase D of the concepts plan — every deferred observation from A/B/C,
+plus the pre-existing breakage the full regression surfaced. Nothing
+brushed under the rug.
+
+- **Same-file span containment is not duplication (engine)** — the
+  second containment rule the kind rule's work named for follow-up: when
+  one symbol's byte span strictly contains another's, in the same file,
+  the pair is never a duplicate at any tier, whatever the kinds (a
+  nested function inside its encloser, a nested class inside its outer
+  class — the outer's op-bag contains the inner's by construction).
+  Identical spans are not containment; different files never nest.
+  Excluded pairs are counted (`DupReport.skipped_nested`), never shown,
+  never hidden; the kind bucket stays disjoint. The per-symbol skip
+  degrees come from a per-file (start asc, end desc) span sweep, both
+  emission points exclude, the brute-force reference mirrors the rule,
+  and the parity corpus now carries a nested file.
+  Proof (scripts/check-nested-rule.py): the five-service sample is a
+  true no-op (its 8 span-nested pairs are all in the kind bucket — 355
+  rows before, 355 after); web/src/lib loses exactly 5 pairs, every one
+  a real same-file containment in g6-engine.ts, zero collateral.
+  62/62 cie-polyglot (552 workspace-wide).
+- **The polyglot demo bundle re-ingests on the current engine (D1)** —
+  the bundle predated the kind rule and still embedded containment
+  pairs as duplicate-hemisphere facts. Regenerated: 37 specs, c4 and
+  workflows byte-identical, every impact spec sheds exactly its
+  excluded duplicates (0 additions, 0 changed elements), stale
+  hidden-pair gaps drop to honest zero. All 1,493 evidence refs resolve
+  into the refreshed report.json file list; bundle + hermetic fixture
+  refreshed together.
+- **The Usecases section reopens the story you chose (D3)** — the
+  workspace's own last pick rides workspace memory (demo:kind for
+  bundled samples, project:label for connected repos), restored on
+  return — a preference, never a fact: it only changes WHICH story
+  opens, never what the engine recorded, and a pick the rows no longer
+  hold is ignored. The module fails soft everywhere (private mode,
+  corruption, malformed entries); 7/7 unit tests + a browser step that
+  leaves the section, returns, and finds the remembered story standing.
+- **The atlas evidence panel is back** — the persona-atlas rework had
+  deleted the `<CrossServiceEvidence>` mount, silently removing the
+  RFC-0020 cross-service surface from the product. Restored verbatim.
+- **One pick is one chip** — an atlas selection used to chip twice (the
+  chart's raw-entry chip + the handler's `container:` chip + the
+  store's selection chip under yet another id), and the Ask CIE dock
+  mounted the chips row twice on top. Fixed at the root: a chart with
+  an `onSelectElement` handler lets the handler own the chip; the
+  handler's duplicate and the stray second mount are gone; the store's
+  chip carries the 'picked from Atlas' provenance.
+- **Browser smokes re-anchored to the current UI** — rfc0020 (outline
+  based container selection, hydration-guarded Atlas click, 30s
+  data-driven waits: 5/5 stable) and rfc0023 (bundled-chromium launch,
+  stable input locator, 'clear all' release: 6/6).
+
 ## 1.5.0 — Phase C: the usecase-first UI — stories, and each one draws (2026-10-22)
 
 Phase C of the concepts plan (A1–A6 engine truth + B1–B3 browser seam

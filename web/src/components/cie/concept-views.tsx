@@ -26,6 +26,7 @@ import {
 } from "viz-adapter";
 import type { RenderHandle, ViewSpec } from "viz-adapter";
 import { useCie } from "@/lib/cie-store";
+import { rememberUsecasePick, readUsecasePick } from "@/lib/usecase-memory";
 import { certaintyPlain } from "@/lib/plain-words";
 import {
   conceptToFlowchartSpec,
@@ -409,7 +410,7 @@ function chainWords(chain: { id: number; label: string; kind: string }[]): strin
 }
 
 export function UsecasesView() {
-  const { report, concepts, openConceptOnCanvas, openSourceViewer } = useCie();
+  const { report, concepts, openConceptOnCanvas, openSourceViewer, source, demoKind, label } = useCie();
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const projection = report?.usecase_view ?? null;
@@ -441,7 +442,25 @@ export function UsecasesView() {
   useEffect(() => {
     if (selectedId != null && !rows.some((r) => r.id === selectedId)) setSelectedId(null);
   }, [rows, selectedId]);
-  const currentId = selectedId ?? defaultId;
+
+  // The workspace's own last pick rides workspace memory (a preference, not
+  // a fact): returning to a workspace reopens the story the user chose there
+  // last. A remembered id the rows no longer hold (re-analysis renumbered
+  // the concepts) is ignored — the deterministic default stands. Demo
+  // workspaces key by their bundled kind; connected projects by label.
+  const wsKey =
+    report == null
+      ? ""
+      : source === "demo"
+        ? `demo:${demoKind}`
+        : `project:${label}`;
+  const rememberedId = useMemo(() => readUsecasePick(wsKey), [wsKey]);
+  const rememberedValid = rememberedId != null && rows.some((r) => r.id === rememberedId);
+  const pickStory = (id: number) => {
+    setSelectedId(id);
+    rememberUsecasePick(wsKey, id);
+  };
+  const currentId = selectedId ?? (rememberedValid ? rememberedId : defaultId);
 
   const record = useMemo(
     () => (projection ?? []).find((u) => u.id === currentId) ?? null,
@@ -493,7 +512,7 @@ export function UsecasesView() {
         <CardContent className="space-y-3">
           <Select
             value={currentId != null ? String(currentId) : undefined}
-            onValueChange={(v) => setSelectedId(Number(v))}
+            onValueChange={(v) => pickStory(Number(v))}
           >
             <SelectTrigger className="w-full sm:w-96">
               <SelectValue placeholder="Pick a usecase" />

@@ -476,7 +476,7 @@ export const useCie = create<CieState>((set, get) => ({
       const files = ref.kind === "container"
         ? (s.report?.files ?? []).filter(f => containerOfPath(f, s.stack?.apps) === ref.id)
         : ref.loc?.file ? [ref.loc.file] : ref.kind === "module" ? [ref.id] : [];
-      const chip = addChipState(s.chatContext, { id: ref.id, label: ref.label, kind: ref.kind, revision: s.report?.rev ?? 0, loc: ref.loc, files });
+      const chip = addChipState(s.chatContext, { id: ref.id, label: ref.label, kind: ref.kind, revision: s.report?.rev ?? 0, loc: ref.loc, files, sourceTitle: "Atlas" });
       return { atlasSelection: { primary: ref, scope: scopeForRef(ref) }, ...chip };
     }),
   drillUp: () =>

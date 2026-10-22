@@ -11,18 +11,31 @@
 //! | Low similarity | cosine 0.40–0.60 | Hypothesis with counter-argument (`ir-vec-cosine`) |
 //! | Below threshold | hidden | counted in gaps, never shown |
 //!
-//! One exclusion precedes every tier: a pair where one side is a container
-//! kind (`class`, `trait`) and the other a member kind (`function`,
-//! `method`) is never a duplicate. The member is *defined inside* the
-//! container, so its op-bag is a subset of the container's by construction
-//! — the similarity is containment geometry, not duplicated behavior (a
-//! class whose only content is one function even shares that function's
-//! exact `ir_hash`, which used to surface as a canonical Fact pair).
-//! Sibling pairs keep comparing: two functions, function × method, two
-//! classes, class × trait — including across files, where an identical
-//! body in the same kind is a genuine duplicate. Excluded pairs are
-//! counted (`skipped_kind_mismatch`), never shown and never counted as
-//! hidden — they are not duplicates at any tier.
+//! Two exclusions precede every tier, both removing *containment geometry*,
+//! not duplicated behavior:
+//!
+//! 1. the kind rule: a pair where one side is a container kind (`class`,
+//!    `trait`) and the other a member kind (`function`, `method`) is never a
+//!    duplicate. The member is *defined inside* the container, so its op-bag
+//!    is a subset of the container's by construction — the similarity is
+//!    containment geometry (a class whose only content is one function even
+//!    shares that function's exact `ir_hash`, which used to surface as a
+//!    canonical Fact pair). Same-kind pairs keep comparing: two functions,
+//!    function × method, two classes, class × trait — including across
+//!    files, where an identical body in the same kind is a genuine duplicate.
+//! 2. the span rule: a pair whose byte spans nest — one symbol's span
+//!    strictly contains the other's, in the same file — is never a duplicate
+//!    either, whatever the kinds. The inner text is part of the outer text,
+//!    so the outer's op-bag contains the inner's by construction: a nested
+//!    function inside its encloser, a nested class inside its outer class.
+//!    Identical spans are not containment (neither side owns the other's
+//!    text), and different files never nest (an out-of-line method body is
+//!    genuinely different text from its class's header).
+//!
+//! Excluded pairs are counted (`skipped_kind_mismatch`, `skipped_nested`),
+//! never shown and never counted as hidden — they are not duplicates at any
+//! tier. The two buckets are disjoint: a pair the kind rule already removes
+//! (a class × its own method) is counted there only, never twice.
 //!
 //! Canonical rule (§23.3): the duplicate with the most callers AND the most
 //! tests is canonical; the winner is computed over the whole pair set and
@@ -70,6 +83,12 @@ pub struct DupReport {
     /// container × member pairs excluded before any tier: a class/trait and
     /// a function/method defined inside it are containment, not duplication
     pub skipped_kind_mismatch: usize,
+    /// same-file span-containment pairs excluded before any tier: when one
+    /// symbol's byte span strictly contains another's (in the same file),
+    /// the outer symbol's op-bag contains the inner's by construction —
+    /// containment geometry, not duplicated behavior. Pairs already caught
+    /// by the kind rule are counted there only, never twice.
+    pub skipped_nested: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +249,52 @@ fn is_member(k: u8) -> bool {
 #[inline]
 fn kind_excluded(a: u8, b: u8) -> bool {
     (is_container(a) && is_member(b)) || (is_member(a) && is_container(b))
+}
+
+/// Byte spans for the ir_meta id set, aligned with the `ids` order:
+/// `(file_id, start_byte, end_byte)`. A symbol whose row is missing
+/// (impossible for ir_meta ids — start/end are NOT NULL — but defensive)
+/// gets the `(0, 0, 0)` sentinel: file ids start at 1, so it can never nest
+/// against a real span, and two sentinels are identical spans, which are
+/// not strict containment either.
+fn load_spans(conn: &Connection, ids: &[i64]) -> Result<Vec<(i64, i64, i64)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, file_id, start_byte, end_byte FROM symbols")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                (
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, i64>(3)?,
+                ),
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<BTreeMap<i64, (i64, i64, i64)>, _>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+    Ok(ids
+        .iter()
+        .map(|s| rows.get(s).copied().unwrap_or((0, 0, 0)))
+        .collect())
+}
+
+/// True when one span strictly contains the other in the same file: the
+/// inner symbol's text is part of the outer's, so the outer's op-bag is a
+/// superset of the inner's by construction. Identical spans are NOT
+/// containment (neither side owns the other's text).
+#[inline]
+fn span_nested(a: (i64, i64, i64), b: (i64, i64, i64)) -> bool {
+    if a.0 != b.0 {
+        return false;
+    }
+    let (sa, ea) = (a.1, a.2);
+    let (sb, eb) = (b.1, b.2);
+    (sa <= sb && eb <= ea && (sa < sb || eb < ea))
+        || (sb <= sa && ea <= eb && (sb < sa || ea < eb))
 }
 
 /// Symbol kinds for the ir_meta id set, aligned with the `ids` order.
@@ -464,6 +529,50 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
         }
     };
 
+    // -- 0b. same-file span-containment exclusion bookkeeping ----------------
+    // When one symbol's byte span strictly contains another's (same file),
+    // the outer's op-bag contains the inner's by construction — the same
+    // containment geometry the kind rule removes for container × member,
+    // now for any kinds: a nested function inside its encloser, a nested
+    // class inside its outer class. The per-symbol skip count is computed
+    // exactly from the spans, not from the scan (staged pairs are visited
+    // one-sided, so the scan cannot count symmetric degrees): per file,
+    // sort by (start asc, end desc); only later-starting symbols can sit
+    // inside a span, and the inner loop stops at the first start ≥ this
+    // span's end. Pairs the kind rule already excluded are counted there
+    // only — the buckets stay disjoint.
+    let spans = load_spans(conn, &ids)?;
+    let mut nested_only_deg = vec![0i64; n];
+    {
+        let mut by_file: BTreeMap<i64, Vec<usize>> = BTreeMap::new();
+        for (i, sp) in spans.iter().enumerate() {
+            by_file.entry(sp.0).or_default().push(i);
+        }
+        for positions in by_file.values() {
+            let mut order: Vec<usize> = positions.clone();
+            // start asc, end desc: a later position with an earlier-or-equal
+            // start is either inside this span or not comparable to it
+            order.sort_unstable_by(|&x, &y| {
+                spans[x].1.cmp(&spans[y].1).then(spans[y].2.cmp(&spans[x].2))
+            });
+            for (ii, &x) in order.iter().enumerate() {
+                let end_x = spans[x].2;
+                for &y in order[ii + 1..].iter() {
+                    if spans[y].1 >= end_x {
+                        break; // starts ascend: nothing further can be inside x
+                    }
+                    if span_nested(spans[x], spans[y])
+                        && !kind_excluded(kind_of[x], kind_of[y])
+                    {
+                        nested_only_deg[x] += 1;
+                        nested_only_deg[y] += 1;
+                    }
+                }
+            }
+        }
+    }
+    let skipped_nested: i64 = nested_only_deg.iter().sum::<i64>() / 2;
+
     // -- 1. exact-hash grouping: canonical Fact rows, no cosine --------------
     // BTreeMap keyed by hash bytes: iteration order (and therefore the row
     // emission order) is identical to the previous pass. hash_gid gives the
@@ -527,6 +636,7 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                         || stamp[b] == this_gen
                         || hash_gid[a] == hash_gid[b]
                         || kind_excluded(kind_of[a], kind_of[b])
+                        || span_nested(spans[a], spans[b])
                     {
                         continue; // self / staged this round / canonical row / containment
                     }
@@ -582,10 +692,13 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
             for i in 0..members.len() {
                 for j in i + 1..members.len() {
                     let (x, y) = (members[i] as usize, members[j] as usize);
-                    // a class whose only content is one function shares that
-                    // function's exact op-bag → same ir_hash group; containment
-                    // is not a canonical duplicate either
-                    if kind_excluded(kind_of[x], kind_of[y]) {
+                    // containment of either kind is not a canonical
+                    // duplicate: a class × its own function (kind rule), or
+                    // a nested function/class × its encloser (span rule —
+                    // single-member containers even share the exact hash)
+                    if kind_excluded(kind_of[x], kind_of[y])
+                        || span_nested(spans[x], spans[y])
+                    {
                         continue;
                     }
                     let (av, bv) = (ids[x], ids[y]);
@@ -658,7 +771,8 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
             .prepare("INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, ?2)")
             .map_err(|e| e.to_string())?;
         for (i, &s) in ids.iter().enumerate() {
-            let hidden = n as i64 - 1 - shown_deg[i] - skipped_deg(i);
+            let hidden =
+                n as i64 - 1 - shown_deg[i] - skipped_deg(i) - nested_only_deg[i];
             gap.execute(rusqlite::params![s, hidden])
                 .map_err(|e| e.to_string())?;
         }
@@ -682,11 +796,16 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     .map_err(|e| e.to_string())?;
 
     // every fed row landed in exactly one counted bucket; sub-floor
-    // candidates were never fed; container × member pairs were never
-    // candidates at all (counted in skipped_kind_mismatch, not hidden)
+    // candidates were never fed; containment pairs were never candidates at
+    // all (kind-excluded counted in skipped_kind_mismatch, span-nested in
+    // skipped_nested — disjoint buckets — neither hidden)
     report.pairs = report.canonical_hash + report.high + report.medium + report.low;
     report.skipped_kind_mismatch = (nc * nm) as usize;
-    report.hidden_gaps = n * (n - 1) / 2 - report.skipped_kind_mismatch - report.pairs;
+    report.skipped_nested = skipped_nested as usize;
+    report.hidden_gaps = n * (n - 1) / 2
+        - report.skipped_kind_mismatch
+        - report.skipped_nested
+        - report.pairs;
     Ok(report)
 }
 
@@ -1082,6 +1201,123 @@ mod tests {
     }
 
     #[test]
+    fn nested_function_is_not_a_duplicate_of_its_encloser() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // one encloser whose only content is one nested function: same kind
+        // on both sides, so the KIND rule never fires — the SPAN rule does
+        // (the inner text is part of the outer's, so the outer's op-bag
+        // contains the inner's by construction).
+        let a = "def outer(x):\n    def inner(y):\n        if y > 1:\n            return audit(y)\n        return y\n    return inner(x)\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.pairs, 0, "no pair between a function and its own nested function: {rep:?}");
+        assert_eq!(rep.skipped_nested, 1, "outer × inner is the excluded pair: {rep:?}");
+        assert_eq!(rep.skipped_kind_mismatch, 0, "same kind — the kind rule never fires: {rep:?}");
+        assert_eq!(rep.hidden_gaps, 0, "containment is not a hidden duplicate either: {rep:?}");
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM duplicates", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 0, "no duplicates row is materialized");
+        let gaps: i64 = conn
+            .query_row("SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(gaps, 0, "the excluded partner is not hidden either");
+    }
+
+    #[test]
+    fn nested_class_is_not_a_duplicate_of_its_outer_class() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // a nested class inside its outer class: Outer × Inner is
+        // container × container (same kind), so only the SPAN rule removes
+        // it; the class × method pairs stay in the KIND rule's bucket. The
+        // buckets must not double-count the same geometry.
+        let a = "class Outer:\n    class Inner:\n        def leaf(self, x):\n            if x > 1:\n                return audit(x)\n            return x\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.pairs, 0, "Outer × Inner is containment: {rep:?}");
+        assert_eq!(rep.skipped_nested, 1, "Outer × Inner in the span bucket: {rep:?}");
+        assert_eq!(rep.skipped_kind_mismatch, 2, "Outer × leaf, Inner × leaf in the kind bucket: {rep:?}");
+        assert_eq!(rep.hidden_gaps, 0, "C(3,2)=3 pairs = 1 span + 2 kind + 0 shown: {rep:?}");
+    }
+
+    #[test]
+    fn sibling_functions_still_compare_inside_their_container() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // two sibling defs inside one class: their spans are disjoint, so
+        // the span rule leaves them alone — the identical bodies remain a
+        // canonical Fact. The class × each-member pairs belong to the KIND
+        // bucket only (the span rule must not swallow them too).
+        let a = "class C:\n    def one(self, x):\n        if x > 1:\n            return audit(x)\n        return x\n    def two(self, x):\n        if x > 1:\n            return audit(x)\n        return x\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.skipped_nested, 0, "siblings are disjoint spans: {rep:?}");
+        assert_eq!(rep.skipped_kind_mismatch, 2, "C × one, C × two: {rep:?}");
+        assert_eq!(rep.canonical_hash, 1, "one × two are genuine duplicates: {rep:?}");
+        assert_eq!(rep.hidden_gaps, 0, "C(3,2)=3 pairs = 2 kind + 1 shown: {rep:?}");
+    }
+
+    #[test]
+    fn nesting_never_crosses_files() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // the same encloser-with-nested-function shape in two files: within
+        // each file outer × inner is span-excluded, but ACROSS files the two
+        // enclosers (and the two nested fns) are genuine duplicates — the
+        // span rule is strictly same-file, like the kind rule's cross-file
+        // sibling exception.
+        let a = "def outer(x):\n    def inner(y):\n        if y > 1:\n            return audit(y)\n        return y\n    return inner(x)\n";
+        let b = "def outer2(x):\n    def inner2(y):\n        if y > 1:\n            return audit(y)\n        return y\n    return inner2(x)\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        let f2 = ingest_parsed_file(&conn, 1, 41, "b.py", Lang::Python, b, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        cache_source_bytes(&conn, f2, b).unwrap();
+        lower_all(&conn).unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(rep.skipped_nested, 2, "one encloser × inner pair per file: {rep:?}");
+        assert_eq!(rep.canonical_hash, 2, "outer×outer2 and inner×inner2 across files: {rep:?}");
+    }
+
+    #[test]
+    fn exclusion_buckets_are_disjoint_and_complete() {
+        let conn = setup();
+        let mut st = IngestStats::default();
+        // one file with all three geometries: the kind rule (class × its
+        // method), the span rule (nested fn inside its encloser), and
+        // genuine duplicates (identical flat bodies). Every unordered pair
+        // of the 6 symbols must land in exactly ONE bucket — kind, nested,
+        // shown, or hidden — so the identity below is exact.
+        let a = "def holder(x):\n    def nested(y):\n        return bump(y)\n    return nested(x)\n\nclass C:\n    def m(self, x):\n        if x > 1:\n            return audit(x)\n        return x\n\ndef flat1(x):\n    if x > 1:\n        return audit(x)\n    return x\n\ndef flat2(x):\n    if x > 1:\n        return audit(x)\n    return x\n";
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut st).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        lower_all(&conn).unwrap();
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM symbols", [], |r| r.get(0))
+            .unwrap();
+        let rep = detect(&conn).unwrap();
+        assert_eq!(n, 6, "holder, nested, C, m, flat1, flat2");
+        // the kind rule is unconditional about geometry: C (a class) × every
+        // function/method in the ir_meta set — m, holder, nested, flat1,
+        // flat2 — is 5 excluded pairs, wherever those functions sit
+        assert_eq!(rep.skipped_kind_mismatch, 5, "C × every member kind: {rep:?}");
+        assert_eq!(rep.skipped_nested, 1, "holder × nested: {rep:?}");
+        assert!(rep.canonical_hash >= 1, "the identical flat bodies survive: {rep:?}");
+        assert_eq!(
+            rep.hidden_gaps as i64,
+            n * (n - 1) / 2 - rep.skipped_kind_mismatch as i64 - rep.skipped_nested as i64 - rep.pairs as i64,
+            "every pair lands in exactly one bucket: {rep:?}"
+        );
+    }
+
+    #[test]
     fn identical_bodies_are_canonical_hash_fact() {
         let conn = setup();
         let mut st = IngestStats::default();
@@ -1240,12 +1476,18 @@ mod tests {
             };
             let ids: Vec<i64> = meta.keys().copied().collect();
             let kind_of = super::super::load_kinds(conn, &ids).unwrap();
+            let spans = super::super::load_spans(conn, &ids).unwrap();
             for (i, &a) in ids.iter().enumerate() {
                 for (j, &b) in ids.iter().enumerate().skip(i + 1) {
                     // container × member: containment, not duplication —
                     // excluded before any tier, never materialized
                     if super::super::kind_excluded(kind_of[i], kind_of[j]) {
                         report.skipped_kind_mismatch += 1;
+                        continue;
+                    }
+                    // same-file span containment: the same geometry, any kinds
+                    if super::super::span_nested(spans[i], spans[j]) {
+                        report.skipped_nested += 1;
                         continue;
                     }
                     let (ha, va) = &meta[&a];
@@ -1457,6 +1699,14 @@ mod tests {
             }
             files.push((format!("gen_{chunk}.py"), src));
         }
+        // one fixed file with real nesting: encloser × nested function and
+        // outer class × nested class are span-containment pairs the rule
+        // must exclude in BOTH engines — the parity check below covers the
+        // span rule too, and the corpus-exercise assertion pins skipped_nested ≥ 1
+        files.push((
+            "gen_nested.py".to_string(),
+            "def outer_gen(u, x):\n    def inner_gen(u, x):\n        if x > 3:\n            audit(u, x)\n        return x\n    return inner_gen(u, x)\n\nclass GenOuter:\n    class GenInner:\n        def leaf_gen(self, u, x):\n            if x > 1:\n                audit(u, x)\n            return x\n".to_string(),
+        ));
         files
     }
 
@@ -1547,6 +1797,10 @@ mod tests {
             rep_new.skipped_kind_mismatch, rep_ref.skipped_kind_mismatch,
             "container × member exclusions"
         );
+        assert_eq!(
+            rep_new.skipped_nested, rep_ref.skipped_nested,
+            "same-file span-containment exclusions"
+        );
 
         // identical rows: similarity bits, tiers, detection, winner, counter
         let rows_new = dump_rows(&conn_new);
@@ -1589,5 +1843,6 @@ mod tests {
         // the corpus actually exercises the machinery
         assert!(rep_ref.canonical_hash >= 1, "exact duplicates present");
         assert!(rep_ref.hidden_gaps >= 1, "sub-floor residual present");
+        assert!(rep_ref.skipped_nested >= 1, "span-containment exclusions present");
     }
 }

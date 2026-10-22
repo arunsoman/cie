@@ -32,8 +32,8 @@ fn main() {
     let t = Instant::now();
     let dup = cie_polyglot::duplicates::detect(&conn).expect("duplicates");
     eprintln!(
-        "duplicates.detect {:>9.2?} | pairs={} canonical={} high={} medium={} low={} hidden={} skipped_class_fn={}",
-        t.elapsed(), dup.pairs, dup.canonical_hash, dup.high, dup.medium, dup.low, dup.hidden_gaps, dup.skipped_kind_mismatch
+        "duplicates.detect {:>9.2?} | pairs={} canonical={} high={} medium={} low={} hidden={} skipped_class_fn={} skipped_nested={}",
+        t.elapsed(), dup.pairs, dup.canonical_hash, dup.high, dup.medium, dup.low, dup.hidden_gaps, dup.skipped_kind_mismatch, dup.skipped_nested
     );
 
     let w = std::io::BufWriter::new(std::io::stdout().lock());
@@ -92,6 +92,26 @@ fn dump_dup_tables(conn: &rusqlite::Connection, out: &mut dyn std::io::Write) {
             "symbols\t{}\t{}",
             r.get::<_, i64>(0).unwrap(),
             r.get::<_, String>(1).unwrap()
+        );
+    }
+
+    // byte spans (file path + start/end) — lets the checker prove every
+    // nested-rule removal is a same-file strict span containment
+    let mut s = conn
+        .prepare(
+            "SELECT s.id, f.path, s.start_byte, s.end_byte FROM symbols s \
+             JOIN files f ON f.id = s.file_id ORDER BY s.id",
+        )
+        .unwrap();
+    let mut q = s.query([]).unwrap();
+    while let Some(r) = q.next().unwrap() {
+        let _ = writeln!(
+            out,
+            "spans\t{}\t{}\t{}\t{}",
+            r.get::<_, i64>(0).unwrap(),
+            r.get::<_, String>(1).unwrap(),
+            r.get::<_, i64>(2).unwrap(),
+            r.get::<_, i64>(3).unwrap()
         );
     }
 }

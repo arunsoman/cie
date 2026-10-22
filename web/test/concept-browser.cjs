@@ -3,9 +3,10 @@
 // client seam end to end: the Usecases section reads the engine's own
 // usecase_view projection (chain words, member table, class cut), both
 // draw buttons open the story's flowchart/sequence on the big gated
-// canvas, and the CHAT draws a named story's diagram — while a named
-// nothing is refused by name and a bare "draw the flowchart" is NOT
-// hijacked away from draw-anything.
+// canvas, the CHAT draws a named story's diagram — a named nothing is
+// refused by name and a bare "draw the flowchart" is NOT hijacked away
+// from draw-anything — and the last story pick rides workspace memory:
+// leave the section, come back, the remembered story stands (D3).
 const {spawn}=require('node:child_process'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
 (async()=>{
@@ -44,6 +45,29 @@ const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
    await view.getByText(/Who does /).waitFor();
    const rows=await view.locator('ul.divide-y li').count();
    assert.ok(rows>0,'the member table has rows');
+  });
+
+  await step('the last story pick rides workspace memory — leave, return, it stands (D3)',async()=>{
+   const view=page.locator('[data-view="usecases"].space-y-4');
+   // the section's exact default, computed from the same projection it reads:
+   // first label-sorted story with a chain>1, else the first row
+   const rep=JSON.parse(fs.readFileSync(path.join(web,'public/data/polyglot/report.json')));
+   const proj=(rep.usecase_view??[]).map(u=>({id:u.id,label:u.label,chain:u.chain??[]})).sort((a,b)=>a.label.localeCompare(b.label)||a.id-b.id);
+   const defaultId=proj.find(u=>u.chain.length>1)?.id??proj[0]?.id;
+   const pick=proj[proj.length-1];
+   assert.ok(pick&&pick.id!==defaultId,'demo data: the picked story differs from the deterministic default, or the step proves nothing');
+   // pick it in the select (options render in a radix portal)
+   await view.getByRole('combobox').click();
+   await page.getByRole('option').filter({hasText:`${pick.label} ·`}).click();
+   await view.getByText(`Who does \u201c${pick.label}\u201d`).waitFor();
+   // leave the section entirely (unmount) and come back (remount) —
+   // component state dies here; only the workspace-memory pick survives
+   await page.getByRole('button',{name:'Explore',exact:true}).click();
+   await page.getByRole('menuitem',{name:'Start here',exact:true}).click();
+   await openUsecases();
+   const trigger=await view.getByRole('combobox').textContent();
+   assert.ok(trigger&&trigger.includes(pick.label),'the remembered story is open again, not the default');
+   await view.getByText(/Who does /).waitFor();
   });
 
   await step('"Draw the flowchart" opens the story\u2019s flowchart on the big canvas',async()=>{

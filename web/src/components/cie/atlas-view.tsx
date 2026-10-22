@@ -21,6 +21,7 @@
 // dashboard at once.
 
 import { useMemo, useState } from "react";
+import { CrossServiceEvidence } from "./rfc0020-evidence";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -289,8 +290,9 @@ export function AtlasView() {
       openLedger("Grouped-out containers", shownC4);
       return; // G1: the grouped-out box is a ledger, not a scope
     }
+    // the chip itself is setAtlasSelection's (one chip per selection — a
+    // second addChip here used to double-chip under a different id)
     setAtlasSelection({ kind: "container", id: sel.id, label: sel.id });
-    addChip({ id: `container:${sel.id}`, label: sel.id, kind: "container", revision: report?.rev ?? 0, files: (report?.files ?? []).filter((f) => f === sel.id || f.startsWith(sel.id + "/")), sourceTitle: "Atlas" });
   };
   const onComponentsClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
@@ -469,6 +471,7 @@ export function AtlasView() {
   return (
     <div className="flex h-full w-full">
       <div className="flex flex-col flex-1 min-w-0">
+        <CrossServiceEvidence stack={stack} scope={scopeId} onOpen={(file,line,label)=>openSourceViewer({file,line,elName:label,chartTitle:"Cross-service calls"})}/>
         {/* breadcrumb + filter bar (PRD §7) */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-2 border-b border-stone-200/80 bg-white/70">
           <Home className="h-3.5 w-3.5 text-stone-400" aria-hidden />

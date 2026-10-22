@@ -19,7 +19,8 @@
     "test:polyglot:browser": "node test/polyglot-browser.cjs",
     "test:polyglot:chat": "node --test test/polyglot-chat.test.cjs",
     "test:concept": "node --test test/concept-diagrams.test.cjs test/concept-chat.test.cjs",
-    "test:concept:browser": "node test/concept-browser.cjs"
+    "test:concept:browser": "node test/concept-browser.cjs",
+    "test:usecase": "node --test test/usecase-memory.test.cjs"
   },
   "dependencies": {
     "@antv/g6": "^5.1.1",
