@@ -35,6 +35,8 @@ import {
   type AdminSection,
   type AdminCategory,
 } from "@/lib/cie-admin";
+import { ConceptsMindMap } from "./concepts-mindmap";
+import { PolyglotAdminView } from "./polyglot-admin-view";
 
 const CATEGORY_LABEL: Record<AdminCategory, string> = {
   code: "report.json — code",
@@ -74,7 +76,7 @@ function cellText(v: unknown): string {
   return String(v);
 }
 
-function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
+export function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
   const [showAll, setShowAll] = useState(false);
   if (!rows.length)
     return <p className="text-xs text-stone-500 py-3 px-1">0 rows.</p>;
@@ -330,6 +332,15 @@ export function CieAdminView() {
 
       <OverviewMap sections={matchedSections} />
 
+      {!query && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pt-2">
+            cie-polyglot run — SQLite scratch store (PRD v2.0)
+          </h3>
+          <PolyglotAdminView />
+        </div>
+      )}
+
       {query && matchedSections.length === 0 && (
         <p className="text-sm text-stone-500 px-1">No rows match “{query}”.</p>
       )}
@@ -342,6 +353,7 @@ export function CieAdminView() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pt-2">
               {label}
             </h3>
+            {cat === "concepts" && !query && <ConceptsMindMap />}
             {list.map((s) => (
               <SectionCard key={s.id} section={s} query={query} />
             ))}
