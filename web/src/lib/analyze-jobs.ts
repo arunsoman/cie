@@ -916,7 +916,12 @@ async function runPipeline(job: AnalyzeJob) {
     setStep(job, "polyglot", "running", "Naming components and flows…");
     const t_pg = Date.now();
     let polyglotSpecs: PolyglotBundle | null = null;
-    const pg = await run(bin, ["polyglot", repoDir, "--viewspec", "all"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 120_000) });
+    // 120s used to be plenty; a dense monorepo's duplicate-detection pass
+    // alone (ingest + IR + all-pairs similarity over tens of millions of
+    // candidate pairs) can take longer than that by itself, before the
+    // bundle even starts naming views — so this step gets the same ceiling
+    // as `report`/`concepts` rather than its own tighter one.
+    const pg = await run(bin, ["polyglot", repoDir, "--viewspec", "all"], { timeoutMs: CIE_TIMEOUT_MS });
     if (!pg.timedOut && pg.code === 0) {
       try {
         const parsed = JSON.parse(pg.stdout) as unknown;

@@ -66,6 +66,8 @@ export interface PolyglotBundle {
   kind: "cie-polyglot-viewspec-bundle";
   "spec-count": number;
   "impact-centers-truncated": boolean;
+  /** families (or impact centers) that errored out — named, not silently dropped */
+  skipped?: { family: string; reason: string }[];
   specs: Record<string, PolyglotViewSpec>;
 }
 
@@ -100,5 +102,6 @@ export function polyglotDetail(b: PolyglotBundle): string {
   if (flows) parts.push("workflow(s)");
   if (impacts) parts.push(`${impacts} impact view(s)`);
   if (b["impact-centers-truncated"]) parts.push("impact views capped at 50 — the rest stay counted, not shown");
+  if (b.skipped && b.skipped.length > 0) parts.push(`${b.skipped.length} spec(s) couldn't be drawn and were skipped, not faked`);
   return parts.length ? parts.join(", ") + " ready." : "Nothing nameable found — the honest answer for this project.";
 }

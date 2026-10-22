@@ -666,6 +666,21 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     tx.commit().map_err(|e| e.to_string())?;
     drop(_fk_guard); // restore FK enforcement before the caller sees the conn
 
+    // Built once, AFTER the bulk insert above (never in `create_dup_schema`,
+    // which runs before any row exists) — a one-pass index build over the
+    // finished table, not per-row maintenance during a multi-million-row
+    // INSERT. symbol_a/symbol_b back the impact view's
+    // "WHERE symbol_a = ? OR symbol_b = ?" lookup (SQLite OR-optimizes into
+    // two indexed rowid scans + a merge — without them it's a full scan per
+    // center, and `produce_bundle` queries up to 50 centers); tier backs
+    // the bundle's per-tier center-selection query.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_dup_symbol_a ON duplicates(symbol_a);
+         CREATE INDEX IF NOT EXISTS idx_dup_symbol_b ON duplicates(symbol_b);
+         CREATE INDEX IF NOT EXISTS idx_dup_tier ON duplicates(tier);",
+    )
+    .map_err(|e| e.to_string())?;
+
     // every fed row landed in exactly one counted bucket; sub-floor
     // candidates were never fed; container × member pairs were never
     // candidates at all (counted in skipped_kind_mismatch, not hidden)
@@ -918,6 +933,61 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
     };
     if hidden > 0 {
         gaps.push(json!({ "reason": format!("{hidden} candidate pair(s) below the 0.40 similarity threshold stay hidden, counted not shown") }));
+    }
+
+    // VIZ-I-06: salience-bounded truncation, counted not silent — same
+    // convention as the C4 producer. A hub symbol's duplicate hemisphere
+    // can run into the thousands (dense near-duplicate codebases); rather
+    // than let that blow the whole spec past the gate's ELEMENT_CAP, the
+    // center is always kept, callers next, and duplicate partners yield
+    // first — lowest similarity dropped first, counted in `gaps`.
+    if elements.len() > viewspec::ELEMENT_CAP {
+        let rank = |el: &Value| -> u8 {
+            match el["fields"]["role"].as_str().unwrap_or("") {
+                "center" => 0,
+                "caller" => {
+                    if el["fields"]["ring"].as_i64() == Some(1) {
+                        1
+                    } else {
+                        2
+                    }
+                }
+                _ => 3, // duplicate
+            }
+        };
+        let weight = |el: &Value| -> f64 { el["salience"]["weight"].as_f64().unwrap_or(0.0) };
+        let mut order: Vec<usize> = (0..elements.len()).collect();
+        order.sort_by(|&a, &b| {
+            rank(&elements[a])
+                .cmp(&rank(&elements[b]))
+                .then(weight(&elements[b]).total_cmp(&weight(&elements[a])))
+        });
+        let keep: std::collections::BTreeSet<usize> =
+            order.into_iter().take(viewspec::ELEMENT_CAP).collect();
+        let hidden_count = elements.len() - keep.len();
+        let kept_ids: std::collections::BTreeSet<String> = elements
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| keep.contains(i))
+            .map(|(_, el)| el["id"].as_str().unwrap_or("").to_string())
+            .collect();
+        elements = elements
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| keep.contains(i))
+            .map(|(_, el)| el)
+            .collect();
+        edges.retain(|e| {
+            let s = e["source"].as_str().unwrap_or("");
+            let t = e["target"].as_str().unwrap_or("");
+            kept_ids.contains(s) && kept_ids.contains(t)
+        });
+        gaps.push(json!({
+            "reason": format!(
+                "{hidden_count} ring/duplicate node(s) above the {}-element display cap stay hidden by salience rank, counted not shown",
+                viewspec::ELEMENT_CAP
+            )
+        }));
     }
 
     let spec = json!({

@@ -212,6 +212,22 @@ pub fn open_db(path: &Path) -> Result<Connection, String> {
     let conn = Connection::open(path).map_err(|e| e.to_string())?;
     conn.pragma_update(None, "foreign_keys", true)
         .map_err(|e| e.to_string())?;
+    // A disposable, single-process scratch store: deleted and rebuilt every
+    // `cie polyglot` run (see cie-cli's Command::Polyglot), never read
+    // concurrently while this process holds it. Durability guarantees
+    // (fsync-per-commit, rollback journal) buy nothing here and cost real
+    // time on multi-million-row bulk inserts and index builds — a crash
+    // mid-run just means re-running the command, which was already true.
+    // journal_mode=OFF (not MEMORY): MEMORY still buffers the whole
+    // rollback journal in RAM, which for a multi-GB insert competes with
+    // everything else on a memory-constrained box and net LOSES time to
+    // swapping — measured ~60s slower here than no journal at all.
+    conn.pragma_update(None, "journal_mode", "OFF")
+        .map_err(|e| e.to_string())?;
+    conn.pragma_update(None, "synchronous", "OFF")
+        .map_err(|e| e.to_string())?;
+    conn.pragma_update(None, "temp_store", "MEMORY")
+        .map_err(|e| e.to_string())?;
     create_schema(&conn)?;
     Ok(conn)
 }

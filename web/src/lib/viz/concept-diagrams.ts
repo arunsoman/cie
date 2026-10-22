@@ -32,7 +32,7 @@
 // sequenceDiagram (catalog clause B3); the BFS depth rides each message
 // in `fields.depth` so any lane layout can order without re-deriving.
 
-import { gate, recomputeRenderHash, recomputeSemanticHash } from "viz-adapter";
+import { gate, recomputeRenderHash, recomputeSemanticHash, ELEMENT_CAP } from "viz-adapter";
 import type { Gap, ViewEdge, ViewSpec, ViewElement } from "viz-adapter";
 import type { CieReport, ConceptNode, SymbolInfo, SummaryInfo } from "@/lib/cie-types";
 
@@ -145,6 +145,27 @@ function prepare(concept: ConceptNode, report: CieReport): Prepared {
   return { members, byId, edges, entries, skipped };
 }
 
+/** Mirrors the engine's own VIZ-I-06 convention (cie-polyglot's C4 and
+ *  impact-view producers): salience-bounded truncation, counted not
+ *  silent. Some concepts' extents run well past the gate's ELEMENT_CAP
+ *  (a "docker-managed"-sized usecase can have thousands of members) —
+ *  rather than let the gate refuse the whole diagram, keep the
+ *  highest-salience elements and drop the rest, dropping any edge whose
+ *  endpoint was dropped with it. The caller reports `hidden` as a gap. */
+function capBySalience<E extends ViewElement>(
+  elements: E[],
+  edges: ViewEdge[],
+): { elements: E[]; edges: ViewEdge[]; hidden: number } {
+  if (elements.length <= ELEMENT_CAP) return { elements, edges, hidden: 0 };
+  const ranked = [...elements].sort((a, b) => (b.salience?.weight ?? 0) - (a.salience?.weight ?? 0));
+  const kept = new Set(ranked.slice(0, ELEMENT_CAP).map((e) => e.id));
+  return {
+    elements: elements.filter((e) => kept.has(e.id)),
+    edges: edges.filter((e) => kept.has(e.source) && kept.has(e.target)),
+    hidden: elements.length - kept.size,
+  };
+}
+
 function gapsFor(prep: Prepared, area: string, extra: string[] = []): Gap[] {
   const gaps: Gap[] = [];
   for (const why of extra) {
@@ -249,10 +270,15 @@ export function conceptToFlowchartSpec(
     // the caller's recorded summary.
     evidence: prep.byId.get(e.from)!.evidence,
   }));
+  const capped = capBySalience(elements, edges);
+  const extraGaps =
+    capped.hidden > 0
+      ? [`${capped.hidden} member(s) above the ${ELEMENT_CAP}-element display cap stay hidden by salience rank, counted not shown`]
+      : [];
   return finish(
-    elements,
-    edges,
-    gapsFor(prep, `flowchart:${concept.id}`),
+    capped.elements,
+    capped.edges,
+    gapsFor(prep, `flowchart:${concept.id}`, extraGaps),
     `Call shape of ${kind} "${concept.label}" — nodes are its recorded members, edges the resolved calls between them; entries carry no in-concept caller.`,
     report.rev,
   );
@@ -362,9 +388,16 @@ export function conceptToSequenceSpec(
     };
   });
 
+  const capped = capBySalience(elements, edges);
+  if (capped.hidden > 0) {
+    extraGaps.push(
+      `${capped.hidden} lifeline(s) above the ${ELEMENT_CAP}-element display cap stay hidden by salience rank, counted not shown`,
+    );
+  }
+
   return finish(
-    elements,
-    edges,
+    capped.elements,
+    capped.edges,
     gapsFor(prep, `sequence:${concept.id}`, extraGaps),
     `Message order of ${kind} "${concept.label}" — lifelines are the classes its members belong to, ordered from the entry points outward (fields.depth carries the BFS depth).`,
     report.rev,

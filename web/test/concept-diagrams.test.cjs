@@ -22,7 +22,7 @@ const path = require("node:path");
 const loader = require("./helpers/load-ts.cjs");
 
 const load = loader();
-const { gate, verifySemanticHash, mermaidAdapt } = load(
+const { gate, verifySemanticHash, mermaidAdapt, ELEMENT_CAP } = load(
   path.resolve(__dirname, "../../viz-adapter/src/index.ts"),
 );
 const { conceptToFlowchartSpec, conceptToSequenceSpec, NO_INTERNAL_CALLS_GAP } = load(
@@ -217,5 +217,95 @@ test("mermaid adapt: the lifeline+message shape renders a sequenceDiagram (catal
   assert.ok(
     out.text.includes("Move money via charge"),
     "the message text is the callee's recorded name",
+  );
+});
+
+// ---------- over the gate's ELEMENT_CAP ----------
+// A real-world case: a usecase ("docker-managed"-sized) whose extent is a
+// few thousand members. Before the fix the gate refused to draw anything
+// at all; now the highest-salience members are kept and the drop is
+// disclosed in `gaps`, never silent.
+
+function oversizedReportAndConcept(n) {
+  const files = ["big/module.py"];
+  const symbols = [];
+  for (let i = 1; i <= n; i++) {
+    symbols.push({
+      id: i,
+      kind: "Function",
+      name: `fn_${i}`,
+      qual_name: `fn_${i}`,
+      loc: { file: 0, start: i * 10, end: i * 10 + 5 },
+      lang: "python",
+      parent: null,
+    });
+  }
+  const rep = {
+    rev: 1,
+    files,
+    symbols,
+    summaries: symbols.map((s) => ({ sym: s.id, callees: [] })),
+    coverage: { files_total: 1, files_analyzed: 1, symbols_total: n, symbols_analyzed: n, complete: true, notes: [] },
+    evidence: { rev: 1, provenance: "test", assumptions: [], unsupported: [], unresolved: [] },
+    warnings: [],
+  };
+  const c = {
+    id: 1,
+    label: "docker-managed",
+    kind: "UseCase",
+    parent: 0,
+    children: [],
+    primary_edge: "FcaSubsumption",
+    symbols: symbols.map((s) => s.id),
+    behaviors: [],
+  };
+  return { rep, c };
+}
+
+test("flowchart: an extent past ELEMENT_CAP is truncated by salience, not refused", () => {
+  const n = ELEMENT_CAP + 500;
+  const { rep, c } = oversizedReportAndConcept(n);
+  const v = ok(conceptToFlowchartSpec(c, rep));
+  assert.equal(v.elements.length, ELEMENT_CAP, "kept exactly up to the cap");
+  assert.ok(
+    v.gaps.some((g) => g.why.includes(`500 member(s) above the ${ELEMENT_CAP}-element display cap`)),
+    `cap drop must be disclosed: ${JSON.stringify(v.gaps)}`,
+  );
+});
+
+test("sequence: an oversized extent's lifelines are also capped, not refused", () => {
+  // give every function its own class so lanes (not just members) scale
+  // past the cap too
+  const n = ELEMENT_CAP + 200;
+  const { rep, c } = oversizedReportAndConcept(0);
+  for (let i = 1; i <= n; i++) {
+    const classId = 100000 + i;
+    rep.symbols.push({
+      id: classId,
+      kind: "Class",
+      name: `C${i}`,
+      qual_name: `C${i}`,
+      loc: { file: 0, start: i * 20, end: i * 20 + 15 },
+      lang: "python",
+      parent: null,
+    });
+    rep.symbols.push({
+      id: i,
+      kind: "Method",
+      name: `m`,
+      qual_name: `C${i}.m`,
+      loc: { file: 0, start: i * 20 + 1, end: i * 20 + 5 },
+      lang: "python",
+      parent: classId,
+    });
+    rep.summaries.push({ sym: i, callees: [] });
+    c.symbols.push(i);
+  }
+  rep.coverage.symbols_total = rep.symbols.length;
+  const v = ok(conceptToSequenceSpec(c, rep));
+  assert.equal(v.elements.length, ELEMENT_CAP, "lifelines also kept up to the cap");
+  assert.ok(
+    v.gaps.some((g) => g.why.includes(`above the ${ELEMENT_CAP}-element display cap`)),
+    `cap drop must be disclosed: ${JSON.stringify(v.gaps)}`,
   );
 });

@@ -41,8 +41,26 @@ pub fn produce(conn: &Connection) -> Result<BTreeMap<String, Value>, String> {
 /// pipeline consumes (one engine invocation, one parse on the reader side).
 /// Impact+duplicate specs are produced per duplicate-family center
 /// (non-hidden rows), capped at 50; the cap is counted, never silent.
+///
+/// Each producer family (and each impact center) is independent: one
+/// family's error — a gate failure or anything else — is recorded in
+/// `skipped` and the rest of the bundle still ships. A single bad spec
+/// used to blank the whole document (empty stdout, exit 1); that is worse
+/// than honestly naming what couldn't be drawn.
 pub fn produce_bundle(conn: &Connection) -> Result<Value, String> {
-    let mut specs = produce(conn)?;
+    let mut specs = BTreeMap::new();
+    let mut skipped: Vec<Value> = Vec::new();
+
+    for (family, result) in [
+        ("state-machines", produce_state_machines(conn, &mut specs)),
+        ("workflows", produce_workflows(conn, &mut specs)),
+        ("c4", produce_c4(conn, &mut specs)),
+    ] {
+        if let Err(reason) = result {
+            skipped.push(json!({ "family": family, "reason": reason }));
+        }
+    }
+
     let mut stmt = conn
         .prepare(
             "SELECT DISTINCT symbol_a FROM duplicates WHERE tier != 'hidden'
@@ -60,13 +78,18 @@ pub fn produce_bundle(conn: &Connection) -> Result<Value, String> {
     drop(stmt);
     let truncated = centers.len() > 50;
     for center in centers.into_iter().take(50) {
-        let spec = crate::duplicates::impact_duplicate_spec(conn, center)?;
-        specs.insert(format!("impact:{center}"), spec);
+        match crate::duplicates::impact_duplicate_spec(conn, center) {
+            Ok(spec) => {
+                specs.insert(format!("impact:{center}"), spec);
+            }
+            Err(reason) => skipped.push(json!({ "family": format!("impact:{center}"), "reason": reason })),
+        }
     }
     Ok(json!({
         "kind": "cie-polyglot-viewspec-bundle",
         "spec-count": specs.len(),
         "impact-centers-truncated": truncated,
+        "skipped": skipped,
         "specs": Value::Object(specs.into_iter().collect()),
     }))
 }
