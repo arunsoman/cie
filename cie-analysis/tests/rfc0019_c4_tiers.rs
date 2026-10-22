@@ -208,7 +208,11 @@ fn stack() -> StackReport {
     }
 }
 
-fn label_offline(intent: &[String], fallback: &str) -> (String, &'static str) {
+fn label_offline(
+    intent: &[String],
+    fallback: &str,
+    _evidence: &[cie_analysis::hierarchy::LabelSymbolEvidence],
+) -> (String, &'static str) {
     (if intent.is_empty() { fallback.to_string() } else { intent.join("+") }, "offline")
 }
 

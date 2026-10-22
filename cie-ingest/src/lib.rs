@@ -474,8 +474,24 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &mut label_cache,
         &budget,
     ));
-    let label_fn = |intent: &[String], fallback: &str| -> (String, &'static str) {
-        let rec = labeler_cell.borrow_mut().label_concept(intent, fallback);
+    let label_fn = |intent: &[String],
+                    fallback: &str,
+                    evidence: &[cie_analysis::hierarchy::LabelSymbolEvidence]|
+     -> (String, &'static str) {
+        // A3: convert the analysis-side evidence into the LLM-side shape
+        // (no dependency edge cie-analysis -> cie-llm) so the concept
+        // labeler can name the story, not join tag words.
+        let members: Vec<cie_llm::ConceptEvidence> = evidence
+            .iter()
+            .map(|e| cie_llm::ConceptEvidence {
+                name: e.name.clone(),
+                tags: e.tags.clone(),
+                effects: e.effects.clone(),
+            })
+            .collect();
+        let rec = labeler_cell
+            .borrow_mut()
+            .label_concept(intent, fallback, &members);
         (rec.label, rec.source)
     };
 

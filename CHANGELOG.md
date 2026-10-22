@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.4 — the labeler sees the story, not the tag words (2026-10-22)
+
+A3/A4 of the concepts plan: pass-2 labeling is fed the cluster's actual
+member evidence, and the LLM provider became reachable from every command
+that produces concept labels.
+
+- **Enriched pass-2 prompts** — `LabelFn` (and `cie-llm::Labeler::
+  label_concept`) now receive the concept's member evidence: each member's
+  name, tags and effects, bounded at 12 members in extent order
+  (deterministic). A real provider can now name the story ("Transfer funds
+  between accounts") instead of joining attribute words. Membership is
+  STILL decided mechanically — the LLM names, it never decides (the
+  offline provider ignores the evidence and returns the mechanical
+  fallback; an `llm`-sourced label still binds only an inert
+  `LlmCandidate` rule). Prompts are content-addressed, so existing caches
+  miss once per concept and then behave as before.
+- **Offline parser fixed** — the provider's `splitn(2, ':')` consumed the
+  `LABEL:`/`EXPLAIN:` prefix before the branch checked it, so EVERY
+  structured prompt fell through to the catch-all: concept labels came out
+  mangled (`Concept:money:money movement`), symbol labels carried their
+  kind suffix (`Cart Add Item:method`), and the EXPLAIN branch was dead
+  code. Prefixes now match on the full prompt: concept labels read the
+  mechanical fallback (`money movement`), symbol labels are clean
+  (`Cart Add Item`), EXPLAIN produces its intended sentence. The labeler's
+  cache namespace bumps to `offline-v2` so cached labels produced by the
+  broken parse are invalidated; the EMBEDDING provider id stays
+  `offline-v1` (vector_store pins it separately). Cached records now store
+  the namespace as `model_id` so entries are self-describing.
+- **Provider wiring completed** — `cie concepts` used to hard-wire offline
+  labeling with no escape hatch; it now takes `--llm-provider`,
+  `--no-llm` and `--llm-budget-usd` like `cie ingest`. `cie analyze`
+  gains `--llm-budget-usd` (was hardcoded 1.0). Unconfigured external
+  backends fall back to offline silently (unchanged `make_provider`
+  behavior); budget exhaustion downgrades to offline mid-run; the
+  persistent label cache makes LLM labeling a one-time spend per concept.
+
 ## 1.4.3 — the induction chain: usecases hang off their broader usecases (2026-10-22)
 
 Structural change in the concept DAG (`cie-analysis` hierarchy), closing the

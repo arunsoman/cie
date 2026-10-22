@@ -15,12 +15,26 @@ use cie_stack::types::StackReport;
 use cie_summary::EffectKind;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// What the labeler may read about one member function of a concept: the
+/// story lives in the members (names, tags, effects), not in the joined
+/// attribute words. Mirrored in cie-llm as `ConceptEvidence` (no
+/// dependency edge cie-analysis → cie-llm; cie-ingest converts).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelSymbolEvidence {
+    pub name: String,
+    pub tags: Vec<String>,
+    pub effects: Vec<String>,
+}
+
 /// Label function hook: the CLI supplies either the offline deterministic
 /// labeler or an LLM-backed one. Labels never decide membership.
 /// Label provider: returns (label, source) where source is the
 /// LabelRecord source ("llm" | "offline" | "cache") — TASK-079 binds
-/// LLM-proposed labels as inert `LlmCandidate` rules.
-pub type LabelFn<'a> = &'a dyn Fn(&[String], &str) -> (String, &'static str);
+/// LLM-proposed labels as inert `LlmCandidate` rules. A3: the hook also
+/// receives the concept's member evidence (bounded, extent order,
+/// deterministic), so a real provider can name the story.
+pub type LabelFn<'a> =
+    &'a dyn Fn(&[String], &str, &[LabelSymbolEvidence]) -> (String, &'static str);
 
 /// RFC-0019 §6.4: the C4 view of the persisted stack facts, precomputed so
 /// every tier below is a lookup. `stack: None` skips the whole structure —
@@ -688,9 +702,33 @@ pub fn build_hierarchy(
         if concept.intent.is_empty() || concept.extent.len() < 2 {
             continue;
         }
+        // A3: the labeler sees the cluster's members — names, tags,
+        // effects — so a real provider can name the story, not join tag
+        // words. Bounded: at most 12 members in extent order (SymbolId
+        // ascending, deterministic); the offline provider ignores the
+        // evidence and returns the mechanical fallback.
+        let evidence: Vec<LabelSymbolEvidence> = concept
+            .extent
+            .iter()
+            .take(12)
+            .filter_map(|sid| {
+                let sym = store.get(*sid)?;
+                let summary = behavior.summaries.get(sid)?;
+                Some(LabelSymbolEvidence {
+                    name: sym.name.clone(),
+                    tags: summary.tags.iter().cloned().collect(),
+                    effects: summary
+                        .effects
+                        .iter()
+                        .map(|e| e.as_str().to_string())
+                        .collect(),
+                })
+            })
+            .collect();
         let (label, label_source) = label_fn(
             &concept.intent.iter().cloned().collect::<Vec<_>>(),
             &fca::concept_label(&concept.intent),
+            &evidence,
         );
         let mut n = ConceptNode::new(0, label, ConceptKind::UseCase, now);
         n.intent = concept.intent.iter().cloned().collect();

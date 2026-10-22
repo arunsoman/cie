@@ -179,6 +179,9 @@ pub enum Command {
         llm_provider: LlmChoice,
         #[arg(long)]
         no_llm: bool,
+        /// Estimated labeling spend cap, in USD (A4: was hardcoded 1.0).
+        #[arg(long, default_value_t = 1.0, value_parser = parse_budget_usd)]
+        llm_budget_usd: f64,
         #[arg(long)]
         no_coverage_gaps: bool,
     },
@@ -194,6 +197,19 @@ pub enum Command {
         /// Render only the first N levels (root = level 1) — TASK-083.
         #[arg(long)]
         max_depth: Option<u32>,
+        /// Label provider (A4: `concepts` used to hard-wire offline);
+        /// external backends are explicit opt-in. The persistent label
+        /// cache makes this a one-time spend per concept — re-runs that
+        /// hit the cache make no model call.
+        #[arg(long, value_enum, default_value = "offline")]
+        llm_provider: LlmChoice,
+        /// Force offline labeling even when a provider is selected.
+        #[arg(long)]
+        no_llm: bool,
+        /// Estimated labeling spend cap, in USD; the offline fallback on
+        /// budget exhaustion is silent by design.
+        #[arg(long, default_value_t = 1.0, value_parser = parse_budget_usd)]
+        llm_budget_usd: f64,
     },
     /// Document vs code drift analysis (FR-31–39)
     Drift {
@@ -355,13 +371,14 @@ fn ingest_opts(
     no_llm: bool,
     llm_provider: LlmChoice,
     no_coverage_gaps: bool,
+    llm_budget_usd: f64,
 ) -> IngestOptions {
     IngestOptions {
         langs: lang_list(langs),
         budget_ms,
         no_llm,
         llm: llm_provider.into(),
-        llm_budget_usd: 1.0,
+        llm_budget_usd,
         include_coverage_gaps: !no_coverage_gaps,
     }
 }
@@ -817,9 +834,17 @@ fn run(cli: Cli) -> i32 {
             budget_ms,
             llm_provider,
             no_llm,
+            llm_budget_usd,
             no_coverage_gaps,
         } => {
-            let opts = ingest_opts(&None, budget_ms, no_llm, llm_provider, no_coverage_gaps);
+            let opts = ingest_opts(
+                &None,
+                budget_ms,
+                no_llm,
+                llm_provider,
+                no_coverage_gaps,
+                llm_budget_usd,
+            );
             let path = path.canonicalize().unwrap_or(path);
             let outcome =
                 match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
@@ -868,8 +893,18 @@ fn run(cli: Cli) -> i32 {
             with_behaviors,
             with_rules,
             max_depth,
+            llm_provider,
+            no_llm,
+            llm_budget_usd,
         } => {
-            let opts = IngestOptions::default();
+            let opts = IngestOptions {
+                langs: None,
+                budget_ms: None,
+                no_llm,
+                llm: llm_provider.into(),
+                llm_budget_usd,
+                include_coverage_gaps: true,
+            };
             let path = path.canonicalize().unwrap_or(path);
             match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
                 Ok(outcome) => {

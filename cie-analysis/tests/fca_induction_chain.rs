@@ -41,6 +41,26 @@ fn fact(id: u32, name: &str, file: u32) -> SymbolFact {
 /// One file per function keeps the majority-module extra edge out of the
 /// assertions' way; attributes come only from the summary tags.
 fn run(functions: &[(u32, &[&str])]) -> ConceptDag {
+    let label_offline = |intent: &[String],
+                         fallback: &str,
+                         _evidence: &[cie_analysis::hierarchy::LabelSymbolEvidence]|
+     -> (String, &'static str) {
+        (
+            if intent.is_empty() {
+                fallback.to_string()
+            } else {
+                intent.join("+")
+            },
+            "offline",
+        )
+    };
+    run_with(functions, &label_offline)
+}
+
+fn run_with(
+    functions: &[(u32, &[&str])],
+    label_fn: cie_analysis::hierarchy::LabelFn,
+) -> ConceptDag {
     let mut files = FileTable::new();
     let mut symbols = Vec::new();
     let mut summaries: BTreeMap<SymbolId, FunctionSummary> = BTreeMap::new();
@@ -59,17 +79,7 @@ fn run(functions: &[(u32, &[&str])]) -> ConceptDag {
         reverse_deps: BTreeMap::new(),
         reuse: Default::default(),
     };
-    let label_offline = |intent: &[String], fallback: &str| -> (String, &'static str) {
-        (
-            if intent.is_empty() {
-                fallback.to_string()
-            } else {
-                intent.join("+")
-            },
-            "offline",
-        )
-    };
-    build_hierarchy(&store, &beh, &[], &label_offline, 0, None)
+    build_hierarchy(&store, &beh, &[], label_fn, 0, None)
 }
 
 fn usecases(dag: &ConceptDag) -> Vec<&ConceptNode> {
@@ -239,4 +249,57 @@ fn the_chain_is_visible_in_the_serialized_artifact() {
         marker,
         narrow_chunk
     );
+}
+
+#[test]
+fn the_labeler_sees_the_members_not_just_the_tag_words() {
+    // A3: the hook receives the concept's member evidence — names, tags,
+    // effects — bounded and deterministic, so a real provider can name the
+    // story. Captured here through the same hook the ingest wires to the
+    // Labeler.
+    use std::cell::RefCell;
+    let seen: RefCell<Vec<Vec<(String, Vec<String>)>>> = RefCell::new(Vec::new());
+    let capture = |intent: &[String],
+                   fallback: &str,
+                   evidence: &[cie_analysis::hierarchy::LabelSymbolEvidence]|
+     -> (String, &'static str) {
+        seen.borrow_mut().push(
+            evidence
+                .iter()
+                .map(|e| (e.name.clone(), e.tags.clone()))
+                .collect(),
+        );
+        (
+            if intent.is_empty() {
+                fallback.to_string()
+            } else {
+                intent.join("+")
+            },
+            "offline",
+        )
+    };
+    let dag = run_with(
+        &[
+            (0, &["money", "db_write"]),
+            (1, &["money", "db_write", "network"]),
+            (2, &["money", "db_write", "network"]),
+        ],
+        &capture,
+    );
+    let seen = seen.into_inner();
+    assert_eq!(seen.len(), 2, "one evidence bundle per surviving usecase");
+    // broader concept ext {fn_0, fn_1, fn_2}; narrower ext {fn_1, fn_2}
+    let broad = seen.iter().find(|b| b.len() == 3).expect("broader bundle");
+    let narrow = seen.iter().find(|b| b.len() == 2).expect("narrower bundle");
+    assert_eq!(broad[0].0, "fn_0", "extent order, deterministic");
+    assert!(
+        broad[0].1.contains(&"money".into()) && broad[0].1.contains(&"db_write".into()),
+        "the member's tags ride along: {:?}",
+        broad[0]
+    );
+    assert!(
+        narrow.iter().all(|(n, t)| t.contains(&"network".into()) && n.starts_with("fn_")),
+        "the narrower cluster's members all carry the differentiating tag"
+    );
+    let _ = dag;
 }

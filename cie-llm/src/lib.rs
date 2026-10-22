@@ -21,7 +21,7 @@ pub mod ollama;
 pub mod openai;
 
 pub use budget::Budget;
-pub use cache::Labeler;
+pub use cache::{ConceptEvidence, Labeler};
 pub use offline::OfflineProvider;
 
 use cie_core::types::Hash;

@@ -38,19 +38,26 @@ impl LlmProvider for OfflineProvider {
     }
 
     fn complete(&self, prompt: &str, _max_tokens: u32) -> Result<String, LlmError> {
-        // Structured prompts understood offline:
-        //   LABEL:<qual_name>:<kind>  -> label
-        //   EXPLAIN:<qual_name>:<effects comma-list> -> one-line explanation
+        // Structured prompts understood offline (matched on the FULL
+        // prompt — an earlier splitn(2, ':') consumed the prefix before
+        // the branch checked it, so every structured prompt silently fell
+        // through to the catch-all and labels came out mangled, e.g.
+        // "Concept:money:money movement"):
+        //   LABEL:<qual_name>:<kind>                    -> prettified qual
+        //   LABEL:concept:<intent>:<fallback>[FUNCTIONS:...] -> the
+        //                                                  mechanical fallback
+        //   EXPLAIN:<qual_name>:<effects comma-list>     -> one-line explanation
         // Anything else echoes a deterministic summary.
-        let parts: Vec<&str> = prompt.splitn(2, ':').collect();
-        let body = parts.get(1).copied().unwrap_or(prompt);
-        if body.starts_with("LABEL:") {
-            let rest = body.trim_start_matches("LABEL:");
+        if let Some(rest) = prompt.strip_prefix("LABEL:concept:") {
+            let head = rest.split("\nFUNCTIONS:").next().unwrap_or(rest);
+            let fallback = head.rsplit_once(':').map(|(_, f)| f).unwrap_or(head);
+            return Ok(fallback.trim().to_string());
+        }
+        if let Some(rest) = prompt.strip_prefix("LABEL:") {
             let qual = rest.rsplit_once(':').map(|(q, _)| q).unwrap_or(rest);
             return Ok(prettify(qual));
         }
-        if body.starts_with("EXPLAIN:") {
-            let rest = body.trim_start_matches("EXPLAIN:");
+        if let Some(rest) = prompt.strip_prefix("EXPLAIN:") {
             let mut it = rest.rsplitn(2, ':');
             let effects = it.next().unwrap_or("");
             let qual = it.next().unwrap_or("");
@@ -67,7 +74,7 @@ impl LlmProvider for OfflineProvider {
                 effect_list.join(", ")
             ));
         }
-        Ok(prettify(body))
+        Ok(prettify(prompt))
     }
 
     fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, LlmError> {
@@ -99,5 +106,45 @@ impl LlmProvider for OfflineProvider {
 
     fn cost_per_1k(&self) -> (f64, f64) {
         (0.0, 0.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn concept_labels_read_the_mechanical_fallback_not_the_catch_all() {
+        let p = OfflineProvider;
+        let prompt = "LABEL:concept:money+db_write:writes data & money movement\nFUNCTIONS:\n- transfer_money [money] (db_write)";
+        assert_eq!(
+            p.complete(prompt, 48).unwrap(),
+            "writes data & money movement",
+            "offline cannot read code — the honest label is the mechanical fallback"
+        );
+        assert_eq!(
+            p.complete("LABEL:concept:charge:Cart", 48).unwrap(),
+            "Cart"
+        );
+    }
+
+    #[test]
+    fn symbol_labels_lose_the_kind_suffix_and_explain_parses() {
+        let p = OfflineProvider;
+        // the prefix-eating bug used to yield "Cart Add Item:method"
+        assert_eq!(
+            p.complete("LABEL:cart.add_item:method", 32).unwrap(),
+            "Cart Add Item"
+        );
+        assert_eq!(
+            p.complete("EXPLAIN:cart.total:db_read,db_write", 128).unwrap(),
+            "Cart Total interacts with: db_read, db_write."
+        );
+        assert_eq!(
+            p.complete("EXPLAIN:cart.total:", 128).unwrap(),
+            "Cart Total performs no externally visible effects."
+        );
+        // the catch-all still exists for unstructured prompts
+        assert!(p.complete("free form thought", 16).is_ok());
     }
 }

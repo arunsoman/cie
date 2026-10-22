@@ -696,7 +696,7 @@ pub mod scenarios {
         let mut labeler = cie_llm::Labeler::new(&provider, &mut cache, &budget);
         let rec = labeler.label_symbol("auth.authorize", "fn");
         assert_eq!(rec.source, "offline");
-        assert_eq!(rec.model_id, "offline-v1");
+        assert_eq!(rec.model_id, "offline-v2");
         assert!(!rec.label.is_empty());
     }
 
@@ -758,7 +758,7 @@ pub mod scenarios {
         let provider = PanickyProvider;
         let mut cache = cie_llm::LabelCache::default();
         let mut labeler = cie_llm::Labeler::new(&provider, &mut cache, &budget);
-        let rec = labeler.label_concept(&["charge".into()], "Cart");
+        let rec = labeler.label_concept(&["charge".into()], "Cart", &[]);
         assert_eq!(rec.source, "offline");
         assert!(!rec.label.is_empty());
     }
@@ -870,7 +870,7 @@ pub mod scenarios {
             summaries.insert(s.sym, s.clone());
         }
         let llm_labeler: cie_analysis::hierarchy::LabelFn =
-            &|_intent, fallback| (format!("LLM proposes: {fallback}"), "llm");
+            &|_intent, fallback, _evidence| (format!("LLM proposes: {fallback}"), "llm");
         let beh = cie_analysis::behavior::compute_summaries(store, &[], 1, None);
         let dag = cie_analysis::hierarchy::build_hierarchy(
             store,

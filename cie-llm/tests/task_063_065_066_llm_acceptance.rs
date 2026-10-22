@@ -66,11 +66,11 @@ fn task_063_acc12_offline_labeling_no_network() {
     let mut labeler = Labeler::new(&provider, &mut cache, &budget);
     let rec = labeler.label_symbol("auth.authorize", "fn");
     assert_eq!(rec.source, "offline", "FR-4 provenance: source recorded");
-    assert_eq!(rec.model_id, "offline-v1", "model_id recorded");
+    assert_eq!(rec.model_id, "offline-v2", "model_id recorded");
     assert!(!rec.label.is_empty());
 
     // The prompt hash (cache_key) is the content address of the record.
-    let key = cie_core::types::hash_hex(&cache_key("offline-v1", "LABEL:auth.authorize:fn"));
+    let key = cie_core::types::hash_hex(&cache_key("offline-v2", "LABEL:auth.authorize:fn"));
     assert!(
         cache.entries.contains_key(&key),
         "label cached under blake3(model+prompt)"
@@ -138,9 +138,9 @@ fn task_066_acc14_budget_exceeded_downgrades_and_continues() {
     let mut labeler = Labeler::new(&provider, &mut cache, &budget);
 
     // Runs to completion (no panic, no hard failure): rule-based fallback.
-    let rec = labeler.label_concept(&["charge".into(), "money".into()], "Cart");
+    let rec = labeler.label_concept(&["charge".into(), "money".into()], "Cart", &[]);
     assert_eq!(rec.source, "offline", "downgraded to offline provider");
-    assert_eq!(rec.model_id, "offline-v1");
+    assert_eq!(rec.model_id, "offline-v2");
     assert!(!rec.label.is_empty(), "fallback label present");
 
     // Budget charge refuses past the cap (no silent overrun).
