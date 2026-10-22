@@ -55,6 +55,14 @@ pub struct RevSnapshot {
     /// per engine upgrade per folder, then the fast path holds again).
     #[serde(default)]
     pub concepts_tier: Option<u8>,
+    /// A5: the usecase-first projection — per-UseCase chain + resolved
+    /// membership, computed once per full ingest (post-purge, so the ids
+    /// are THIS snapshot's id space). Empty on artifacts predating the
+    /// projection; the concepts_tier stamp sends the next no-op ingest
+    /// through one full pass, which fills it. Derived data: the DAG's
+    /// nodes stay the only truth, this is the read-friendly view.
+    #[serde(default)]
+    pub usecase_view: Vec<cie_concepts::UsecaseView>,
 }
 
 /// Extension trait: snapshot + file-index persistence over the generic

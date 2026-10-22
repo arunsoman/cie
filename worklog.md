@@ -798,3 +798,22 @@ Stage Summary:
 - A3 DONE, A4 DONE. Concept labels are now clean + evidence-fed; provider reachable from ingest/analyze/concepts with budget + silent fallback + persistent cache.
 - Remaining in Phase A: A5 (usecase-first projection emission in the artifact — may be largely free now that the chain is primary and serde emits parent/extra_edges; needs a deliberate artifact-shape decision for the web mapper).
 - Next after A5: Phase B (B1 store slot + consumers, B2 mapper + vitest gate(), B3 concept-diagrams.ts flowchart/sequence ViewSpecs), then Phase C UI surfaces + chat integration.
+
+---
+Task ID: A5 + A6
+Agent: main (Z.ai)
+Task: Finish Phase A — the usecase-first projection rides the artifact (A5), close the last A6 gate (llm-vs-offline provenance), full regression + e2e.
+
+Work Log:
+- A5 shape decision: `usecase_view: Vec<UsecaseView>` lives on RevSnapshot (the artifact), NOT on the ConceptDag — derived data on the mutable DAG would go stale after rollup/invalidate (the same class of staleness bug A1 fixed in fca parents). New serde-only types in cie-concepts (UsecaseView/UsecaseLink/UsecaseMember/UsecaseClass); builder `usecase_projection(dag, store)` in cie-analysis/hierarchy.rs — pure function, mirrors pass-4 rules exactly (class cut via sym.parent -> type-like symbol of class-like nodes; chain walk with the same defensive hop cap as depth_of).
+- Ordering constraint discovered by the roundtrip test: the projection must be computed AFTER purge_tombstoned (ids speak the final possibly-renumbered id space) and BEFORE save_snapshot (the persisted artifact carries it). First placement (post-save) failed the roundtrip test; fixed by computing pre-save with a lightweight SymbolStore::build_with_files (the projection reads only symbols+files, no graphs).
+- Tier stamp bumped CONCEPTS_TIER_VERSION 2 -> 3 (RFC-0024 mechanism): one full pass per folder fills the projection, then the fast path holds. Old artifacts load as empty vec via serde default.
+- Constructor sweep: RevSnapshot literals in timeline.rs, cie-stories s11_closes.rs, cie-viz produce.rs updated.
+- A6 closed: new test an_llm_label_is_provenance_and_an_inert_candidate_never_membership — label_source "llm" stamps provenance "label:llm", binds exactly one inert LlmCandidate rule (contract 9_000_000+id, kind names the proposal), extent/behaviors untouched.
+- New suites: cie-analysis/tests/usecase_projection.rs (content: chain nearest-broader->root, narrower, members with 1-based line via intern_with_source byte math — 13-byte first line -> point(file,13) is line 2; class cut Cart [add_item, checkout]; purity: two builds serialize identically; rollup-stability). cie-ingest/tests/usecase_view_artifact.rs (full ingest on shop.py: roundtrip equality with the persisted snapshot, every member id resolves post-purge, chain ends at Domain root, member_class participants ⊆ extent; python adapter gives top-level fns their module as parent — owner "shop", reported honestly).
+- E2E: rebuilt release binary; bankapp ingest --json -> 40 usecase records, 29 with real chains (depth>1), clean labels ("spawns processes & write_file"), members carry file:line+owner; class cut honestly 0 — bankapp's only "method" is a SQL routine whose parent is a Table (pass 4 rightly does not class-ify Tables).
+
+Stage Summary:
+- Phase A COMPLETE: A1 (chain), A2 (membership verified), A3 (evidence-fed labels), A4 (provider wiring), A5 (usecase-first projection in the artifact), A6 (all gates: chain/root-fallback/diamond/rollup-isolation/serialization/provenance).
+- 547 tests green across the workspace (baseline 531). CHANGELOG 1.4.5.
+- Handoff to Phase B: B3's mapper reads report.json usecase_view directly — chain, members (names+locations+owners), member_classes with participating ids are all precomputed; the web layer computes only the call-edge overlay from summaries[].callees (B3's design already assumed this). B1 (store slot + the two consumers) and B2 (polyglot mapper) unchanged.

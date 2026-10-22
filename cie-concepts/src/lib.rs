@@ -420,6 +420,63 @@ impl ConceptDag {
     }
 }
 
+/// A5: the usecase-first projection — one record per UseCase node,
+/// precomputed at full-ingest time and serialized into the artifact
+/// (RevSnapshot.usecase_view) so web consumers read the induction chain
+/// and the membership instead of re-deriving both from node parent walks.
+/// Purely derived data: never stored in the six-key node store, never
+/// consulted by rollup/invalidate — the ConceptDag stays the only truth.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsecaseView {
+    pub id: ConceptNodeId,
+    pub label: String,
+    pub intent: Vec<String>,
+    pub confidence: f32,
+    pub coverage_ratio: f32,
+    pub coverage_complete: bool,
+    pub provenance: String,
+    /// The primary-parent climb, nearest-broader first, ending at the
+    /// Domain root — the story hierarchy the artifact owes the reader.
+    pub chain: Vec<UsecaseLink>,
+    /// Immediate UseCase children (narrower stories hanging off this one).
+    pub narrower: Vec<ConceptNodeId>,
+    /// The extent, resolved: every member function with location + owner.
+    pub members: Vec<UsecaseMember>,
+    /// The classes the extent cuts across (the FcaSubsumption extra edges,
+    /// resolved), each with the participating member ids.
+    pub member_classes: Vec<UsecaseClass>,
+}
+
+/// One hop of the broader-story chain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsecaseLink {
+    pub id: ConceptNodeId,
+    pub label: String,
+    pub kind: ConceptKind,
+}
+
+/// One member function of a usecase, resolved against the symbol store.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsecaseMember {
+    pub symbol: SymbolId,
+    pub name: String,
+    pub qual_name: String,
+    pub file: String,
+    pub line: u32,
+    /// Owning class name when the member is a method.
+    pub owner: Option<String>,
+}
+
+/// One class a usecase cuts across, with the usecase's members that
+/// belong to it — the intersection the web would otherwise recompute.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsecaseClass {
+    pub id: ConceptNodeId,
+    pub label: String,
+    pub kind: ConceptKind,
+    pub members: Vec<SymbolId>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

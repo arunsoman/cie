@@ -500,6 +500,7 @@ pub fn us_089() -> Result<(), String> {
     let snap = |rev: u64, present: bool| RevSnapshot {
         state_model: None,
         concepts_tier: None,
+        usecase_view: Vec::new(),
         rev,
         files: vec![],
         stack: None,

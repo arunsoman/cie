@@ -919,6 +919,131 @@ pub fn build_hierarchy(
     dag
 }
 
+/// A5: the usecase-first projection. One record per UseCase node (id
+/// order, deterministic), carrying everything a view needs so the web
+/// layer never re-derives it:
+///   * `chain` — the primary-parent climb up to the Domain root (the same
+///     walk `depth_of`/`invalidate` speak, so invalidation waves and the
+///     reader's story stay one structure);
+///   * `narrower` — immediate UseCase children;
+///   * `members` — the extent resolved to names/locations/owners;
+///   * `member_classes` — the class-like FcaSubsumption extra edges,
+///     resolved, each with exactly the extent members that belong to it
+///     (derived from `sym.parent`, the same rule pass 4/5 used to place
+///     the member in the first place).
+/// Pure function of (dag, store): no behavior summaries, no stack, no
+/// labels — labels never decide membership, and this projection is
+/// membership only.
+pub fn usecase_projection(
+    dag: &ConceptDag,
+    store: &SymbolStore,
+) -> Vec<cie_concepts::UsecaseView> {
+    // Class-like nodes (pass 4 emits Aggregate/Entity/Value for every
+    // type-like symbol) → the node's own type-like symbol. A method's
+    // `sym.parent` is that symbol, which is how this map mirrors the
+    // `node_of_symbol` lookups the hierarchy itself made.
+    let mut class_of_owner: BTreeMap<SymbolId, ConceptNodeId> = BTreeMap::new();
+    for n in &dag.nodes {
+        if !matches!(
+            n.kind,
+            ConceptKind::Aggregate | ConceptKind::Entity | ConceptKind::Value
+        ) {
+            continue;
+        }
+        for sid in &n.symbols {
+            if store.get(*sid).map(|s| s.kind.is_type_like()).unwrap_or(false) {
+                class_of_owner.insert(*sid, n.id);
+                break; // the type-like symbol is unique per class node
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    for n in &dag.nodes {
+        if n.kind != ConceptKind::UseCase {
+            continue;
+        }
+        // Primary-parent climb, nearest first, defensive hop cap (the same
+        // bound every other chain walk on the DAG carries).
+        let mut chain = Vec::new();
+        let mut cursor = n.parent;
+        let mut hops = 0usize;
+        while let Some(p) = cursor {
+            match dag.get(p) {
+                Some(parent) => {
+                    chain.push(cie_concepts::UsecaseLink {
+                        id: parent.id,
+                        label: parent.label.clone(),
+                        kind: parent.kind,
+                    });
+                    cursor = parent.parent;
+                }
+                None => break,
+            }
+            hops += 1;
+            if hops > dag.nodes.len() {
+                break; // corrupted chain cannot loop forever (FR-7)
+            }
+        }
+
+        let narrower: Vec<ConceptNodeId> = n
+            .children
+            .iter()
+            .copied()
+            .filter(|&c| dag.get(c).map(|c| c.kind == ConceptKind::UseCase).unwrap_or(false))
+            .collect();
+
+        let mut members = Vec::with_capacity(n.symbols.len());
+        // extent member id -> owning class node id (pass-4 rule: sym.parent)
+        let mut per_class: BTreeMap<ConceptNodeId, Vec<SymbolId>> = BTreeMap::new();
+        for sid in &n.symbols {
+            let Some(sym) = store.get(*sid) else { continue };
+            let owner = sym.parent.and_then(|p| store.get(p)).map(|p| p.name.clone());
+            members.push(cie_concepts::UsecaseMember {
+                symbol: *sid,
+                name: sym.name.clone(),
+                qual_name: sym.qual_name.clone(),
+                file: store.files.path(sym.loc.file).to_string(),
+                line: store.files.line(sym.loc),
+                owner: owner.clone(),
+            });
+            if let Some(owner_id) = sym.parent {
+                if let Some(&class_node) = class_of_owner.get(&owner_id) {
+                    per_class.entry(class_node).or_default().push(*sid);
+                }
+            }
+        }
+
+        let member_classes: Vec<cie_concepts::UsecaseClass> = per_class
+            .iter()
+            .filter_map(|(&class_node, member_ids)| {
+                let cn = dag.get(class_node)?;
+                Some(cie_concepts::UsecaseClass {
+                    id: cn.id,
+                    label: cn.label.clone(),
+                    kind: cn.kind,
+                    members: member_ids.clone(),
+                })
+            })
+            .collect();
+
+        out.push(cie_concepts::UsecaseView {
+            id: n.id,
+            label: n.label.clone(),
+            intent: n.intent.clone(),
+            confidence: n.confidence,
+            coverage_ratio: n.coverage_ratio,
+            coverage_complete: n.coverage_complete,
+            provenance: n.provenance.clone(),
+            chain,
+            narrower,
+            members,
+            member_classes,
+        });
+    }
+    out
+}
+
 /// RFC-0019 §6.4: does ANY of `methods` (or their callees, bounded at three
 /// hops with a visited set) resolve to a symbol whose OWNING class is one of
 /// the recorded repository classes? Pure store/summary lookups — no naming

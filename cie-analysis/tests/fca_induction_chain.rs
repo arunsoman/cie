@@ -303,3 +303,45 @@ fn the_labeler_sees_the_members_not_just_the_tag_words() {
     );
     let _ = dag;
 }
+
+#[test]
+fn an_llm_label_is_provenance_and_an_inert_candidate_never_membership() {
+    // A6: the llm-vs-offline provenance split. A labeler that reports
+    // source "llm" stamps the node "label:llm" and binds ONE inert
+    // LlmCandidate rule naming the proposal — and touches NOTHING else:
+    // the extent (membership) stays exactly what the lattice computed.
+    let dag = run_with(
+        &[(0, &["auth"]), (1, &["auth"])],
+        &|_intent: &[String],
+           _fallback: &str,
+           _ev: &[cie_analysis::hierarchy::LabelSymbolEvidence]| {
+            ("Sensible auth story".to_string(), "llm")
+        },
+    );
+    let ucs = usecases(&dag);
+    assert_eq!(ucs.len(), 1);
+    let uc = ucs[0];
+    assert_eq!(uc.provenance, "label:llm", "the source is visible on the node");
+    assert_eq!(uc.label, "Sensible auth story");
+    assert_eq!(
+        uc.symbols.len(),
+        2,
+        "the LLM names the story; membership stays mechanical"
+    );
+    assert!(
+        uc.behaviors.is_empty(),
+        "no behavior invented by the label path"
+    );
+    let candidates: Vec<_> = uc
+        .rules
+        .iter()
+        .filter(|r| r.authority == cie_contract::Authority::LlmCandidate)
+        .collect();
+    assert_eq!(candidates.len(), 1, "exactly one inert candidate rule");
+    assert_eq!(candidates[0].contract, 9_000_000u32 + uc.id);
+    assert!(
+        candidates[0].kind.contains("Sensible auth story"),
+        "the rule names the proposal for audit: {}",
+        candidates[0].kind
+    );
+}

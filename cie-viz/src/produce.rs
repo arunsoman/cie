@@ -501,6 +501,7 @@ mod tests {
             rev: 42,
             files,
             symbols,
+            usecase_view: Vec::new(),
             summaries: vec![],
             findings: vec![],
             contracts: vec![],

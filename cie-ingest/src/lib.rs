@@ -48,7 +48,12 @@ use std::path::{Path, PathBuf};
 /// stack-fed C4 tiers (RFC-0019 stage 4); snapshots carrying a smaller
 /// marker (or none — older engines) are re-derived once, then the fast
 /// path holds again.
-pub const CONCEPTS_TIER_VERSION: u8 = 2;
+/// RFC-0024: which concepts shape the snapshot carries. v2 = the
+/// stack-fed C4 tiers; v3 = + the induction chain (A1) and the
+/// usecase-first projection (A5). Bumping the version sends every
+/// folder's next ingest through ONE full pass, which rebuilds the
+/// concepts tree and fills `usecase_view`, then the fast path holds.
+pub const CONCEPTS_TIER_VERSION: u8 = 3;
 
 /// RFC-0024: does the head revision's persisted snapshot predate the
 /// current concepts-tier version? True when it loads but carries a
@@ -675,6 +680,8 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         // they carry the current tier shape — stamp it (the no-op path and
         // the concepts/report lenses read it as their freshness signal).
         concepts_tier: Some(CONCEPTS_TIER_VERSION),
+        // A5: filled in below, after the purge fixes the id space.
+        usecase_view: Vec::new(),
         state_model: None,
     };
     // TASK-028: explicit purge pass — no stale symbols/summaries/findings or
@@ -694,6 +701,16 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let unresolved_calls = navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
     navigation::save_unresolved(&store, rev, &unresolved_calls)?;
     org_store::save(&store, &org_store::OrgMember::new(&snapshot, &unresolved_calls))?;
+    // A5: the usecase-first projection rides with the artifact — computed
+    // AFTER the purge (so its symbol ids speak the final, possibly
+    // renumbered id space of THIS snapshot) and BEFORE the save (so the
+    // persisted artifact already carries it). The projection reads only
+    // the symbol table + file table, so the graph rebuild below is not
+    // needed for it.
+    snapshot.usecase_view = cie_analysis::hierarchy::usecase_projection(
+        &snapshot.concepts,
+        &SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files.clone()),
+    );
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous

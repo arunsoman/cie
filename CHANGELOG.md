@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.4.5 — the usecase-first projection rides the artifact (2026-10-22)
+
+A5 (+ the last A6 gate) of the concepts plan: the artifact now carries a
+precomputed, read-friendly view of every usecase — the induction chain and
+the resolved membership — so the web layer reads instead of re-deriving.
+
+- **`usecase_view` on the snapshot** — one record per UseCase node (dag id
+  order, byte-deterministic): the primary-parent `chain` (nearest-broader
+  first, ending at the Domain root — the same walk `depth_of` and the
+  invalidation wave speak), immediate `narrower` children, the extent
+  resolved to `members` (name, qual_name, file, 1-based line, owning
+  container), and `member_classes` — the class-like cut resolved with
+  exactly the participating member ids (derived from `sym.parent`, the
+  same rule pass 4/5 used to place the member). Pure function of
+  (dag, store): no summaries, no stack, no labels — membership only.
+- **Computed post-purge, pre-save** — the projection is derived after the
+  TASK-028 purge pass, so its symbol ids speak the final (possibly
+  renumbered) id space of THIS snapshot, and before `save_snapshot`, so
+  the persisted artifact already carries it (verified by an ingest-level
+  roundtrip test: member ids resolve through `snapshot.symbols`, chain ids
+  through `concepts.nodes`, member_class participants ⊆ extent).
+- **RFC-0024 tier bumps 2 → 3** — every folder's next ingest runs ONE full
+  pass to rebuild the concepts tree and fill the projection, then the
+  fast path holds again. Artifacts from before the field load as an empty
+  vec (`#[serde(default)]`), never as an error.
+- **Derived, never stored** — `usecase_view` lives on the snapshot, NOT on
+  the ConceptDag: rollup/invalidate never see it, the six-key node store
+  never persists it, and the DAG stays the only truth.
+- **A6 closed** — the last uncovered gate: an `llm`-sourced label now has a
+  provenance test (node stamps `label:llm`, exactly one inert
+  `LlmCandidate` rule named after the proposal, extent/behaviors
+  untouched — the LLM names the story, membership stays mechanical).
+  Plus a projection suite: chain/narrower/members/class-cut content,
+  purity (two builds serialize identically), rollup-stability, and the
+  artifact roundtrip above.
+- **E2E on bankapp** — 40 usecase records, 29 with real chains (depth > 1),
+  clean evidence-fed labels; class cut is honestly empty (bankapp has no
+  Python classes — its one "method" is a SQL routine owned by a Table,
+  which pass 4 rightly does not class-ify).
+
 ## 1.4.4 — the labeler sees the story, not the tag words (2026-10-22)
 
 A3/A4 of the concepts plan: pass-2 labeling is fed the cluster's actual
