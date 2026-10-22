@@ -172,7 +172,10 @@
     "rel": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
     "line": 4,
     "lang": "java",
-    "kind": "feign"
+    "kind": "feign",
+    "annotations": [
+     "@FeignClient(contextId = \"invoiceLookup\", name = \"billing\")"
+    ]
    }
   ],
   "services": [
@@ -186,6 +189,9 @@
       "field": "berthRepository",
       "type": "BerthRepository"
      }
+    ],
+    "annotations": [
+     "@Service"
     ]
    },
    {
@@ -198,6 +204,9 @@
       "field": "invoiceRepository",
       "type": "InvoiceRepository"
      }
+    ],
+    "annotations": [
+     "@Service"
     ]
    }
   ],
@@ -208,7 +217,8 @@
     "line": 5,
     "lang": "java",
     "extends": "JpaRepository<Berth, Long>",
-    "entity": "Berth"
+    "entity": "Berth",
+    "annotations": []
    },
    {
     "name": "InvoiceRepository",
@@ -216,7 +226,8 @@
     "line": 4,
     "lang": "kotlin",
     "extends": "",
-    "entity": null
+    "entity": null,
+    "annotations": []
    },
    {
     "name": "PostgresInvoiceRepository",
@@ -224,7 +235,10 @@
     "line": 8,
     "lang": "kotlin",
     "extends": "",
-    "entity": null
+    "entity": null,
+    "annotations": [
+     "@Repository"
+    ]
    }
   ],
   "entities": [
@@ -255,6 +269,9 @@
       "name": "id",
       "type": "Long"
      }
+    ],
+    "annotations": [
+     "@Entity"
     ]
    }
   ],
@@ -1630,5 +1647,5 @@
    "docker-compose.yml"
   ]
  },
- "generatedAt": 1792473772
+ "generatedAt": 1792679790
 }

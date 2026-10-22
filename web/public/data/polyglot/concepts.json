@@ -11,13 +11,7 @@
     13,
     17,
     21,
-    67,
-    68,
-    69,
-    70,
-    71,
-    72,
-    73
+    67
    ],
    "extra_edges": [],
    "primary_edge": "PackageContainment",
@@ -337,7 +331,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -530,7 +524,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "stack:apps",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -701,7 +695,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -727,7 +721,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -753,7 +747,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -779,7 +773,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -812,7 +806,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -838,7 +832,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -902,7 +896,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:apps",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -935,7 +929,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -966,7 +960,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1000,7 +994,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1040,7 +1034,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1097,7 +1091,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:apps",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1134,7 +1128,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1158,7 +1152,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1199,7 +1193,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1315,7 +1309,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:apps",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1358,7 +1352,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1399,7 +1393,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1484,7 +1478,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1554,7 +1548,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:apps",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1593,7 +1587,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1630,7 +1624,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1667,7 +1661,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1691,7 +1685,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1861,7 +1855,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1886,7 +1880,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1911,7 +1905,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1936,7 +1930,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1969,7 +1963,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -1994,7 +1988,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2026,7 +2020,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2058,7 +2052,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2083,7 +2077,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2108,7 +2102,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2133,7 +2127,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2169,7 +2163,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2194,7 +2188,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2229,7 +2223,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2251,7 +2245,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2291,7 +2285,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2332,7 +2326,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2373,7 +2367,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2459,7 +2453,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2481,7 +2475,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2516,7 +2510,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2551,7 +2545,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2588,7 +2582,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2610,7 +2604,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2782,7 +2776,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:aggregate",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2809,7 +2803,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2836,7 +2830,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2863,7 +2857,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2890,7 +2884,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2917,7 +2911,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2944,7 +2938,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2971,7 +2965,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -2998,7 +2992,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3025,7 +3019,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3052,7 +3046,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3079,7 +3073,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3106,7 +3100,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3133,7 +3127,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3160,7 +3154,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3187,7 +3181,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3214,19 +3208,28 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 67,
-   "label": "Concept:docker Managed:docker Managed",
+   "label": "docker-managed",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    68,
+    69,
+    70,
+    71
+   ],
    "extra_edges": [
     [
      44,
      "ClusterCohesion"
+    ],
+    [
+     50,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -3285,19 +3288,25 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 68,
-   "label": "Concept:docker Managed+http Route:docker Managed & http Route",
+   "label": "docker-managed & http-route",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 67,
+   "children": [
+    73
+   ],
    "extra_edges": [
     [
      37,
      "ClusterCohesion"
+    ],
+    [
+     50,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -3324,19 +3333,25 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 69,
-   "label": "Concept:di Injected+docker Managed:di Injected & docker Managed",
+   "label": "di-injected & docker-managed",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 67,
+   "children": [
+    72
+   ],
    "extra_edges": [
     [
      33,
      "ClusterCohesion"
+    ],
+    [
+     50,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -3358,19 +3373,23 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 70,
-   "label": "Concept:docker Managed+entrypoint:docker Managed & entrypoint",
+   "label": "docker-managed & entrypoint",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 67,
    "children": [],
    "extra_edges": [
     [
      43,
      "ClusterCohesion"
+    ],
+    [
+     50,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -3390,14 +3409,14 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 71,
-   "label": "Concept:docker Managed+lock:docker Managed & lock",
+   "label": "docker-managed & lock",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 67,
    "children": [],
    "extra_edges": [
     [
@@ -3422,19 +3441,23 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 72,
-   "label": "Concept:di Injected+docker Managed+write File:di Injected & docker Managed & write File",
+   "label": "di-injected & docker-managed & write_file",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 69,
    "children": [],
    "extra_edges": [
     [
      33,
      "ClusterCohesion"
+    ],
+    [
+     50,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -3454,14 +3477,14 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
    "id": 73,
-   "label": "Concept:docker Managed+http Route+reads Input:docker Managed & http Route & reads Input",
+   "label": "docker-managed & http-route & reads_input",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 68,
    "children": [],
    "extra_edges": [
     [
@@ -3486,7 +3509,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   },
   {
@@ -3514,7 +3537,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473772886905928,
+   "created_ns": 1792679790352361886,
    "compute_ns": 0
   }
  ],

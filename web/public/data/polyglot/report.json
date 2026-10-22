@@ -41,7 +41,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 1,
@@ -56,7 +57,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Entity"
+   ]
   },
   {
    "id": 2,
@@ -71,7 +75,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 3,
@@ -86,7 +91,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 4,
@@ -101,7 +107,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 5,
@@ -116,7 +123,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@SpringBootApplication"
+   ]
   },
   {
    "id": 6,
@@ -131,7 +141,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 7,
@@ -146,7 +157,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 8,
@@ -161,7 +173,11 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@RestController",
+    "@RequestMapping(\"/berths\")"
+   ]
   },
   {
    "id": 9,
@@ -176,7 +192,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 10,
@@ -191,7 +208,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@PostMapping(\"/{code}/book\")"
+   ]
   },
   {
    "id": 11,
@@ -206,7 +226,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@GetMapping(\"/{code}\")"
+   ]
   },
   {
    "id": 12,
@@ -221,7 +244,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 13,
@@ -236,7 +260,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 14,
@@ -251,7 +276,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 15,
@@ -266,7 +292,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 16,
@@ -281,7 +308,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@FeignClient(contextId = \"invoiceLookup\", name = \"billing\")"
+   ]
   },
   {
    "id": 17,
@@ -296,7 +326,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@GetMapping(\"/invoices/{id}\")"
+   ]
   },
   {
    "id": 18,
@@ -311,7 +344,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 19,
@@ -326,7 +360,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Service"
+   ]
   },
   {
    "id": 20,
@@ -341,7 +378,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 21,
@@ -356,7 +394,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Transactional"
+   ]
   },
   {
    "id": 22,
@@ -371,7 +412,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 23,
@@ -386,7 +428,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@SpringBootApplication"
+   ]
   },
   {
    "id": 24,
@@ -401,7 +446,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 25,
@@ -416,7 +462,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 26,
@@ -431,7 +478,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Service"
+   ]
   },
   {
    "id": 27,
@@ -446,7 +496,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 28,
@@ -461,7 +512,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 29,
@@ -476,7 +528,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 30,
@@ -491,7 +544,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 31,
@@ -506,7 +560,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 32,
@@ -521,7 +576,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 33,
@@ -536,7 +592,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 34,
@@ -551,7 +608,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 35,
@@ -566,7 +624,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 36,
@@ -581,7 +640,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 37,
@@ -596,7 +656,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 38,
@@ -611,7 +672,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 39,
@@ -626,7 +688,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 40,
@@ -641,7 +704,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 41,
@@ -656,7 +720,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 42,
@@ -671,7 +736,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 43,
@@ -686,7 +752,11 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@RestController",
+    "@RequestMapping(\"/invoices\")"
+   ]
   },
   {
    "id": 44,
@@ -701,7 +771,10 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@PostMapping(\"/{id}/lines\")"
+   ]
   },
   {
    "id": 45,
@@ -716,7 +789,10 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@PostMapping(\"/{id}/settle\")"
+   ]
   },
   {
    "id": 46,
@@ -731,7 +807,10 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@GetMapping(\"/{id}\")"
+   ]
   },
   {
    "id": 47,
@@ -746,7 +825,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 48,
@@ -761,7 +841,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Repository"
+   ]
   },
   {
    "id": 49,
@@ -776,7 +859,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 50,
@@ -791,7 +875,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 51,
@@ -806,7 +891,8 @@
    "lang": "TypeScript",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 52,
@@ -821,7 +907,8 @@
    "lang": "TypeScript",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 53,
@@ -836,7 +923,8 @@
    "lang": "TypeScript",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 54,
@@ -851,7 +939,8 @@
    "lang": "TypeScript",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 55,
@@ -866,7 +955,8 @@
    "lang": "TypeScript",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 56,
@@ -881,7 +971,8 @@
    "lang": "TypeScript",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 57,
@@ -896,7 +987,8 @@
    "lang": "TypeScript",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 58,
@@ -911,7 +1003,8 @@
    "lang": "TypeScript",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 59,
@@ -926,7 +1019,8 @@
    "lang": "TypeScript",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 60,
@@ -941,7 +1035,8 @@
    "lang": "Rust",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 61,
@@ -956,7 +1051,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": "a reading past 220 cm means the berth floods."
+   "doc": "a reading past 220 cm means the berth floods.",
+   "annotations": []
   },
   {
    "id": 62,
@@ -971,7 +1067,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 63,
@@ -986,7 +1083,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 64,
@@ -1001,7 +1099,8 @@
    "lang": "Rust",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 65,
@@ -1016,7 +1115,10 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "#[derive(serde::Serialize)]"
+   ]
   },
   {
    "id": 66,
@@ -1031,7 +1133,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 67,
@@ -1046,7 +1149,10 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "#[tokio::main]"
+   ]
   },
   {
    "id": 68,
@@ -1061,7 +1167,8 @@
    "lang": "Rust",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 69,
@@ -1076,7 +1183,10 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "#[derive(Clone)]"
+   ]
   },
   {
    "id": 70,
@@ -1091,7 +1201,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 71,
@@ -1106,7 +1217,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 72,
@@ -1121,7 +1233,8 @@
    "lang": "Rust",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 73,
@@ -1136,7 +1249,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 74,
@@ -1151,7 +1265,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 75,
@@ -1166,7 +1281,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 76,
@@ -1181,7 +1297,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 77,
@@ -1196,7 +1313,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 78,
@@ -1211,7 +1329,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 79,
@@ -1226,7 +1345,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 80,
@@ -1241,7 +1361,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 81,
@@ -1256,7 +1377,10 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@app.post(\"/webhook/<event>\")"
+   ]
   },
   {
    "id": 82,
@@ -1271,7 +1395,10 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@app.get(\"/webhook/<event>/status\")"
+   ]
   },
   {
    "id": 83,
@@ -1286,7 +1413,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   }
  ],
  "summaries": [
@@ -1301,13 +1429,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1321,13 +1450,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1343,6 +1473,7 @@
    "unresolved_callees": [
     "SpringApplication.run (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -1351,7 +1482,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1365,13 +1496,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1387,13 +1519,14 @@
    "unresolved_callees": [
     "bookingService.occupy (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1409,13 +1542,14 @@
    "unresolved_callees": [
     "bookingService.occupy (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1429,13 +1563,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1449,6 +1584,7 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -1457,7 +1593,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1471,13 +1607,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1491,7 +1628,10 @@
     "throw",
     "throw"
    ],
-   "path_conditions": [],
+   "path_conditions": [
+    "(berth == null)",
+    "(!berth.isAvailable())"
+   ],
    "callees": [],
    "unresolved_callees": [
     "berthRepository.findByBerthCode (virtual_dispatch)",
@@ -1499,13 +1639,14 @@
     "berth.setOccupied (virtual_dispatch)",
     "berthRepository.save (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1519,6 +1660,7 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -1527,7 +1669,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1556,13 +1698,14 @@
     "invoice.addLine (virtual_dispatch)",
     "Money (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1578,13 +1721,14 @@
    "unresolved_callees": [
     "invoiceRepository.byId (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1608,13 +1752,14 @@
     "NoSuchElementException (unresolved_name)",
     "invoice.settle (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1635,13 +1780,14 @@
     "IllegalStateException (unresolved_name)",
     "lines.add (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1657,13 +1803,16 @@
    "unresolved_callees": [
     "Money (unresolved_name)"
    ],
+   "callers": [
+    34
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1685,13 +1834,14 @@
    "unresolved_callees": [
     "IllegalStateException (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1705,13 +1855,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1725,13 +1876,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1752,13 +1904,14 @@
     "IllegalArgumentException (unresolved_name)",
     "Money (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1774,13 +1927,14 @@
    "unresolved_callees": [
     "billingService.addLine (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1796,13 +1950,14 @@
    "unresolved_callees": [
     "billingService.settle (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1818,13 +1973,14 @@
    "unresolved_callees": [
     "billingService.get (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1838,13 +1994,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1858,13 +2015,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1882,13 +2040,14 @@
     57
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1906,13 +2065,14 @@
     71
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1928,13 +2088,16 @@
    "unresolved_callees": [
     "berths.filter (type_erasure)"
    ],
+   "callers": [
+    52
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1954,6 +2117,7 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -1962,7 +2126,7 @@
     "query"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -1978,13 +2142,17 @@
    "unresolved_callees": [
     "berth.starts_with (dynamic_attribute)"
    ],
+   "callers": [
+    62,
+    63
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2003,13 +2171,14 @@
     "format!(\"flood risk at {} — level {} cm\", berth, water) (unresolved_name)",
     "format!(\"no alert at {} — level {} cm\", berth, water) (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2031,13 +2200,14 @@
     "format!(\"{} below 200 — safe\", berth) (unresolved_name)",
     "format!(\"{} recorded — {} cm\", berth, water) (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2054,13 +2224,14 @@
     "Json (unresolved_name)",
     "\"ok\".into (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2087,6 +2258,7 @@
     "axum::serve(listener, app).await.unwrap (dynamic_attribute)",
     "axum::serve (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -2095,7 +2267,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2112,13 +2284,14 @@
     "Mutex::new (unresolved_name)",
     "HashMap::new (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2140,13 +2313,16 @@
     "reading.clone (dynamic_attribute)",
     "reading.clone (dynamic_attribute)"
    ],
+   "callers": [
+    53
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2166,13 +2342,14 @@
     "pool.lock().unwrap().get (dynamic_attribute)",
     "pool.lock().unwrap (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2192,13 +2369,14 @@
    "unresolved_callees": [
     "store.record (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2214,13 +2392,14 @@
    "unresolved_callees": [
     "store.status (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2234,13 +2413,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2256,13 +2436,14 @@
    "unresolved_callees": [
     "deliveries.get (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2287,6 +2468,7 @@
     "jsonify (unresolved_name)",
     "jsonify (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -2295,7 +2477,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   },
   {
@@ -2313,6 +2495,7 @@
     "jsonify (unresolved_name)",
     "events.delivery_status (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -2321,7 +2504,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792473772886906811,
+   "compute_ns": 1792679790352366194,
    "complete": true
   }
  ],
@@ -4336,13 +4519,7 @@
      13,
      17,
      21,
-     67,
-     68,
-     69,
-     70,
-     71,
-     72,
-     73
+     67
     ],
     "extra_edges": [],
     "primary_edge": "PackageContainment",
@@ -4662,7 +4839,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -4855,7 +5032,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:apps",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5026,7 +5203,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5052,7 +5229,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5078,7 +5255,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5104,7 +5281,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5137,7 +5314,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5163,7 +5340,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5227,7 +5404,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5260,7 +5437,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5291,7 +5468,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5325,7 +5502,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5365,7 +5542,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5422,7 +5599,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5459,7 +5636,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5483,7 +5660,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5524,7 +5701,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5640,7 +5817,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5683,7 +5860,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5724,7 +5901,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5809,7 +5986,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5879,7 +6056,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5918,7 +6095,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5955,7 +6132,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -5992,7 +6169,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6016,7 +6193,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6186,7 +6363,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6211,7 +6388,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6236,7 +6413,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6261,7 +6438,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6294,7 +6471,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6319,7 +6496,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6351,7 +6528,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6383,7 +6560,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6408,7 +6585,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6433,7 +6610,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6458,7 +6635,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6494,7 +6671,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6519,7 +6696,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6554,7 +6731,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6576,7 +6753,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6616,7 +6793,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6657,7 +6834,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6698,7 +6875,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6784,7 +6961,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6806,7 +6983,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6841,7 +7018,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6876,7 +7053,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6913,7 +7090,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -6935,7 +7112,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7107,7 +7284,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:aggregate",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7134,7 +7311,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7161,7 +7338,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7188,7 +7365,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7215,7 +7392,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7242,7 +7419,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7269,7 +7446,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7296,7 +7473,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7323,7 +7500,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7350,7 +7527,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7377,7 +7554,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7404,7 +7581,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7431,7 +7608,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7458,7 +7635,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7485,7 +7662,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7512,7 +7689,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7539,19 +7716,28 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 67,
-    "label": "Concept:docker Managed:docker Managed",
+    "label": "docker-managed",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     68,
+     69,
+     70,
+     71
+    ],
     "extra_edges": [
      [
       44,
       "ClusterCohesion"
+     ],
+     [
+      50,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -7610,19 +7796,25 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 68,
-    "label": "Concept:docker Managed+http Route:docker Managed & http Route",
+    "label": "docker-managed & http-route",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 67,
+    "children": [
+     73
+    ],
     "extra_edges": [
      [
       37,
       "ClusterCohesion"
+     ],
+     [
+      50,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -7649,19 +7841,25 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 69,
-    "label": "Concept:di Injected+docker Managed:di Injected & docker Managed",
+    "label": "di-injected & docker-managed",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 67,
+    "children": [
+     72
+    ],
     "extra_edges": [
      [
       33,
       "ClusterCohesion"
+     ],
+     [
+      50,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -7683,19 +7881,23 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 70,
-    "label": "Concept:docker Managed+entrypoint:docker Managed & entrypoint",
+    "label": "docker-managed & entrypoint",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 67,
     "children": [],
     "extra_edges": [
      [
       43,
       "ClusterCohesion"
+     ],
+     [
+      50,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -7715,14 +7917,14 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 71,
-    "label": "Concept:docker Managed+lock:docker Managed & lock",
+    "label": "docker-managed & lock",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 67,
     "children": [],
     "extra_edges": [
      [
@@ -7747,19 +7949,23 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 72,
-    "label": "Concept:di Injected+docker Managed+write File:di Injected & docker Managed & write File",
+    "label": "di-injected & docker-managed & write_file",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 69,
     "children": [],
     "extra_edges": [
      [
       33,
       "ClusterCohesion"
+     ],
+     [
+      50,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -7779,14 +7985,14 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
     "id": 73,
-    "label": "Concept:docker Managed+http Route+reads Input:docker Managed & http Route & reads Input",
+    "label": "docker-managed & http-route & reads_input",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 68,
     "children": [],
     "extra_edges": [
      [
@@ -7811,7 +8017,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    },
    {
@@ -7839,7 +8045,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473772886905928,
+    "created_ns": 1792679790352361886,
     "compute_ns": 0
    }
   ],
@@ -7857,7 +8063,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 277582895
+  "wall_ns": 492794899
  },
  "evidence": {
   "rev": 1,
@@ -7959,10 +8165,10 @@
    "webhooks.app.webhook.delivery_status: jsonify (unresolved_name)",
    "webhooks.app.webhook.delivery_status: events.delivery_status (dynamic_attribute)"
   ],
-  "generated_at_ns": 1792473772886905928
+  "generated_at_ns": 1792679790352361886
  },
  "warnings": [],
- "ingest_wall_ns": 593465581,
+ "ingest_wall_ns": 555334611,
  "incremental": false,
  "summary_cache": [
   {
@@ -8708,38 +8914,38 @@
      98
     ],
     "BookingService.occupy": [
-     231,
-     233,
-     103,
-     10,
-     165,
-     201,
-     112,
-     222,
-     139,
-     102,
-     135,
-     95,
-     77,
-     22,
-     132,
-     13,
-     75,
-     160,
-     141,
-     123,
-     156,
-     106,
-     114,
-     132,
-     167,
-     216,
-     126,
-     98,
+     144,
+     188,
+     39,
+     107,
+     3,
+     133,
+     111,
+     146,
+     246,
+     186,
      81,
-     195,
-     183,
-     184
+     99,
+     87,
+     176,
+     231,
+     211,
+     94,
+     1,
+     96,
+     113,
+     209,
+     248,
+     24,
+     203,
+     144,
+     177,
+     251,
+     161,
+     188,
+     58,
+     233,
+     26
     ]
    }
   },
@@ -11357,7 +11563,10 @@
      "rel": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
      "line": 4,
      "lang": "java",
-     "kind": "feign"
+     "kind": "feign",
+     "annotations": [
+      "@FeignClient(contextId = \"invoiceLookup\", name = \"billing\")"
+     ]
     }
    ],
    "services": [
@@ -11371,6 +11580,9 @@
        "field": "berthRepository",
        "type": "BerthRepository"
       }
+     ],
+     "annotations": [
+      "@Service"
      ]
     },
     {
@@ -11383,6 +11595,9 @@
        "field": "invoiceRepository",
        "type": "InvoiceRepository"
       }
+     ],
+     "annotations": [
+      "@Service"
      ]
     }
    ],
@@ -11393,7 +11608,8 @@
      "line": 5,
      "lang": "java",
      "extends": "JpaRepository<Berth, Long>",
-     "entity": "Berth"
+     "entity": "Berth",
+     "annotations": []
     },
     {
      "name": "InvoiceRepository",
@@ -11401,7 +11617,8 @@
      "line": 4,
      "lang": "kotlin",
      "extends": "",
-     "entity": null
+     "entity": null,
+     "annotations": []
     },
     {
      "name": "PostgresInvoiceRepository",
@@ -11409,7 +11626,10 @@
      "line": 8,
      "lang": "kotlin",
      "extends": "",
-     "entity": null
+     "entity": null,
+     "annotations": [
+      "@Repository"
+     ]
     }
    ],
    "entities": [
@@ -11440,6 +11660,9 @@
        "name": "id",
        "type": "Long"
       }
+     ],
+     "annotations": [
+      "@Entity"
      ]
     }
    ],
@@ -12815,6 +13038,842 @@
     "docker-compose.yml"
    ]
   },
-  "generatedAt": 1792473772
- }
+  "generatedAt": 1792679790
+ },
+ "concepts_tier": 3,
+ "usecase_view": [
+  {
+   "id": 67,
+   "label": "docker-managed",
+   "intent": [
+    "docker-managed"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    68,
+    69,
+    70,
+    71
+   ],
+   "members": [
+    {
+     "symbol": 2,
+     "name": "isAvailable",
+     "qual_name": "Berth.isAvailable",
+     "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+     "line": 18,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 3,
+     "name": "getId",
+     "qual_name": "Berth.getId",
+     "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+     "line": 22,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 6,
+     "name": "main",
+     "qual_name": "BerthBookingApplication.main",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+     "line": 8,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 9,
+     "name": "BerthController",
+     "qual_name": "BerthController.BerthController",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 14,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 10,
+     "name": "book",
+     "qual_name": "BerthController.book",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 18,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 11,
+     "name": "status",
+     "qual_name": "BerthController.status",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 23,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 14,
+     "name": "findByBerthCode",
+     "qual_name": "BerthRepository.findByBerthCode",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthRepository.java",
+     "line": 6,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 17,
+     "name": "invoice",
+     "qual_name": "BillingClient.invoice",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BillingClient.java",
+     "line": 6,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 20,
+     "name": "BookingService",
+     "qual_name": "BookingService.BookingService",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+     "line": 10,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 21,
+     "name": "occupy",
+     "qual_name": "BookingService.occupy",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+     "line": 14,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 24,
+     "name": "main",
+     "qual_name": ".main",
+     "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+     "line": 9,
+     "owner": null
+    },
+    {
+     "symbol": 27,
+     "name": "addLine",
+     "qual_name": "BillingService.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 11,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 28,
+     "name": "get",
+     "qual_name": "BillingService.get",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 21,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 29,
+     "name": "settle",
+     "qual_name": "BillingService.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 25,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 32,
+     "name": "addLine",
+     "qual_name": "Invoice.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+     "line": 9,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 33,
+     "name": "total",
+     "qual_name": "Invoice.total",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+     "line": 16,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 34,
+     "name": "settle",
+     "qual_name": "Invoice.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/Invoice.kt",
+     "line": 24,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 37,
+     "name": "save",
+     "qual_name": "InvoiceRepository.save",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+     "line": 5,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 38,
+     "name": "byId",
+     "qual_name": "InvoiceRepository.byId",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/InvoiceRepository.kt",
+     "line": 6,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 41,
+     "name": "plus",
+     "qual_name": "Money.plus",
+     "file": "billing/src/main/kotlin/com/harbor/billing/domain/Money.kt",
+     "line": 5,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 44,
+     "name": "addLine",
+     "qual_name": "BillingController.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 15,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 45,
+     "name": "settle",
+     "qual_name": "BillingController.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 20,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 46,
+     "name": "get",
+     "qual_name": "BillingController.get",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 25,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 49,
+     "name": "save",
+     "qual_name": "PostgresInvoiceRepository.save",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+     "line": 10,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 50,
+     "name": "byId",
+     "qual_name": "PostgresInvoiceRepository.byId",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/PostgresInvoiceRepository.kt",
+     "line": 15,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 52,
+     "name": "searchBerths",
+     "qual_name": "search.catalog.searchBerths",
+     "file": "search/src/catalog.ts",
+     "line": 4,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 53,
+     "name": "bookByCode",
+     "qual_name": "search.catalog.bookByCode",
+     "file": "search/src/catalog.ts",
+     "line": 11,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 57,
+     "name": "query",
+     "qual_name": "search.store.query",
+     "file": "search/src/store.ts",
+     "line": 14,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 58,
+     "name": "save",
+     "qual_name": "search.store.save",
+     "file": "search/src/store.ts",
+     "line": 18,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 61,
+     "name": "level_for",
+     "qual_name": "tide-alerts.alert.level_for",
+     "file": "tide-alerts/src/alert.rs",
+     "line": 6,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 62,
+     "name": "current_alert",
+     "qual_name": "tide-alerts.alert.current_alert",
+     "file": "tide-alerts/src/alert.rs",
+     "line": 14,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 63,
+     "name": "check",
+     "qual_name": "tide-alerts.alert.check",
+     "file": "tide-alerts/src/alert.rs",
+     "line": 23,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 66,
+     "name": "health",
+     "qual_name": "tide-alerts.main.health",
+     "file": "tide-alerts/src/main.rs",
+     "line": 13,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 67,
+     "name": "main",
+     "qual_name": "tide-alerts.main.main",
+     "file": "tide-alerts/src/main.rs",
+     "line": 18,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 70,
+     "name": "pool",
+     "qual_name": "tide-alerts.store.pool",
+     "file": "tide-alerts/src/store.rs",
+     "line": 11,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 71,
+     "name": "save",
+     "qual_name": "tide-alerts.store.save",
+     "file": "tide-alerts/src/store.rs",
+     "line": 15,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 72,
+     "name": "find",
+     "qual_name": "tide-alerts.store.find",
+     "file": "tide-alerts/src/store.rs",
+     "line": 20,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 75,
+     "name": "deliver",
+     "qual_name": "webhooks.app.events.deliver",
+     "file": "webhooks/app/events.py",
+     "line": 7,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 76,
+     "name": "delivery_status",
+     "qual_name": "webhooks.app.events.delivery_status",
+     "file": "webhooks/app/events.py",
+     "line": 13,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 78,
+     "name": "record",
+     "qual_name": "webhooks.app.store.record",
+     "file": "webhooks/app/store.py",
+     "line": 6,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 79,
+     "name": "status",
+     "qual_name": "webhooks.app.store.status",
+     "file": "webhooks/app/store.py",
+     "line": 12,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 81,
+     "name": "deliver",
+     "qual_name": "webhooks.app.webhook.deliver",
+     "file": "webhooks/app/webhook.py",
+     "line": 7,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 82,
+     "name": "delivery_status",
+     "qual_name": "webhooks.app.webhook.delivery_status",
+     "file": "webhooks/app/webhook.py",
+     "line": 19,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 50,
+     "label": "Berth",
+     "kind": "Aggregate",
+     "members": [
+      2,
+      3,
+      6,
+      9,
+      10,
+      11,
+      14,
+      17,
+      20,
+      21,
+      27,
+      28,
+      29,
+      32,
+      33,
+      34,
+      37,
+      38,
+      41,
+      44,
+      45,
+      46,
+      49,
+      50
+     ]
+    }
+   ]
+  },
+  {
+   "id": 68,
+   "label": "docker-managed & http-route",
+   "intent": [
+    "docker-managed",
+    "http-route"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    73
+   ],
+   "members": [
+    {
+     "symbol": 9,
+     "name": "BerthController",
+     "qual_name": "BerthController.BerthController",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 14,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 10,
+     "name": "book",
+     "qual_name": "BerthController.book",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 18,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 11,
+     "name": "status",
+     "qual_name": "BerthController.status",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+     "line": 23,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 44,
+     "name": "addLine",
+     "qual_name": "BillingController.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 15,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 45,
+     "name": "settle",
+     "qual_name": "BillingController.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 20,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 46,
+     "name": "get",
+     "qual_name": "BillingController.get",
+     "file": "billing/src/main/kotlin/com/harbor/billing/infrastructure/BillingController.kt",
+     "line": 25,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 66,
+     "name": "health",
+     "qual_name": "tide-alerts.main.health",
+     "file": "tide-alerts/src/main.rs",
+     "line": 13,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 67,
+     "name": "main",
+     "qual_name": "tide-alerts.main.main",
+     "file": "tide-alerts/src/main.rs",
+     "line": 18,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 81,
+     "name": "deliver",
+     "qual_name": "webhooks.app.webhook.deliver",
+     "file": "webhooks/app/webhook.py",
+     "line": 7,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 82,
+     "name": "delivery_status",
+     "qual_name": "webhooks.app.webhook.delivery_status",
+     "file": "webhooks/app/webhook.py",
+     "line": 19,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 50,
+     "label": "Berth",
+     "kind": "Aggregate",
+     "members": [
+      9,
+      10,
+      11,
+      44,
+      45,
+      46
+     ]
+    }
+   ]
+  },
+  {
+   "id": 69,
+   "label": "di-injected & docker-managed",
+   "intent": [
+    "di-injected",
+    "docker-managed"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    72
+   ],
+   "members": [
+    {
+     "symbol": 20,
+     "name": "BookingService",
+     "qual_name": "BookingService.BookingService",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+     "line": 10,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 21,
+     "name": "occupy",
+     "qual_name": "BookingService.occupy",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+     "line": 14,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 27,
+     "name": "addLine",
+     "qual_name": "BillingService.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 11,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 28,
+     "name": "get",
+     "qual_name": "BillingService.get",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 21,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 29,
+     "name": "settle",
+     "qual_name": "BillingService.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 25,
+     "owner": "Berth"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 50,
+     "label": "Berth",
+     "kind": "Aggregate",
+     "members": [
+      20,
+      21,
+      27,
+      28,
+      29
+     ]
+    }
+   ]
+  },
+  {
+   "id": 70,
+   "label": "docker-managed & entrypoint",
+   "intent": [
+    "docker-managed",
+    "entrypoint"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 6,
+     "name": "main",
+     "qual_name": "BerthBookingApplication.main",
+     "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+     "line": 8,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 24,
+     "name": "main",
+     "qual_name": ".main",
+     "file": "billing/src/main/kotlin/com/harbor/billing/BillingApplication.kt",
+     "line": 9,
+     "owner": null
+    },
+    {
+     "symbol": 67,
+     "name": "main",
+     "qual_name": "tide-alerts.main.main",
+     "file": "tide-alerts/src/main.rs",
+     "line": 18,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 50,
+     "label": "Berth",
+     "kind": "Aggregate",
+     "members": [
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "id": 71,
+   "label": "docker-managed & lock",
+   "intent": [
+    "docker-managed",
+    "lock"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 53,
+     "name": "bookByCode",
+     "qual_name": "search.catalog.bookByCode",
+     "file": "search/src/catalog.ts",
+     "line": 11,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 71,
+     "name": "save",
+     "qual_name": "tide-alerts.store.save",
+     "file": "tide-alerts/src/store.rs",
+     "line": 15,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 72,
+     "name": "find",
+     "qual_name": "tide-alerts.store.find",
+     "file": "tide-alerts/src/store.rs",
+     "line": 20,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 72,
+   "label": "di-injected & docker-managed & write_file",
+   "intent": [
+    "di-injected",
+    "docker-managed",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 69,
+     "label": "di-injected & docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 27,
+     "name": "addLine",
+     "qual_name": "BillingService.addLine",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 11,
+     "owner": "Berth"
+    },
+    {
+     "symbol": 29,
+     "name": "settle",
+     "qual_name": "BillingService.settle",
+     "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+     "line": 25,
+     "owner": "Berth"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 50,
+     "label": "Berth",
+     "kind": "Aggregate",
+     "members": [
+      27,
+      29
+     ]
+    }
+   ]
+  },
+  {
+   "id": 73,
+   "label": "docker-managed & http-route & reads_input",
+   "intent": [
+    "docker-managed",
+    "http-route",
+    "reads_input"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 68,
+     "label": "docker-managed & http-route",
+     "kind": "UseCase"
+    },
+    {
+     "id": 67,
+     "label": "docker-managed",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 81,
+     "name": "deliver",
+     "qual_name": "webhooks.app.webhook.deliver",
+     "file": "webhooks/app/webhook.py",
+     "line": 7,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    },
+    {
+     "symbol": 82,
+     "name": "delivery_status",
+     "qual_name": "webhooks.app.webhook.delivery_status",
+     "file": "webhooks/app/webhook.py",
+     "line": 19,
+     "owner": "berth-booking.src.main.java.com.harbor.booking.Berth"
+    }
+   ],
+   "member_classes": []
+  }
+ ]
 }

@@ -57,7 +57,7 @@
       "id": "c2",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root boot",
+      "label": "spring-demo boot",
       "evidence": {
         "file": "src/main/java/com/mipay/MpayApplication.java",
         "start": 0,
@@ -84,7 +84,7 @@
       "id": "c3",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root core",
+      "label": "spring-demo core",
       "evidence": {
         "file": "src/main/java/com/mipay/config/CleanupScheduler.java",
         "start": 0,
@@ -111,7 +111,7 @@
       "id": "c4",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root config",
+      "label": "spring-demo config",
       "evidence": {
         "file": "src/main/java/com/mipay/config/SecurityConfig.java",
         "start": 0,
@@ -138,7 +138,7 @@
       "id": "c5",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root service",
+      "label": "spring-demo service",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/TransactionService.java",
         "start": 0,
@@ -165,7 +165,7 @@
       "id": "c6",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root entity",
+      "label": "spring-demo entity",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/Wallet.java",
         "start": 0,
@@ -192,7 +192,7 @@
       "id": "c7",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root web",
+      "label": "spring-demo web",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/WalletController.java",
         "start": 0,
@@ -219,7 +219,7 @@
       "id": "c8",
       "elementKind": "service",
       "displayMode": "Inference",
-      "label": "app root repository",
+      "label": "spring-demo repository",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/WalletRepository.java",
         "start": 0,
@@ -948,7 +948,7 @@
       "id": "c35",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:http Route:http Route",
+      "label": "http-route",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/WalletController.java",
         "start": 248,
@@ -975,7 +975,7 @@
       "id": "c36",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:di Injected:di Injected",
+      "label": "di-injected",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/TransactionService.java",
         "start": 270,
@@ -1589,6 +1589,18 @@
       }
     },
     {
+      "id": "x22-35",
+      "source": "c22",
+      "target": "c35",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/WalletController.java",
+        "start": 248,
+        "end": 339
+      }
+    },
+    {
       "id": "h36",
       "source": "c0",
       "target": "c36",
@@ -1605,6 +1617,18 @@
       "source": "c13",
       "target": "c36",
       "edgeKind": "cluster_cohesion",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+        "start": 270,
+        "end": 408
+      }
+    },
+    {
+      "id": "x22-36",
+      "source": "c22",
+      "target": "c36",
+      "edgeKind": "fca_subsumption",
       "displayMode": "Inference",
       "evidence": {
         "file": "src/main/java/com/mipay/wallet/TransactionService.java",
@@ -1634,6 +1658,6 @@
   "layoutHint": {
     "strategy": "dagre"
   },
-  "semanticHash": "sha256:7aa8e6a286173c8268c04f4481edace4b30945193f47a7f5d410c8772bccc2b7",
-  "renderHash": "sha256:c2afc2c5ac32b514b0451392be71086b2ae1f872f0a7046de35314ae5193fbed"
+  "semanticHash": "sha256:35700af5edc285bc315ec7e8f9999ab25ba83528aed436e94ff8e06c67c6d2af",
+  "renderHash": "sha256:70c60a45339a88a258f28d4418bbeacf13794ff78363777268fdb1fa8415657b"
 }

@@ -14,39 +14,10 @@
     26,
     27,
     28,
-    29,
-    30,
     31,
-    32,
-    33,
     34,
-    35,
-    36,
-    37,
     38,
-    39,
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    49,
-    50,
-    51,
-    52,
-    53,
-    54,
-    55,
-    56,
-    57,
-    58,
-    59,
-    60,
-    61
+    39
    ],
    "extra_edges": [],
    "primary_edge": "PackageContainment",
@@ -935,7 +906,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -1835,7 +1806,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "stack:apps",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2751,7 +2722,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "stack:roles",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2841,7 +2812,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2865,7 +2836,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2888,7 +2859,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2914,7 +2885,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -2961,7 +2932,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3023,7 +2994,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3100,7 +3071,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3122,7 +3093,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3295,7 +3266,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3403,7 +3374,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3690,7 +3661,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3725,7 +3696,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3747,7 +3718,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3806,7 +3777,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -3873,7 +3844,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -4096,7 +4067,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -4125,7 +4096,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -4166,7 +4137,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:package",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -4193,15 +4164,22 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 22,
-   "label": "Concept:spawn:spawns processes",
+   "label": "spawns processes",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    29,
+    32,
+    43,
+    44,
+    50,
+    54
+   ],
    "extra_edges": [
     [
      11,
@@ -4243,15 +4221,23 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 23,
-   "label": "Concept:print:prints",
+   "label": "prints",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    36,
+    37,
+    41,
+    46,
+    57,
+    60,
+    61
+   ],
    "extra_edges": [
     [
      12,
@@ -4291,15 +4277,18 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 24,
-   "label": "Concept:sleep:sleep",
+   "label": "sleep",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    33,
+    49
+   ],
    "extra_edges": [
     [
      18,
@@ -4338,15 +4327,18 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 25,
-   "label": "Concept:time:time",
+   "label": "time",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    30,
+    45
+   ],
    "extra_edges": [
     [
      18,
@@ -4382,15 +4374,17 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 26,
-   "label": "Concept:crypto:uses crypto",
+   "label": "uses crypto",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    48
+   ],
    "extra_edges": [
     [
      13,
@@ -4424,12 +4418,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 27,
-   "label": "Concept:read File:read File",
+   "label": "read_file",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -4464,12 +4458,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 28,
-   "label": "Concept:write File:write File",
+   "label": "write_file",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -4503,16 +4497,23 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 29,
-   "label": "Concept:spawn+write File:spawns processes & write File",
+   "label": "spawns processes & write_file",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 22,
+   "children": [
+    42,
+    47
+   ],
    "extra_edges": [
+    [
+     28,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4540,15 +4541,17 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 30,
-   "label": "Concept:lock+time:lock & time",
+   "label": "lock & time",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 25,
+   "children": [
+    35
+   ],
    "extra_edges": [
     [
      18,
@@ -4576,15 +4579,17 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 31,
-   "label": "Concept:money:money movement",
+   "label": "money movement",
    "kind": "UseCase",
    "parent": 0,
-   "children": [],
+   "children": [
+    55
+   ],
    "extra_edges": [
     [
      18,
@@ -4611,16 +4616,22 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 32,
-   "label": "Concept:read File+spawn:read File & spawns processes",
+   "label": "read_file & spawns processes",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 22,
+   "children": [
+    40
+   ],
    "extra_edges": [
+    [
+     27,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4647,16 +4658,22 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 33,
-   "label": "Concept:sleep+time:sleep & time",
+   "label": "sleep & time",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 24,
+   "children": [
+    52
+   ],
    "extra_edges": [
+    [
+     25,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4683,12 +4700,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 34,
-   "label": "Concept:auth:authorization",
+   "label": "authorization",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -4717,16 +4734,22 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 35,
-   "label": "Concept:lock+sleep+time:lock & sleep & time",
+   "label": "lock & sleep & time",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 30,
+   "children": [
+    53
+   ],
    "extra_edges": [
+    [
+     33,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4753,16 +4776,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 36,
-   "label": "Concept:print+read File:prints & read File",
+   "label": "prints & read_file",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
+    [
+     27,
+     "FcaSubsumption"
+    ],
     [
      12,
      "ClusterCohesion"
@@ -4788,16 +4815,22 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 37,
-   "label": "Concept:print+write File:prints & write File",
+   "label": "prints & write_file",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 23,
+   "children": [
+    51
+   ],
    "extra_edges": [
+    [
+     28,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4823,12 +4856,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 38,
-   "label": "Concept:entrypoint:entrypoint",
+   "label": "entrypoint",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -4856,12 +4889,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 39,
-   "label": "Concept:network:calls services",
+   "label": "calls services",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -4889,16 +4922,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 40,
-   "label": "Concept:print+read File+spawn:prints & read File & spawns processes",
+   "label": "prints & read_file & spawns processes",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 32,
    "children": [],
    "extra_edges": [
+    [
+     36,
+     "FcaSubsumption"
+    ],
     [
      12,
      "ClusterCohesion"
@@ -4924,16 +4961,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 41,
-   "label": "Concept:print+time:prints & time",
+   "label": "prints & time",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
+    [
+     25,
+     "FcaSubsumption"
+    ],
     [
      12,
      "ClusterCohesion"
@@ -4958,16 +4999,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 42,
-   "label": "Concept:read File+spawn+write File:read File & spawns processes & write File",
+   "label": "read_file & spawns processes & write_file",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 29,
    "children": [],
    "extra_edges": [
+    [
+     32,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -4993,16 +5038,22 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 43,
-   "label": "Concept:spawn+time:spawns processes & time",
+   "label": "spawns processes & time",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 22,
+   "children": [
+    56
+   ],
    "extra_edges": [
+    [
+     25,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5027,16 +5078,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 44,
-   "label": "Concept:entrypoint+spawn:entrypoint & spawns processes",
+   "label": "entrypoint & spawns processes",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 22,
    "children": [],
    "extra_edges": [
+    [
+     38,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5060,16 +5115,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 45,
-   "label": "Concept:entrypoint+time:entrypoint & time",
+   "label": "entrypoint & time",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 25,
    "children": [],
    "extra_edges": [
+    [
+     38,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5093,16 +5152,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 46,
-   "label": "Concept:print+sleep:prints & sleep",
+   "label": "prints & sleep",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
+    [
+     24,
+     "FcaSubsumption"
+    ],
     [
      12,
      "ClusterCohesion"
@@ -5126,16 +5189,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 47,
-   "label": "Concept:spawn+time+write File:spawns processes & time & write File",
+   "label": "spawns processes & time & write_file",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 29,
    "children": [],
    "extra_edges": [
+    [
+     43,
+     "FcaSubsumption"
+    ],
     [
      11,
      "ClusterCohesion"
@@ -5160,16 +5227,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 48,
-   "label": "Concept:auth+crypto:authorization & uses crypto",
+   "label": "authorization & uses crypto",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 26,
    "children": [],
    "extra_edges": [
+    [
+     34,
+     "FcaSubsumption"
+    ],
     [
      3,
      "ClusterCohesion"
@@ -5192,16 +5263,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 49,
-   "label": "Concept:crypto+sleep:uses crypto & sleep",
+   "label": "uses crypto & sleep",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 24,
    "children": [],
    "extra_edges": [
+    [
+     26,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5224,16 +5299,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 50,
-   "label": "Concept:crypto+spawn:uses crypto & spawns processes",
+   "label": "uses crypto & spawns processes",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 22,
    "children": [],
    "extra_edges": [
+    [
+     26,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5256,16 +5335,43 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 51,
-   "label": "Concept:entrypoint+print+read File+spawn+time+write File:entrypoint & prints & read File & +3",
+   "label": "entrypoint & prints & read_file & +3",
    "kind": "UseCase",
-   "parent": 0,
-   "children": [],
+   "parent": 37,
+   "children": [
+    58,
+    59
+   ],
    "extra_edges": [
+    [
+     40,
+     "FcaSubsumption"
+    ],
+    [
+     41,
+     "FcaSubsumption"
+    ],
+    [
+     42,
+     "FcaSubsumption"
+    ],
+    [
+     44,
+     "FcaSubsumption"
+    ],
+    [
+     45,
+     "FcaSubsumption"
+    ],
+    [
+     47,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5292,16 +5398,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 52,
-   "label": "Concept:entrypoint+sleep+time:entrypoint & sleep & time",
+   "label": "entrypoint & sleep & time",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 33,
    "children": [],
    "extra_edges": [
+    [
+     45,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5325,16 +5435,24 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 53,
-   "label": "Concept:lock+print+sleep+time:lock & prints & sleep & +1",
+   "label": "lock & prints & sleep & +1",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 35,
    "children": [],
    "extra_edges": [
+    [
+     41,
+     "FcaSubsumption"
+    ],
+    [
+     46,
+     "FcaSubsumption"
+    ],
     [
      12,
      "ClusterCohesion"
@@ -5359,16 +5477,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 54,
-   "label": "Concept:network+spawn:calls services & spawns processes",
+   "label": "calls services & spawns processes",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 22,
    "children": [],
    "extra_edges": [
+    [
+     39,
+     "FcaSubsumption"
+    ],
     [
      11,
      "ClusterCohesion"
@@ -5391,16 +5513,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 55,
-   "label": "Concept:auth+money:authorization & money movement",
+   "label": "authorization & money movement",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 31,
    "children": [],
    "extra_edges": [
+    [
+     34,
+     "FcaSubsumption"
+    ],
     [
      18,
      "ClusterCohesion"
@@ -5422,16 +5548,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 56,
-   "label": "Concept:crypto+spawn+time:uses crypto & spawns processes & time",
+   "label": "uses crypto & spawns processes & time",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 43,
    "children": [],
    "extra_edges": [
+    [
+     50,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5454,14 +5584,14 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 57,
-   "label": "Concept:db Write+db Write+mutation+print:db Write & writes data & mutations & +1",
+   "label": "db-write & writes data & mutations & +1",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
     [
@@ -5487,16 +5617,24 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 58,
-   "label": "Concept:entrypoint+lock+print+read File+sleep+spawn+time+write File:entrypoint & lock & prints & +5",
+   "label": "entrypoint & lock & prints & +5",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 51,
    "children": [],
    "extra_edges": [
+    [
+     52,
+     "FcaSubsumption"
+    ],
+    [
+     53,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5524,16 +5662,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 59,
-   "label": "Concept:entrypoint+network+print+read File+spawn+time+write File:entrypoint & calls services & prints & +4",
+   "label": "entrypoint & calls services & prints & +4",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 51,
    "children": [],
    "extra_edges": [
+    [
+     54,
+     "FcaSubsumption"
+    ],
     [
      13,
      "ClusterCohesion"
@@ -5560,16 +5702,20 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 60,
-   "label": "Concept:money+print:money movement & prints",
+   "label": "money movement & prints",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
+    [
+     31,
+     "FcaSubsumption"
+    ],
     [
      8,
      "ClusterCohesion"
@@ -5591,14 +5737,14 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
    "id": 61,
-   "label": "Concept:print+reads Input:prints & reads Input",
+   "label": "prints & reads_input",
    "kind": "UseCase",
-   "parent": 0,
+   "parent": 23,
    "children": [],
    "extra_edges": [
     [
@@ -5622,7 +5768,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5650,7 +5796,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5678,7 +5824,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5706,7 +5852,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5734,7 +5880,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5762,7 +5908,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5790,7 +5936,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5818,7 +5964,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5846,7 +5992,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5874,7 +6020,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5902,7 +6048,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5930,7 +6076,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5958,7 +6104,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -5986,7 +6132,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6014,7 +6160,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6042,7 +6188,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6070,7 +6216,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6098,7 +6244,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6126,7 +6272,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6154,7 +6300,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6182,7 +6328,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6210,7 +6356,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6238,7 +6384,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   },
   {
@@ -6266,7 +6412,7 @@
    "coverage_complete": true,
    "confidence": 0.6,
    "provenance": "rule:contract",
-   "created_ns": 1792473770678727015,
+   "created_ns": 1792679788697267391,
    "compute_ns": 0
   }
  ],

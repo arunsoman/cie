@@ -1812,7 +1812,7 @@
       "id": "c67",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:docker Managed:docker Managed",
+      "label": "docker-managed",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
         "start": 331,
@@ -1839,7 +1839,7 @@
       "id": "c68",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:docker Managed+http Route:docker Managed & http Route",
+      "label": "docker-managed & http-route",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
         "start": 460,
@@ -1860,13 +1860,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 10
       },
-      "parentId": "c0"
+      "parentId": "c67"
     },
     {
       "id": "c69",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:di Injected+docker Managed:di Injected & docker Managed",
+      "label": "di-injected & docker-managed",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
         "start": 233,
@@ -1887,13 +1887,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c67"
     },
     {
       "id": "c70",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:docker Managed+entrypoint:docker Managed & entrypoint",
+      "label": "docker-managed & entrypoint",
       "evidence": {
         "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
         "start": 214,
@@ -1914,13 +1914,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c67"
     },
     {
       "id": "c71",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:docker Managed+lock:docker Managed & lock",
+      "label": "docker-managed & lock",
       "evidence": {
         "file": "search/src/catalog.ts",
         "start": 284,
@@ -1941,13 +1941,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c67"
     },
     {
       "id": "c72",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:di Injected+docker Managed+write File:di Injected & docker Managed & write File",
+      "label": "di-injected & docker-managed & write_file",
       "evidence": {
         "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
         "start": 378,
@@ -1968,13 +1968,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c69"
     },
     {
       "id": "c73",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:docker Managed+http Route+reads Input:docker Managed & http Route & reads Input",
+      "label": "docker-managed & http-route & reads_input",
       "evidence": {
         "file": "webhooks/app/webhook.py",
         "start": 171,
@@ -1995,7 +1995,7 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c68"
     },
     {
       "id": "c74",
@@ -3047,8 +3047,20 @@
       }
     },
     {
+      "id": "x50-67",
+      "source": "c50",
+      "target": "c67",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/Berth.java",
+        "start": 331,
+        "end": 387
+      }
+    },
+    {
       "id": "h68",
-      "source": "c0",
+      "source": "c67",
       "target": "c68",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3071,8 +3083,20 @@
       }
     },
     {
+      "id": "x50-68",
+      "source": "c50",
+      "target": "c68",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthController.java",
+        "start": 460,
+        "end": 561
+      }
+    },
+    {
       "id": "h69",
-      "source": "c0",
+      "source": "c67",
       "target": "c69",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3095,8 +3119,20 @@
       }
     },
     {
+      "id": "x50-69",
+      "source": "c50",
+      "target": "c69",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BookingService.java",
+        "start": 233,
+        "end": 337
+      }
+    },
+    {
       "id": "h70",
-      "source": "c0",
+      "source": "c67",
       "target": "c70",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3119,8 +3155,20 @@
       }
     },
     {
+      "id": "x50-70",
+      "source": "c50",
+      "target": "c70",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "berth-booking/src/main/java/com/harbor/booking/BerthBookingApplication.java",
+        "start": 214,
+        "end": 322
+      }
+    },
+    {
       "id": "h71",
-      "source": "c0",
+      "source": "c67",
       "target": "c71",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3144,7 +3192,7 @@
     },
     {
       "id": "h72",
-      "source": "c0",
+      "source": "c69",
       "target": "c72",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3167,8 +3215,20 @@
       }
     },
     {
+      "id": "x50-72",
+      "source": "c50",
+      "target": "c72",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "billing/src/main/kotlin/com/harbor/billing/application/BillingService.kt",
+        "start": 378,
+        "end": 754
+      }
+    },
+    {
       "id": "h73",
-      "source": "c0",
+      "source": "c68",
       "target": "c73",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3224,6 +3284,6 @@
   "layoutHint": {
     "strategy": "dagre"
   },
-  "semanticHash": "sha256:80b6cdc4cfd325dc3067a9255aeedec9a8d4a8cae04f8404cb996743cb70a456",
-  "renderHash": "sha256:3a4ec7f0b814e49c65fd16c37094ca4081848f8a7b28084f1b5ba4dda25bc1b7"
+  "semanticHash": "sha256:23cd970163fd963f168bca1e1991100fdaecd3a32d5fc8b499bac51d5a30a65d",
+  "renderHash": "sha256:ea04abf1312cfe0e7bf99fda7344f2d46f9f466961616e4e45ea1eab926834ed"
 }

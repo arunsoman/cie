@@ -597,7 +597,7 @@
       "id": "c22",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:spawn:spawns processes",
+      "label": "spawns processes",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 2580,
@@ -624,7 +624,7 @@
       "id": "c23",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print:prints",
+      "label": "prints",
       "evidence": {
         "file": "auth.py",
         "start": 95,
@@ -651,7 +651,7 @@
       "id": "c24",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:sleep:sleep",
+      "label": "sleep",
       "evidence": {
         "file": "deadlock_probe.py",
         "start": 1277,
@@ -678,7 +678,7 @@
       "id": "c25",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:time:time",
+      "label": "time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -705,7 +705,7 @@
       "id": "c26",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:crypto:uses crypto",
+      "label": "uses crypto",
       "evidence": {
         "file": "auth.py",
         "start": 225,
@@ -732,7 +732,7 @@
       "id": "c27",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:read File:read File",
+      "label": "read_file",
       "evidence": {
         "file": "deadlock_probe.py",
         "start": 1144,
@@ -759,7 +759,7 @@
       "id": "c28",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:write File:write File",
+      "label": "write_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -786,7 +786,7 @@
       "id": "c29",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:spawn+write File:spawns processes & write File",
+      "label": "spawns processes & write_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -807,13 +807,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 8
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c30",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:lock+time:lock & time",
+      "label": "lock & time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -834,13 +834,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 7
       },
-      "parentId": "c0"
+      "parentId": "c25"
     },
     {
       "id": "c31",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:money:money movement",
+      "label": "money movement",
       "evidence": {
         "file": "payments.py",
         "start": 24,
@@ -867,7 +867,7 @@
       "id": "c32",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:read File+spawn:read File & spawns processes",
+      "label": "read_file & spawns processes",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -888,13 +888,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 7
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c33",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:sleep+time:sleep & time",
+      "label": "sleep & time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -915,13 +915,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 7
       },
-      "parentId": "c0"
+      "parentId": "c24"
     },
     {
       "id": "c34",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:auth:authorization",
+      "label": "authorization",
       "evidence": {
         "file": "auth.py",
         "start": 95,
@@ -948,7 +948,7 @@
       "id": "c35",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:lock+sleep+time:lock & sleep & time",
+      "label": "lock & sleep & time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -969,13 +969,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 6
       },
-      "parentId": "c0"
+      "parentId": "c30"
     },
     {
       "id": "c36",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+read File:prints & read File",
+      "label": "prints & read_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 4549,
@@ -996,13 +996,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 6
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c37",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+write File:prints & write File",
+      "label": "prints & write_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1023,13 +1023,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 6
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c38",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint:entrypoint",
+      "label": "entrypoint",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 2033,
@@ -1056,7 +1056,7 @@
       "id": "c39",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:network:calls services",
+      "label": "calls services",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 24945,
@@ -1083,7 +1083,7 @@
       "id": "c40",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+read File+spawn:prints & read File & spawns processes",
+      "label": "prints & read_file & spawns processes",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1104,13 +1104,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c32"
     },
     {
       "id": "c41",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+time:prints & time",
+      "label": "prints & time",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1131,13 +1131,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c42",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:read File+spawn+write File:read File & spawns processes & write File",
+      "label": "read_file & spawns processes & write_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1158,13 +1158,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c29"
     },
     {
       "id": "c43",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:spawn+time:spawns processes & time",
+      "label": "spawns processes & time",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -1185,13 +1185,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 5
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c44",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+spawn:entrypoint & spawns processes",
+      "label": "entrypoint & spawns processes",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1212,13 +1212,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 4
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c45",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+time:entrypoint & time",
+      "label": "entrypoint & time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 2033,
@@ -1239,13 +1239,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 4
       },
-      "parentId": "c0"
+      "parentId": "c25"
     },
     {
       "id": "c46",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+sleep:prints & sleep",
+      "label": "prints & sleep",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 1732,
@@ -1266,13 +1266,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 4
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c47",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:spawn+time+write File:spawns processes & time & write File",
+      "label": "spawns processes & time & write_file",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -1293,13 +1293,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 4
       },
-      "parentId": "c0"
+      "parentId": "c29"
     },
     {
       "id": "c48",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:auth+crypto:authorization & uses crypto",
+      "label": "authorization & uses crypto",
       "evidence": {
         "file": "auth.py",
         "start": 225,
@@ -1320,13 +1320,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c26"
     },
     {
       "id": "c49",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:crypto+sleep:uses crypto & sleep",
+      "label": "uses crypto & sleep",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 15042,
@@ -1347,13 +1347,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c24"
     },
     {
       "id": "c50",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:crypto+spawn:uses crypto & spawns processes",
+      "label": "uses crypto & spawns processes",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 5875,
@@ -1374,13 +1374,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c51",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+print+read File+spawn+time+write File:entrypoint & prints & read File & +3",
+      "label": "entrypoint & prints & read_file & +3",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1401,13 +1401,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c37"
     },
     {
       "id": "c52",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+sleep+time:entrypoint & sleep & time",
+      "label": "entrypoint & sleep & time",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 2033,
@@ -1428,13 +1428,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c33"
     },
     {
       "id": "c53",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:lock+print+sleep+time:lock & prints & sleep & +1",
+      "label": "lock & prints & sleep & +1",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 3517,
@@ -1455,13 +1455,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c35"
     },
     {
       "id": "c54",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:network+spawn:calls services & spawns processes",
+      "label": "calls services & spawns processes",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 25490,
@@ -1482,13 +1482,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 3
       },
-      "parentId": "c0"
+      "parentId": "c22"
     },
     {
       "id": "c55",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:auth+money:authorization & money movement",
+      "label": "authorization & money movement",
       "evidence": {
         "file": "scripts/stories/candidate_transfers.py",
         "start": 349,
@@ -1509,13 +1509,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c31"
     },
     {
       "id": "c56",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:crypto+spawn+time:uses crypto & spawns processes & time",
+      "label": "uses crypto & spawns processes & time",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 5875,
@@ -1536,13 +1536,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c43"
     },
     {
       "id": "c57",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:db Write+db Write+mutation+print:db Write & writes data & mutations & +1",
+      "label": "db-write & writes data & mutations & +1",
       "evidence": {
         "file": "payments.py",
         "start": 24,
@@ -1563,13 +1563,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c58",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+lock+print+read File+sleep+spawn+time+write File:entrypoint & lock & prints & +5",
+      "label": "entrypoint & lock & prints & +5",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 15661,
@@ -1590,13 +1590,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c51"
     },
     {
       "id": "c59",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:entrypoint+network+print+read File+spawn+time+write File:entrypoint & calls services & prints & +4",
+      "label": "entrypoint & calls services & prints & +4",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -1617,13 +1617,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c51"
     },
     {
       "id": "c60",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:money+print:money movement & prints",
+      "label": "money movement & prints",
       "evidence": {
         "file": "payments.py",
         "start": 24,
@@ -1644,13 +1644,13 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c61",
       "elementKind": "usecase",
       "displayMode": "Inference",
-      "label": "Concept:print+reads Input:prints & reads Input",
+      "label": "prints & reads_input",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 33727,
@@ -1671,7 +1671,7 @@
         "provenance": "fca:godin-v1",
         "symbols": 2
       },
-      "parentId": "c0"
+      "parentId": "c23"
     },
     {
       "id": "c62",
@@ -2730,10 +2730,22 @@
     },
     {
       "id": "h29",
-      "source": "c0",
+      "source": "c22",
       "target": "c29",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 33686,
+        "end": 36793
+      }
+    },
+    {
+      "id": "x28-29",
+      "source": "c28",
+      "target": "c29",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -2754,7 +2766,7 @@
     },
     {
       "id": "h30",
-      "source": "c0",
+      "source": "c25",
       "target": "c30",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -2802,10 +2814,22 @@
     },
     {
       "id": "h32",
-      "source": "c0",
+      "source": "c22",
       "target": "c32",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x27-32",
+      "source": "c27",
+      "target": "c32",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -2826,10 +2850,22 @@
     },
     {
       "id": "h33",
-      "source": "c0",
+      "source": "c24",
       "target": "c33",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "x25-33",
+      "source": "c25",
+      "target": "c33",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -2874,10 +2910,22 @@
     },
     {
       "id": "h35",
-      "source": "c0",
+      "source": "c30",
       "target": "c35",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 1656,
+        "end": 3008
+      }
+    },
+    {
+      "id": "x33-35",
+      "source": "c33",
+      "target": "c35",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 1656,
@@ -2898,10 +2946,22 @@
     },
     {
       "id": "h36",
-      "source": "c0",
+      "source": "c23",
       "target": "c36",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 4549,
+        "end": 6481
+      }
+    },
+    {
+      "id": "x27-36",
+      "source": "c27",
+      "target": "c36",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 4549,
@@ -2922,10 +2982,22 @@
     },
     {
       "id": "h37",
-      "source": "c0",
+      "source": "c23",
       "target": "c37",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x28-37",
+      "source": "c28",
+      "target": "c37",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -2994,10 +3066,22 @@
     },
     {
       "id": "h40",
-      "source": "c0",
+      "source": "c32",
       "target": "c40",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x36-40",
+      "source": "c36",
+      "target": "c40",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3018,10 +3102,22 @@
     },
     {
       "id": "h41",
-      "source": "c0",
+      "source": "c23",
       "target": "c41",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x25-41",
+      "source": "c25",
+      "target": "c41",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3042,10 +3138,22 @@
     },
     {
       "id": "h42",
-      "source": "c0",
+      "source": "c29",
       "target": "c42",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x32-42",
+      "source": "c32",
+      "target": "c42",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3066,10 +3174,22 @@
     },
     {
       "id": "h43",
-      "source": "c0",
+      "source": "c22",
       "target": "c43",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 33686,
+        "end": 36793
+      }
+    },
+    {
+      "id": "x25-43",
+      "source": "c25",
+      "target": "c43",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -3090,10 +3210,22 @@
     },
     {
       "id": "h44",
-      "source": "c0",
+      "source": "c22",
       "target": "c44",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x38-44",
+      "source": "c38",
+      "target": "c44",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3114,10 +3246,22 @@
     },
     {
       "id": "h45",
-      "source": "c0",
+      "source": "c25",
       "target": "c45",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      }
+    },
+    {
+      "id": "x38-45",
+      "source": "c38",
+      "target": "c45",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 2033,
@@ -3138,10 +3282,22 @@
     },
     {
       "id": "h46",
-      "source": "c0",
+      "source": "c23",
       "target": "c46",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 1732,
+        "end": 3435
+      }
+    },
+    {
+      "id": "x24-46",
+      "source": "c24",
+      "target": "c46",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 1732,
@@ -3162,10 +3318,22 @@
     },
     {
       "id": "h47",
-      "source": "c0",
+      "source": "c29",
       "target": "c47",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 33686,
+        "end": 36793
+      }
+    },
+    {
+      "id": "x43-47",
+      "source": "c43",
+      "target": "c47",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 33686,
@@ -3186,10 +3354,22 @@
     },
     {
       "id": "h48",
-      "source": "c0",
+      "source": "c26",
       "target": "c48",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "auth.py",
+        "start": 225,
+        "end": 377
+      }
+    },
+    {
+      "id": "x34-48",
+      "source": "c34",
+      "target": "c48",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "auth.py",
         "start": 225,
@@ -3210,10 +3390,22 @@
     },
     {
       "id": "h49",
-      "source": "c0",
+      "source": "c24",
       "target": "c49",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_stories.py",
+        "start": 15042,
+        "end": 16118
+      }
+    },
+    {
+      "id": "x26-49",
+      "source": "c26",
+      "target": "c49",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 15042,
@@ -3234,10 +3426,22 @@
     },
     {
       "id": "h50",
-      "source": "c0",
+      "source": "c22",
       "target": "c50",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_stories.py",
+        "start": 5875,
+        "end": 7911
+      }
+    },
+    {
+      "id": "x26-50",
+      "source": "c26",
+      "target": "c50",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 5875,
@@ -3258,10 +3462,82 @@
     },
     {
       "id": "h51",
-      "source": "c0",
+      "source": "c37",
       "target": "c51",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x40-51",
+      "source": "c40",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x41-51",
+      "source": "c41",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x42-51",
+      "source": "c42",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x44-51",
+      "source": "c44",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x45-51",
+      "source": "c45",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x47-51",
+      "source": "c47",
+      "target": "c51",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3282,10 +3558,22 @@
     },
     {
       "id": "h52",
-      "source": "c0",
+      "source": "c33",
       "target": "c52",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "runtime_probes.py",
+        "start": 2033,
+        "end": 2454
+      }
+    },
+    {
+      "id": "x45-52",
+      "source": "c45",
+      "target": "c52",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "runtime_probes.py",
         "start": 2033,
@@ -3306,10 +3594,34 @@
     },
     {
       "id": "h53",
-      "source": "c0",
+      "source": "c35",
       "target": "c53",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "x41-53",
+      "source": "c41",
+      "target": "c53",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 3517,
+        "end": 4619
+      }
+    },
+    {
+      "id": "x46-53",
+      "source": "c46",
+      "target": "c53",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 3517,
@@ -3330,10 +3642,22 @@
     },
     {
       "id": "h54",
-      "source": "c0",
+      "source": "c22",
       "target": "c54",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 25490,
+        "end": 29763
+      }
+    },
+    {
+      "id": "x39-54",
+      "source": "c39",
+      "target": "c54",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 25490,
@@ -3354,10 +3678,22 @@
     },
     {
       "id": "h55",
-      "source": "c0",
+      "source": "c31",
       "target": "c55",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/stories/candidate_transfers.py",
+        "start": 349,
+        "end": 496
+      }
+    },
+    {
+      "id": "x34-55",
+      "source": "c34",
+      "target": "c55",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/stories/candidate_transfers.py",
         "start": 349,
@@ -3378,10 +3714,22 @@
     },
     {
       "id": "h56",
-      "source": "c0",
+      "source": "c43",
       "target": "c56",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_stories.py",
+        "start": 5875,
+        "end": 7911
+      }
+    },
+    {
+      "id": "x50-56",
+      "source": "c50",
+      "target": "c56",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_stories.py",
         "start": 5875,
@@ -3402,7 +3750,7 @@
     },
     {
       "id": "h57",
-      "source": "c0",
+      "source": "c23",
       "target": "c57",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -3426,10 +3774,34 @@
     },
     {
       "id": "h58",
-      "source": "c0",
+      "source": "c51",
       "target": "c58",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "x52-58",
+      "source": "c52",
+      "target": "c58",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
+      "evidence": {
+        "file": "scripts/collect_runtime.py",
+        "start": 15661,
+        "end": 18560
+      }
+    },
+    {
+      "id": "x53-58",
+      "source": "c53",
+      "target": "c58",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_runtime.py",
         "start": 15661,
@@ -3450,10 +3822,22 @@
     },
     {
       "id": "h59",
-      "source": "c0",
+      "source": "c51",
       "target": "c59",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "scripts/collect_quality.py",
+        "start": 45159,
+        "end": 50282
+      }
+    },
+    {
+      "id": "x54-59",
+      "source": "c54",
+      "target": "c59",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "scripts/collect_quality.py",
         "start": 45159,
@@ -3474,10 +3858,22 @@
     },
     {
       "id": "h60",
-      "source": "c0",
+      "source": "c23",
       "target": "c60",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
+      "evidence": {
+        "file": "payments.py",
+        "start": 24,
+        "end": 239
+      }
+    },
+    {
+      "id": "x31-60",
+      "source": "c31",
+      "target": "c60",
+      "edgeKind": "fca_subsumption",
+      "displayMode": "Inference",
       "evidence": {
         "file": "payments.py",
         "start": 24,
@@ -3498,7 +3894,7 @@
     },
     {
       "id": "h61",
-      "source": "c0",
+      "source": "c23",
       "target": "c61",
       "edgeKind": "fca_subsumption",
       "displayMode": "Fact",
@@ -4586,6 +4982,6 @@
   "layoutHint": {
     "strategy": "force"
   },
-  "semanticHash": "sha256:2fea729e1336d5da26f10e5df84d3df9befb083d8d3e465ad76979eedfbc866b",
-  "renderHash": "sha256:85ec0b7753d981e25b87592c6d18952eb1bdd68cec81437367a8818785934a7d"
+  "semanticHash": "sha256:86fba16c4a40653239d040ca1437de7f85aa6ee5ae7b65397d0198a6c845dd6e",
+  "renderHash": "sha256:8465cc7c01ac33cc404ab87154cb72a2e2ad4e22e27c142058d900e92791b972"
 }

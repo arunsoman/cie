@@ -30,7 +30,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 1,
@@ -45,7 +46,11 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@SpringBootApplication",
+    "@EnableScheduling"
+   ]
   },
   {
    "id": 2,
@@ -60,7 +65,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 3,
@@ -75,7 +81,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 4,
@@ -90,7 +97,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Component"
+   ]
   },
   {
    "id": 5,
@@ -105,7 +115,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Scheduled(cron = \"0 0 3 * * *\")"
+   ]
   },
   {
    "id": 6,
@@ -120,7 +133,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 7,
@@ -135,7 +149,11 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Configuration",
+    "@EnableWebSecurity"
+   ]
   },
   {
    "id": 8,
@@ -150,7 +168,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 9,
@@ -165,7 +184,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Component"
+   ]
   },
   {
    "id": 10,
@@ -180,7 +202,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 11,
@@ -195,7 +218,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 12,
@@ -210,7 +234,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 13,
@@ -225,7 +250,10 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Service"
+   ]
   },
   {
    "id": 14,
@@ -240,7 +268,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 15,
@@ -255,7 +284,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Transactional"
+   ]
   },
   {
    "id": 16,
@@ -270,7 +302,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 17,
@@ -285,7 +318,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 18,
@@ -300,7 +334,11 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Entity",
+    "@Table(name = \"wallets\")"
+   ]
   },
   {
    "id": 19,
@@ -315,7 +353,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 20,
@@ -330,7 +369,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 21,
@@ -345,7 +385,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 22,
@@ -360,7 +401,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 23,
@@ -375,7 +417,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 24,
@@ -390,7 +433,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 25,
@@ -405,7 +449,11 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@RestController",
+    "@RequestMapping(\"/wallet\")"
+   ]
   },
   {
    "id": 26,
@@ -420,7 +468,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 27,
@@ -435,7 +484,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@PostMapping(\"/topup\")"
+   ]
   },
   {
    "id": 28,
@@ -450,7 +502,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@GetMapping(\"/{owner}/balance\")"
+   ]
   },
   {
    "id": 29,
@@ -465,7 +520,10 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@RequestMapping(value = \"/history\", method = RequestMethod.GET)"
+   ]
   },
   {
    "id": 30,
@@ -480,7 +538,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 31,
@@ -495,7 +554,8 @@
    "lang": "Java",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 32,
@@ -510,7 +570,8 @@
    "lang": "Java",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 33,
@@ -525,7 +586,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 34,
@@ -540,7 +602,11 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@RestController",
+    "@RequestMapping(\"/kyc\")"
+   ]
   },
   {
    "id": 35,
@@ -555,7 +621,10 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@GetMapping(\"/{userId}/status\")"
+   ]
   },
   {
    "id": 36,
@@ -570,7 +639,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 37,
@@ -585,7 +655,11 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Entity",
+    "@Table(name = \"kyc_records\")"
+   ]
   },
   {
    "id": 38,
@@ -600,7 +674,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 39,
@@ -615,7 +690,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Repository"
+   ]
   },
   {
    "id": 40,
@@ -630,7 +708,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 41,
@@ -645,7 +724,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 42,
@@ -660,7 +740,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Service"
+   ]
   },
   {
    "id": 43,
@@ -675,7 +758,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 44,
@@ -690,7 +774,8 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 45,
@@ -705,7 +790,10 @@
    "lang": "Kotlin",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": [
+    "@Component"
+   ]
   },
   {
    "id": 46,
@@ -720,7 +808,8 @@
    "lang": "Kotlin",
    "parent": 1,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   }
  ],
  "summaries": [
@@ -737,6 +826,7 @@
    "unresolved_callees": [
     "SpringApplication.run (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -745,7 +835,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -759,13 +849,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -779,13 +870,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -801,13 +893,14 @@
    "unresolved_callees": [
     "kafka.send (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -821,13 +914,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -840,7 +934,9 @@
    "exceptions": [
     "throw"
    ],
-   "path_conditions": [],
+   "path_conditions": [
+    "(amountMinor <= 0)"
+   ],
    "callees": [],
    "unresolved_callees": [
     "wallets.findByOwner(owner).orElseThrow (virtual_dispatch)",
@@ -850,13 +946,14 @@
     "wallets.save (virtual_dispatch)",
     "audit.record (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -869,20 +966,23 @@
    "exceptions": [
     "throw"
    ],
-   "path_conditions": [],
+   "path_conditions": [
+    "(wallet == null)"
+   ],
    "callees": [],
    "unresolved_callees": [
     "wallets.findByOwner(owner).orElse (virtual_dispatch)",
     "wallets.findByOwner (virtual_dispatch)",
     "wallet.getBalanceMinor (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -896,13 +996,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -916,13 +1017,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -936,13 +1038,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -956,13 +1059,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -976,13 +1080,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -996,13 +1101,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1015,19 +1121,22 @@
    "exceptions": [
     "throw"
    ],
-   "path_conditions": [],
+   "path_conditions": [
+    "(result.isEmpty())"
+   ],
    "callees": [],
    "unresolved_callees": [
     "service.topUp (virtual_dispatch)",
     "result.isEmpty (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1043,13 +1152,14 @@
    "unresolved_callees": [
     "service.balance (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1065,13 +1175,14 @@
    "unresolved_callees": [
     "service.balance (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1085,13 +1196,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1114,13 +1226,14 @@
     "riskClient.flag (virtual_dispatch)",
     "IllegalStateException (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1134,13 +1247,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1158,13 +1272,14 @@
    "unresolved_callees": [
     "kycRepository.findByUserId (virtual_dispatch)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   },
   {
@@ -1178,13 +1293,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473772292657144,
+   "compute_ns": 1792679789991864350,
    "complete": true
   }
  ],
@@ -2393,7 +2509,7 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "rule",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -2577,12 +2693,12 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:apps",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 2,
-    "label": "app root boot",
+    "label": "spring-demo boot",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2730,12 +2846,12 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 3,
-    "label": "app root core",
+    "label": "spring-demo core",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2764,12 +2880,12 @@
     "coverage_complete": true,
     "confidence": 0.7,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 4,
-    "label": "app root config",
+    "label": "spring-demo config",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2790,12 +2906,12 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 5,
-    "label": "app root service",
+    "label": "spring-demo service",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2824,12 +2940,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 6,
-    "label": "app root entity",
+    "label": "spring-demo entity",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2854,12 +2970,12 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 7,
-    "label": "app root web",
+    "label": "spring-demo web",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2889,12 +3005,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 8,
-    "label": "app root repository",
+    "label": "spring-demo repository",
     "kind": "Service",
     "parent": 1,
     "children": [
@@ -2919,7 +3035,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:roles",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3071,7 +3187,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3096,7 +3212,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3121,7 +3237,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3146,7 +3262,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3176,7 +3292,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3201,7 +3317,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3232,7 +3348,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3257,7 +3373,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3282,7 +3398,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3307,7 +3423,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3332,7 +3448,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3357,7 +3473,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3382,7 +3498,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3536,7 +3652,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3563,7 +3679,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3590,7 +3706,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3617,7 +3733,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3644,7 +3760,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3671,7 +3787,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:aggregate",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3698,7 +3814,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3725,7 +3841,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3752,7 +3868,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3779,7 +3895,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "stack:aggregate",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3806,7 +3922,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3833,7 +3949,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
@@ -3860,12 +3976,12 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 35,
-    "label": "Concept:http Route:http Route",
+    "label": "http-route",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -3873,6 +3989,10 @@
      [
       15,
       "ClusterCohesion"
+     ],
+     [
+      22,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -3893,12 +4013,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    },
    {
     "id": 36,
-    "label": "Concept:di Injected:di Injected",
+    "label": "di-injected",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -3906,6 +4026,10 @@
      [
       13,
       "ClusterCohesion"
+     ],
+     [
+      22,
+      "FcaSubsumption"
      ]
     ],
     "primary_edge": "FcaSubsumption",
@@ -3925,7 +4049,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473772292656572,
+    "created_ns": 1792679789991860205,
     "compute_ns": 0
    }
   ],
@@ -3943,7 +4067,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 136801030
+  "wall_ns": 244603971
  },
  "evidence": {
   "rev": 1,
@@ -3977,10 +4101,10 @@
    "KycController.status: IllegalStateException (unresolved_name)",
    "KycService.stateOf: kycRepository.findByUserId (virtual_dispatch)"
   ],
-  "generated_at_ns": 1792473772292656572
+  "generated_at_ns": 1792679789991860205
  },
  "warnings": [],
- "ingest_wall_ns": 424688354,
+ "ingest_wall_ns": 308168486,
  "incremental": false,
  "summary_cache": [
   {
@@ -4516,72 +4640,72 @@
      98
     ],
     "TransactionService.balance": [
-     29,
-     222,
-     159,
+     243,
+     241,
      27,
-     84,
-     227,
-     107,
-     85,
-     66,
-     74,
-     56,
-     24,
-     55,
-     215,
-     222,
-     78,
-     225,
-     27,
-     183,
+     22,
+     104,
+     63,
+     164,
+     252,
+     153,
+     200,
      133,
-     101,
-     171,
-     186,
-     86,
-     151,
-     48,
-     113,
-     151,
-     47,
-     12,
-     155,
-     151
+     33,
+     245,
+     167,
+     18,
+     5,
+     50,
+     158,
+     51,
+     93,
+     64,
+     69,
+     255,
+     123,
+     91,
+     237,
+     121,
+     104,
+     32,
+     49,
+     2,
+     211
     ],
     "TransactionService.topUp": [
-     57,
-     241,
-     252,
-     125,
-     204,
-     201,
-     47,
-     58,
-     161,
-     39,
-     109,
-     67,
-     33,
-     88,
-     34,
-     148,
-     96,
+     208,
+     164,
+     37,
+     248,
+     155,
+     151,
+     199,
+     196,
+     40,
+     121,
+     209,
+     222,
      194,
-     58,
-     122,
-     253,
-     41,
-     65,
-     160,
-     137,
-     181,
-     1,
-     136,
-     46,
-     112,
-     197,
-     248
+     227,
+     12,
+     132,
+     2,
+     63,
+     56,
+     185,
+     6,
+     206,
+     3,
+     146,
+     67,
+     202,
+     66,
+     176,
+     115,
+     233,
+     192,
+     127
     ]
    }
   },
@@ -5002,38 +5126,38 @@
      125
     ],
     "WalletController.topUp": [
-     25,
-     147,
-     197,
-     233,
+     237,
+     64,
      174,
-     38,
-     187,
-     30,
-     224,
-     212,
+     12,
+     146,
+     2,
+     229,
+     133,
+     70,
+     113,
+     248,
      71,
-     132,
+     185,
+     60,
+     161,
+     20,
+     167,
+     193,
+     65,
+     211,
+     91,
      27,
-     234,
-     159,
-     59,
-     236,
-     204,
-     205,
-     46,
-     233,
-     122,
-     83,
-     160,
-     63,
-     177,
-     97,
+     64,
+     222,
+     87,
+     135,
+     200,
+     154,
      249,
-     23,
-     118,
-     174,
-     91
+     76,
+     12,
+     86
     ]
    }
   },
@@ -5692,14 +5816,22 @@
      "rel": "src/main/java/com/mipay/MpayApplication.java",
      "line": 7,
      "lang": "java",
-     "kind": "messaging"
+     "kind": "messaging",
+     "annotations": [
+      "@SpringBootApplication",
+      "@EnableScheduling"
+     ]
     },
     {
      "name": "SecurityConfig",
      "rel": "src/main/java/com/mipay/config/SecurityConfig.java",
      "line": 6,
      "lang": "java",
-     "kind": "configuration"
+     "kind": "configuration",
+     "annotations": [
+      "@Configuration",
+      "@EnableWebSecurity"
+     ]
     }
    ],
    "services": [
@@ -5717,6 +5849,9 @@
        "field": "audit",
        "type": "LedgerAudit"
       }
+     ],
+     "annotations": [
+      "@Service"
      ]
     },
     {
@@ -5729,6 +5864,9 @@
        "field": "kycRepository",
        "type": "KycRepository"
       }
+     ],
+     "annotations": [
+      "@Service"
      ]
     }
    ],
@@ -5739,7 +5877,8 @@
      "line": 6,
      "lang": "java",
      "extends": "JpaRepository<Wallet, Long>",
-     "entity": "Wallet"
+     "entity": "Wallet",
+     "annotations": []
     },
     {
      "name": "KycRepository",
@@ -5747,7 +5886,10 @@
      "line": 6,
      "lang": "kotlin",
      "extends": "JpaRepository<KycRecord, Long>",
-     "entity": "KycRecord"
+     "entity": "KycRecord",
+     "annotations": [
+      "@Repository"
+     ]
     }
    ],
    "entities": [
@@ -5774,6 +5916,10 @@
        "name": "id",
        "type": "Long"
       }
+     ],
+     "annotations": [
+      "@Entity",
+      "@Table(name = \"wallets\")"
      ]
     },
     {
@@ -5782,7 +5928,11 @@
      "line": 7,
      "lang": "kotlin",
      "table": "kyc_records",
-     "props": []
+     "props": [],
+     "annotations": [
+      "@Entity",
+      "@Table(name = \"kyc_records\")"
+     ]
     }
    ],
    "scheduledIn": [
@@ -5791,7 +5941,10 @@
      "method": "nightlyCleanup",
      "trigger": "cron = \"0 0 3 * * *\"",
      "rel": "src/main/java/com/mipay/config/CleanupScheduler.java",
-     "line": 9
+     "line": 9,
+     "annotations": [
+      "@Scheduled(cron = \"0 0 3 * * *\")"
+     ]
     }
    ],
    "listeners": [],
@@ -6434,6 +6587,150 @@
    ],
    "dockerfilesRead": []
   },
-  "generatedAt": 1792473772
- }
+  "generatedAt": 1792679789
+ },
+ "concepts_tier": 3,
+ "usecase_view": [
+  {
+   "id": 35,
+   "label": "http-route",
+   "intent": [
+    "http-route"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 26,
+     "name": "WalletController",
+     "qual_name": "WalletController.WalletController",
+     "file": "src/main/java/com/mipay/wallet/WalletController.java",
+     "line": 12,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 27,
+     "name": "topUp",
+     "qual_name": "WalletController.topUp",
+     "file": "src/main/java/com/mipay/wallet/WalletController.java",
+     "line": 16,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 28,
+     "name": "balance",
+     "qual_name": "WalletController.balance",
+     "file": "src/main/java/com/mipay/wallet/WalletController.java",
+     "line": 25,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 29,
+     "name": "history",
+     "qual_name": "WalletController.history",
+     "file": "src/main/java/com/mipay/wallet/WalletController.java",
+     "line": 30,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 35,
+     "name": "status",
+     "qual_name": "KycController.status",
+     "file": "src/main/kotlin/com/mipay/kyc/KycController.kt",
+     "line": 15,
+     "owner": "MpayApplication"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 22,
+     "label": "MpayApplication",
+     "kind": "Entity",
+     "members": [
+      26,
+      27,
+      28,
+      29,
+      35
+     ]
+    }
+   ]
+  },
+  {
+   "id": 36,
+   "label": "di-injected",
+   "intent": [
+    "di-injected"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 14,
+     "name": "TransactionService",
+     "qual_name": "TransactionService.TransactionService",
+     "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+     "line": 12,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 15,
+     "name": "topUp",
+     "qual_name": "TransactionService.topUp",
+     "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+     "line": 17,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 16,
+     "name": "balance",
+     "qual_name": "TransactionService.balance",
+     "file": "src/main/java/com/mipay/wallet/TransactionService.java",
+     "line": 30,
+     "owner": "MpayApplication"
+    },
+    {
+     "symbol": 43,
+     "name": "stateOf",
+     "qual_name": "KycService.stateOf",
+     "file": "src/main/kotlin/com/mipay/kyc/KycService.kt",
+     "line": 9,
+     "owner": "MpayApplication"
+    }
+   ],
+   "member_classes": [
+    {
+     "id": 22,
+     "label": "MpayApplication",
+     "kind": "Entity",
+     "members": [
+      14,
+      15,
+      16,
+      43
+     ]
+    }
+   ]
+  }
+ ]
 }

@@ -39,14 +39,22 @@
     "rel": "src/main/java/com/mipay/MpayApplication.java",
     "line": 7,
     "lang": "java",
-    "kind": "messaging"
+    "kind": "messaging",
+    "annotations": [
+     "@SpringBootApplication",
+     "@EnableScheduling"
+    ]
    },
    {
     "name": "SecurityConfig",
     "rel": "src/main/java/com/mipay/config/SecurityConfig.java",
     "line": 6,
     "lang": "java",
-    "kind": "configuration"
+    "kind": "configuration",
+    "annotations": [
+     "@Configuration",
+     "@EnableWebSecurity"
+    ]
    }
   ],
   "services": [
@@ -64,6 +72,9 @@
       "field": "audit",
       "type": "LedgerAudit"
      }
+    ],
+    "annotations": [
+     "@Service"
     ]
    },
    {
@@ -76,6 +87,9 @@
       "field": "kycRepository",
       "type": "KycRepository"
      }
+    ],
+    "annotations": [
+     "@Service"
     ]
    }
   ],
@@ -86,7 +100,8 @@
     "line": 6,
     "lang": "java",
     "extends": "JpaRepository<Wallet, Long>",
-    "entity": "Wallet"
+    "entity": "Wallet",
+    "annotations": []
    },
    {
     "name": "KycRepository",
@@ -94,7 +109,10 @@
     "line": 6,
     "lang": "kotlin",
     "extends": "JpaRepository<KycRecord, Long>",
-    "entity": "KycRecord"
+    "entity": "KycRecord",
+    "annotations": [
+     "@Repository"
+    ]
    }
   ],
   "entities": [
@@ -121,6 +139,10 @@
       "name": "id",
       "type": "Long"
      }
+    ],
+    "annotations": [
+     "@Entity",
+     "@Table(name = \"wallets\")"
     ]
    },
    {
@@ -129,7 +151,11 @@
     "line": 7,
     "lang": "kotlin",
     "table": "kyc_records",
-    "props": []
+    "props": [],
+    "annotations": [
+     "@Entity",
+     "@Table(name = \"kyc_records\")"
+    ]
    }
   ],
   "scheduledIn": [
@@ -138,7 +164,10 @@
     "method": "nightlyCleanup",
     "trigger": "cron = \"0 0 3 * * *\"",
     "rel": "src/main/java/com/mipay/config/CleanupScheduler.java",
-    "line": 9
+    "line": 9,
+    "annotations": [
+     "@Scheduled(cron = \"0 0 3 * * *\")"
+    ]
    }
   ],
   "listeners": [],
@@ -781,5 +810,5 @@
   ],
   "dockerfilesRead": []
  },
- "generatedAt": 1792473772
+ "generatedAt": 1792679789
 }

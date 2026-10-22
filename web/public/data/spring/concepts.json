@@ -175,7 +175,7 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "rule",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -359,12 +359,12 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:apps",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 2,
-   "label": "app root boot",
+   "label": "spring-demo boot",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -512,12 +512,12 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 3,
-   "label": "app root core",
+   "label": "spring-demo core",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -546,12 +546,12 @@
    "coverage_complete": true,
    "confidence": 0.7,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 4,
-   "label": "app root config",
+   "label": "spring-demo config",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -572,12 +572,12 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 5,
-   "label": "app root service",
+   "label": "spring-demo service",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -606,12 +606,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 6,
-   "label": "app root entity",
+   "label": "spring-demo entity",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -636,12 +636,12 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 7,
-   "label": "app root web",
+   "label": "spring-demo web",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -671,12 +671,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 8,
-   "label": "app root repository",
+   "label": "spring-demo repository",
    "kind": "Service",
    "parent": 1,
    "children": [
@@ -701,7 +701,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:roles",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -853,7 +853,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -878,7 +878,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -903,7 +903,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -928,7 +928,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -958,7 +958,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -983,7 +983,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1014,7 +1014,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1039,7 +1039,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1064,7 +1064,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1089,7 +1089,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1114,7 +1114,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1139,7 +1139,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1164,7 +1164,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:package",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1318,7 +1318,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1345,7 +1345,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1372,7 +1372,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1399,7 +1399,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1426,7 +1426,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1453,7 +1453,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:aggregate",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1480,7 +1480,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1507,7 +1507,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1534,7 +1534,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1561,7 +1561,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "stack:aggregate",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1588,7 +1588,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1615,7 +1615,7 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
@@ -1642,12 +1642,12 @@
    "coverage_complete": true,
    "confidence": 1.0,
    "provenance": "rule:structure",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 35,
-   "label": "Concept:http Route:http Route",
+   "label": "http-route",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -1655,6 +1655,10 @@
     [
      15,
      "ClusterCohesion"
+    ],
+    [
+     22,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -1675,12 +1679,12 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   },
   {
    "id": 36,
-   "label": "Concept:di Injected:di Injected",
+   "label": "di-injected",
    "kind": "UseCase",
    "parent": 0,
    "children": [],
@@ -1688,6 +1692,10 @@
     [
      13,
      "ClusterCohesion"
+    ],
+    [
+     22,
+     "FcaSubsumption"
     ]
    ],
    "primary_edge": "FcaSubsumption",
@@ -1707,7 +1715,7 @@
    "coverage_complete": true,
    "confidence": 0.8,
    "provenance": "fca:godin-v1",
-   "created_ns": 1792473772292656572,
+   "created_ns": 1792679789991860205,
    "compute_ns": 0
   }
  ],

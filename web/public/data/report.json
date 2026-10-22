@@ -112,7 +112,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 1,
@@ -127,7 +128,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must authorize the user before returning"
+   "doc": "must authorize the user before returning",
+   "annotations": []
   },
   {
    "id": 2,
@@ -142,7 +144,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must verify credentials via the verification primitive"
+   "doc": "must verify credentials via the verification primitive",
+   "annotations": []
   },
   {
    "id": 3,
@@ -157,7 +160,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must verify credentials against the credential store"
+   "doc": "must verify credentials against the credential store",
+   "annotations": []
   },
   {
    "id": 4,
@@ -172,7 +176,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 5,
@@ -187,7 +192,8 @@
    "lang": "Sql",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 6,
@@ -202,7 +208,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, owner, balance, currency, opened_at"
+   "doc": "columns: id, owner, balance, currency, opened_at",
+   "annotations": []
   },
   {
    "id": 7,
@@ -217,7 +224,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, account_id, payee, amount, status, created_at"
+   "doc": "columns: id, account_id, payee, amount, status, created_at",
+   "annotations": []
   },
   {
    "id": 8,
@@ -232,7 +240,8 @@
    "lang": "Sql",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 9,
@@ -247,7 +256,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, actor, action, payment_id, at"
+   "doc": "columns: id, actor, action, payment_id, at",
+   "annotations": []
   },
   {
    "id": 10,
@@ -262,7 +272,8 @@
    "lang": "Sql",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 11,
@@ -277,7 +288,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, owner, balance, currency, opened_at"
+   "doc": "columns: id, owner, balance, currency, opened_at",
+   "annotations": []
   },
   {
    "id": 12,
@@ -292,7 +304,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, account_id, payee, amount, status, created_at"
+   "doc": "columns: id, account_id, payee, amount, status, created_at",
+   "annotations": []
   },
   {
    "id": 13,
@@ -307,7 +320,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": "columns: id, actor, action, payment_id, at"
+   "doc": "columns: id, actor, action, payment_id, at",
+   "annotations": []
   },
   {
    "id": 14,
@@ -322,7 +336,8 @@
    "lang": "Sql",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 15,
@@ -337,7 +352,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 16,
@@ -352,7 +368,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 17,
@@ -367,7 +384,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 18,
@@ -382,7 +400,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 19,
@@ -397,7 +416,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 20,
@@ -412,7 +432,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 21,
@@ -427,7 +448,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 22,
@@ -442,7 +464,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 23,
@@ -457,7 +480,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 24,
@@ -472,7 +496,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 25,
@@ -487,7 +512,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 26,
@@ -502,7 +528,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "CPU-bound arithmetic — the profiler's favourite patient."
+   "doc": "CPU-bound arithmetic — the profiler's favourite patient.",
+   "annotations": []
   },
   {
    "id": 27,
@@ -517,7 +544,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Calls cpu_work in rounds and mixes in small sleeps — so a CPU profile\n    shows both burning time (cpu_work) and waiting (time.sleep), not just one."
+   "doc": "Calls cpu_work in rounds and mixes in small sleeps — so a CPU profile\n    shows both burning time (cpu_work) and waiting (time.sleep), not just one.",
+   "annotations": []
   },
   {
    "id": 28,
@@ -532,7 +560,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "One small unit of work for the pipeline (sleeps a beat so the\n    concurrency timeline shows overlapping threads)."
+   "doc": "One small unit of work for the pipeline (sleeps a beat so the\n    concurrency timeline shows overlapping threads).",
+   "annotations": []
   },
   {
    "id": 29,
@@ -547,7 +576,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Run `tasks` units across `workers` threads and record every span.\n\n    Returns a list of {thread, task, start_ms, end_ms} measured with\n    time.monotonic() — the raw material of the concurrency timeline chart."
+   "doc": "Run `tasks` units across `workers` threads and record every span.\n\n    Returns a list of {thread, task, start_ms, end_ms} measured with\n    time.monotonic() — the raw material of the concurrency timeline chart.",
+   "annotations": []
   },
   {
    "id": 30,
@@ -562,7 +592,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 31,
@@ -577,7 +608,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Allocate `blocks` chunks of `size` bytes while tracemalloc watches —\n    the memory profile's raw material (top sites + totals)."
+   "doc": "Allocate `blocks` chunks of `size` bytes while tracemalloc watches —\n    the memory profile's raw material (top sites + totals).",
+   "annotations": []
   },
   {
    "id": 32,
@@ -592,7 +624,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 33,
@@ -607,7 +640,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "A REAL data race: threads do read-modify-write on one integer with no\n    lock. CPython's GIL makes each single bytecode atomic, but the three-step\n    read-add-write is not — updates get lost whenever a thread switch lands\n    between the read and the write.\n\n    widen=False: the natural window. On CPython 3.12 the switch check lands\n    on the loop backedge, so short runs may lose nothing — that"
+   "doc": "A REAL data race: threads do read-modify-write on one integer with no\n    lock. CPython's GIL makes each single bytecode atomic, but the three-step\n    read-add-write is not — updates get lost whenever a thread switch lands\n    between the read and the write.\n\n    widen=False: the natural window. On CPython 3.12 the switch check lands\n    on the loop backedge, so short runs may lose nothing — that",
+   "annotations": []
   },
   {
    "id": 34,
@@ -622,7 +656,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 35,
@@ -637,7 +672,8 @@
    "lang": "Shell",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 36,
@@ -652,7 +688,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 37,
@@ -667,7 +704,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 38,
@@ -682,7 +720,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 39,
@@ -697,7 +736,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 40,
@@ -712,7 +752,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 41,
@@ -727,7 +768,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 42,
@@ -742,7 +784,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "CC = 1 + decision points (if/elif, for, while, except, bool-ops,\n    ternary, comprehension-ifs, assert, match cases)."
+   "doc": "CC = 1 + decision points (if/elif, for, while, except, bool-ops,\n    ternary, comprehension-ifs, assert, match cases).",
+   "annotations": []
   },
   {
    "id": 43,
@@ -757,7 +800,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 44,
@@ -772,7 +816,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 45,
@@ -787,7 +832,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 46,
@@ -802,7 +848,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 47,
@@ -817,7 +864,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 48,
@@ -832,7 +880,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 49,
@@ -847,7 +896,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 50,
@@ -862,7 +912,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 51,
@@ -877,7 +928,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 52,
@@ -892,7 +944,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 53,
@@ -907,7 +960,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 54,
@@ -922,7 +976,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Really execute three fail→fix→recheck cycles in a temp copy and time them.\n    Each bug gets its own module + its own test, so one cycle's failure is\n    caused by that bug alone (clean detect → repair → recheck)."
+   "doc": "Really execute three fail→fix→recheck cycles in a temp copy and time them.\n    Each bug gets its own module + its own test, so one cycle's failure is\n    caused by that bug alone (clean detect → repair → recheck).",
+   "annotations": []
   },
   {
    "id": 55,
@@ -937,7 +992,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 56,
@@ -952,7 +1008,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 57,
@@ -967,7 +1024,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 58,
@@ -982,7 +1040,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 59,
@@ -997,7 +1056,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 60,
@@ -1012,7 +1072,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 61,
@@ -1027,7 +1088,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 62,
@@ -1042,7 +1104,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 63,
@@ -1057,7 +1120,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 64,
@@ -1072,7 +1136,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 65,
@@ -1087,7 +1152,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Group faulthandler dump frames per thread header."
+   "doc": "Group faulthandler dump frames per thread header.",
+   "annotations": []
   },
   {
    "id": 66,
@@ -1102,7 +1168,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 67,
@@ -1117,7 +1184,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 68,
@@ -1132,7 +1200,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 69,
@@ -1147,7 +1216,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 70,
@@ -1162,7 +1232,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 71,
@@ -1177,7 +1248,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 72,
@@ -1192,7 +1264,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 73,
@@ -1207,7 +1280,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 74,
@@ -1222,7 +1296,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 75,
@@ -1237,7 +1312,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Run a command for real; keep the real exit code and output."
+   "doc": "Run a command for real; keep the real exit code and output.",
+   "annotations": []
   },
   {
    "id": 76,
@@ -1252,7 +1328,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Copy bankapp into a temp dir, git init, commit the baseline."
+   "doc": "Copy bankapp into a temp dir, git init, commit the baseline.",
+   "annotations": []
   },
   {
    "id": 77,
@@ -1267,7 +1344,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Copy the candidate feature in and commit it — the real candidate\n    change the walkthrough talks about."
+   "doc": "Copy the candidate feature in and commit it — the real candidate\n    change the walkthrough talks about.",
+   "annotations": []
   },
   {
    "id": 78,
@@ -1282,7 +1360,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 79,
@@ -1297,7 +1376,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "One pass over the repo's real history: per top-level part, commits,\n    distinct authors (hashed at source), last-touch age."
+   "doc": "One pass over the repo's real history: per top-level part, commits,\n    distinct authors (hashed at source), last-touch age.",
+   "annotations": []
   },
   {
    "id": 80,
@@ -1312,7 +1392,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 81,
@@ -1327,7 +1408,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 82,
@@ -1342,7 +1424,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 83,
@@ -1357,7 +1440,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Real read-only calls to the GitHub API for the repo this sample\n    ships in. If the operator supplied a key (env CIE_GITHUB_TOKEN), it is\n    used in the Authorization header ONLY — the key itself is never written\n    to any artifact, and only its health is recorded."
+   "doc": "Real read-only calls to the GitHub API for the repo this sample\n    ships in. If the operator supplied a key (env CIE_GITHUB_TOKEN), it is\n    used in the Authorization header ONLY — the key itself is never written\n    to any artifact, and only its health is recorded.",
+   "annotations": []
   },
   {
    "id": 84,
@@ -1372,7 +1456,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-076 — really trace bankapp's own good_auth('alice')."
+   "doc": "US-076 — really trace bankapp's own good_auth('alice').",
+   "annotations": []
   },
   {
    "id": 85,
@@ -1387,7 +1472,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-081 — really deliver one order twice with no idempotency key."
+   "doc": "US-081 — really deliver one order twice with no idempotency key.",
+   "annotations": []
   },
   {
    "id": 86,
@@ -1402,7 +1488,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-082 — one slow request, split into compute vs waiting, really."
+   "doc": "US-082 — one slow request, split into compute vs waiting, really.",
+   "annotations": []
   },
   {
    "id": 87,
@@ -1417,7 +1504,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-083 (prove faster) + US-084 (show slowdown), both really."
+   "doc": "US-083 (prove faster) + US-084 (show slowdown), both really.",
+   "annotations": []
   },
   {
    "id": 88,
@@ -1432,7 +1520,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-101 — really run both pricing variants on the same basket.\n    The basket is chosen so per-line rounding really differs from\n    round-at-the-end: eight lines where half-cents accumulate."
+   "doc": "US-101 — really run both pricing variants on the same basket.\n    The basket is chosen so per-line rounding really differs from\n    round-at-the-end: eight lines where half-cents accumulate.",
+   "annotations": []
   },
   {
    "id": 89,
@@ -1447,7 +1536,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-115 — really walk the three journeys through the candidate."
+   "doc": "US-115 — really walk the three journeys through the candidate.",
+   "annotations": []
   },
   {
    "id": 90,
@@ -1462,7 +1552,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-117 — really compile every bankapp module, and prove a failure\n    shows up: one control target is deliberately broken and really fails."
+   "doc": "US-117 — really compile every bankapp module, and prove a failure\n    shows up: one control target is deliberately broken and really fails.",
+   "annotations": []
   },
   {
    "id": 91,
@@ -1477,7 +1568,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-121 — really run the failing test first, then the fix, then the rerun."
+   "doc": "US-121 — really run the failing test first, then the fix, then the rerun.",
+   "annotations": []
   },
   {
    "id": 92,
@@ -1492,7 +1584,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-122 — really export the candidate as a patch file."
+   "doc": "US-122 — really export the candidate as a patch file.",
+   "annotations": []
   },
   {
    "id": 93,
@@ -1507,7 +1600,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-123 — really apply the patch twice: once clean, once against a\n    diverged copy, so the conflict is a real one."
+   "doc": "US-123 — really apply the patch twice: once clean, once against a\n    diverged copy, so the conflict is a real one.",
+   "annotations": []
   },
   {
    "id": 94,
@@ -1522,7 +1616,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-116 — the real bill of consequences: what the candidate adds."
+   "doc": "US-116 — the real bill of consequences: what the candidate adds.",
+   "annotations": []
   },
   {
    "id": 95,
@@ -1537,7 +1632,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-104 — the intake moment."
+   "doc": "US-104 — the intake moment.",
+   "annotations": []
   },
   {
    "id": 96,
@@ -1552,7 +1648,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-105 — only what matters, each with why it matters."
+   "doc": "US-105 — only what matters, each with why it matters.",
+   "annotations": []
   },
   {
    "id": 97,
@@ -1567,7 +1664,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-108 — the approval-worthy brief, real content."
+   "doc": "US-108 — the approval-worthy brief, real content.",
+   "annotations": []
   },
   {
    "id": 98,
@@ -1582,7 +1680,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-110 — the scope really changed: 500 → 1000 + monthly reset."
+   "doc": "US-110 — the scope really changed: 500 → 1000 + monthly reset.",
+   "annotations": []
   },
   {
    "id": 99,
@@ -1597,7 +1696,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-112 — the six stages, checkpointed at real moments."
+   "doc": "US-112 — the six stages, checkpointed at real moments.",
+   "annotations": []
   },
   {
    "id": 100,
@@ -1612,7 +1712,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-124 — prepared, honestly not published."
+   "doc": "US-124 — prepared, honestly not published.",
+   "annotations": []
   },
   {
    "id": 101,
@@ -1627,7 +1728,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-129 — the self-approval was really denied by the rule, in record."
+   "doc": "US-129 — the self-approval was really denied by the rule, in record.",
+   "annotations": []
   },
   {
    "id": 102,
@@ -1642,7 +1744,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-130 — the checklist assumes real failure; every number is real."
+   "doc": "US-130 — the checklist assumes real failure; every number is real.",
+   "annotations": []
   },
   {
    "id": 103,
@@ -1657,7 +1760,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "US-132 — what focus sharing gives away, and what it never does."
+   "doc": "US-132 — what focus sharing gives away, and what it never does.",
+   "annotations": []
   },
   {
    "id": 104,
@@ -1672,7 +1776,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 105,
@@ -1687,7 +1792,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 106,
@@ -1702,7 +1808,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 107,
@@ -1717,7 +1824,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 108,
@@ -1732,7 +1840,8 @@
    "lang": "Shell",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 109,
@@ -1747,7 +1856,8 @@
    "lang": "Shell",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 110,
@@ -1762,7 +1872,8 @@
    "lang": "Shell",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 111,
@@ -1777,7 +1888,8 @@
    "lang": "Shell",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 112,
@@ -1792,7 +1904,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 113,
@@ -1807,7 +1920,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 114,
@@ -1822,7 +1936,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 115,
@@ -1837,7 +1952,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 116,
@@ -1852,7 +1968,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 117,
@@ -1867,7 +1984,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 118,
@@ -1882,7 +2000,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 119,
@@ -1897,7 +2016,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 120,
@@ -1912,7 +2032,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must refuse transfers above the spending limit"
+   "doc": "must refuse transfers above the spending limit",
+   "annotations": []
   },
   {
    "id": 121,
@@ -1927,7 +2048,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must refuse transfers above the spending limit; must reject bad input"
+   "doc": "must refuse transfers above the spending limit; must reject bad input",
+   "annotations": []
   },
   {
    "id": 122,
@@ -1942,7 +2064,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 123,
@@ -1957,7 +2080,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Trace bankapp's own good_auth(\"alice\") line by line.\n\n    Returns the raw event list (function, line, event, locals-at-return).\n    This is a REAL execution of the real auth.py code in this project."
+   "doc": "Trace bankapp's own good_auth(\"alice\") line by line.\n\n    Returns the raw event list (function, line, event, locals-at-return).\n    This is a REAL execution of the real auth.py code in this project.",
+   "annotations": []
   },
   {
    "id": 124,
@@ -1972,7 +2096,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 125,
@@ -1987,7 +2112,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Stands in for a payment-processor API call: pure waiting, no CPU."
+   "doc": "Stands in for a payment-processor API call: pure waiting, no CPU.",
+   "annotations": []
   },
   {
    "id": 126,
@@ -2002,7 +2128,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Stands in for a database round-trip: pure waiting, no CPU."
+   "doc": "Stands in for a database round-trip: pure waiting, no CPU.",
+   "annotations": []
   },
   {
    "id": 127,
@@ -2017,7 +2144,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Real KDF work: pbkdf2 with 120k iterations — genuine CPU burn."
+   "doc": "Real KDF work: pbkdf2 with 120k iterations — genuine CPU burn.",
+   "annotations": []
   },
   {
    "id": 128,
@@ -2032,7 +2160,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "One slow request, honestly composed of the three cost kinds:\n    real CPU work (pbkdf2), waiting on an outside service (sleep), and\n    waiting on the data store (sleep). cProfile separates them because\n    sleep shows up as time spent inside time.sleep, not inside our code."
+   "doc": "One slow request, honestly composed of the three cost kinds:\n    real CPU work (pbkdf2), waiting on an outside service (sleep), and\n    waiting on the data store (sleep). cProfile separates them because\n    sleep shows up as time spent inside time.sleep, not inside our code.",
+   "annotations": []
   },
   {
    "id": 129,
@@ -2047,7 +2176,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 130,
@@ -2062,7 +2192,8 @@
    "lang": "Python",
    "parent": 7,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 131,
@@ -2077,7 +2208,8 @@
    "lang": "Python",
    "parent": 7,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 132,
@@ -2092,7 +2224,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Deliver the same order twice (what a retrying queue honestly does),\n    with no idempotency key — then count what the ledger actually holds."
+   "doc": "Deliver the same order twice (what a retrying queue honestly does),\n    with no idempotency key — then count what the ledger actually holds.",
+   "annotations": []
   },
   {
    "id": 133,
@@ -2107,7 +2240,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "A deliberately serialized pipeline: one global lock around each task.\n    Used as the 'after the change' run in the slowdown story (US-084)."
+   "doc": "A deliberately serialized pipeline: one global lock around each task.\n    Used as the 'after the change' run in the slowdown story (US-084).",
+   "annotations": []
   },
   {
    "id": 134,
@@ -2122,7 +2256,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 135,
@@ -2137,7 +2272,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "The unmodified pipeline shape (same work, no global lock)."
+   "doc": "The unmodified pipeline shape (same work, no global lock).",
+   "annotations": []
   },
   {
    "id": 136,
@@ -2152,7 +2288,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 137,
@@ -2167,7 +2304,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Run the same workload several times; keep EVERY run in the count,\n    including failures. Median is computed over all completed runs."
+   "doc": "Run the same workload several times; keep EVERY run in the count,\n    including failures. Median is computed over all completed runs.",
+   "annotations": []
   },
   {
    "id": 138,
@@ -2182,7 +2320,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Round once at the end (what most ledgers do)."
+   "doc": "Round once at the end (what most ledgers do).",
+   "annotations": []
   },
   {
    "id": 139,
@@ -2197,7 +2336,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Round after every line (what some carts do)."
+   "doc": "Round after every line (what some carts do).",
+   "annotations": []
   },
   {
    "id": 140,
@@ -2212,7 +2352,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Run both pricing variants on the same basket, in-process but\n    logically isolated (same inputs, independent calls). Failures stay\n    in the count — an empty basket is part of the contract, not noise."
+   "doc": "Run both pricing variants on the same basket, in-process but\n    logically isolated (same inputs, independent calls). Failures stay\n    in the count — an empty basket is part of the contract, not noise.",
+   "annotations": []
   },
   {
    "id": 141,
@@ -2227,7 +2368,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must refuse transfers above the spending limit"
+   "doc": "must refuse transfers above the spending limit",
+   "annotations": []
   },
   {
    "id": 142,
@@ -2242,7 +2384,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "must refuse transfers above the spending limit; must reject bad input"
+   "doc": "must refuse transfers above the spending limit; must reject bad input",
+   "annotations": []
   },
   {
    "id": 143,
@@ -2257,7 +2400,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": "Walk one real journey through the candidate: 'ok', 'denied' or 'error'."
+   "doc": "Walk one real journey through the candidate: 'ok', 'denied' or 'error'.",
+   "annotations": []
   },
   {
    "id": 144,
@@ -2272,7 +2416,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 145,
@@ -2287,7 +2432,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 146,
@@ -2302,7 +2448,8 @@
    "lang": "Python",
    "parent": null,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   },
   {
    "id": 147,
@@ -2317,7 +2464,8 @@
    "lang": "Python",
    "parent": 0,
    "rev": 0,
-   "doc": null
+   "doc": null,
+   "annotations": []
   }
  ],
  "summaries": [
@@ -2334,6 +2482,9 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    21
+   ],
    "returns_constants": [
     "true"
    ],
@@ -2344,7 +2495,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2364,6 +2515,10 @@
     3
    ],
    "unresolved_callees": [],
+   "callers": [
+    123,
+    145
+   ],
    "returns_constants": [
     "false",
     "true"
@@ -2375,7 +2530,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2393,6 +2548,9 @@
     4
    ],
    "unresolved_callees": [],
+   "callers": [
+    2
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -2401,7 +2559,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2417,13 +2575,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    3
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2437,13 +2598,17 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    18,
+    19
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2463,13 +2628,14 @@
    "unresolved_callees": [
     "json.dump (external_module)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2488,13 +2654,14 @@
     16
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2513,13 +2680,14 @@
     16
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2540,6 +2708,7 @@
     1
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [
     "num"
    ],
@@ -2551,7 +2720,7 @@
     "mutation"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2571,6 +2740,7 @@
    "unresolved_callees": [
     "str (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -2579,7 +2749,7 @@
     "query"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2599,6 +2769,7 @@
    "unresolved_callees": [
     "do_refund (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [
     "true"
    ],
@@ -2609,7 +2780,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2629,6 +2800,7 @@
    "unresolved_callees": [
     "send_email (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [
     "true"
    ],
@@ -2637,7 +2809,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2653,13 +2825,16 @@
    "unresolved_callees": [
     "range (unresolved_name)"
    ],
+   "callers": [
+    27
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2679,13 +2854,16 @@
    "unresolved_callees": [
     "range (unresolved_name)"
    ],
+   "callers": [
+    62
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2701,13 +2879,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    30
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2736,13 +2917,17 @@
     "live.remove (dynamic_attribute)",
     "spans.sort (dynamic_attribute)"
    ],
+   "callers": [
+    63,
+    137
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2766,6 +2951,7 @@
     "round (unresolved_name)",
     "round (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -2774,7 +2960,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2797,13 +2983,16 @@
     "snap.statistics (dynamic_attribute)",
     "tracemalloc.stop (external_module)"
    ],
+   "callers": [
+    64
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2821,13 +3010,16 @@
     "keep.append (dynamic_attribute)",
     "bytes (unresolved_name)"
    ],
+   "callers": [
+    31
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2853,13 +3045,16 @@
     "round (unresolved_name)",
     "sys.setswitchinterval (external_module)"
    ],
+   "callers": [
+    68
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2880,13 +3075,14 @@
     "barrier.wait (dynamic_attribute)",
     "range (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2902,13 +3098,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2930,13 +3127,19 @@
    "unresolved_callees": [
     "str (unresolved_name)"
    ],
+   "callers": [
+    40,
+    47,
+    48,
+    51
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2954,13 +3157,16 @@
     "max (unresolved_name)",
     "(NOW - d).total_seconds (dynamic_attribute)"
    ],
+   "callers": [
+    49
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -2985,13 +3191,17 @@
    "unresolved_callees": [
     "out.strip (dynamic_attribute)"
    ],
+   "callers": [
+    48,
+    49
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3010,6 +3220,9 @@
     "len (unresolved_name)",
     "path.read_text(encoding=\"utf-8\").splitlines (dynamic_attribute)"
    ],
+   "callers": [
+    43
+   ],
    "returns_constants": [
     "num"
    ],
@@ -3018,7 +3231,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3047,13 +3260,16 @@
     "hasattr (unresolved_name)",
     "isinstance (unresolved_name)"
    ],
+   "callers": [
+    43
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3103,13 +3319,16 @@
     "sum (unresolved_name)",
     "max (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3127,13 +3346,17 @@
     "line.strip (dynamic_attribute)",
     "re.sub (external_module)"
    ],
+   "callers": [
+    45,
+    46
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3190,13 +3413,16 @@
     "pairs.sort (dynamic_attribute)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3282,13 +3508,16 @@
     "by_sev.items (dynamic_attribute)",
     "{\"Critical\": 0, \"High\": 1, \"Medium\": 2, \"Low\": 3}.get (dynamic_attribute)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3315,13 +3544,14 @@
     "out.splitlines (dynamic_attribute)",
     "d.strip (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3396,13 +3626,16 @@
     "sh([\"git\", \"rev-list\", \"--count\", \"HEAD\"]).strip (dynamic_attribute)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3502,13 +3735,16 @@
     "round (unresolved_name)",
     "code.append (dynamic_attribute)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3530,13 +3766,16 @@
     "json.loads (external_module)",
     "r.read().decode (dynamic_attribute)"
    ],
+   "callers": [
+    51
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3623,13 +3862,16 @@
     "round (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3652,13 +3894,16 @@
     "str (unresolved_name)",
     "(r.stderr or \"\").strip().splitlines (dynamic_attribute)"
    ],
+   "callers": [
+    53
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3686,13 +3931,16 @@
     "round (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3727,13 +3975,16 @@
     "len (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3772,13 +4023,16 @@
     "cov_by_file.get (dynamic_attribute)",
     "rows.sort (dynamic_attribute)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3806,13 +4060,16 @@
     "data.get (dynamic_attribute)",
     "data.get (dynamic_attribute)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -3850,13 +4107,16 @@
     "repair.get (dynamic_attribute)",
     "repair.get (dynamic_attribute)"
    ],
+   "callers": [
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4146,6 +4406,7 @@
     "json.dumps (external_module)",
     "m.get (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -4154,7 +4415,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4172,13 +4433,16 @@
     "platform.platform (external_module)",
     "__import__(\"os\").cpu_count (dynamic_attribute)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4199,13 +4463,16 @@
    "unresolved_callees": [
     "json.dumps (external_module)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4238,13 +4505,16 @@
     "round (unresolved_name)",
     "sum (unresolved_name)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4274,13 +4544,16 @@
     "round (unresolved_name)",
     "max (unresolved_name)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4298,13 +4571,16 @@
     31
    ],
    "unresolved_callees": [],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4337,13 +4613,16 @@
     "rest.split (dynamic_attribute)",
     "threads[current].append (dynamic_attribute)"
    ],
+   "callers": [
+    66
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4402,13 +4681,16 @@
     "rec.get (dynamic_attribute)",
     "blocked_at.get (dynamic_attribute)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4424,13 +4706,16 @@
    "unresolved_callees": [
     "s.replace (dynamic_attribute)"
    ],
+   "callers": [
+    66
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4455,13 +4740,16 @@
     "sum (unresolved_name)",
     "sum (unresolved_name)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4512,13 +4800,16 @@
     "sum (unresolved_name)",
     "sum (unresolved_name)"
    ],
+   "callers": [
+    70
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4578,6 +4869,7 @@
     61
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [
     "num"
    ],
@@ -4588,7 +4880,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4606,13 +4898,16 @@
     "platform.platform (external_module)",
     "os.cpu_count (external_module)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4633,13 +4928,16 @@
    "unresolved_callees": [
     "json.dumps (external_module)"
    ],
+   "callers": [
+    107
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4655,13 +4953,18 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    80,
+    92,
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4680,6 +4983,12 @@
     "str (unresolved_name)",
     "\" \".join (dynamic_attribute)"
    ],
+   "callers": [
+    76,
+    77,
+    90,
+    91
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -4688,7 +4997,7 @@
     "entrypoint"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4721,13 +5030,16 @@
     "src.is_dir (dynamic_attribute)",
     "shutil.copytree (external_module)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4755,13 +5067,16 @@
     "shutil.copy2 (external_module)",
     "shutil.copy2 (external_module)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4777,13 +5092,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    79
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4833,13 +5151,16 @@
     "sorted (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4886,13 +5207,16 @@
     "{2: \"executable\", 3: \"shared object\", 4: \"core\"}.get (dynamic_attribute)",
     "hex (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4908,13 +5232,16 @@
    "unresolved_callees": [
     "struct.unpack_from (external_module)"
    ],
+   "callers": [
+    80
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4931,13 +5258,16 @@
     "raw.index (dynamic_attribute)",
     "raw[strtab_off + noff:end].decode (dynamic_attribute)"
    ],
+   "callers": [
+    80
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -4975,13 +5305,16 @@
     "json.loads(e.read().decode()).get (dynamic_attribute)",
     "type (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5001,13 +5334,16 @@
    "unresolved_callees": [
     "len (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5023,13 +5359,16 @@
     132
    ],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5065,13 +5404,16 @@
     "sum (unresolved_name)",
     "round (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5119,13 +5461,16 @@
     "round (unresolved_name)",
     "round (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5170,13 +5515,16 @@
     140
    ],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5327,13 +5675,16 @@
     143
    ],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5361,13 +5712,16 @@
     "sum (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5394,13 +5748,16 @@
     "next (unresolved_name)",
     "ok[\"stdout_excerpt\"].splitlines (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5434,13 +5791,16 @@
     "\"\\n\".join (dynamic_attribute)",
     "patch_text.splitlines (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5482,13 +5842,16 @@
     "p2.stderr.strip (dynamic_attribute)",
     "p2.stdout.strip (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5516,13 +5879,16 @@
     "l.strip (dynamic_attribute)",
     "l.startswith (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5536,13 +5902,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5556,13 +5923,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5576,13 +5946,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5596,13 +5969,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5618,13 +5994,16 @@
    "unresolved_callees": [
     "s.lower (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5638,13 +6017,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5658,13 +6040,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5678,13 +6063,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5698,13 +6086,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -5720,13 +6111,16 @@
    ],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6339,6 +6733,7 @@
     "json.dumps (external_module)",
     "shutil.rmtree (external_module)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6348,7 +6743,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6366,13 +6761,16 @@
    "unresolved_callees": [
     "datetime.now(timezone.utc).isoformat (dynamic_attribute)"
    ],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6395,13 +6793,16 @@
     73
    ],
    "unresolved_callees": [],
+   "callers": [
+    105
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6417,13 +6818,17 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    43,
+    58
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6441,13 +6846,14 @@
     "1 (external_command)",
     "exit (external_command)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6463,6 +6869,7 @@
     120
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -6472,7 +6879,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6488,6 +6895,7 @@
     120
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -6496,7 +6904,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6521,6 +6929,7 @@
     121
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6530,7 +6939,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6555,6 +6964,7 @@
     121
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6564,7 +6974,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6591,6 +7001,7 @@
    "unresolved_callees": [
     "pytest.raises (external_module)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6600,7 +7011,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6627,6 +7038,7 @@
    "unresolved_callees": [
     "pytest.raises (external_module)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6636,7 +7048,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6650,6 +7062,11 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    113,
+    114,
+    121
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -6659,7 +7076,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6685,6 +7102,12 @@
     "isinstance (unresolved_name)",
     "isinstance (unresolved_name)"
    ],
+   "callers": [
+    115,
+    116,
+    117,
+    118
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6693,7 +7116,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6715,6 +7138,9 @@
     "sys.settrace (external_module)",
     "sys.settrace (external_module)"
    ],
+   "callers": [
+    84
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -6723,7 +7149,7 @@
     "auth"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6752,6 +7178,7 @@
     "json.dumps (external_module)",
     "events.append (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [
     "none"
    ],
@@ -6760,7 +7187,7 @@
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6776,13 +7203,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    128
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6798,13 +7228,16 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    128
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6822,13 +7255,16 @@
    "unresolved_callees": [
     "user.encode (dynamic_attribute)"
    ],
+   "callers": [
+    128
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6849,6 +7285,9 @@
     126
    ],
    "unresolved_callees": [],
+   "callers": [
+    86
+   ],
    "returns_constants": [
     "str"
    ],
@@ -6857,7 +7296,7 @@
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6871,13 +7310,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6895,6 +7335,7 @@
    "unresolved_callees": [
     "self.charges.append (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -6903,7 +7344,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6924,13 +7365,16 @@
     "len (unresolved_name)",
     "sum (unresolved_name)"
    ],
+   "callers": [
+    85
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6952,13 +7396,14 @@
     "ex.map (dynamic_attribute)",
     "range (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -6974,13 +7419,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7001,13 +7447,14 @@
     "ex.map (dynamic_attribute)",
     "range (unresolved_name)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7023,13 +7470,14 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7059,13 +7507,16 @@
     "sorted (unresolved_name)",
     "len (unresolved_name)"
    ],
+   "callers": [
+    87
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7086,13 +7537,16 @@
     "sum (unresolved_name)",
     "round (unresolved_name)"
    ],
+   "callers": [
+    140
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7109,13 +7563,16 @@
     "round (unresolved_name)",
     "round (unresolved_name)"
    ],
+   "callers": [
+    140
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7160,13 +7617,16 @@
     "type (unresolved_name)",
     "type (unresolved_name)"
    ],
+   "callers": [
+    88
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": true,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7180,6 +7640,9 @@
    "path_conditions": [],
    "callees": [],
    "unresolved_callees": [],
+   "callers": [
+    142
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -7189,7 +7652,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7215,6 +7678,9 @@
     "isinstance (unresolved_name)",
     "isinstance (unresolved_name)"
    ],
+   "callers": [
+    143
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -7223,7 +7689,7 @@
     "money"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7272,13 +7738,16 @@
     142
    ],
    "unresolved_callees": [],
+   "callers": [
+    89
+   ],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
    "has_loops": false,
    "tags": [],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7296,6 +7765,7 @@
     2
    ],
    "unresolved_callees": [],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": true,
@@ -7305,7 +7775,7 @@
     "test"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   },
   {
@@ -7326,6 +7796,7 @@
    "unresolved_callees": [
     "request.args.get (dynamic_attribute)"
    ],
+   "callers": [],
    "returns_constants": [],
    "all_returns_constant": false,
    "has_failure_path": false,
@@ -7336,7 +7807,7 @@
     "reads_input"
    ],
    "rev": 1,
-   "compute_ns": 1792473770678727843,
+   "compute_ns": 1792679788697272564,
    "complete": true
   }
  ],
@@ -11040,39 +11511,10 @@
      26,
      27,
      28,
-     29,
-     30,
      31,
-     32,
-     33,
      34,
-     35,
-     36,
-     37,
      38,
-     39,
-     40,
-     41,
-     42,
-     43,
-     44,
-     45,
-     46,
-     47,
-     48,
-     49,
-     50,
-     51,
-     52,
-     53,
-     54,
-     55,
-     56,
-     57,
-     58,
-     59,
-     60,
-     61
+     39
     ],
     "extra_edges": [],
     "primary_edge": "PackageContainment",
@@ -11961,7 +12403,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -12861,7 +13303,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:apps",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13777,7 +14219,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "stack:roles",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13867,7 +14309,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13891,7 +14333,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13914,7 +14356,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13940,7 +14382,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -13987,7 +14429,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14049,7 +14491,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14126,7 +14568,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14148,7 +14590,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14321,7 +14763,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14429,7 +14871,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14716,7 +15158,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14751,7 +15193,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14773,7 +15215,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14832,7 +15274,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -14899,7 +15341,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -15122,7 +15564,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -15151,7 +15593,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -15192,7 +15634,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:package",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -15219,15 +15661,22 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:structure",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 22,
-    "label": "Concept:spawn:spawns processes",
+    "label": "spawns processes",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     29,
+     32,
+     43,
+     44,
+     50,
+     54
+    ],
     "extra_edges": [
      [
       11,
@@ -15269,15 +15718,23 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 23,
-    "label": "Concept:print:prints",
+    "label": "prints",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     36,
+     37,
+     41,
+     46,
+     57,
+     60,
+     61
+    ],
     "extra_edges": [
      [
       12,
@@ -15317,15 +15774,18 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 24,
-    "label": "Concept:sleep:sleep",
+    "label": "sleep",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     33,
+     49
+    ],
     "extra_edges": [
      [
       18,
@@ -15364,15 +15824,18 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 25,
-    "label": "Concept:time:time",
+    "label": "time",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     30,
+     45
+    ],
     "extra_edges": [
      [
       18,
@@ -15408,15 +15871,17 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 26,
-    "label": "Concept:crypto:uses crypto",
+    "label": "uses crypto",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     48
+    ],
     "extra_edges": [
      [
       13,
@@ -15450,12 +15915,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 27,
-    "label": "Concept:read File:read File",
+    "label": "read_file",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -15490,12 +15955,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 28,
-    "label": "Concept:write File:write File",
+    "label": "write_file",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -15529,16 +15994,23 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 29,
-    "label": "Concept:spawn+write File:spawns processes & write File",
+    "label": "spawns processes & write_file",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 22,
+    "children": [
+     42,
+     47
+    ],
     "extra_edges": [
+     [
+      28,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -15566,15 +16038,17 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 30,
-    "label": "Concept:lock+time:lock & time",
+    "label": "lock & time",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 25,
+    "children": [
+     35
+    ],
     "extra_edges": [
      [
       18,
@@ -15602,15 +16076,17 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 31,
-    "label": "Concept:money:money movement",
+    "label": "money movement",
     "kind": "UseCase",
     "parent": 0,
-    "children": [],
+    "children": [
+     55
+    ],
     "extra_edges": [
      [
       18,
@@ -15637,16 +16113,22 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 32,
-    "label": "Concept:read File+spawn:read File & spawns processes",
+    "label": "read_file & spawns processes",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 22,
+    "children": [
+     40
+    ],
     "extra_edges": [
+     [
+      27,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -15673,16 +16155,22 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 33,
-    "label": "Concept:sleep+time:sleep & time",
+    "label": "sleep & time",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 24,
+    "children": [
+     52
+    ],
     "extra_edges": [
+     [
+      25,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -15709,12 +16197,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 34,
-    "label": "Concept:auth:authorization",
+    "label": "authorization",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -15743,16 +16231,22 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 35,
-    "label": "Concept:lock+sleep+time:lock & sleep & time",
+    "label": "lock & sleep & time",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 30,
+    "children": [
+     53
+    ],
     "extra_edges": [
+     [
+      33,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -15779,16 +16273,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 36,
-    "label": "Concept:print+read File:prints & read File",
+    "label": "prints & read_file",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
+     [
+      27,
+      "FcaSubsumption"
+     ],
      [
       12,
       "ClusterCohesion"
@@ -15814,16 +16312,22 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 37,
-    "label": "Concept:print+write File:prints & write File",
+    "label": "prints & write_file",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 23,
+    "children": [
+     51
+    ],
     "extra_edges": [
+     [
+      28,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -15849,12 +16353,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 38,
-    "label": "Concept:entrypoint:entrypoint",
+    "label": "entrypoint",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -15882,12 +16386,12 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 39,
-    "label": "Concept:network:calls services",
+    "label": "calls services",
     "kind": "UseCase",
     "parent": 0,
     "children": [],
@@ -15915,16 +16419,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 40,
-    "label": "Concept:print+read File+spawn:prints & read File & spawns processes",
+    "label": "prints & read_file & spawns processes",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 32,
     "children": [],
     "extra_edges": [
+     [
+      36,
+      "FcaSubsumption"
+     ],
      [
       12,
       "ClusterCohesion"
@@ -15950,16 +16458,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 41,
-    "label": "Concept:print+time:prints & time",
+    "label": "prints & time",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
+     [
+      25,
+      "FcaSubsumption"
+     ],
      [
       12,
       "ClusterCohesion"
@@ -15984,16 +16496,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 42,
-    "label": "Concept:read File+spawn+write File:read File & spawns processes & write File",
+    "label": "read_file & spawns processes & write_file",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 29,
     "children": [],
     "extra_edges": [
+     [
+      32,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16019,16 +16535,22 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 43,
-    "label": "Concept:spawn+time:spawns processes & time",
+    "label": "spawns processes & time",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 22,
+    "children": [
+     56
+    ],
     "extra_edges": [
+     [
+      25,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16053,16 +16575,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 44,
-    "label": "Concept:entrypoint+spawn:entrypoint & spawns processes",
+    "label": "entrypoint & spawns processes",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 22,
     "children": [],
     "extra_edges": [
+     [
+      38,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16086,16 +16612,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 45,
-    "label": "Concept:entrypoint+time:entrypoint & time",
+    "label": "entrypoint & time",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 25,
     "children": [],
     "extra_edges": [
+     [
+      38,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16119,16 +16649,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 46,
-    "label": "Concept:print+sleep:prints & sleep",
+    "label": "prints & sleep",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
+     [
+      24,
+      "FcaSubsumption"
+     ],
      [
       12,
       "ClusterCohesion"
@@ -16152,16 +16686,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 47,
-    "label": "Concept:spawn+time+write File:spawns processes & time & write File",
+    "label": "spawns processes & time & write_file",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 29,
     "children": [],
     "extra_edges": [
+     [
+      43,
+      "FcaSubsumption"
+     ],
      [
       11,
       "ClusterCohesion"
@@ -16186,16 +16724,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 48,
-    "label": "Concept:auth+crypto:authorization & uses crypto",
+    "label": "authorization & uses crypto",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 26,
     "children": [],
     "extra_edges": [
+     [
+      34,
+      "FcaSubsumption"
+     ],
      [
       3,
       "ClusterCohesion"
@@ -16218,16 +16760,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 49,
-    "label": "Concept:crypto+sleep:uses crypto & sleep",
+    "label": "uses crypto & sleep",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 24,
     "children": [],
     "extra_edges": [
+     [
+      26,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16250,16 +16796,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 50,
-    "label": "Concept:crypto+spawn:uses crypto & spawns processes",
+    "label": "uses crypto & spawns processes",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 22,
     "children": [],
     "extra_edges": [
+     [
+      26,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16282,16 +16832,43 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 51,
-    "label": "Concept:entrypoint+print+read File+spawn+time+write File:entrypoint & prints & read File & +3",
+    "label": "entrypoint & prints & read_file & +3",
     "kind": "UseCase",
-    "parent": 0,
-    "children": [],
+    "parent": 37,
+    "children": [
+     58,
+     59
+    ],
     "extra_edges": [
+     [
+      40,
+      "FcaSubsumption"
+     ],
+     [
+      41,
+      "FcaSubsumption"
+     ],
+     [
+      42,
+      "FcaSubsumption"
+     ],
+     [
+      44,
+      "FcaSubsumption"
+     ],
+     [
+      45,
+      "FcaSubsumption"
+     ],
+     [
+      47,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16318,16 +16895,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 52,
-    "label": "Concept:entrypoint+sleep+time:entrypoint & sleep & time",
+    "label": "entrypoint & sleep & time",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 33,
     "children": [],
     "extra_edges": [
+     [
+      45,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16351,16 +16932,24 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 53,
-    "label": "Concept:lock+print+sleep+time:lock & prints & sleep & +1",
+    "label": "lock & prints & sleep & +1",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 35,
     "children": [],
     "extra_edges": [
+     [
+      41,
+      "FcaSubsumption"
+     ],
+     [
+      46,
+      "FcaSubsumption"
+     ],
      [
       12,
       "ClusterCohesion"
@@ -16385,16 +16974,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 54,
-    "label": "Concept:network+spawn:calls services & spawns processes",
+    "label": "calls services & spawns processes",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 22,
     "children": [],
     "extra_edges": [
+     [
+      39,
+      "FcaSubsumption"
+     ],
      [
       11,
       "ClusterCohesion"
@@ -16417,16 +17010,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 55,
-    "label": "Concept:auth+money:authorization & money movement",
+    "label": "authorization & money movement",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 31,
     "children": [],
     "extra_edges": [
+     [
+      34,
+      "FcaSubsumption"
+     ],
      [
       18,
       "ClusterCohesion"
@@ -16448,16 +17045,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 56,
-    "label": "Concept:crypto+spawn+time:uses crypto & spawns processes & time",
+    "label": "uses crypto & spawns processes & time",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 43,
     "children": [],
     "extra_edges": [
+     [
+      50,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16480,14 +17081,14 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 57,
-    "label": "Concept:db Write+db Write+mutation+print:db Write & writes data & mutations & +1",
+    "label": "db-write & writes data & mutations & +1",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
      [
@@ -16513,16 +17114,24 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 58,
-    "label": "Concept:entrypoint+lock+print+read File+sleep+spawn+time+write File:entrypoint & lock & prints & +5",
+    "label": "entrypoint & lock & prints & +5",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 51,
     "children": [],
     "extra_edges": [
+     [
+      52,
+      "FcaSubsumption"
+     ],
+     [
+      53,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16550,16 +17159,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 59,
-    "label": "Concept:entrypoint+network+print+read File+spawn+time+write File:entrypoint & calls services & prints & +4",
+    "label": "entrypoint & calls services & prints & +4",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 51,
     "children": [],
     "extra_edges": [
+     [
+      54,
+      "FcaSubsumption"
+     ],
      [
       13,
       "ClusterCohesion"
@@ -16586,16 +17199,20 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 60,
-    "label": "Concept:money+print:money movement & prints",
+    "label": "money movement & prints",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
+     [
+      31,
+      "FcaSubsumption"
+     ],
      [
       8,
       "ClusterCohesion"
@@ -16617,14 +17234,14 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
     "id": 61,
-    "label": "Concept:print+reads Input:prints & reads Input",
+    "label": "prints & reads_input",
     "kind": "UseCase",
-    "parent": 0,
+    "parent": 23,
     "children": [],
     "extra_edges": [
      [
@@ -16648,7 +17265,7 @@
     "coverage_complete": true,
     "confidence": 0.8,
     "provenance": "fca:godin-v1",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16676,7 +17293,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16704,7 +17321,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16732,7 +17349,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16760,7 +17377,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16788,7 +17405,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16816,7 +17433,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16844,7 +17461,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16872,7 +17489,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16900,7 +17517,7 @@
     "coverage_complete": true,
     "confidence": 1.0,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16928,7 +17545,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16956,7 +17573,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -16984,7 +17601,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17012,7 +17629,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17040,7 +17657,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17068,7 +17685,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17096,7 +17713,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17124,7 +17741,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17152,7 +17769,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17180,7 +17797,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17208,7 +17825,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17236,7 +17853,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17264,7 +17881,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    },
    {
@@ -17292,7 +17909,7 @@
     "coverage_complete": true,
     "confidence": 0.6,
     "provenance": "rule:contract",
-    "created_ns": 1792473770678727015,
+    "created_ns": 1792679788697267391,
     "compute_ns": 0
    }
   ],
@@ -17310,7 +17927,7 @@
    "taint analysis is intra-procedural (no heap model — PRD §74)",
    "conformance rules run on deep facts for Python; structural facts for JS/TS/Go/Rust"
   ],
-  "wall_ns": 702032765
+  "wall_ns": 1018015453
  },
  "evidence": {
   "rev": 1,
@@ -17529,10 +18146,10 @@
    "scripts.collect_quality.collect_drift: round (unresolved_name)",
    "scripts.collect_quality.collect_drift: str (unresolved_name)"
   ],
-  "generated_at_ns": 1792473770678727015
+  "generated_at_ns": 1792679788697267391
  },
  "warnings": [],
- "ingest_wall_ns": 931399400,
+ "ingest_wall_ns": 1065124046,
  "incremental": false,
  "summary_cache": [
   {
@@ -23028,6 +23645,3236 @@
    ],
    "dockerfilesRead": []
   },
-  "generatedAt": 1792473770
- }
+  "generatedAt": 1792679788
+ },
+ "concepts_tier": 3,
+ "usecase_view": [
+  {
+   "id": 22,
+   "label": "spawns processes",
+   "intent": [
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    29,
+    32,
+    43,
+    44,
+    50,
+    54
+   ],
+   "members": [
+    {
+     "symbol": 38,
+     "name": "sh",
+     "qual_name": "scripts.collect_quality.sh",
+     "file": "scripts/collect_quality.py",
+     "line": 69,
+     "owner": "auth"
+    },
+    {
+     "symbol": 40,
+     "name": "git_date_args",
+     "qual_name": "scripts.collect_quality.git_date_args",
+     "file": "scripts/collect_quality.py",
+     "line": 81,
+     "owner": "auth"
+    },
+    {
+     "symbol": 47,
+     "name": "git_commit_dates",
+     "qual_name": "scripts.collect_quality.git_commit_dates",
+     "file": "scripts/collect_quality.py",
+     "line": 419,
+     "owner": "auth"
+    },
+    {
+     "symbol": 48,
+     "name": "collect_churn",
+     "qual_name": "scripts.collect_quality.collect_churn",
+     "file": "scripts/collect_quality.py",
+     "line": 424,
+     "owner": "auth"
+    },
+    {
+     "symbol": 49,
+     "name": "collect_drift",
+     "qual_name": "scripts.collect_quality.collect_drift",
+     "file": "scripts/collect_quality.py",
+     "line": 484,
+     "owner": "auth"
+    },
+    {
+     "symbol": 51,
+     "name": "collect_defects",
+     "qual_name": "scripts.collect_quality.collect_defects",
+     "file": "scripts/collect_quality.py",
+     "line": 563,
+     "owner": "auth"
+    },
+    {
+     "symbol": 52,
+     "name": "run_session",
+     "qual_name": "scripts.collect_quality.run_session",
+     "file": "scripts/collect_quality.py",
+     "line": 683,
+     "owner": "auth"
+    },
+    {
+     "symbol": 53,
+     "name": "collect_crash_rate",
+     "qual_name": "scripts.collect_quality.collect_crash_rate",
+     "file": "scripts/collect_quality.py",
+     "line": 699,
+     "owner": "auth"
+    },
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 75,
+     "name": "run",
+     "qual_name": "scripts.collect_stories.run",
+     "file": "scripts/collect_stories.py",
+     "line": 81,
+     "owner": "auth"
+    },
+    {
+     "symbol": 76,
+     "name": "make_sandbox",
+     "qual_name": "scripts.collect_stories.make_sandbox",
+     "file": "scripts/collect_stories.py",
+     "line": 106,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 90,
+     "name": "measure_build",
+     "qual_name": "scripts.collect_stories.measure_build",
+     "file": "scripts/collect_stories.py",
+     "line": 471,
+     "owner": "auth"
+    },
+    {
+     "symbol": 91,
+     "name": "measure_fix_recheck",
+     "qual_name": "scripts.collect_stories.measure_fix_recheck",
+     "file": "scripts/collect_stories.py",
+     "line": 499,
+     "owner": "auth"
+    },
+    {
+     "symbol": 92,
+     "name": "export_patch",
+     "qual_name": "scripts.collect_stories.export_patch",
+     "file": "scripts/collect_stories.py",
+     "line": 522,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 23,
+   "label": "prints",
+   "intent": [
+    "print"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    36,
+    37,
+    41,
+    46,
+    57,
+    60,
+    61
+   ],
+   "members": [
+    {
+     "symbol": 1,
+     "name": "authorize",
+     "qual_name": "auth.authorize",
+     "file": "auth.py",
+     "line": 6,
+     "owner": "auth"
+    },
+    {
+     "symbol": 21,
+     "name": "charge",
+     "qual_name": "payments.charge",
+     "file": "payments.py",
+     "line": 3,
+     "owner": "auth"
+    },
+    {
+     "symbol": 23,
+     "name": "refund",
+     "qual_name": "payments.refund",
+     "file": "payments.py",
+     "line": 17,
+     "owner": "auth"
+    },
+    {
+     "symbol": 24,
+     "name": "notify_user",
+     "qual_name": "payments.notify_user",
+     "file": "payments.py",
+     "line": 24,
+     "owner": "auth"
+    },
+    {
+     "symbol": 37,
+     "name": "log",
+     "qual_name": "scripts.collect_quality.log",
+     "file": "scripts/collect_quality.py",
+     "line": 65,
+     "owner": "auth"
+    },
+    {
+     "symbol": 43,
+     "name": "collect_complexity",
+     "qual_name": "scripts.collect_quality.collect_complexity",
+     "file": "scripts/collect_quality.py",
+     "line": 122,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 61,
+     "name": "write",
+     "qual_name": "scripts.collect_runtime.write",
+     "file": "scripts/collect_runtime.py",
+     "line": 50,
+     "owner": "auth"
+    },
+    {
+     "symbol": 62,
+     "name": "collect_cpu",
+     "qual_name": "scripts.collect_runtime.collect_cpu",
+     "file": "scripts/collect_runtime.py",
+     "line": 57,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 64,
+     "name": "collect_memory",
+     "qual_name": "scripts.collect_runtime.collect_memory",
+     "file": "scripts/collect_runtime.py",
+     "line": 128,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 68,
+     "name": "collect_race",
+     "qual_name": "scripts.collect_runtime.collect_race",
+     "file": "scripts/collect_runtime.py",
+     "line": 266,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 73,
+     "name": "write_story",
+     "qual_name": "scripts.collect_stories.write_story",
+     "file": "scripts/collect_stories.py",
+     "line": 72,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 107,
+     "name": "add",
+     "qual_name": "scripts.collect_stories.add",
+     "file": "scripts/collect_stories.py",
+     "line": 828,
+     "owner": "auth"
+    },
+    {
+     "symbol": 109,
+     "name": "log",
+     "qual_name": "scripts.lib.common.log",
+     "file": "scripts/lib/common.sh",
+     "line": 1,
+     "owner": "auth"
+    },
+    {
+     "symbol": 147,
+     "name": "delete_account",
+     "qual_name": "ui.delete_account",
+     "file": "ui.py",
+     "line": 3,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 24,
+   "label": "sleep",
+   "intent": [
+    "sleep"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    33,
+    49
+   ],
+   "members": [
+    {
+     "symbol": 18,
+     "name": "thread_one",
+     "qual_name": "deadlock_probe.thread_one",
+     "file": "deadlock_probe.py",
+     "line": 44,
+     "owner": "auth"
+    },
+    {
+     "symbol": 19,
+     "name": "thread_two",
+     "qual_name": "deadlock_probe.thread_two",
+     "file": "deadlock_probe.py",
+     "line": 52,
+     "owner": "auth"
+    },
+    {
+     "symbol": 27,
+     "name": "cpu_burn_mixed",
+     "qual_name": "runtime_probes.cpu_burn_mixed",
+     "file": "runtime_probes.py",
+     "line": 32,
+     "owner": "auth"
+    },
+    {
+     "symbol": 28,
+     "name": "quick_task",
+     "qual_name": "runtime_probes.quick_task",
+     "file": "runtime_probes.py",
+     "line": 42,
+     "owner": "auth"
+    },
+    {
+     "symbol": 29,
+     "name": "pipeline",
+     "qual_name": "runtime_probes.pipeline",
+     "file": "runtime_probes.py",
+     "line": 49,
+     "owner": "auth"
+    },
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 34,
+     "name": "worker",
+     "qual_name": "runtime_probes.worker",
+     "file": "runtime_probes.py",
+     "line": 142,
+     "owner": "auth"
+    },
+    {
+     "symbol": 62,
+     "name": "collect_cpu",
+     "qual_name": "scripts.collect_runtime.collect_cpu",
+     "file": "scripts/collect_runtime.py",
+     "line": 57,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 86,
+     "name": "measure_slow_trace",
+     "qual_name": "scripts.collect_stories.measure_slow_trace",
+     "file": "scripts/collect_stories.py",
+     "line": 380,
+     "owner": "auth"
+    },
+    {
+     "symbol": 87,
+     "name": "measure_speed_pair",
+     "qual_name": "scripts.collect_stories.measure_speed_pair",
+     "file": "scripts/collect_stories.py",
+     "line": 408,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 125,
+     "name": "_external_call",
+     "qual_name": "scripts.stories_probes._external_call",
+     "file": "scripts/stories_probes.py",
+     "line": 75,
+     "owner": "auth"
+    },
+    {
+     "symbol": 126,
+     "name": "_db_query",
+     "qual_name": "scripts.stories_probes._db_query",
+     "file": "scripts/stories_probes.py",
+     "line": 80,
+     "owner": "auth"
+    },
+    {
+     "symbol": 128,
+     "name": "slow_request",
+     "qual_name": "scripts.stories_probes.slow_request",
+     "file": "scripts/stories_probes.py",
+     "line": 90,
+     "owner": "auth"
+    },
+    {
+     "symbol": 134,
+     "name": "task",
+     "qual_name": "scripts.stories_probes.task",
+     "file": "scripts/stories_probes.py",
+     "line": 145,
+     "owner": "auth"
+    },
+    {
+     "symbol": 136,
+     "name": "task",
+     "qual_name": "scripts.stories_probes.task",
+     "file": "scripts/stories_probes.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 137,
+     "name": "bench",
+     "qual_name": "scripts.stories_probes.bench",
+     "file": "scripts/stories_probes.py",
+     "line": 172,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 25,
+   "label": "time",
+   "intent": [
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    30,
+    45
+   ],
+   "members": [
+    {
+     "symbol": 29,
+     "name": "pipeline",
+     "qual_name": "runtime_probes.pipeline",
+     "file": "runtime_probes.py",
+     "line": 49,
+     "owner": "auth"
+    },
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 33,
+     "name": "racing_counter",
+     "qual_name": "runtime_probes.racing_counter",
+     "file": "runtime_probes.py",
+     "line": 123,
+     "owner": "auth"
+    },
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 68,
+     "name": "collect_race",
+     "qual_name": "scripts.collect_runtime.collect_race",
+     "file": "scripts/collect_runtime.py",
+     "line": 266,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 87,
+     "name": "measure_speed_pair",
+     "qual_name": "scripts.collect_stories.measure_speed_pair",
+     "file": "scripts/collect_stories.py",
+     "line": 408,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 106,
+     "name": "tick",
+     "qual_name": "scripts.collect_stories.tick",
+     "file": "scripts/collect_stories.py",
+     "line": 769,
+     "owner": "auth"
+    },
+    {
+     "symbol": 131,
+     "name": "charge",
+     "qual_name": "scripts.stories_probes.Ledger.charge",
+     "file": "scripts/stories_probes.py",
+     "line": 112,
+     "owner": "payments"
+    },
+    {
+     "symbol": 133,
+     "name": "_locked_pipeline",
+     "qual_name": "scripts.stories_probes._locked_pipeline",
+     "file": "scripts/stories_probes.py",
+     "line": 140,
+     "owner": "auth"
+    },
+    {
+     "symbol": 135,
+     "name": "_free_pipeline",
+     "qual_name": "scripts.stories_probes._free_pipeline",
+     "file": "scripts/stories_probes.py",
+     "line": 158,
+     "owner": "auth"
+    },
+    {
+     "symbol": 137,
+     "name": "bench",
+     "qual_name": "scripts.stories_probes.bench",
+     "file": "scripts/stories_probes.py",
+     "line": 172,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 26,
+   "label": "uses crypto",
+   "intent": [
+    "crypto"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    48
+   ],
+   "members": [
+    {
+     "symbol": 2,
+     "name": "good_auth",
+     "qual_name": "auth.good_auth",
+     "file": "auth.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 3,
+     "name": "verify_password",
+     "qual_name": "auth.verify_password",
+     "file": "auth.py",
+     "line": 17,
+     "owner": "auth"
+    },
+    {
+     "symbol": 4,
+     "name": "hash_matches",
+     "qual_name": "auth.hash_matches",
+     "file": "auth.py",
+     "line": 21,
+     "owner": "auth"
+    },
+    {
+     "symbol": 74,
+     "name": "sha256_bytes",
+     "qual_name": "scripts.collect_stories.sha256_bytes",
+     "file": "scripts/collect_stories.py",
+     "line": 77,
+     "owner": "auth"
+    },
+    {
+     "symbol": 78,
+     "name": "hash_name",
+     "qual_name": "scripts.collect_stories.hash_name",
+     "file": "scripts/collect_stories.py",
+     "line": 156,
+     "owner": "auth"
+    },
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 80,
+     "name": "parse_elf",
+     "qual_name": "scripts.collect_stories.parse_elf",
+     "file": "scripts/collect_stories.py",
+     "line": 218,
+     "owner": "auth"
+    },
+    {
+     "symbol": 84,
+     "name": "measure_replay",
+     "qual_name": "scripts.collect_stories.measure_replay",
+     "file": "scripts/collect_stories.py",
+     "line": 357,
+     "owner": "auth"
+    },
+    {
+     "symbol": 86,
+     "name": "measure_slow_trace",
+     "qual_name": "scripts.collect_stories.measure_slow_trace",
+     "file": "scripts/collect_stories.py",
+     "line": 380,
+     "owner": "auth"
+    },
+    {
+     "symbol": 92,
+     "name": "export_patch",
+     "qual_name": "scripts.collect_stories.export_patch",
+     "file": "scripts/collect_stories.py",
+     "line": 522,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 123,
+     "name": "replay_authorize",
+     "qual_name": "scripts.stories_probes.replay_authorize",
+     "file": "scripts/stories_probes.py",
+     "line": 25,
+     "owner": "auth"
+    },
+    {
+     "symbol": 127,
+     "name": "_password_check",
+     "qual_name": "scripts.stories_probes._password_check",
+     "file": "scripts/stories_probes.py",
+     "line": 85,
+     "owner": "auth"
+    },
+    {
+     "symbol": 128,
+     "name": "slow_request",
+     "qual_name": "scripts.stories_probes.slow_request",
+     "file": "scripts/stories_probes.py",
+     "line": 90,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 27,
+   "label": "read_file",
+   "intent": [
+    "read_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 17,
+     "name": "flush_state",
+     "qual_name": "deadlock_probe.flush_state",
+     "file": "deadlock_probe.py",
+     "line": 38,
+     "owner": "auth"
+    },
+    {
+     "symbol": 43,
+     "name": "collect_complexity",
+     "qual_name": "scripts.collect_quality.collect_complexity",
+     "file": "scripts/collect_quality.py",
+     "line": 122,
+     "owner": "auth"
+    },
+    {
+     "symbol": 46,
+     "name": "collect_security",
+     "qual_name": "scripts.collect_quality.collect_security",
+     "file": "scripts/collect_quality.py",
+     "line": 293,
+     "owner": "auth"
+    },
+    {
+     "symbol": 56,
+     "name": "collect_coverage_heatmap",
+     "qual_name": "scripts.collect_quality.collect_coverage_heatmap",
+     "file": "scripts/collect_quality.py",
+     "line": 825,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 94,
+     "name": "measure_consequences",
+     "qual_name": "scripts.collect_stories.measure_consequences",
+     "file": "scripts/collect_stories.py",
+     "line": 587,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 28,
+   "label": "write_file",
+   "intent": [
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 61,
+     "name": "write",
+     "qual_name": "scripts.collect_runtime.write",
+     "file": "scripts/collect_runtime.py",
+     "line": 50,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 73,
+     "name": "write_story",
+     "qual_name": "scripts.collect_stories.write_story",
+     "file": "scripts/collect_stories.py",
+     "line": 72,
+     "owner": "auth"
+    },
+    {
+     "symbol": 76,
+     "name": "make_sandbox",
+     "qual_name": "scripts.collect_stories.make_sandbox",
+     "file": "scripts/collect_stories.py",
+     "line": 106,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 90,
+     "name": "measure_build",
+     "qual_name": "scripts.collect_stories.measure_build",
+     "file": "scripts/collect_stories.py",
+     "line": 471,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 107,
+     "name": "add",
+     "qual_name": "scripts.collect_stories.add",
+     "file": "scripts/collect_stories.py",
+     "line": 828,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 29,
+   "label": "spawns processes & write_file",
+   "intent": [
+    "spawn",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    42,
+    47
+   ],
+   "members": [
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 76,
+     "name": "make_sandbox",
+     "qual_name": "scripts.collect_stories.make_sandbox",
+     "file": "scripts/collect_stories.py",
+     "line": 106,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 90,
+     "name": "measure_build",
+     "qual_name": "scripts.collect_stories.measure_build",
+     "file": "scripts/collect_stories.py",
+     "line": 471,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 30,
+   "label": "lock & time",
+   "intent": [
+    "lock",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 25,
+     "label": "time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    35
+   ],
+   "members": [
+    {
+     "symbol": 29,
+     "name": "pipeline",
+     "qual_name": "runtime_probes.pipeline",
+     "file": "runtime_probes.py",
+     "line": 49,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 87,
+     "name": "measure_speed_pair",
+     "qual_name": "scripts.collect_stories.measure_speed_pair",
+     "file": "scripts/collect_stories.py",
+     "line": 408,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 133,
+     "name": "_locked_pipeline",
+     "qual_name": "scripts.stories_probes._locked_pipeline",
+     "file": "scripts/stories_probes.py",
+     "line": 140,
+     "owner": "auth"
+    },
+    {
+     "symbol": 137,
+     "name": "bench",
+     "qual_name": "scripts.stories_probes.bench",
+     "file": "scripts/stories_probes.py",
+     "line": 172,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 31,
+   "label": "money movement",
+   "intent": [
+    "money"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    55
+   ],
+   "members": [
+    {
+     "symbol": 21,
+     "name": "charge",
+     "qual_name": "payments.charge",
+     "file": "payments.py",
+     "line": 3,
+     "owner": "auth"
+    },
+    {
+     "symbol": 23,
+     "name": "refund",
+     "qual_name": "payments.refund",
+     "file": "payments.py",
+     "line": 17,
+     "owner": "auth"
+    },
+    {
+     "symbol": 120,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories.candidate_transfers.can_transfer",
+     "file": "scripts/stories/candidate_transfers.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 121,
+     "name": "transfer",
+     "qual_name": "scripts.stories.candidate_transfers.transfer",
+     "file": "scripts/stories/candidate_transfers.py",
+     "line": 16,
+     "owner": "auth"
+    },
+    {
+     "symbol": 131,
+     "name": "charge",
+     "qual_name": "scripts.stories_probes.Ledger.charge",
+     "file": "scripts/stories_probes.py",
+     "line": 112,
+     "owner": "payments"
+    },
+    {
+     "symbol": 141,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories_probes.can_transfer",
+     "file": "scripts/stories_probes.py",
+     "line": 254,
+     "owner": "auth"
+    },
+    {
+     "symbol": 142,
+     "name": "transfer",
+     "qual_name": "scripts.stories_probes.transfer",
+     "file": "scripts/stories_probes.py",
+     "line": 259,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 32,
+   "label": "read_file & spawns processes",
+   "intent": [
+    "read_file",
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    40
+   ],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 33,
+   "label": "sleep & time",
+   "intent": [
+    "sleep",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 24,
+     "label": "sleep",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    52
+   ],
+   "members": [
+    {
+     "symbol": 29,
+     "name": "pipeline",
+     "qual_name": "runtime_probes.pipeline",
+     "file": "runtime_probes.py",
+     "line": 49,
+     "owner": "auth"
+    },
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 87,
+     "name": "measure_speed_pair",
+     "qual_name": "scripts.collect_stories.measure_speed_pair",
+     "file": "scripts/collect_stories.py",
+     "line": 408,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 137,
+     "name": "bench",
+     "qual_name": "scripts.stories_probes.bench",
+     "file": "scripts/stories_probes.py",
+     "line": 172,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 34,
+   "label": "authorization",
+   "intent": [
+    "auth"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 1,
+     "name": "authorize",
+     "qual_name": "auth.authorize",
+     "file": "auth.py",
+     "line": 6,
+     "owner": "auth"
+    },
+    {
+     "symbol": 2,
+     "name": "good_auth",
+     "qual_name": "auth.good_auth",
+     "file": "auth.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 3,
+     "name": "verify_password",
+     "qual_name": "auth.verify_password",
+     "file": "auth.py",
+     "line": 17,
+     "owner": "auth"
+    },
+    {
+     "symbol": 120,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories.candidate_transfers.can_transfer",
+     "file": "scripts/stories/candidate_transfers.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 123,
+     "name": "replay_authorize",
+     "qual_name": "scripts.stories_probes.replay_authorize",
+     "file": "scripts/stories_probes.py",
+     "line": 25,
+     "owner": "auth"
+    },
+    {
+     "symbol": 141,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories_probes.can_transfer",
+     "file": "scripts/stories_probes.py",
+     "line": 254,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 35,
+   "label": "lock & sleep & time",
+   "intent": [
+    "lock",
+    "sleep",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 30,
+     "label": "lock & time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 25,
+     "label": "time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    53
+   ],
+   "members": [
+    {
+     "symbol": 29,
+     "name": "pipeline",
+     "qual_name": "runtime_probes.pipeline",
+     "file": "runtime_probes.py",
+     "line": 49,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 87,
+     "name": "measure_speed_pair",
+     "qual_name": "scripts.collect_stories.measure_speed_pair",
+     "file": "scripts/collect_stories.py",
+     "line": 408,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 137,
+     "name": "bench",
+     "qual_name": "scripts.stories_probes.bench",
+     "file": "scripts/stories_probes.py",
+     "line": 172,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 36,
+   "label": "prints & read_file",
+   "intent": [
+    "print",
+    "read_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 43,
+     "name": "collect_complexity",
+     "qual_name": "scripts.collect_quality.collect_complexity",
+     "file": "scripts/collect_quality.py",
+     "line": 122,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 37,
+   "label": "prints & write_file",
+   "intent": [
+    "print",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    51
+   ],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 61,
+     "name": "write",
+     "qual_name": "scripts.collect_runtime.write",
+     "file": "scripts/collect_runtime.py",
+     "line": 50,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 73,
+     "name": "write_story",
+     "qual_name": "scripts.collect_stories.write_story",
+     "file": "scripts/collect_stories.py",
+     "line": 72,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 107,
+     "name": "add",
+     "qual_name": "scripts.collect_stories.add",
+     "file": "scripts/collect_stories.py",
+     "line": 828,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 38,
+   "label": "entrypoint",
+   "intent": [
+    "entrypoint"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 75,
+     "name": "run",
+     "qual_name": "scripts.collect_stories.run",
+     "file": "scripts/collect_stories.py",
+     "line": 81,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 39,
+   "label": "calls services",
+   "intent": [
+    "network"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 50,
+     "name": "gh_api",
+     "qual_name": "scripts.collect_quality.gh_api",
+     "file": "scripts/collect_quality.py",
+     "line": 548,
+     "owner": "auth"
+    },
+    {
+     "symbol": 51,
+     "name": "collect_defects",
+     "qual_name": "scripts.collect_quality.collect_defects",
+     "file": "scripts/collect_quality.py",
+     "line": 563,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 83,
+     "name": "github_fetch",
+     "qual_name": "scripts.collect_stories.github_fetch",
+     "file": "scripts/collect_stories.py",
+     "line": 288,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 40,
+   "label": "prints & read_file & spawns processes",
+   "intent": [
+    "print",
+    "read_file",
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 32,
+     "label": "read_file & spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 66,
+     "name": "collect_deadlock",
+     "qual_name": "scripts.collect_runtime.collect_deadlock",
+     "file": "scripts/collect_runtime.py",
+     "line": 170,
+     "owner": "auth"
+    },
+    {
+     "symbol": 69,
+     "name": "collect_coverage",
+     "qual_name": "scripts.collect_runtime.collect_coverage",
+     "file": "scripts/collect_runtime.py",
+     "line": 298,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 41,
+   "label": "prints & time",
+   "intent": [
+    "print",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 68,
+     "name": "collect_race",
+     "qual_name": "scripts.collect_runtime.collect_race",
+     "file": "scripts/collect_runtime.py",
+     "line": 266,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 42,
+   "label": "read_file & spawns processes & write_file",
+   "intent": [
+    "read_file",
+    "spawn",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 29,
+     "label": "spawns processes & write_file",
+     "kind": "UseCase"
+    },
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 77,
+     "name": "apply_candidate",
+     "qual_name": "scripts.collect_stories.apply_candidate",
+     "file": "scripts/collect_stories.py",
+     "line": 131,
+     "owner": "auth"
+    },
+    {
+     "symbol": 93,
+     "name": "measure_apply",
+     "qual_name": "scripts.collect_stories.measure_apply",
+     "file": "scripts/collect_stories.py",
+     "line": 543,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 43,
+   "label": "spawns processes & time",
+   "intent": [
+    "spawn",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    56
+   ],
+   "members": [
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 44,
+   "label": "entrypoint & spawns processes",
+   "intent": [
+    "entrypoint",
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 75,
+     "name": "run",
+     "qual_name": "scripts.collect_stories.run",
+     "file": "scripts/collect_stories.py",
+     "line": 81,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 45,
+   "label": "entrypoint & time",
+   "intent": [
+    "entrypoint",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 25,
+     "label": "time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 46,
+   "label": "prints & sleep",
+   "intent": [
+    "print",
+    "sleep"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 62,
+     "name": "collect_cpu",
+     "qual_name": "scripts.collect_runtime.collect_cpu",
+     "file": "scripts/collect_runtime.py",
+     "line": 57,
+     "owner": "auth"
+    },
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 47,
+   "label": "spawns processes & time & write_file",
+   "intent": [
+    "spawn",
+    "time",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 29,
+     "label": "spawns processes & write_file",
+     "kind": "UseCase"
+    },
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 54,
+     "name": "collect_repair_loop",
+     "qual_name": "scripts.collect_quality.collect_repair_loop",
+     "file": "scripts/collect_quality.py",
+     "line": 729,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 48,
+   "label": "authorization & uses crypto",
+   "intent": [
+    "auth",
+    "crypto"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 26,
+     "label": "uses crypto",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 2,
+     "name": "good_auth",
+     "qual_name": "auth.good_auth",
+     "file": "auth.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 3,
+     "name": "verify_password",
+     "qual_name": "auth.verify_password",
+     "file": "auth.py",
+     "line": 17,
+     "owner": "auth"
+    },
+    {
+     "symbol": 123,
+     "name": "replay_authorize",
+     "qual_name": "scripts.stories_probes.replay_authorize",
+     "file": "scripts/stories_probes.py",
+     "line": 25,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 49,
+   "label": "uses crypto & sleep",
+   "intent": [
+    "crypto",
+    "sleep"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 24,
+     "label": "sleep",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 86,
+     "name": "measure_slow_trace",
+     "qual_name": "scripts.collect_stories.measure_slow_trace",
+     "file": "scripts/collect_stories.py",
+     "line": 380,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 128,
+     "name": "slow_request",
+     "qual_name": "scripts.stories_probes.slow_request",
+     "file": "scripts/stories_probes.py",
+     "line": 90,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 50,
+   "label": "uses crypto & spawns processes",
+   "intent": [
+    "crypto",
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 92,
+     "name": "export_patch",
+     "qual_name": "scripts.collect_stories.export_patch",
+     "file": "scripts/collect_stories.py",
+     "line": 522,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 51,
+   "label": "entrypoint & prints & read_file & +3",
+   "intent": [
+    "entrypoint",
+    "print",
+    "read_file",
+    "spawn",
+    "time",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 37,
+     "label": "prints & write_file",
+     "kind": "UseCase"
+    },
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [
+    58,
+    59
+   ],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 52,
+   "label": "entrypoint & sleep & time",
+   "intent": [
+    "entrypoint",
+    "sleep",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 33,
+     "label": "sleep & time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 24,
+     "label": "sleep",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 30,
+     "name": "run",
+     "qual_name": "runtime_probes.run",
+     "file": "runtime_probes.py",
+     "line": 59,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 53,
+   "label": "lock & prints & sleep & +1",
+   "intent": [
+    "lock",
+    "print",
+    "sleep",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 35,
+     "label": "lock & sleep & time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 30,
+     "label": "lock & time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 25,
+     "label": "time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 63,
+     "name": "collect_concurrency",
+     "qual_name": "scripts.collect_runtime.collect_concurrency",
+     "file": "scripts/collect_runtime.py",
+     "line": 102,
+     "owner": "auth"
+    },
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 54,
+   "label": "calls services & spawns processes",
+   "intent": [
+    "network",
+    "spawn"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 51,
+     "name": "collect_defects",
+     "qual_name": "scripts.collect_quality.collect_defects",
+     "file": "scripts/collect_quality.py",
+     "line": 563,
+     "owner": "auth"
+    },
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 55,
+   "label": "authorization & money movement",
+   "intent": [
+    "auth",
+    "money"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 31,
+     "label": "money movement",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 120,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories.candidate_transfers.can_transfer",
+     "file": "scripts/stories/candidate_transfers.py",
+     "line": 11,
+     "owner": "auth"
+    },
+    {
+     "symbol": 141,
+     "name": "can_transfer",
+     "qual_name": "scripts.stories_probes.can_transfer",
+     "file": "scripts/stories_probes.py",
+     "line": 254,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 56,
+   "label": "uses crypto & spawns processes & time",
+   "intent": [
+    "crypto",
+    "spawn",
+    "time"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 43,
+     "label": "spawns processes & time",
+     "kind": "UseCase"
+    },
+    {
+     "id": 22,
+     "label": "spawns processes",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 79,
+     "name": "git_history_rows",
+     "qual_name": "scripts.collect_stories.git_history_rows",
+     "file": "scripts/collect_stories.py",
+     "line": 160,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 57,
+   "label": "db-write & writes data & mutations & +1",
+   "intent": [
+    "db-write",
+    "db_write",
+    "mutation",
+    "print"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 21,
+     "name": "charge",
+     "qual_name": "payments.charge",
+     "file": "payments.py",
+     "line": 3,
+     "owner": "auth"
+    },
+    {
+     "symbol": 147,
+     "name": "delete_account",
+     "qual_name": "ui.delete_account",
+     "file": "ui.py",
+     "line": 3,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 58,
+   "label": "entrypoint & lock & prints & +5",
+   "intent": [
+    "entrypoint",
+    "lock",
+    "print",
+    "read_file",
+    "sleep",
+    "spawn",
+    "time",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 51,
+     "label": "entrypoint & prints & read_file & +3",
+     "kind": "UseCase"
+    },
+    {
+     "id": 37,
+     "label": "prints & write_file",
+     "kind": "UseCase"
+    },
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 70,
+     "name": "main",
+     "qual_name": "scripts.collect_runtime.main",
+     "file": "scripts/collect_runtime.py",
+     "line": 376,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 59,
+   "label": "entrypoint & calls services & prints & +4",
+   "intent": [
+    "entrypoint",
+    "network",
+    "print",
+    "read_file",
+    "spawn",
+    "time",
+    "write_file"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 51,
+     "label": "entrypoint & prints & read_file & +3",
+     "kind": "UseCase"
+    },
+    {
+     "id": 37,
+     "label": "prints & write_file",
+     "kind": "UseCase"
+    },
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 58,
+     "name": "main",
+     "qual_name": "scripts.collect_quality.main",
+     "file": "scripts/collect_quality.py",
+     "line": 936,
+     "owner": "auth"
+    },
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 60,
+   "label": "money movement & prints",
+   "intent": [
+    "money",
+    "print"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 21,
+     "name": "charge",
+     "qual_name": "payments.charge",
+     "file": "payments.py",
+     "line": 3,
+     "owner": "auth"
+    },
+    {
+     "symbol": 23,
+     "name": "refund",
+     "qual_name": "payments.refund",
+     "file": "payments.py",
+     "line": 17,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  },
+  {
+   "id": 61,
+   "label": "prints & reads_input",
+   "intent": [
+    "print",
+    "reads_input"
+   ],
+   "confidence": 0.8,
+   "coverage_ratio": 1.0,
+   "coverage_complete": true,
+   "provenance": "fca:godin-v1",
+   "chain": [
+    {
+     "id": 23,
+     "label": "prints",
+     "kind": "UseCase"
+    },
+    {
+     "id": 0,
+     "label": "Project",
+     "kind": "Domain"
+    }
+   ],
+   "narrower": [],
+   "members": [
+    {
+     "symbol": 105,
+     "name": "main",
+     "qual_name": "scripts.collect_stories.main",
+     "file": "scripts/collect_stories.py",
+     "line": 764,
+     "owner": "auth"
+    },
+    {
+     "symbol": 147,
+     "name": "delete_account",
+     "qual_name": "ui.delete_account",
+     "file": "ui.py",
+     "line": 3,
+     "owner": "auth"
+    }
+   ],
+   "member_classes": []
+  }
+ ]
 }
