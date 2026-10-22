@@ -9,7 +9,10 @@ use std::collections::BTreeSet;
 pub struct Concept {
     pub extent: BTreeSet<SymbolId>,
     pub intent: BTreeSet<String>,
-    /// Minimal strict super-concepts (parents in lattice order).
+    /// Lower covers: minimal strict intent-supersets — the immediately
+    /// more specific concepts (fewer objects, richer intent). NOT parents
+    /// in the standard FCA order; the broader (extent-superset) direction
+    /// is the inverse relation, built at the call site when needed.
     pub parents: Vec<usize>,
 }
 
@@ -53,8 +56,22 @@ pub fn build_lattice(objects: &[(SymbolId, BTreeSet<String>)]) -> Vec<Concept> {
         }
     }
 
-    // Lattice edges: parents = minimal strict supersets of intent
-    // (super-concept = more objects, fewer attributes).
+    // Deterministic order FIRST: by extent size desc, then intent. The
+    // cover indices computed below must refer to the FINAL positions —
+    // computing them before the sort left `parents` pointing at stale
+    // pre-sort indices. Harmless while the field had no consumer, fatal
+    // for the induction chain that now reads it.
+    concepts.sort_by(|a, b| {
+        b.extent
+            .len()
+            .cmp(&a.extent.len())
+            .then_with(|| a.intent.cmp(&b.intent))
+    });
+
+    // Lattice edges: parents[i] = minimal strict intent-supersets of i —
+    // i's lower covers (more attributes, fewer objects, i.e. more
+    // specific). A cover of i always has a strictly smaller extent, so it
+    // sorts strictly BEFORE i: broader concepts precede narrower ones.
     let n = concepts.len();
     for i in 0..n {
         let intent_i = concepts[i].intent.clone();
@@ -79,14 +96,6 @@ pub fn build_lattice(objects: &[(SymbolId, BTreeSet<String>)]) -> Vec<Concept> {
         parents.sort_unstable();
         concepts[i].parents = parents;
     }
-
-    // Deterministic order: by extent size desc, then intent.
-    concepts.sort_by(|a, b| {
-        b.extent
-            .len()
-            .cmp(&a.extent.len())
-            .then_with(|| a.intent.cmp(&b.intent))
-    });
 
     concepts
 }
@@ -132,6 +141,35 @@ mod tests {
 
     fn set(items: &[&str]) -> BTreeSet<String> {
         items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn covers_are_lower_neighbors_in_sorted_order() {
+        // C_a ext {1,2,3}, C_b ext {2,3,4}, C_ab ext {2,3}, top ext {1..4}
+        let objects = vec![
+            (SymbolId(1), set(&["a"])),
+            (SymbolId(2), set(&["a", "b"])),
+            (SymbolId(3), set(&["a", "b"])),
+            (SymbolId(4), set(&["b"])),
+        ];
+        let lattice = build_lattice(&objects);
+        assert_eq!(lattice.len(), 4, "top + three concepts");
+        let idx = |intent: &[&str]| {
+            let want: BTreeSet<String> = intent.iter().map(|s| s.to_string()).collect();
+            lattice.iter().position(|c| c.intent == want).unwrap()
+        };
+        let (itop, ia, ib, iab) = (idx(&[]), idx(&["a"]), idx(&["b"]), idx(&["a", "b"]));
+        assert!(ia < ib, "equal extents break the intent tie: a before b");
+        // a cover's extent is strictly smaller, so it sorts strictly before
+        // the concept it hangs under: broader concepts precede narrower ones
+        assert!(iab > ia && iab > ib);
+        // C_ab is the single lower cover of both C_a and C_b
+        assert_eq!(lattice[ia].parents, vec![iab]);
+        assert_eq!(lattice[ib].parents, vec![iab]);
+        assert!(lattice[iab].parents.is_empty());
+        // the top concept's lower covers are the lattice atoms
+        assert_eq!(lattice[itop].extent.len(), 4);
+        assert_eq!(lattice[itop].parents, vec![ia, ib]);
     }
 
     #[test]

@@ -667,7 +667,22 @@ pub fn build_hierarchy(
         .collect();
 
     let lattice = fca::build_lattice(&objects);
-    for concept in &lattice {
+
+    // ---- Induction chain: usecase -> broader usecase (A1) ----
+    // fca::Concept.parents holds LOWER covers (minimal strict
+    // intent-supersets: more specific). Inverting gives the UPPER covers —
+    // the strictly broader concepts each usecase can hang from. The sorted
+    // lattice (extent desc) places every broader concept before the
+    // narrower one, so one forward pass resolves the whole chain.
+    let mut upper_covers: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); lattice.len()];
+    for (i, c) in lattice.iter().enumerate() {
+        for &j in &c.parents {
+            upper_covers[j].insert(i);
+        }
+    }
+    // lattice index -> dag id of the concepts that survived the noise filter
+    let mut surviving: BTreeMap<usize, ConceptNodeId> = BTreeMap::new();
+    for (ix, concept) in lattice.iter().enumerate() {
         // Skip top (empty intent) and tiny single-symbol concepts already
         // attached via structure — overlap is fine, noise is not.
         if concept.intent.is_empty() || concept.extent.len() < 2 {
@@ -684,7 +699,48 @@ pub fn build_hierarchy(
         n.symbols = concept.extent.iter().copied().collect();
         n.confidence = 0.8; // derived concept, mechanical but heuristic scope
         let id = dag.push(n);
-        dag.link_child(root, id);
+        surviving.insert(ix, id);
+
+        // Primary parent = the BROADest surviving upper cover (ascending
+        // lattice index = descending extent, deterministic). Remaining
+        // surviving covers become traceable FcaSubsumption extra edges,
+        // recorded ONLY on this node — never mirrored into the cover's
+        // children, so an inferred usecase can't drag a recorded node's
+        // weakest-link rollup (same rule as the member-class edges below).
+        // The only skip above a survivor is the top concept: any broader
+        // concept of an extent>=2 concept also has extent>=2.
+        let mut primary: Option<ConceptNodeId> = None;
+        let mut extra_covers: Vec<ConceptNodeId> = Vec::new();
+        for &cover in &upper_covers[ix] {
+            if let Some(&pid) = surviving.get(&cover) {
+                if primary.is_none() {
+                    primary = Some(pid);
+                } else {
+                    extra_covers.push(pid);
+                }
+            }
+        }
+        match primary {
+            Some(pid) => {
+                // Covers form a strict intent order — a cycle is
+                // impossible; fall back to the root rather than panic if
+                // that invariant is ever violated.
+                if dag
+                    .try_link_child(pid, id, EdgeReason::FcaSubsumption)
+                    .is_err()
+                {
+                    dag.link_child(root, id);
+                }
+            }
+            None => dag.link_child(root, id),
+        }
+        if !extra_covers.is_empty() {
+            if let Some(node) = dag.get_mut(id) {
+                for pid in extra_covers {
+                    node.extra_edges.push((pid, EdgeReason::FcaSubsumption));
+                }
+            }
+        }
 
         // TASK-079: an LLM-proposed label binds as an inert LlmCandidate
         // rule — visible, traceable, never decisive (acceptance #28).

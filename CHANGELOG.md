@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.3 — the induction chain: usecases hang off their broader usecases (2026-10-22)
+
+Structural change in the concept DAG (`cie-analysis` hierarchy), closing the
+gap where the FCA lattice's own order was computed and then discarded: every
+surviving usecase was flattened into a sibling of the Domain root, so the
+climb "function → its usecase → the broader story above it" existed only as
+implicit symbol lists.
+
+- **The chain** — `fca::Concept.parents` (lower covers: minimal strict
+  intent-supersets, i.e. the more specific concepts) is inverted into upper
+  covers at the build site; a usecase's PRIMARY parent is now its broadest
+  surviving upper cover (`FcaSubsumption`), falling back to the Domain root
+  when nothing broader survives (only the top concept). Remaining covers are
+  recorded as FcaSubsumption extra edges on the usecase itself — traceable,
+  never mirrored into the cover's children, so an inferred 0.8-confidence
+  node cannot drag a recorded node's weakest-link rollup (same rule as the
+  member-class edges).
+- **Latent staleness bug fixed first** — `build_lattice` computed cover
+  indices BEFORE re-sorting the concept vec, leaving `parents` pointing at
+  pre-sort positions. Harmless while nothing consumed the field; fatal for
+  the chain that now reads it. The sort runs first;
+  `covers_are_lower_neighbors_in_sorted_order` pins the direction (a cover's
+  extent is strictly smaller, so it sorts strictly before the concept it
+  hangs under).
+- **Invalidation semantics improve with the topology** — the lazy dirty
+  wave (TASK-082) propagates along primary-parent edges only; with the
+  chain primary, invalidating a narrow usecase now correctly marks every
+  broader usecase whose extent contains it.
+- **Determinism holds** — the broadest-cover pick is ascending lattice
+  index (extent desc, intent asc); same input yields the same DAG. The
+  rollup and depth gates (`task_083`, `rfc0019_c4_tiers`) are unchanged and
+  green; the new `fca_induction_chain` suite gates the chain itself, the
+  diamond case, the rollup isolation, and the serialized artifact (parent,
+  extra_edges and intent reach `concepts.json` — the web layer never has to
+  recompute the climb).
+
 ## 1.4.2 — duplicates: a class and its functions are not duplicates (2026-10-22)
 
 Behavioral change in `duplicates.detect` (PRD v2.0 §23), user-reported: a
