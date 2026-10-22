@@ -40,6 +40,7 @@ import {
   FileText,
   GraduationCap,
   Database,
+  Milestone,
 } from "lucide-react";
 import { useCie, type StageView } from "@/lib/cie-store";
 import { AtlasPersonaMenu } from "@/components/cie/atlas-persona-menu";
@@ -47,7 +48,7 @@ import { providerLabel } from "@/lib/llm-config";
 import { UseYourOwnProjectDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
-const EXPLORE_VIEWS: StageView[] = ["start", "map", "mindmap", "does", "fixes", "promises", "polyglot"];
+const EXPLORE_VIEWS: StageView[] = ["start", "map", "mindmap", "does", "usecases", "fixes", "promises", "polyglot"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 const MASTER_VIEWS: StageView[] = ["mastery"];
@@ -161,6 +162,9 @@ export function Topbar() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>
                 <Wand2 className="h-4 w-4 text-stone-400" /> What it does
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={go("usecases")} className={view === "usecases" ? "bg-emerald-50" : ""}>
+                <Milestone className="h-4 w-4 text-stone-400" /> Usecases — the stories, drawn
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Pay attention to</DropdownMenuLabel>

@@ -37,6 +37,7 @@ export type StageView =
   | "map"
   | "mindmap"
   | "does"
+  | "usecases"
   | "fixes"
   | "promises"
   | "numbers"
@@ -50,6 +51,15 @@ export type StageView =
   | "polyglot"
   | "admin"
   | "chart";
+
+/** A concept diagram on the canvas: which usecase, drawn which way. The
+ *  ViewSpec itself is never stored — it is derived on render from
+ *  (concept, report) by the B3 mappers, so the canvas always shows what
+ *  the loaded artifacts can actually evidence. */
+export interface CanvasConcept {
+  conceptId: number;
+  kind: "flowchart" | "sequence";
+}
 
 // One bubble in the "Ask CIE" conversation. `chart` is the complementary
 // chart the AI attached to its answer (US-020 catalog pick), if any. Failed
@@ -117,6 +127,7 @@ interface CieState {
   view: StageView; // what the middle stage shows
   canvasChart: ChatChartSpec | null; // the chart sent to the canvas (view === "chart")
   canvasPolyglot: string | null; // the named-diagram bundle key on the canvas (view === "chart") — mutually exclusive with canvasChart
+  canvasConcept: CanvasConcept | null; // a usecase's flowchart/sequence on the canvas (view === "chart") — mutually exclusive with the other two
   mapSelected: VizElement | null; // map bubble picked; the chat offers it as a referent
   llm: LlmConfig; // who answers — hydrated from localStorage after mount
   llmSettingsOpen: boolean; // the connection settings dialog (topbar owns it)
@@ -165,6 +176,7 @@ interface CieState {
   setView: (v: StageView) => void;
   openChartOnCanvas: (spec: ChatChartSpec) => void;
   openPolyglotOnCanvas: (artifact: string) => void; // a named diagram the chat asked for
+  openConceptOnCanvas: (conceptId: number, kind: "flowchart" | "sequence") => void; // a usecase's diagram the chat (or section) asked for
   closeCanvasChart: () => void;
   setMapSelected: (el: VizElement | null) => void;
   setPendingAsk: (q: string | null) => void;
@@ -241,6 +253,7 @@ export const useCie = create<CieState>((set, get) => ({
   view: "start",
   canvasChart: null,
   canvasPolyglot: null,
+  canvasConcept: null,
   mapSelected: null,
   llm: DEFAULT_LLM,
   llmSettingsOpen: false,
@@ -315,6 +328,7 @@ export const useCie = create<CieState>((set, get) => ({
         view: "start",
         canvasChart: null,
         canvasPolyglot: null,
+        canvasConcept: null,
         mapSelected: null,
   chatContext: [],
         // The sample project has no local-folder root on this machine.
@@ -372,6 +386,7 @@ export const useCie = create<CieState>((set, get) => ({
       view: get().view === "chart" ? "start" : get().view,
       canvasChart: null,
       canvasPolyglot: null,
+      canvasConcept: null,
       mapSelected: null,
   chatContext: [],
       atlasSelection: ATLAS_RESET,
@@ -398,12 +413,13 @@ export const useCie = create<CieState>((set, get) => ({
 
   setView: (v) => set({ view: v }),
 
-  // The two canvas senders are mutually exclusive: opening one closes the
-  // other, so the stage never has to arbitrate between a chat chart and a
-  // named diagram occupying the same view slot.
-  openChartOnCanvas: (spec) => set({ canvasChart: spec, canvasPolyglot: null, view: "chart" }),
-  openPolyglotOnCanvas: (artifact) => set({ canvasPolyglot: artifact, canvasChart: null, view: "chart" }),
-  closeCanvasChart: () => set({ canvasChart: null, canvasPolyglot: null, view: "start" }),
+  // The three canvas senders are mutually exclusive: opening one closes
+  // the others, so the stage never has to arbitrate between a chat chart,
+  // a named diagram, and a usecase diagram occupying the same view slot.
+  openChartOnCanvas: (spec) => set({ canvasChart: spec, canvasPolyglot: null, canvasConcept: null, view: "chart" }),
+  openPolyglotOnCanvas: (artifact) => set({ canvasPolyglot: artifact, canvasChart: null, canvasConcept: null, view: "chart" }),
+  openConceptOnCanvas: (conceptId, kind) => set({ canvasConcept: { conceptId, kind }, canvasChart: null, canvasPolyglot: null, view: "chart" }),
+  closeCanvasChart: () => set({ canvasChart: null, canvasPolyglot: null, canvasConcept: null, view: "start" }),
 
   setMapSelected: (el) =>
     set((s) => ({

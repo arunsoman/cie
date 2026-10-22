@@ -111,7 +111,7 @@ function prepare(concept: ConceptNode, report: CieReport): Prepared {
       label: behaviorLabel.get(id) ?? sym.name,
       laneKey: useOwner ? `sym:${useOwner.id}` : `file:${sym.loc.file}`,
       laneLabel: useOwner ? useOwner.name : report.files[sym.loc.file] ?? "unknown file",
-      laneIsClass: Boolean(useOwner) && useOwner.kind !== "Module",
+      laneIsClass: useOwner !== undefined && useOwner.kind !== "Module",
       evidence,
       laneEvidence,
     };

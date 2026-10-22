@@ -40,6 +40,7 @@ import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
 import { AtlasView } from "@/components/cie/atlas-view";
 import { PolyglotView, ArtifactCanvas } from "@/components/cie/polyglot-views";
+import { ConceptOnCanvas, UsecasesView } from "@/components/cie/concept-views";
 import {
   artifactKind,
   artifactMeta,
@@ -54,6 +55,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   start: { title: "Start here", caption: "What CIE does with your code, in three steps." },
   map: { title: "The map of your code", caption: "Bubbles are parts of your code; lines show how they relate." },
   mindmap: { title: "Mindmap", caption: "Pick any concept — everything found underneath it fans out from the centre." },
+  usecases: { title: "Usecases", caption: "The stories CIE induced from your functions — each one draws its flowchart and sequence." },
   does: { title: "What it does", caption: "Each code file, in plain words." },
   fixes: { title: "Things to look at", caption: "Sorted by urgency — red first." },
   promises: { title: "Promises", caption: "Things the code must always do." },
@@ -71,14 +73,17 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
 };
 
 export function Stage() {
-  const { view, loading, viewspec, canvasChart, canvasPolyglot } = useCie();
+  const { view, loading, viewspec, canvasChart, canvasPolyglot, canvasConcept } = useCie();
   const canvas = CANVAS_VIEWS.includes(view);
   // A named diagram on the canvas gets its own title — it is the engine's
-  // own artifact, not a chart derived from the loaded report.
+  // own artifact, not a chart derived from the loaded report. So is a
+  // usecase diagram: the story's own flowchart/sequence, not a stand-in.
   const meta =
     view === "chart" && canvasPolyglot
       ? { title: "Named diagram", caption: "The engine's own C4 / machine / flow / impact picture — asked for from the chat." }
-      : TITLES[view];
+      : view === "chart" && canvasConcept
+        ? { title: "Usecase diagram", caption: "The story's own flowchart or sequence — drawn from its recorded members." }
+        : TITLES[view];
   // Destructured on purpose: the hooks lint treats member access on a
   // hook-returned object as ref access during render.
   const { attach, zoom, zoomBy, fit, cameraProps } = useCamera(canvas);
@@ -136,6 +141,8 @@ export function Stage() {
               <MapViewSection />
             ) : canvasPolyglot ? (
               <PolyglotOnCanvas name={canvasPolyglot} />
+            ) : canvasConcept ? (
+              <ConceptOnCanvas />
             ) : canvasChart ? (
               <ChartOnCanvas />
             ) : (
@@ -162,6 +169,7 @@ export function Stage() {
           {view === "atlas" ? <AtlasView /> : view === "admin" ? <CieAdminView /> : <div className="p-4 sm:p-6 max-w-6xl mx-auto">
             {view === "start" && <StartView />}
             {view === "mindmap" && <MindmapView />}
+            {view === "usecases" && <UsecasesView />}
             {view === "does" && <ConceptsView />}
             {view === "fixes" && <FindingsView />}
             {view === "promises" && <PromisesView />}
@@ -196,7 +204,12 @@ export function Stage() {
               named by the polyglot layer — every box cites the bytes that earned it.
             </span>
           )}
-          {view === "chart" && !canvasPolyglot && canvasChart && (
+          {view === "chart" && canvasConcept && (
+            <span className="text-stone-400 truncate">
+              drawn from the usecase's recorded members — membership is the engine's, never a label's guess.
+            </span>
+          )}
+          {view === "chart" && !canvasPolyglot && !canvasConcept && canvasChart && (
             <span className="text-stone-400 truncate">
               {canvasChart.catalog ? `catalog ${canvasChart.catalog} · ` : ""}drawn from your loaded report — the chat keeps the small version.
             </span>

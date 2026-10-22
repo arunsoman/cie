@@ -108,6 +108,55 @@ export interface CieReport {
   coverage: Coverage;
   evidence: EvidenceInfo;
   warnings: string[];
+  // A5 — the usecase-first projection, precomputed by the engine at full
+  // ingest and serialized on the artifact. Optional: artifacts written
+  // before the projection existed load without it (serde default), and the
+  // UI says so honestly instead of recomputing the chain client-side.
+  usecase_view?: UsecaseView[];
+}
+
+// ---- usecase_view (A5, mirrored from cie-concepts/src/lib.rs) ----
+
+/** One hop of the broader-story chain (nearest-broader first, ending at the Domain root). */
+export interface UsecaseLink {
+  id: number;
+  label: string;
+  kind: string;
+}
+
+/** One member function of a usecase, resolved against the symbol store. */
+export interface UsecaseMember {
+  symbol: number;
+  name: string;
+  qual_name: string;
+  file: string;
+  line: number;
+  /** Owning class name when the member is a method; null reported honestly. */
+  owner: string | null;
+}
+
+/** One class a usecase cuts across, with the participating member ids. */
+export interface UsecaseClass {
+  id: number;
+  label: string;
+  kind: string;
+  members: number[];
+}
+
+/** The engine's usecase-first record for one UseCase node: the induction
+ *  chain, the narrower stories hanging off it, and the resolved extent. */
+export interface UsecaseView {
+  id: number;
+  label: string;
+  intent: string[];
+  confidence: number;
+  coverage_ratio: number;
+  coverage_complete: boolean;
+  provenance: string;
+  chain: UsecaseLink[];
+  narrower: number[];
+  members: UsecaseMember[];
+  member_classes: UsecaseClass[];
 }
 
 // ---- viewspec.json ----
