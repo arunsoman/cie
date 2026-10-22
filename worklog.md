@@ -740,3 +740,22 @@ Work Log:
 
 Stage Summary:
 - The chat seam is closed end to end: ask → intent → bundle artifact → mapper → gate → negotiator → big canvas, with the honest fallback ladder intact underneath. A workspace without a bundle still gets the old (honest) answers — nothing about the existing paths changed when no pass ran.
+
+---
+Task ID: dup-kind-rule
+Agent: main (Z.ai)
+Task: "in the duplicate detection method, lets not add if one of the symbols is a class and another symbol is function type, because those are not duplicates — it's where that function is defined"
+
+Work Log:
+- Root cause confirmed in the data model before any edit: classes ARE lowered into ir_meta (ir.rs walks every symbol per file), so a class's op-bag is the union of its members' bags. A class whose only content is one function shares that function's EXACT ir_hash — the old engine emitted class × its-own-function as a canonical FACT pair at similarity 1.0; class × its big methods landed in high tier. Containment geometry, not duplication.
+- The rule (cie-polyglot/src/duplicates.rs): a pair with one side a container kind (class, trait) and the other a member kind (function, method) is never a duplicate at any tier. Kind vocabulary is the small normalized set from schema.rs decl_kinds (function/class/method/trait) → 5 u8 codes; one kind_excluded() check applied at BOTH emission points — the exact-hash grouping loop (canonical rows) and the candidate staging (skips before the cosine, so the pair never reaches verification or insert). Siblings keep comparing: fn×fn, fn×method, class×class, class×trait, across files included.
+- Honest accounting: excluded pairs leave BOTH the shown set and the hidden residual — hidden_gaps = C(n,2) − skipped − pairs; per-symbol hidden = n−1 − shown − skipped, where the per-symbol skip count is exact closed-form arithmetic (containers pair with every member exactly once: nm for a container, nc for a member), so no extra pass. DupReport.skipped_kind_mismatch printed by the CLI summary, bench_phases, dup_dump.
+- Brute-force reference mirrored (same exclusion before its tier ladder) so indexed_engine_matches_brute_force_reference pins rows + gaps + winner + skip count.
+- Tests: 2 new — class_and_its_function_are_not_duplicates (no row, skipped=1, gaps table 0); duplicated_classes_and_methods_survive_the_kind_rule (4 class×function combos excluded; the two REAL duplicates — class×class, fn×fn — stay canonical, every surviving row same-kind). Workspace 531 green (57 in cie-polyglot).
+- Behavior diff proven on the five-service sample (dup_dump before/after, old binary via git stash, ids deterministic): 581 → 355 shown pairs; 226 removed rows ALL container×member — kind-combination census: class×method 17+28, class×function 89+16, trait×function 51+2, trait×method 19+4 (both orders counted from the dump's a/b orientation); 8 more sub-floor pairs moved out of hidden (234 total excluded == the report counter, 14→6 hidden); 0 same-kind removals, 0 additions, 0 kept-pair changes. Checker committed as scripts/check-kind-rule.py (args: before-dump after-dump).
+- Perf note: detect on the sample 11.9→17.4ms is noise (kind check is 2 array loads per staged pair; the 6.7s repo-phase number is dominated by inserts which only shrink). Not re-benched at repo scale — the rule removes work, never adds it beyond one branch per touch.
+- Deliberately NOT changed (named for follow-up): nested class×class and nested fn×fn pairs (same-file span containment would be the precise rule there); the demo bundle web/public/data/polyglot/polyglot.json still reflects the old families (regenerating = data refresh, separate ask).
+- CHANGELOG 1.4.2.
+
+Stage Summary:
+- duplicates.detect no longer calls containment duplication: class/trait × function/method pairs are excluded before every tier, counted honestly in the report, and the diff against the old engine is proven to remove exactly and only those pairs. Sample: 581→355 shown (39% of pairs were containment artifacts).
