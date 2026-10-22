@@ -724,3 +724,19 @@ Work Log:
 Stage Summary:
 - The polyglot layer's §25 artifacts are now visible in the existing UI end to end: connect-a-repo → polyglot step → result API → store → mapper → gate → negotiated canvas, and the default five-service demo ships a real bundle.
 - Env notes: rust toolchain 1.99.1 reinstalled at ~/.cargo; web+viz-adapter node_modules reinstalled; cie-cli release binary rebuilt at target/release/cie.
+
+---
+Task ID: ui-polyglot-chat
+Agent: main (Z.ai)
+Task: chat integration — "draw the C4 architecture" from Ask CIE (the follow-on to ui-polyglot steps 1-3)
+
+Work Log:
+- Diagnosis by elimination: unit tests + loader proved tryPolyglotDraw correct against the real demo bundle, chunk grep proved the code shipped, yet the browser fell through to the OLD UML answer and the probe never fired — the answer text itself gave it away: mastery.ts's journey C4 prompt (C4_WORDS = /\bbig picture\b|\bc4\b|\bcontainers?\b/i, fast path 2) was intercepting "draw the C4 architecture" BEFORE the polyglot fast path 2a and drawing its file-table C4 (buildC4Spec).
+- Fix: polyglot fast path moved before mastery (order: story → quality → polyglot → mastery → draw-anything → live-impact → AI). When the bundle carries the kind, the byte-cited artifact wins; without a bundle every old path stands (pinned by a browser step: no-bundle workspace draws the store-derived c4/uml stand-in). The journey keeps "the big picture"/"containers" asks so its chip stays earnable; no UI source auto-sends a C4 ask (checked all setPendingAsk call sites).
+- Implementation: lib/polyglot-chat.ts (intent vocab + artifact resolve + counted-facts answer; named machine/impact-center picks beat first-in-stable-order; gate refusal = named result; honest kind-miss answers via polyglotDetail); store canvasPolyglot slot mutually exclusive with canvasChart (both cleared on project switches); stage PolyglotOnCanvas via exported ArtifactCanvas({big}) — 640px, own toolbar title/footer/close; starter "Draw the C4 architecture".
+- Vocabulary guards that testing forced: bare "pipeline" removed (a non-drawing ask "the pipeline is slow" must reach the AI); "how do requests flow" needed the auxiliary (do|does|is|are) in the pattern; pluralization fix ("0 hypotheses" not "hypothesiss").
+- Tests: web/test/polyglot-chat.test.cjs — 12 green (intent vocab, no-hijack: bare impact/who-calls/pipeline/secret/donut asks, fixture-backed gate re-runs per artifact, named/default picks, kind miss, empty bundle, no bundle, NON_FACT_WITHOUT_CLAIM named refusal). Browser smoke: 8/8 including the two new steps (chat→canvas on the five-service demo with the instant answer + REAL c4 artifact; honest stand-in fallback without a bundle). rfc0020 7/7; rfc0023 7/8 — the G6-mock "graph.getNodeData is not a function" failure pre-exists (pinned last session). tsc clean; rebuild before browser runs (stale .next lesson).
+- CHANGELOG 1.4.1. Committed cb4c64f, pushed; local == origin/main.
+
+Stage Summary:
+- The chat seam is closed end to end: ask → intent → bundle artifact → mapper → gate → negotiator → big canvas, with the honest fallback ladder intact underneath. A workspace without a bundle still gets the old (honest) answers — nothing about the existing paths changed when no pass ran.
