@@ -21,6 +21,8 @@ import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCocha
 import { isValidReport, isValidViewspec, isValidConcepts } from "./cie-types";
 import type { TechStack } from "./stack-types";
 import { isTechStack } from "./stack-types";
+import type { PolyglotBundle } from "./polyglot-types";
+import { isPolyglotBundle } from "./polyglot-types";
 import type { RepoScan } from "./language-profiles";
 import { useCie } from "./cie-store";
 
@@ -66,6 +68,7 @@ export async function restoreJobResult(jobId: string): Promise<boolean> {
     overlap?: CieOverlap | null;
     drift?: CieDrift | null;
     stack?: TechStack | null;
+    polyglotSpecs?: PolyglotBundle | null;
     label?: string;
     scan?: RepoScan | null;
     sourceRoot?: string | null;
@@ -79,6 +82,7 @@ export async function restoreJobResult(jobId: string): Promise<boolean> {
     overlap: data.overlap ?? null,
     drift: data.drift ?? null,
     stack: data.stack && isTechStack(data.stack) ? data.stack : null,
+    polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
     repoScan: data.scan ?? null,
     sourceRoot: data.sourceRoot ?? null,
   });

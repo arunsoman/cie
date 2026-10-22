@@ -47,7 +47,7 @@ import { providerLabel } from "@/lib/llm-config";
 import { UseYourOwnProjectDialog } from "@/components/cie/use-your-own-dialog";
 import { LlmSettingsDialog } from "@/components/cie/llm-settings";
 
-const EXPLORE_VIEWS: StageView[] = ["start", "map", "mindmap", "does", "fixes", "promises"];
+const EXPLORE_VIEWS: StageView[] = ["start", "map", "mindmap", "does", "fixes", "promises", "polyglot"];
 const CHART_VIEWS: StageView[] = ["numbers", "menu", "quality", "chart"];
 const WATCH_VIEWS: StageView[] = ["runtime", "deps"];
 const MASTER_VIEWS: StageView[] = ["mastery"];
@@ -170,6 +170,9 @@ export function Topbar() {
               <DropdownMenuItem onClick={go("promises")} className={view === "promises" ? "bg-emerald-50" : ""}>
                 <ShieldCheck className="h-4 w-4 text-stone-400" /> Promises
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={go("polyglot")} className={view === "polyglot" ? "bg-emerald-50" : ""}>
+                <Network className="h-4 w-4 text-stone-400" /> Named diagrams — C4, machines, flows
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -266,6 +269,7 @@ export function Topbar() {
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>What it does</DropdownMenuItem>
               <DropdownMenuItem onClick={go("fixes")} className={view === "fixes" ? "bg-emerald-50" : ""}>Things to look at</DropdownMenuItem>
               <DropdownMenuItem onClick={go("promises")} className={view === "promises" ? "bg-emerald-50" : ""}>Promises</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("polyglot")} className={view === "polyglot" ? "bg-emerald-50" : ""}>Named diagrams</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Watching it run</DropdownMenuLabel>
               <DropdownMenuItem onClick={go("runtime")} className={view === "runtime" ? "bg-emerald-50" : ""}>Runtime evidence</DropdownMenuItem>

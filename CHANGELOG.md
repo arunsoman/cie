@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.4.0 — the web UI renders the polyglot layer: Named diagrams (2026-10-22)
+
+The last mile of the PRD v2.0 seam, client side. The engine and the server
+pipeline were already wired (1.3.1: the `polyglot` analyze step ran
+`cie polyglot <dir> --viewspec all` and exposed `result.polyglotSpecs`) —
+but both browser consumers dropped the bundle on the floor: the store had
+no slot, no mapper existed, and no view could render a C4 diagram, a state
+machine, a workflow or an impact view. All four gaps closed; the artifacts
+now render through the same honesty law as everything else on the canvas.
+
+- **Store slot + both result consumers** (`web/src/lib/cie-store.ts`,
+  `web/src/components/cie/use-your-own-dialog.tsx`,
+  `web/src/lib/workspace-memory.ts`) — `polyglotSpecs` is now a first-class
+  slot on the zustand store; `setCustom` carries it in its extras; the
+  connect-a-repo dialog and the launch-time workspace restore both read it
+  from `/api/analyze/result`, guarded by `isPolyglotBundle` (a malformed
+  bundle is an honest null, never a crash). `loadDemo` fetches an optional
+  `polyglot.json` per sample directory — a sample without one loads fine.
+- **The mapper** (`web/src/lib/viz/polyglot-spec.ts`) — maps each bundle
+  spec onto the viz-adapter's `ViewSpec` shape: salience/fields defaults,
+  synthesized edge ids, the EpistemicFooter counted from the final element
+  AND edge sets, `{reason}` gaps → `{id, area, why}`, a ScopeAttestation,
+  and semanticHash/renderHash recomputed with the adapter's own functions.
+  Then the REAL gate runs on the mapped spec: a refusal is a named result
+  (stable codes printed verbatim), never a rendered lie. One refused spec
+  never takes the bundle down — each artifact gates independently.
+  Producer-named layout strategies without a dedicated renderer ride the
+  dagre baseline; an EDGLESS spec never gets a layering layout (dagre with
+  zero edges never settles — the same rule `chartView()` already applies;
+  found the hard way when the manifest-less sample's one-node C4 hung the
+  first smoke).
+- **The view** (`web/src/components/cie/polyglot-views.tsx`, stage view
+  `polyglot`, Explore-menu entry "Named diagrams — C4, machines, flows") —
+  an artifact picker in the producer's stable order (c4 → workflows →
+  machines → impact), one gated canvas per artifact via the same
+  negotiator/every other canvas view uses, epistemic footer + producer
+  disclosures (counter-arguments, fog reasons, counted-not-shown gaps),
+  text outline, Export Mermaid/PNG, and click → source panel at exactly
+  the cited bytes. A workspace without a bundle gets an honest empty
+  state, not a hidden menu.
+- **Demo + fixture** — `web/public/data/polyglot/polyglot.json` is the real
+  engine bundle over the five-service sample (37 specs: 1 honest single-
+  Domain C4, workflows, 35 impact views; every evidence path verified
+  against the demo's `report.json` file list); the same document is
+  committed as `web/test/fixtures/polyglot-bundle.json` so the suite is
+  hermetic.
+- **Tests** — `web/test/polyglot-bundle.test.cjs` (9 tests: the real
+  bundle maps and passes the gate spec by spec, ordering, labels, every
+  mapper fill-in, named refusals, per-artifact isolation) and
+  `web/test/polyglot-browser.cjs` (6 steps against a production server:
+  picker count equals spec-count, c4/workflows/impact render with their
+  epistemic footers, no client exceptions, honest empty state on the
+  bundle-less banking sample). rfc0020 7/7, tsc clean; rfc0023's G6-mock
+  unit failure pre-exists this change.
+
 ## 1.3.5 — polyglot duplicates: streaming CASE-literal bulk insert, redundant FK probes suspended (2026-10-21)
 
 Same outputs, no threads — third round of the perf campaign, aimed at the

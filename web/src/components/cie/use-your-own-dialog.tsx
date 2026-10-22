@@ -19,6 +19,8 @@ import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCocha
 import { isValidReport, isValidViewspec, isValidConcepts } from "@/lib/cie-types";
 import type { TechStack } from "@/lib/stack-types";
 import { isTechStack } from "@/lib/stack-types";
+import type { PolyglotBundle } from "@/lib/polyglot-types";
+import { isPolyglotBundle } from "@/lib/polyglot-types";
 import { rememberWorkspace } from "@/lib/workspace-memory";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
@@ -471,6 +473,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         overlap?: CieOverlap | null;
         drift?: CieDrift | null;
         stack?: TechStack | null;
+        polyglotSpecs?: PolyglotBundle | null;
         label?: string;
         scan?: RepoScan | null;
         sourceRoot?: string | null;
@@ -492,6 +495,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         overlap: data.overlap ?? null,
         drift: data.drift ?? null,
         stack: data.stack && isTechStack(data.stack) ? data.stack : null,
+        polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
         sourceRoot: data.sourceRoot ?? null,
       });
       setJobId(null);

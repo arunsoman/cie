@@ -39,6 +39,7 @@ import { MenuView } from "@/components/cie/menu-tab";
 import { QualityView } from "@/components/cie/quality-view";
 import { MasteryView } from "@/components/cie/mastery-view";
 import { AtlasView } from "@/components/cie/atlas-view";
+import { PolyglotView } from "@/components/cie/polyglot-views";
 import { CieAdminView } from "@/components/cie/cie-admin-view";
 
 const CANVAS_VIEWS: StageView[] = ["map", "chart"];
@@ -57,6 +58,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
   atlas: { title: "Atlas", caption: "Four synchronized views over one selection — containers, components, sequence, data flow." },
+  polyglot: { title: "Named diagrams", caption: "C4 architecture, state machines, workflows and impact views the engine can evidence — every box cites the bytes that earned it." },
   admin: { title: "CIE Admin", caption: "Every data structure CIE holds for this project — query and browse it directly." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },
   mastery: { title: "Master this codebase", caption: "Four sections: the paragraph, the mains, the routes, the flows." },
@@ -158,6 +160,7 @@ export function Stage() {
             {view === "runtime" && <RuntimeView />}
             {view === "quality" && <QualityView />}
             {view === "mastery" && <MasteryView />}
+            {view === "polyglot" && <PolyglotView />}
           </div>}
         </div>
       )}

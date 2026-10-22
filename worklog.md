@@ -704,3 +704,23 @@ Work Log:
 Stage Summary:
 - duplicates.detect 17.7s → 6.7s; pipeline >590s (round start) → 81s → 39s → 28s. Output byte-identical at every step.
 - Named remainders: ingest_and_lower 17.2s (shape stream already one-pass; re-parse-per-file is §11.10 by design) is now the biggest phase; inside duplicates, the ~5.9s core insert (B-tree + record building for 1.1GB of rows) has no safe lever left — the FK probes were the only big one and are taken. IDF weighting remains the deferred semantic decision (it would change similarities).
+
+---
+Task ID: ui-polyglot
+Agent: main (Z.ai)
+Task: "yes 1 and 2 and then 3" — connect the existing UI to the new polyglot backend: (1) store slot + both result consumers, (2) PolyglotViewSpec→ViewSpec mapper + gate tests, (3) UI surfaces for C4/state-machines/workflows/impact.
+
+Work Log:
+- Gap audit confirmed the server half was done (analyze step runs `cie polyglot --viewspec all`, exposes result.polyglotSpecs) while both browser consumers dropped the bundle: no slot in cie-store, no mapper, no view.
+- Step 1: `polyglotSpecs` slot on the zustand store; `setCustom` extras carry it; showProject() (use-your-own-dialog) and restoreJobResult() (workspace-memory) now read data.polyglotSpecs guarded by isPolyglotBundle; loadDemo fetches optional `${dir}/polyglot.json` (honest null when absent).
+- Step 2: web/src/lib/viz/polyglot-spec.ts — mapPolyglotSpec fills the adapter contract (salience/fields defaults, synthesized edge ids, EpistemicFooter counted over elements AND edges, {reason}→{id,area,why} gaps, ScopeAttestation, recomputeSemanticHash/renderHash) then runs the REAL gate; refusal = named result with stable codes; artifacts gate independently (one refusal never takes the bundle down). layoutHint: producer names ride dagre/elk baseline; edgeless specs forced to grid.
+- Step 3: web/src/components/cie/polyglot-views.tsx — PolyglotView with artifact picker (stable order c4→workflows→machines→impact), ArtifactCanvas via planSheet+renderViaNegotiator+SelectionConductor (same path as ChatChart), epistemic footer + producer disclosures (counter-argument/fogReason/gaps), text outline, Export Mermaid/PNG, click→openSourceViewer at the cited bytes; StageView "polyglot" + TITLES + stage branch + Explore/mobile menu entries; honest empty state when no bundle.
+- Sandbox reset discovered mid-task: web/node_modules, target/, and the Rust toolchain were gone — reinstalled (npm install ×2, rustup 1.99.1), rebuilt cie-cli release (5m30s).
+- Demo + fixture: `cie polyglot samples/polyglot --viewspec all` → 37 specs in 0.12s (c4=1 honest single-Domain node, workflows 11/2, 35 impact views; 0.86MB); every evidence file verified present in the demo report.json file list; committed as web/public/data/polyglot/polyglot.json AND web/test/fixtures/polyglot-bundle.json (hermetic suite).
+- Tests: web/test/polyglot-bundle.test.cjs — 9 tests, all green (real-bundle gate pass spec-by-spec, ordering, labels, fill-ins, named refusals, isolation). web/test/polyglot-browser.cjs — production-server smoke, 6 steps all PASS (picker count == spec-count, c4/workflows/impact render with footers, no client exceptions, honest empty state on the banking sample). rfc0020 7/7; tsc clean; rfc0023 G6-mock failure pre-exists.
+- Debug findings worth keeping: (a) dagre with ZERO edges never settles in G6 v5 — chartView's `edges.length ? dagre : grid` rule is a law, now encoded in the mapper and pinned by a unit test; (b) a browser-test waitForFunction on /layout/ matches the export row's "Layout" select label from first paint — settle on /Rendered:|declined/ instead; (c) background processes die between Bash tool calls in this sandbox — long builds must run in the foreground call.
+- CHANGELOG 1.4.0 entry.
+
+Stage Summary:
+- The polyglot layer's §25 artifacts are now visible in the existing UI end to end: connect-a-repo → polyglot step → result API → store → mapper → gate → negotiated canvas, and the default five-service demo ships a real bundle.
+- Env notes: rust toolchain 1.99.1 reinstalled at ~/.cargo; web+viz-adapter node_modules reinstalled; cie-cli release binary rebuilt at target/release/cie.

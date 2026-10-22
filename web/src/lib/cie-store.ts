@@ -15,6 +15,7 @@ import { addChipState, addContext, type ChatContextElement } from "./chat-contex
 import { create } from "zustand";
 import type { CieReport, CieViewSpec, ConceptTree, VizElement, CieDeps, CieRuntime, CieStories, CieQuality, CieCochange, CieOverlap, CieDrift } from "./cie-types";
 import type { TechStack } from "./stack-types";
+import type { PolyglotBundle } from "./polyglot-types";
 import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
@@ -46,6 +47,7 @@ export type StageView =
   | "quality"
   | "mastery"
   | "atlas"
+  | "polyglot"
   | "admin"
   | "chart";
 
@@ -96,6 +98,7 @@ interface CieState {
   overlap: CieOverlap | null; // capability overlap over the concept tree (cie overlap) — null when none
   drift: CieDrift | null; // real claim-extraction + verification over the project's own docs (cie drift) — null when no docs found
   stack: TechStack | null; // the engine's tech-stack artifact (cie stack) — null when the pass found nothing
+  polyglotSpecs: PolyglotBundle | null; // PRD v2.0 polyglot bundle (cie polyglot --viewspec all) — C4, state machines, workflows, impact views; null when the pass found nothing nameable
   source: DataSource;
   label: string;
   loading: boolean;
@@ -149,6 +152,7 @@ interface CieState {
       overlap?: CieOverlap | null;
       drift?: CieDrift | null;
       stack?: TechStack | null;
+      polyglotSpecs?: PolyglotBundle | null;
       sourceRoot?: string | null;
     }
   ) => void;
@@ -220,6 +224,7 @@ export const useCie = create<CieState>((set, get) => ({
   overlap: null,
   drift: null,
   stack: null,
+  polyglotSpecs: null,
   demoKind: "polyglot",
   source: null,
   label: "",
@@ -261,7 +266,7 @@ export const useCie = create<CieState>((set, get) => ({
       // this engine's own monorepo without its own .git root, so `cie
       // cochange` there would mine the ENGINE's commit history, not the
       // sample's — honestly null beats a misleading real-looking chart.
-      const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift, stack] = await Promise.all([
+      const [report, viewspec, concepts, deps, runtime, stories, quality, overlap, drift, stack, polyglotSpecs] = await Promise.all([
         fetch(`${dir}/report.json`).then((r) => r.json()),
         fetch(`${dir}/viewspec.json`).then((r) => r.json()),
         fetch(`${dir}/concepts.json`).then((r) => r.json()),
@@ -272,6 +277,10 @@ export const useCie = create<CieState>((set, get) => ({
         fetch(`${dir}/overlap.json`).then((r) => r.json()).catch(() => null),
         fetch(`${dir}/drift.json`).then((r) => r.json()).catch(() => null),
         fetch(`${dir}/stack.json`).then((r) => r.json()).catch(() => null),
+        // PRD v2.0 named diagrams (C4, state machines, workflows, impact).
+        // Optional like every extra: a sample without the file loads, the
+        // Named-diagrams view shows the honest empty state.
+        fetch(`${dir}/polyglot.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       const fault=await fetch(`${dir}/fault.json`).then(r=>r.ok?r.json():null).catch(()=>null);
       if(report && fault?.revision===report.rev && fault.execution_performed===false && fault.runtime_observed===false) report.fault_analysis=fault;
@@ -287,6 +296,7 @@ export const useCie = create<CieState>((set, get) => ({
         overlap,
         drift,
         stack,
+        polyglotSpecs,
         demoKind,
         source: "demo",
         label:
@@ -338,6 +348,7 @@ export const useCie = create<CieState>((set, get) => ({
       overlap: extra?.overlap ?? null,
       drift: extra?.drift ?? null,
       stack: extra?.stack ?? null,
+      polyglotSpecs: extra?.polyglotSpecs ?? null,
       source: "custom",
       label,
       loading: false,
