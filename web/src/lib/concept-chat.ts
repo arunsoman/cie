@@ -58,6 +58,14 @@ interface UsecaseEntry {
   label: string;
   lower: string;
   symbols: number[];
+  /** broader-story ids (the A1 induction chain) — lets a word that several
+   *  chained stories share resolve to the NARROWEST of them instead of a
+   *  refusal, the same most-specific-wins rule the label paths use */
+  chain: number[];
+  /** symbol ids the story's class cut participates in (A5 member_classes) —
+   *  lets "draw the flowchart of Berth" scope to the stories that class
+   *  cuts across, even though classes themselves are never extent members */
+  classSymbols: Set<number>;
 }
 
 /** The usecase index — from the A5 projection when the artifact carries
@@ -71,16 +79,50 @@ export function usecaseIndex(
   const nodes = new Map<number, ConceptNode>();
   for (const n of concepts.nodes) if (n.kind === "UseCase") nodes.set(n.id, n);
   if (report?.usecase_view?.length) {
+    // The class-cut records carry the class's LABEL (and its members'),
+    // not the class symbol's own id — resolve the label against the
+    // symbol table so "draw the flowchart of the cart" can scope through
+    // the Cart class. Min id wins on name collisions (deterministic).
+    const symIdByName = new Map<string, number>();
+    for (const s of report.symbols) {
+      const k = s.name.toLowerCase();
+      const cur = symIdByName.get(k);
+      if (cur === undefined || s.id < cur) symIdByName.set(k, s.id);
+    }
     return report.usecase_view
       .filter((u) => nodes.has(u.id))
-      .map((u) => ({ id: u.id, label: u.label, lower: u.label.toLowerCase(), symbols: u.members.map((m) => m.symbol) }));
+      .map((u) => ({
+        id: u.id,
+        label: u.label,
+        lower: u.label.toLowerCase(),
+        symbols: u.members.map((m) => m.symbol),
+        chain: u.chain.map((c) => c.id),
+        classSymbols: new Set(
+          u.member_classes
+            .map((c) => symIdByName.get(c.label.toLowerCase()))
+            .filter((x): x is number => x !== undefined),
+        ),
+      }));
   }
   return [...nodes.values()].map((n) => ({
     id: n.id,
     label: n.label,
     lower: n.label.toLowerCase(),
     symbols: n.symbols,
+    chain: [],
+    classSymbols: new Set<number>(),
   }));
+}
+
+/** Word tokens of one name: camelCase / snake / qualification boundaries
+ *  split, lowercased — "BookingService.chargeAll" → [booking, service,
+ *  charge, all]. Pieces under 2 chars are dropped ("Lock" stays one). */
+function nameTokens(name: string): string[] {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^a-zA-Z0-9]+/)
+    .filter((t) => t.length >= 2)
+    .map((t) => t.toLowerCase());
 }
 
 /** Word-bounded containment — "sh" must not match inside "show", "time"
@@ -108,9 +150,39 @@ export function tryConceptDraw(
   const index = usecaseIndex(report, concepts);
   const q = question.toLowerCase();
   const diagramNoun = kind === "flowchart" ? "flowchart" : "sequence diagram";
+  const qTokens = new Set(nameTokens(question));
 
-  // 1 — a usecase label the question verbatim contains (longest label
-  // wins: "checkout payment" beats "payment" for "…of checkout payment").
+  // 1 — a usecase label whose EVERY DISTINCTIVE word the question
+  // carries, word order free: "draw the flow of http route" reaches the
+  // story the engine named "docker-managed & http-route", and "payment
+  // checkout" reaches "checkout payment". This outranks the plain
+  // verbatim hit because it is strictly stronger evidence of intent: a
+  // single shared word ("payment" alone) must NOT outvote the story the
+  // question fully names. Tokens that appear in EVERY label
+  // ("docker-managed" here) are the project's theme, not a discriminator,
+  // and are dropped — demanding them would refuse an ask that named the
+  // one thing that sets the story apart. Longest label wins; nobody
+  // types machine compound labels verbatim.
+  const tokenFreq = new Map<string, number>();
+  for (const u of index)
+    for (const t of new Set(nameTokens(u.lower).filter((t) => t.length >= 3)))
+      tokenFreq.set(t, (tokenFreq.get(t) ?? 0) + 1);
+  const byLabelTokens = index
+    .map((u) => {
+      const toks = nameTokens(u.lower).filter(
+        (t) => t.length >= 3 && (tokenFreq.get(t) ?? 0) < index.length,
+      );
+      return { u, hit: toks.length > 0 && toks.every((t) => qTokens.has(t)) };
+    })
+    .filter((x) => x.hit)
+    .map((x) => x.u)
+    .sort((a, b) => b.lower.length - a.lower.length || a.id - b.id);
+  if (byLabelTokens.length > 0) return draw(byLabelTokens[0], kind, report, concepts, byLabelTokens.length > 1);
+
+  // 1b — a usecase label the question verbatim contains (longest label
+  // wins: "checkout payment" beats "payment"). The safety net for labels
+  // whose words are ALL theme tokens, so the distinctive-word rule above
+  // has nothing left to demand.
   const byLabel = index
     .filter((u) => containsWord(q, u.lower))
     .sort((a, b) => b.lower.length - a.lower.length || a.id - b.id);
@@ -128,20 +200,29 @@ export function tryConceptDraw(
   if (matched.size > 0) {
     const longest = [...matched.keys()].reduce((a, b) => (b.length > a.length ? b : a));
     const symbolId = matched.get(longest)!;
-    const holding = index.filter((u) => u.symbols.includes(symbolId));
-    if (holding.length === 1) return draw(holding[0], kind, report, concepts, false);
-    if (holding.length > 1) {
-      const names = holding
-        .slice()
-        .sort((a, b) => a.id - b.id)
-        .map((u) => `“${u.label}”`)
-        .join(", ");
-      return {
-        answer: `More than one usecase holds the member “${longest}”: ${names}. Name the story you mean and I'll draw its ${diagramNoun} — each story is its own picture, and I don't merge them.`,
-        conceptId: null,
-        kind,
-      };
+    const res = resolveStories(index, [symbolId]);
+    if (res) return finishScoped(res, kind, report, concepts, longest, diagramNoun);
+  }
+
+  // 2b — the words of a name: "booking" never appears word-bounded inside
+  // "BookingService", but it IS one of that name's spoken parts. One
+  // longest token (≥4 chars, so "get"/"set" never decide) scopes the
+  // story set — across members AND the stories' class cuts.
+  const tokenIndex = new Map<string, Set<number>>(); // token → symbol ids
+  for (const s of report.symbols) {
+    for (const tok of nameTokens(s.name)) {
+      if (tok.length < 4) continue;
+      if (!tokenIndex.has(tok)) tokenIndex.set(tok, new Set());
+      tokenIndex.get(tok)!.add(s.id);
     }
+  }
+  const tokenHits = [...tokenIndex.keys()]
+    .filter((t) => qTokens.has(t))
+    .sort((a, b) => b.length - a.length || a.localeCompare(b));
+  if (tokenHits.length > 0) {
+    const tok = tokenHits[0];
+    const res = resolveStories(index, [...tokenIndex.get(tok)!]);
+    if (res) return finishScoped(res, kind, report, concepts, tok, diagramNoun);
   }
 
   // 3 — an explicit target nothing resolves: the named refusal. What CIE
@@ -189,6 +270,54 @@ export function tryConceptDraw(
   // whole-project flow picture is the right answer for a bare "draw the
   // flowchart", and it stays theirs.
   return null;
+}
+
+/** The story set a resolved symbol scopes: the usecases that hold it as a
+ *  MEMBER, or — for a container the extents never contain, like a class —
+ *  the usecases whose recorded class cut it participates in. Null when no
+ *  story relates to the symbol at all (the caller's refusal wording takes
+ *  over). */
+function resolveStories(
+  index: UsecaseEntry[],
+  symbolIds: number[],
+): { holding: UsecaseEntry[]; viaClass: boolean } | null {
+  const ids = new Set(symbolIds);
+  const holding = index.filter((u) => u.symbols.some((s) => ids.has(s)));
+  if (holding.length > 0) return { holding, viaClass: false };
+  const viaClass = index.filter((u) => [...u.classSymbols].some((s) => ids.has(s)));
+  if (viaClass.length > 0) return { holding: viaClass, viaClass: true };
+  return null;
+}
+
+/** Turn a scoped story set into the answer: draw the unambiguous one, or
+ *  name every story that shares it — never merge them into one picture. */
+function finishScoped(
+  res: { holding: UsecaseEntry[]; viaClass: boolean },
+  kind: ConceptDiagramKind,
+  report: CieReport,
+  concepts: ConceptTree,
+  name: string,
+  diagramNoun: string,
+): ConceptDrawResult {
+  const sorted = [...res.holding].sort((a, b) => a.id - b.id);
+  // Most-specific-wins: when the stories sharing the word form a chain
+  // (one is narrower than all the others), draw THAT one and say the
+  // broader matches stand — the same longest-label-wins rule the label
+  // paths use, applied to membership instead of words. Never merge.
+  if (sorted.length > 1) {
+    const narrowest = sorted.filter((u) =>
+      sorted.every((o) => o.id === u.id || u.chain.includes(o.id)),
+    );
+    if (narrowest.length === 1) return draw(narrowest[0], kind, report, concepts, true);
+  }
+  if (sorted.length === 1) return draw(sorted[0], kind, report, concepts, false);
+  const names = sorted.map((u) => `“${u.label}”`).join(", ");
+  const relation = res.viaClass ? "cuts across" : "holds";
+  return {
+    answer: `More than one usecase ${relation} “${name}”: ${names}. Name the story you mean and I'll draw its ${diagramNoun} — each story is its own picture, and I don't merge them.`,
+    conceptId: null,
+    kind,
+  };
 }
 
 /** Build the answer from the actual mapper output — counts and gaps are

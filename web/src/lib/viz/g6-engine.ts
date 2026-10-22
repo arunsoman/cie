@@ -13,7 +13,8 @@
 //     pre-layout client-side via @antv/hierarchy, then G6 only renders —
 //     the same math that fixed the concept tree's geometry;
 //   - every other strategy goes to G6's own layout registry untouched;
-//   - pan/zoom/drag behaviors, autoFit, autoResize;
+//   - autoFit, autoResize; G6's own pan/zoom/drag BEHAVIORS are
+//     deliberately off everywhere (see NAVIGATION note below);
 //   - every element click fires the patch-1 selection surface
 //     (setSelected(ids, 'user') — loop-guarded, echo-suppressed);
 //   - canvas export helper for the print/export persona stories.
@@ -46,6 +47,22 @@ export const TREE_LAYOUTS = new Set([
   "dendrogram",
   "indented",
 ]);
+
+// ── NAVIGATION IS SINGLE-LAYERED (the "charts move / zoom loses control" fix)
+//
+// G6's zoom-canvas/drag-canvas/drag-element behaviors attach their own wheel
+// and pointer listeners to the graph's canvas. On the stage that DOUBLE-
+// HANDLES every gesture: the stage camera (camera-stage.tsx) wheel-zooms the
+// wrapper while G6 simultaneously zooms the inner graph at a different
+// anchor — one tick left the outer camera at 162% while the graph had zoomed
+// too, and a drag panned both layers at once. The toolbar's % then reads a
+// number that no longer describes what the visitor sees. In document views
+// the same wheel listener swallowed scrolling over a chart. So: G6 never
+// owns navigation anywhere in this app. On the stage the CAMERA owns zoom
+// and pan (one gesture, one layer, honest toolbar); in document views the
+// page owns the wheel. Element CLICKS and the selection surface are wired
+// separately below and are unaffected.
+const G6_BEHAVIORS: string[] = [];
 
 const STROKE: Record<string, string> = {
   Fact: "#2ea043",
@@ -216,7 +233,102 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
     data: { nodes, edges },
     node: { type: "rect" },
     edge: { type: "polyline", style: { router: { type: "orth" } } },
-    behaviors: ["drag-canvas", "zoom-canvas"],
+    behaviors: G6_BEHAVIORS,
+  });
+}
+
+/** True when the spec IS a lifeline sequence — the B3 mapper's shape:
+ *  every element is a `lifeline` (a class/module lane) and the edges are
+ *  `message:<text>` cross-class calls in reading order. These must render
+ *  as LANES, not through a force/dagre layout — a one-class story through
+ *  the generic branch used to come out as one giant circle. */
+function isLifelineSequence(spec: ViewSpec): boolean {
+  return (
+    spec.elements.length > 0 &&
+    spec.elements.every((e) => e.elementKind === "lifeline")
+  );
+}
+
+/** Lifeline lanes — the concept-sequence renderer. Elements are the lanes
+ *  (deduped classes, entries' lanes first — the mapper's order IS the
+ *  reading order), edges are `message:<text>` cross-class messages already
+ *  ordered from the entry points outward (fields.depth when present, else
+ *  edge order). Lane headers top and bottom, dashed lifelines between,
+ *  one horizontal arrow per message at successive depths. */
+function renderLifelineSequence(container: HTMLElement, spec: ViewSpec): Graph {
+  const lanes = spec.elements;
+  const laneIds = new Set(lanes.map((l) => l.id));
+  const msgs = spec.edges
+    .map((e, i) => ({
+      e,
+      i,
+      depth: typeof e.fields?.depth === "number" ? (e.fields.depth as number) : i,
+      label: e.edgeKind.startsWith("message:") ? e.edgeKind.slice("message:".length) : e.edgeKind,
+    }))
+    .filter((m) => laneIds.has(m.e.source) && laneIds.has(m.e.target))
+    .sort((a, b) => a.depth - b.depth || a.i - b.i);
+
+  const LANE_W = 170, HEADER_Y = 30, HEADER_H = 32, ROW_H = 56;
+  const laneX = new Map(lanes.map((l, i) => [l.id, 60 + i * LANE_W]));
+  const bodyTop = HEADER_Y + HEADER_H + 40;
+  const footerY = bodyTop + Math.max(msgs.length, 1) * ROW_H + 20;
+  container.style.height = `${Math.max(280, Math.min(900, footerY + HEADER_H + 30))}px`;
+
+  const nodes: { id: string; style: Record<string, unknown>; data: Record<string, unknown> }[] = [];
+  for (const lane of lanes) {
+    const x = laneX.get(lane.id)!;
+    const w = Math.min(LANE_W - 10, boxWidth(lane.label));
+    for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
+      nodes.push({
+        id: `${lane.id}:${key}`,
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane.label, labelFontSize: 10.5, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        data: { label: lane.label },
+      });
+    }
+  }
+  const edges: { id: string; source: string; target: string; style: Record<string, unknown>; data?: Record<string, unknown> }[] = [];
+  for (const lane of lanes) {
+    edges.push({
+      id: `lifeline:${lane.id}`,
+      source: `${lane.id}:top`,
+      target: `${lane.id}:bottom`,
+      style: { stroke: "#9aa39c", lineWidth: 1.2, lineDash: [3, 4], endArrow: false },
+    });
+  }
+  msgs.forEach(({ e, label }, row) => {
+    const y = bodyTop + row * ROW_H;
+    const fromId = `${e.id}::from`, toId = `${e.id}::to`;
+    nodes.push({ id: fromId, style: { x: laneX.get(e.source)!, y, size: 1, opacity: 0 }, data: {} });
+    nodes.push({ id: toId, style: { x: laneX.get(e.target)!, y, size: 1, opacity: 0 }, data: {} });
+    const st = STROKE[e.displayMode] ?? STROKE.Fact;
+    edges.push({
+      id: e.id,
+      source: fromId,
+      target: toId,
+      style: {
+        stroke: st,
+        lineDash: DASH[e.displayMode],
+        lineWidth: e.displayMode === "Fact" ? 1.8 : 1.4,
+        endArrow: true,
+        labelText: label,
+        labelFontSize: 10.5,
+        labelAutoRotate: false,
+        labelBackground: true,
+        labelBackgroundFill: "#f7f8f4",
+      },
+      data: { label, displayMode: e.displayMode },
+    });
+  });
+
+  return new Graph({
+    container,
+    autoResize: true,
+    autoFit: "view",
+    padding: 20,
+    data: { nodes, edges },
+    node: { type: "rect" },
+    edge: { type: "line" },
+    behaviors: G6_BEHAVIORS,
   });
 }
 
@@ -244,6 +356,10 @@ async function renderSpecG6(
 
   if (strategy === "sequence-lanes") {
     graph = renderSequence(container, spec);
+  } else if (isLifelineSequence(spec)) {
+    // B3 concept sequences: lifelines are the lanes, message: edges the
+    // arrows — the geometry is semantic, never re-laid-out.
+    graph = renderLifelineSequence(container, spec);
   } else if (TREE_LAYOUTS.has(strategy)) {
     // Pre-layout client-side (the concept-tree math), then render.
     const pos = layoutTree(spec, strategy);
@@ -301,7 +417,7 @@ async function renderSpecG6(
       data: { nodes, edges },
       node: { type: "rect" },
       edge: { type: "cubic-horizontal" },
-      behaviors: ["drag-canvas", "zoom-canvas"],
+      behaviors: G6_BEHAVIORS,
     });
   } else {
     if (strategy === "elk-layered") {
@@ -320,7 +436,7 @@ async function renderSpecG6(
       autoResize: true,
       autoFit: "view",
       padding: 16,
-      behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
+      behaviors: G6_BEHAVIORS,
       ...(rest as Record<string, unknown>),
       data: cfg.data as never,
     });
@@ -362,7 +478,11 @@ async function renderSpecG6(
     engineId: "g6",
     semanticHash: spec.semanticHash,
     renderHash: recomputeRenderHash(spec, "g6"),
-    layout: g6LayoutOutcome(spec),
+    layout: isLifelineSequence(spec)
+      ? // the lanes rendered — disclose the truth instead of the adapter's
+        // "dagre substituted" story for a diagram that never saw dagre
+        { requested: (spec.layoutHint as { strategy?: string } | undefined)?.strategy, actual: "sequence-lanes", fidelity: "Exact" }
+      : g6LayoutOutcome(spec),
     onSelection(cb) {
       return hub.subscribe(cb);
     },
@@ -439,6 +559,11 @@ export function g6HostRuntime(): HostRenderRuntime {
       const graph = graphs.get(handle);
       if (!graph) throw new Error("g6 host: relayout on a dead handle");
       const original = specs.get(handle)!;
+      if (isLifelineSequence(original)) {
+        // lane geometry is semantic — a layout swap would re-dagre the
+        // lanes back into floating boxes; decline honestly instead
+        return { requested: hint.strategy, actual: "sequence-lanes", fidelity: "Exact" };
+      }
       const next = { ...original, layoutHint: hint };
       const outcome = g6LayoutOutcome(next);
       if (

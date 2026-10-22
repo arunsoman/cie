@@ -74,6 +74,12 @@ const DEADLOCK_WORDS = /\bdeadlocks?\b/i;
 // doesn't get silently hijacked into the runtime-concurrency chart.
 const CONCURRENCY_WORDS = /\b(concurren|threads? (ran|run|overlap)|overlap(ping)? (thread|time|run)|parallel)\b/i;
 
+// A GENERIC drawing request: a drawing verb with an unspecified chart
+// noun ("draw a chart", "show me a diagram"). Matched on the ORIGINAL
+// question — the verb is often outside the lowercased vocabularies above.
+const GENERIC_CHART_ASK =
+  /\b(?:draw|show|plot|render|visuali[sz]e|give|open)\b[^.?!]*\b(chart|diagram|graph|picture|visual)s?\b/i;
+
 export interface DrawResult {
   answer: string;
   chart: ChatChartSpec | null; // null → honest answer with no picture
@@ -202,6 +208,23 @@ export function tryDrawAnything(
   if (STAT_WORDS.test(q)) {
     const s = statFor(q, report);
     if (s) return { answer: s.answer, chart: s.chart };
+  }
+
+  // A GENERIC chart ask — "draw a chart", "show me a diagram" — no kind
+  // named. This used to fall to the AI, which replied with a menu and
+  // drew nothing; the honest default is the project's structure map (the
+  // same picture "the map" draws), with the menu named in words. Only an
+  // actual REQUEST shape counts (a drawing verb + the noun): "explain
+  // this chart" keeps reaching the AI.
+  if (GENERIC_CHART_ASK.test(question)) {
+    const built = buildUmlSpec(report, viewspec, concepts, "The map of your project");
+    if (built)
+      return {
+        answer:
+          "Here is the map of your project — boxes are its parts (files, stories, rules) and arrows how they connect. " +
+          "Without a kind this project can answer with, this is the structure picture; if you wanted another, say the word: the call flow, a bar chart, a donut, a table, or a usecase's own flowchart.",
+        chart: built,
+      };
   }
 
   // Nothing matched — let the AI answer from the digest as before.

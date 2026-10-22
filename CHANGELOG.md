@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.6.1 — the canvas tells the truth again: one navigation layer, real lanes, charts that draw (2026-10-23)
+
+Three user-reported defects, root-caused and fixed at the seam where the
+stage camera, the G6 host runtime and the concept surfaces meet.
+
+- **Navigation is single-layered (the "charts move / zoom loses control"
+  fix)** — every G6 graph shipped with its own `zoom-canvas` /
+  `drag-canvas` / `drag-element` behaviors while the stage camera ALSO
+  wheel-zoomed and drag-panned the wrapper. One wheel tick zoomed both
+  layers at different anchors (the toolbar % tracking only one of them —
+  repro: 100% → 162% while the graph had zoomed too); one drag panned
+  both. In document views G6's wheel listener swallowed the page scroll
+  outright. Now G6 never owns navigation anywhere: on the stage the
+  camera is the one gesture → one layer → honest toolbar; in doc views
+  the page owns the wheel; clicks and the selection surface are
+  unaffected (browser-proven: the canvas buffer is byte-identical under
+  drags and wheel zooms, and the wrapper pans by exactly the pointer
+  delta). The admin grid loses its `zoom-canvas` for the same reason.
+- **Concept sequences render as lanes, not a dagre circle** — the B3
+  mapper emits lifeline elements + `message:` edges with a deliberately
+  engine-neutral layout hint, and the generic dagre branch turned a
+  one-class story into one giant circle filling the canvas. The host
+  runtime now recognizes a lifeline-shaped spec and draws real lanes:
+  header boxes top and bottom, dashed lifelines, one horizontal arrow
+  per cross-class message ordered by the BFS depth that (as of this
+  release) actually rides the edge in `fields.depth` — the mapper's
+  caption promised it; now the data keeps the promise (ViewEdge grows an
+  optional `fields` bag in viz-adapter). The disclosure names the truth
+  — `layout sequence-lanes (Exact)` — and relayout honestly declines to
+  re-dagre a sequence's semantic geometry.
+- **The Usecases section draws the story first** — the section used to
+  offer two buttons whose only effect was navigating you AWAY to the
+  canvas. Now the story's diagram lives inline in the section
+  (Flowchart/Sequence toggle, epistemic footer, disclosures, exports,
+  text outline — the full gated canvas, section-sized), with "Open on
+  the big canvas" as the explicit step, not a side effect of asking.
+- **Drawing asks draw** — "draw a chart" / "draw a diagram" (a drawing
+  verb + an unspecified chart noun) fell through to the AI, which
+  replied with a clarifying menu and drew nothing; now they draw the
+  project's structure map instantly, kinds named in the answer, while
+  non-requests ("explain this chart") still reach the AI. A named ask in
+  the user's own words resolves instead of refusing: "booking" reaches
+  the story holding BookingService (camelCase/qual-name word tokens,
+  longest token wins, ≥4 chars so "get"/"set" never decide), a story
+  chain resolves to its narrowest story (most-specific-wins, the
+  label-rule applied to membership), and a class word scopes through the
+  A5 class cut — with every refusal still honest and counted.
+- **The canvas chart host is big where the canvas is** — ChatChart grows
+  a `big` prop (640px host) for the stage, so a 100-node call flow no
+  longer autoFits into a 300px strip that reads as "nothing was drawn".
+
+Suites: web node 66+ (concept-chat 18, draw-anything 5 new, B3 9,
+polyglot 12+9, usecase 7, rfc0020 7, rfc0023 8), browser smokes concept
+9/9, rfc0020 5/5, rfc0023 6/6, polyglot 8/8; viz-adapter 310/310;
+tsc clean. The browser smoke re-anchored to the inline first: the
+section draws the flowchart without navigating, the Sequence toggle
+discloses `sequence-lanes`, and the big-canvas step is explicit.
+
 ## 1.6.0 — Phase D: the sweep — nested containment, fresh demo data, remembered stories (2026-10-22)
 
 Phase D of the concepts plan — every deferred observation from A/B/C,

@@ -56,8 +56,10 @@ const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
    const defaultId=proj.find(u=>u.chain.length>1)?.id??proj[0]?.id;
    const pick=proj[proj.length-1];
    assert.ok(pick&&pick.id!==defaultId,'demo data: the picked story differs from the deterministic default, or the step proves nothing');
-   // pick it in the select (options render in a radix portal)
-   await view.getByRole('combobox').click();
+   // pick it in the select (options render in a radix portal) — the
+   // story picker is the radix trigger; the inline diagram's layout
+   // <select> is a plain element and must not enter this locator
+   await view.locator('[data-slot="select-trigger"]').click();
    await page.getByRole('option').filter({hasText:`${pick.label} ·`}).click();
    await view.getByText(`Who does \u201c${pick.label}\u201d`).waitFor();
    // leave the section entirely (unmount) and come back (remount) —
@@ -65,30 +67,49 @@ const {chromium}=require(process.env.CIE_PLAYWRIGHT||'playwright');
    await page.getByRole('button',{name:'Explore',exact:true}).click();
    await page.getByRole('menuitem',{name:'Start here',exact:true}).click();
    await openUsecases();
-   const trigger=await view.getByRole('combobox').textContent();
+   const trigger=await view.locator('[data-slot="select-trigger"]').textContent();
    assert.ok(trigger&&trigger.includes(pick.label),'the remembered story is open again, not the default');
    await view.getByText(/Who does /).waitFor();
   });
 
-  await step('"Draw the flowchart" opens the story\u2019s flowchart on the big canvas',async()=>{
-   await page.locator('[data-view="usecases"].space-y-4').getByRole('button',{name:'Draw the flowchart'}).click();
-   await page.getByRole('heading',{name:'Usecase diagram'}).waitFor();
-   await waitSettled('[data-concept-diagram="flowchart"]');
-   const text=await page.locator('[data-concept-diagram="flowchart"]').innerText();
+  await step('the section draws the story\u2019s flowchart INLINE first — no navigation',async()=>{
+   const view=page.locator('[data-view="usecases"].space-y-4');
+   await view.locator('[data-inline-diagram="flowchart"]').waitFor();
+   await waitSettled('[data-inline-diagram="flowchart"]');
+   const text=await view.locator('[data-inline-diagram="flowchart"]').innerText();
+   assert.match(text,/Flowchart — /);
    assert.match(text,/How sure:/);
    assert.match(text,/Text outline/);
-   assert.match(text,/Flowchart — /);
+   // the section is still here — the chart lives IN it now
+   assert.ok(await view.getByText(/Pick a story/).isVisible(),'the browse stays open around the picture');
   });
 
-  await step('"Show the sequence diagram" opens the story\u2019s sequence likewise',async()=>{
+  await step('"Open on the big canvas" gives the same story the big quiet version',async()=>{
+   await page.locator('[data-view="usecases"].space-y-4').getByRole('button',{name:'Open on the big canvas'}).click();
+   await page.getByRole('heading',{name:'Usecase diagram'}).waitFor();
+   await waitSettled('[data-concept-diagram="flowchart"]');
+   assert.match(await page.locator('[data-concept-diagram="flowchart"]').innerText(),/Flowchart — /);
+  });
+
+  await step('the Sequence toggle redraws the story inline as lanes',async()=>{
    await openUsecases();
-   await page.locator('[data-view="usecases"].space-y-4').getByRole('button',{name:'Show the sequence diagram'}).click();
+   const view=page.locator('[data-view="usecases"].space-y-4');
+   await view.getByRole('button',{name:'Sequence',exact:true}).click();
+   await view.locator('[data-inline-diagram="sequence"]').waitFor();
+   await waitSettled('[data-inline-diagram="sequence"]');
+   const text=await view.locator('[data-inline-diagram="sequence"]').innerText();
+   assert.match(text,/Sequence — /);
+   // the lane renderer's honest disclosure, not the dagre substitution
+   assert.match(text,/layout sequence-lanes/);
+   // and "Open on the big canvas" opens the sequence on the stage
+   await view.getByRole('button',{name:'Open on the big canvas'}).click();
    await page.getByRole('heading',{name:'Usecase diagram'}).waitFor();
    await waitSettled('[data-concept-diagram="sequence"]');
    assert.match(await page.locator('[data-concept-diagram="sequence"]').innerText(),/Sequence — /);
   });
 
   await step('chat: "draw the flowchart of <story>" answers instantly and opens the story\u2019s own diagram',async()=>{
+   await openUsecases(); // back to a doc view first, so the canvas switch is observable
    await page.getByLabel('Your question').fill(`draw the flowchart of ${story.label}`);
    await page.getByRole('button',{name:'Send question',exact:true}).click();
    await page.getByText(/is on the canvas — its flowchart/).waitFor();

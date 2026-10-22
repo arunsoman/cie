@@ -234,7 +234,7 @@ function ChartOnCanvas() {
     <div className="p-4 sm:p-6 w-full">
       <Card className="border-stone-200 shadow-sm w-full">
         <CardContent className="p-5 w-full">
-          <ChatChart spec={canvasChart} />
+          <ChatChart spec={canvasChart} big />
         </CardContent>
       </Card>
       <button

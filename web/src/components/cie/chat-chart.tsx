@@ -62,13 +62,18 @@ export function useAsk() {
   );
 }
 /** Every chart uses the same gated canvas host. The text outline remains
- * authoritative, including aggregate rows with no recorded source span. */
+ * authoritative, including aggregate rows with no recorded source span.
+ * `big` is the big-quiet-canvas version: a chart the chat sent to the
+ * stage gets room to breathe — a 107-node call flow squeezed into the
+ * 300px card host reads as "nothing was drawn". */
 export function ChatChart({
   spec,
   onSelectElement,
+  big = false,
 }: {
   spec: ChatChartSpec;
   onSelectElement?: SelectHandler;
+  big?: boolean;
 }) {
   const {
     report,
@@ -238,7 +243,7 @@ export function ChatChart({
       {!!gated.spec?.elements.length && (
         <div
           ref={host}
-          className="w-full h-[300px] rounded-lg border"
+          className={`w-full rounded-lg border ${big ? "h-[640px]" : "h-[300px]"}`}
           role="img"
           aria-label={`${spec.kind} canvas`}
         />

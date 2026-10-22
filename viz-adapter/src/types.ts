@@ -50,6 +50,9 @@ export interface ViewEdge {
   displayMode: DisplayMode;
   evidence: EvidenceRef;
   counterArgument?: string;
+  /** optional, producer-defined ride-along (e.g. a sequence message's BFS
+   *  depth from the entry points) — semantic-hash-neutral, never required */
+  fields?: Record<string, unknown>;
 }
 
 export interface ViewGroup {

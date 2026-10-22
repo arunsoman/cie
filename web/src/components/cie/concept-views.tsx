@@ -412,6 +412,10 @@ function chainWords(chain: { id: number; label: string; kind: string }[]): strin
 export function UsecasesView() {
   const { report, concepts, openConceptOnCanvas, openSourceViewer, source, demoKind, label } = useCie();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // which diagram the section draws inline — the chart lives HERE first
+  // (the section is the front door; the big canvas is one tap away, not
+  // a navigation that yanks you out of the browse)
+  const [diagramKind, setDiagramKind] = useState<ConceptDiagramKind>("flowchart");
 
   const projection = report?.usecase_view ?? null;
   const usecaseNodes = useMemo(
@@ -469,6 +473,12 @@ export function UsecasesView() {
   const conceptNode = useMemo(
     () => usecaseNodes.find((n) => n.id === currentId) ?? null,
     [usecaseNodes, currentId],
+  );
+  // the section's own drawing of the picked story — same derivation the
+  // canvas and the chat use, so the words and the picture cannot drift
+  const inline = useMemo(
+    () => (currentId != null ? conceptDiagramFor(currentId, diagramKind, concepts, report) : null),
+    [currentId, diagramKind, concepts, report],
   );
 
   if (!report || !concepts) return null;
@@ -568,33 +578,69 @@ export function UsecasesView() {
           {!record && current && (
             <p className="text-xs text-stone-500">
               This artifact predates the usecase-first projection, so the chain and member table
-              are not shown — the diagrams below still draw from the recorded extent.
+              are not shown — the diagram below still draws from the recorded extent.
             </p>
-          )}
-
-          {/* the two diagrams this story can draw */}
-          {current && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => openConceptOnCanvas(current.id, "flowchart")}
-                className="h-8 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 border border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
-              >
-                <Workflow className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> Draw the
-                flowchart
-              </button>
-              <button
-                type="button"
-                onClick={() => openConceptOnCanvas(current.id, "sequence")}
-                className="h-8 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 border border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
-              >
-                <Split className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> Show the sequence
-                diagram
-              </button>
-            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* the story's own diagram, drawn right here in the section — the
+          front door shows the picture first; the big canvas is one tap away */}
+      {current && inline && (
+        <Card className="border-stone-200" data-inline-diagram={diagramKind}>
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base">The story, drawn</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Diagram kind"
+                  className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={diagramKind === "flowchart"}
+                    onClick={() => setDiagramKind("flowchart")}
+                    className={`h-7 rounded-md px-2.5 text-xs inline-flex items-center gap-1.5 transition-colors ${
+                      diagramKind === "flowchart"
+                        ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    <Workflow className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> Flowchart
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={diagramKind === "sequence"}
+                    onClick={() => setDiagramKind("sequence")}
+                    className={`h-7 rounded-md px-2.5 text-xs inline-flex items-center gap-1.5 transition-colors ${
+                      diagramKind === "sequence"
+                        ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    <Split className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> Sequence
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openConceptOnCanvas(current.id, diagramKind)}
+                  className="h-7 rounded-lg px-2.5 text-xs inline-flex items-center gap-1.5 border border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
+                >
+                  Open on the big canvas
+                </button>
+              </div>
+            </div>
+            <CardDescription>
+              Drawn from the recorded members — the same picture the chat draws; every box cites
+              the bytes that earned it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConceptDiagramCanvas diagram={inline} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* the member table — the engine's resolved extent, exactly as recorded */}
       {record && record.members.length > 0 && (

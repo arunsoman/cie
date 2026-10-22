@@ -202,3 +202,74 @@ test("the real demo data answers a sequence ask for a multi-class story", () => 
   assert.equal(r.kind, "sequence");
   assert.equal(r.conceptId, story.id);
 });
+
+// ---------- the words people actually type (the "not drawing one" fixes) ----------
+
+/** The hermetic report carrying the A5 projection — chains and class cuts
+ *  the fallback index can't see, so the narrowest-story and class-scoping
+ *  rules are exercised the way the real artifact drives them. */
+function reportWithView() {
+  const r = report();
+  const link = (id, label, kind) => ({ id, label, kind });
+  const member = (symbol, name, qual, fileIdx, line, owner) => ({
+    symbol, name, qual_name: qual, file: r.files[fileIdx], line, owner,
+  });
+  r.usecase_view = [
+    {
+      id: 10, label: "checkout payment", intent: ["money"], confidence: 0.8,
+      coverage_ratio: 1, coverage_complete: true, provenance: "fca:godin-v1",
+      chain: [link(9, "Project", "Domain")], narrower: [11],
+      members: [member(2, "add_item", "Cart.add_item", 0, 3, "Cart"), member(3, "checkout", "Cart.checkout", 0, 4, "Cart"), member(5, "charge", "Pay.charge", 1, 2, "Pay")],
+      member_classes: [{ id: 1, label: "Cart", kind: "Class", members: [2, 3] }],
+    },
+    {
+      id: 11, label: "payment", intent: ["money"], confidence: 0.8,
+      coverage_ratio: 1, coverage_complete: true, provenance: "fca:godin-v1",
+      chain: [link(10, "checkout payment", "UseCase"), link(9, "Project", "Domain")], narrower: [],
+      members: [member(5, "charge", "Pay.charge", 1, 2, "Pay")],
+      member_classes: [{ id: 4, label: "Pay", kind: "Class", members: [5] }],
+    },
+    {
+      id: 12, label: "shell story", intent: ["spawn"], confidence: 0.8,
+      coverage_ratio: 1, coverage_complete: true, provenance: "fca:godin-v1",
+      chain: [link(9, "Project", "Domain")], narrower: [],
+      members: [member(7, "sh", "scripts.sh", 1, 5, null)],
+      member_classes: [],
+    },
+  ];
+  return r;
+}
+
+test("a word of a camelCase name scopes to the narrowest chained story", () => {
+  // "charge" is held by BOTH stories, but "payment" (#11) is the narrower
+  // one and its chain carries "checkout payment" — most-specific-wins
+  // draws #11 and says the broader match stands, instead of refusing.
+  const r = tryConceptDraw("draw the flowchart of charge", reportWithView(), concepts());
+  assert.ok(r);
+  assert.equal(r.conceptId, 11);
+  assert.ok(r.answer.includes("payment"));
+  assert.ok(r.answer.includes("Other usecases match your words too"));
+});
+
+test("a token of a class-cut name scopes to the stories that class cuts", () => {
+  // "Cart" is a container no extent contains; the stories it cuts across
+  // are the honest scope of "draw the flowchart of the cart".
+  const r = tryConceptDraw("draw the flowchart of the cart", reportWithView(), concepts());
+  assert.ok(r);
+  assert.equal(r.conceptId, 10); // only #10's class cut holds Cart
+});
+
+test("a label's distinctive words match in any order, theme words dropped", () => {
+  // word order free: "payment checkout" verbatim is absent, the token AND
+  // still reaches the story the engine named "checkout payment"
+  const r = tryConceptDraw("draw the flowchart of payment checkout", reportWithView(), concepts());
+  assert.ok(r);
+  assert.equal(r.conceptId, 10); // longest matching label wins over "payment"
+});
+
+test("a token nothing relates to is still refused, never guessed", () => {
+  const r = tryConceptDraw("draw the flowchart of unicorn horn", reportWithView(), concepts());
+  assert.ok(r);
+  assert.equal(r.conceptId, null);
+  assert.ok(r.answer.includes("No usecase named"));
+});

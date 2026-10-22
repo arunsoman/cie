@@ -233,7 +233,10 @@ function OverviewMap({ sections }: { sections: AdminSection[] }) {
           preventOverlap: true,
           nodeSize: 140,
         },
-        behaviors: ["zoom-canvas"],
+        // No zoom-canvas: this grid lives in a scrolling document view, and
+        // G6's own wheel listener used to swallow the page scroll over it
+        // (the same single-layer navigation rule as g6-engine.ts).
+        behaviors: [],
       });
       graph.on("node:click", (e: IElementEvent) => {
         const id = e.target?.id;
