@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.4.6 — Phase B: a concept renders — flowchart + sequence ViewSpecs (2026-10-22)
+
+B3 of the concepts plan (B1 store slot + guarded consumers and B2's
+polyglot mapper landed earlier): every concept — a usecase above all — can
+now be turned into two gate-ready diagrams from `concepts.json` +
+`report.json` alone, no engine changes, no recompute of what the engine
+already decided.
+
+- **`web/src/lib/viz/concept-diagrams.ts`** — `conceptToFlowchartSpec` and
+  `conceptToSequenceSpec`, pure functions of (concept, report). Shared
+  prep: member symbols → report.symbols (names, byte spans, owning
+  container) → report.summaries (resolved callees) → the call edges whose
+  BOTH ends are inside the extent. Membership stays 100% the engine's
+  (the concept's recorded `symbols`); labels name, they never decide.
+  - Flowchart: nodes = member functions named by their recorded behavior
+    labels, edges = internal calls (caller's bytes evidence each edge),
+    entry points = members no in-extent caller reaches, isolates shown but
+    flagged in `fields`.
+  - Sequence: lifelines = the classes the members belong to (deduped,
+    entries' classes first), messages = CROSS-CLASS edges ordered by BFS
+    depth from the entries (depth rides `fields`), intra-class calls
+    suppressed in v1 AND disclosed when they were the only edges.
+  - Honesty guards: no internal call edges → the gap says "members act
+    independently" (edges are never fabricated); extent members the
+    tables cannot evidence are skipped and counted in a gap; both builds
+    are byte-deterministic.
+- **`message:` edge-kind family registered** (viz-adapter/src/engines/
+  mermaid.ts) — sequence messages are `message:<text>`; the adapter's
+  sequence detection accepts the family and renders the text after the
+  prefix. This resolves the prior tension where the sequence detector
+  demanded a bare `message` kind while the renderer used the kind as the
+  message text (messages could carry no text). Pinned in TC-03.
+- **Pre-existing breakage repaired** — rfc0023's G6 host mock predated
+  f4656de's knownIds highlight sync (`graph.getNodeData()`); the mock now
+  supplies the adapted data like the real v5 Graph. Suite green again.
+- **Tests** — web: concept-diagrams 9 (flowchart content, sequence lanes/
+  order/suppression, honesty gaps, determinism, mermaid adapt for both
+  shapes) + all prior suites green (9/7/8/12); viz-adapter: 310.
+
 ## 1.4.5 — the usecase-first projection rides the artifact (2026-10-22)
 
 A5 (+ the last A6 gate) of the concepts plan: the artifact now carries a

@@ -66,12 +66,19 @@ function layoutOutcome(spec: ViewSpec): LayoutOutcome {
   return { requested, actual: 'dagre', fidelity: 'Substituted' };
 }
 
-/** Sequence diagrams: lifeline elements + `message` edges (B3 in catalog). */
+/** Sequence diagrams: lifeline elements + `message` edges (B3 in catalog).
+ *  The edgeKind is the OPEN kind vocabulary, so sequence messages register
+ *  the `message:` family — `message:<text>` — where the text after the
+ *  prefix is the message to render. A bare `message` renders as-is. */
 function isSequence(spec: ViewSpec): boolean {
   return (
     spec.elements.some((e) => e.elementKind === 'lifeline') &&
-    spec.edges.some((e) => e.edgeKind === 'message')
+    spec.edges.some((e) => e.edgeKind === 'message' || e.edgeKind.startsWith('message:'))
   );
+}
+
+function messageText(edgeKind: string): string {
+  return edgeKind.startsWith('message:') ? edgeKind.slice('message:'.length) : edgeKind;
 }
 
 export function adapt(spec: ViewSpec): MermaidOutput {
@@ -86,7 +93,9 @@ export function adapt(spec: ViewSpec): MermaidOutput {
     for (const e of spec.edges) {
       const arrow =
         e.displayMode === 'Fact' ? '->>' : e.displayMode === 'Fog' ? '-->>' : '->>';
-      lines.push(`${sanitizeId(e.source)}${arrow}${sanitizeId(e.target)}: ${sanitizeLabel(e.edgeKind)}`);
+      lines.push(
+        `${sanitizeId(e.source)}${arrow}${sanitizeId(e.target)}: ${sanitizeLabel(messageText(e.edgeKind))}`,
+      );
     }
     return { kind: 'sequenceDiagram', text: lines.join('\n'), classDefs: [], layout };
   }

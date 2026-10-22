@@ -817,3 +817,22 @@ Stage Summary:
 - Phase A COMPLETE: A1 (chain), A2 (membership verified), A3 (evidence-fed labels), A4 (provider wiring), A5 (usecase-first projection in the artifact), A6 (all gates: chain/root-fallback/diamond/rollup-isolation/serialization/provenance).
 - 547 tests green across the workspace (baseline 531). CHANGELOG 1.4.5.
 - Handoff to Phase B: B3's mapper reads report.json usecase_view directly — chain, members (names+locations+owners), member_classes with participating ids are all precomputed; the web layer computes only the call-edge overlay from summaries[].callees (B3's design already assumed this). B1 (store slot + the two consumers) and B2 (polyglot mapper) unchanged.
+
+---
+Task ID: B3 (+B1/B2 verification, mermaid fix, rfc0023 repair)
+Agent: main (Z.ai)
+Task: Phase B closeout — conceptToFlowchartSpec/conceptToSequenceSpec (gate-ready ViewSpecs from a concept + the report), verify B1/B2 state, fix the mermaid message-text tension, repair the pre-existing rfc0023 breakage.
+
+Work Log:
+- Ground truth on B1/B2: BOTH already complete on main — cie-store has the polyglotSpecs slot + openPolyglotOnCanvas; use-your-own-dialog.tsx and workspace-memory.ts both pass data.polyglotSpecs through isPolyglotBundle into setCustom; viz/polyglot-spec.ts (mapper + polyglotArtifacts) existed with its fixture suite. Phase B's remaining scope was B3 only.
+- web/node_modules was gone (sandbox prune) + disk full (ENOSPC masquerading as npm EEXIST): cleaned caches + trimmed target/ (6.6G->3.6G, 96%->53%), npm install in web/ AND viz-adapter/ (file: dep keeps its own node_modules — @noble/hashes was missing until viz-adapter got its own install).
+- B3 design (locked contract kept): pure functions of (ConceptNode, CieReport). Shared prep — extent symbols resolved through report.symbols (names/byte spans/parent), summaries for callees, internal edges = both ends in extent, member→class = recorded parent (file stand-in for parentless, never guessed further). Flowchart: behavior-label-named nodes, entries = no in-extent caller, isolates flagged. Sequence: deduped lifelines (entries' classes first), cross-class messages ordered by BFS depth from entries, intra-class suppressed AND disclosed.
+- Contract tension found and FIXED in viz-adapter/src/engines/mermaid.ts: isSequence demanded edgeKind === 'message' while the renderer used edgeKind as the message text — messages could never carry text. Registered the `message:<text>` edge-kind family (open vocabulary): detection accepts the family, rendering strips the prefix. Pinned in TC-03 (viz-adapter test). B3 emits `message:${label}`.
+- Honest guards tested: NO_INTERNAL_CALLS_GAP ("members act independently") on both diagrams; skipped-member gap (extent id absent from the symbol table → skipped + counted, never invented); intra-class-only → "no cross-class messages to sequence"; suppression is presentation-only (the flowchart keeps the edge).
+- Pre-existing main breakage repaired: rfc0023's Graph mock predated f4656de's knownIds sync (graph.getNodeData()) — mock now supplies adapted data like the real v5 Graph. Verified pre-existing via git stash (failed on clean tree too).
+- Tests: web concept-diagrams 9/9 (content, lanes/order/suppression, honesty, byte-determinism, mermaid adapt flowchart+sequenceDiagram); web regression 9/7/8/12 green; viz-adapter vitest 310/310.
+- Deferred (Phase C): C1 canvas section wiring, C2 Ask CIE triggers ("draw the flowchart of X"), C3 usecase-first view; demo report.json regeneration (stale, pre-A1) so the demo workspace shows the new diagrams.
+
+Stage Summary:
+- Phase B COMPLETE (B1 done earlier, B2 done earlier, B3 now): a concept's membership + call facts render as two gate-passing, byte-deterministic, evidence-carrying ViewSpecs, with the mermaid path proven end-to-end (flowchart text + sequenceDiagram text).
+- A5's usecase_view complements B3: the C3 view can list usecases from the projection while the diagrams derive from (concept, report) — both stay honest to the engine's recorded facts.

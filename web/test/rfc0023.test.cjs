@@ -38,6 +38,16 @@ test("G6 host supplies adapted nodes to canvas and suppresses selection feedback
       cfg = options;
       graph = this;
       this.events = {};
+      // f4656de added the knownIds highlight sync, which reads back the
+      // adapted data the host just rendered — supply it like the real v5
+      // Graph does.
+      this.data = options.data ?? { nodes: [], edges: [] };
+    }
+    getNodeData() {
+      return this.data.nodes;
+    }
+    getEdgeData() {
+      return this.data.edges;
     }
     async render() {}
     setLayout() {}

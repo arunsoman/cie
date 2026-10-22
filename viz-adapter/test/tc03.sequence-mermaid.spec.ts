@@ -52,6 +52,20 @@ describe('TC-03: mermaid sequence diagram (VIZ-13)', () => {
     const report = new MermaidAdapter().audit(seqSpec(), out.layout);
     expect(report.encodingFidelity).toBe('Degraded');
   });
+
+  it('the message: kind family carries the message text (B3 convention)', () => {
+    // Producers register sequence messages as `message:<text>`; the text
+    // after the prefix is what renders, the prefix stays the kind.
+    const s = seqSpec();
+    s.edges = [
+      { id: 'm1', source: 'user', target: 'api', edgeKind: 'message:withdraw funds', displayMode: 'Fact', evidence: s.elements[0].evidence },
+      { id: 'm2', source: 'api', target: 'db', edgeKind: 'message:save', displayMode: 'Fact', evidence: s.elements[0].evidence },
+    ];
+    const withText = mermaidAdapt(s);
+    expect(withText.kind).toBe('sequenceDiagram');
+    expect(withText.text).toContain('user->>api: withdraw funds');
+    expect(withText.text).toContain('api->>db: save');
+  });
 });
 
 describe('mermaid flowchart encoding (VIZ-V-01)', () => {
