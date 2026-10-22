@@ -759,3 +759,23 @@ Work Log:
 
 Stage Summary:
 - duplicates.detect no longer calls containment duplication: class/trait × function/method pairs are excluded before every tier, counted honestly in the report, and the diff against the old engine is proven to remove exactly and only those pairs. Sample: 581→355 shown (39% of pairs were containment artifacts).
+
+---
+Task ID: A1 (+A2 verification)
+Agent: main (Z.ai)
+Task: Phase A kickoff — wire the FCA lattice's induction chain into the ConceptDag (usecase -> broader usecase), so the climb from a function's usecase up the broader stories is visible in the artifact instead of discarded.
+
+Work Log:
+- Grounded the design in code: fca.rs computes `parents` as LOWER covers (minimal strict intent-supersets = more specific); hierarchy.rs discarded them, flattening every usecase as a sibling of the Domain root.
+- Found and fixed a latent staleness bug first: build_lattice computed cover indices BEFORE re-sorting the concept vec (extent desc, intent asc), leaving `parents` pointing at pre-sort positions. Harmless while the field had no consumer; fatal for the chain. Sort now runs first; fca unit test `covers_are_lower_neighbors_in_sorted_order` pins the direction.
+- hierarchy.rs: inverted lower covers into upper covers; each surviving usecase's PRIMARY parent = broadest surviving upper cover (FcaSubsumption), root fallback when only the top concept remains; remaining covers recorded as extra_edges on the usecase itself (never mirrored into covers' children — weakest-link isolation, same rule as member-class edges). Cycle-impossible by construction; defensive root fallback instead of panic.
+- Rusted toolchain was missing (sandbox reset): installed via rustup (cargo 1.99.1).
+- New test suite cie-analysis/tests/fca_induction_chain.rs (5 tests): chain wiring + depth, root fallback, diamond extra-covers, rollup confidence isolation + invalidation wave reaching broader usecases, serialized artifact visibility (parent/extra_edges/intent in JSON). Fixed a fixture bug along the way: SymbolStore::get is POSITIONAL (symbols.get(id.0)) so fixture ids must be 0-based.
+- Verified real data: rebuilt the cie binary; bankapp produces 40 usecases with real 3-level chains (e.g. lock&sleep&time -> lock&time -> time) and diamond covers as FcaSubsumption extras; cart's single-intent lattice correctly stays at root.
+- Gates: cie-concepts (44), cie-analysis (all suites incl. rfc0019), cie-viz, cie-drift, cie-incremental, cie-cli (incl. binary tests task_083) — all green.
+- CHANGELOG 1.4.3 entry; commit 897b18c pushed via scripts/push-with-token.sh; fetch-verified local == origin/main == 897b18c, tree clean.
+
+Stage Summary:
+- A1 DONE: induction chain is primary DAG structure; A2 VERIFIED (parent/extra_edges/intent serialize into concepts.json — produce.rs already emits both; serde test pins it).
+- Key decisions: primary chain (not extra edges) so TASK-082 invalidation waves follow the true data dependency (broader extent contains narrower); broadest-cover pick = ascending lattice index (deterministic); functions stay view-layer expansions (DAG remains class/module-grained).
+- Next: A3 (enriched LLM pass-2 labeling — extent's function evidence into label_concept), A4 (CLI --llm provider wiring; make_provider already exists at cie-cli/src/main.rs:1191), A5 (usecase-first projection emission).
