@@ -26,6 +26,7 @@ import { scopeDigest, scopeChatDigest } from "@/lib/scope-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
 import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
 import { tryPolyglotDraw } from "@/lib/polyglot-chat";
+import { tryConceptDraw } from "@/lib/concept-chat";
 import { tryAnswerStory } from "@/lib/stories";
 import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus, findSymbolInQuestion } from "@/lib/quality";
 import { buildTraceAnswer, tryAnswerMastery, type MasteryCtx } from "@/lib/mastery";
@@ -98,7 +99,7 @@ export function Formatted({ text }: { text: string }) {
 export function ChatPanel() {
   const {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
-    llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, mapSelected, setMapSelected,
+    llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, openConceptOnCanvas, mapSelected, setMapSelected,
     deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
     pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs,
   } = useCie();
@@ -233,6 +234,20 @@ export function ChatPanel() {
     if (polyAns) {
       respond({ content: polyAns.answer, instant: true });
       if (polyAns.artifact) openPolyglotOnCanvas(polyAns.artifact);
+      return;
+    }
+
+    // ---- fast path 2a-bis: a story's own diagrams — "draw the flowchart
+    // of <usecase>", "show the sequence diagram of <usecase>" — draw the
+    // B3-mapped extent of the story the question names, not a stand-in.
+    // Only a NAMED story hijacks: a bare "draw the flowchart" falls
+    // through to draw-anything's whole-project picture, and a named
+    // target nothing resolves gets the honest refusal (never the
+    // stand-in drawn as if it were the story). ----
+    const conceptAns = tryConceptDraw(question, report, concepts);
+    if (conceptAns) {
+      respond({ content: conceptAns.answer, instant: true });
+      if (conceptAns.conceptId != null) openConceptOnCanvas(conceptAns.conceptId, conceptAns.kind);
       return;
     }
 

@@ -30,6 +30,7 @@ import { certaintyPlain } from "@/lib/plain-words";
 import {
   conceptToFlowchartSpec,
   conceptToSequenceSpec,
+  type ConceptDiagramKind,
 } from "@/lib/viz/concept-diagrams";
 import type { CieReport, ConceptTree } from "@/lib/cie-types";
 import { Network, Split, Workflow, ArrowUpRight } from "lucide-react";
@@ -50,8 +51,6 @@ import {
 } from "@/components/ui/select";
 
 const conductor = new SelectionConductor();
-
-export type ConceptDiagramKind = "flowchart" | "sequence";
 
 /** Everything the canvas needs to render one concept diagram — the mapped
  *  ViewSpec plus the words that say what it is. Null when the loaded

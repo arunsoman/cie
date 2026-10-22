@@ -41,6 +41,10 @@ export interface ConceptDiagramResult {
   violations: string[];
 }
 
+/** The two diagrams a concept can draw (C1/C2 vocabulary). Lives here so
+ *  both the lib chat seam and the components share one definition. */
+export type ConceptDiagramKind = "flowchart" | "sequence";
+
 export const NO_INTERNAL_CALLS_GAP =
   "no internal call edges recorded — members act independently";
 
