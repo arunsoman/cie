@@ -1656,159 +1656,229 @@ fn run(cli: Cli) -> i32 {
                 h = h.wrapping_mul(0x100000001b3);
             }
             let db_path = std::env::temp_dir().join(format!("cie-polyglot-{h:x}.db"));
-            // this command builds a FRESH store each run — re-runs must not
-            // collide with a previous revision's rows (honest recomputation)
-            let _ = std::fs::remove_file(&db_path);
-            let conn = match cie_polyglot::schema::open_db(&db_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    return 1;
-                }
-            };
-            let static_res =
-                cie_polyglot::ir::ingest_and_lower(&conn, 1, 41, &path);
-            let Ok((stats, lower)) = static_res else {
-                eprintln!("error: {}", static_res.err().unwrap_or_default());
-                return 1;
-            };
-            let _ = cie_polyglot::frameworks::install_registry(&conn);
-            let fw = cie_polyglot::frameworks::detect(&conn);
-            // C4 needs the ingested root for DDD dir checks
-            let c4 = cie_polyglot::c4::detect_c4(&conn, &path, 41);
-            let sm = cie_polyglot::statemachines::detect(&conn);
-            let wf = cie_polyglot::workflows::detect(&conn);
-            let dup = cie_polyglot::duplicates::detect(&conn);
-            let runtime = otel
-                .as_deref()
-                .map(|p| {
-                    std::fs::read_to_string(p)
-                        .map_err(|e| e.to_string())
-                        .and_then(|payload| cie_polyglot::runtime::ingest(&conn, &payload))
-                })
-                .map_or(Ok(None), |r| r.map(Some));
-
-            if let Some(want) = viewspec {
-                // `all` → one bundle document: every spec in one JSON,
-                // the seam the web pipeline consumes with a single read
-                if want == "all" {
-                    match cie_polyglot::viewspec::produce_bundle(&conn) {
-                        Ok(bundle) => {
-                            println!("{bundle}");
-                            return 0;
-                        }
-                        Err(e) => {
-                            eprintln!("error: {e}");
-                            return 1;
-                        }
-                    }
-                }
-                let specs = cie_polyglot::viewspec::produce(&conn);
-                match specs {
-                    Ok(map) => {
-                        let hits: Vec<_> = map
-                            .iter()
-                            .filter(|(k, _)| {
-                                k.starts_with(&want) || k.contains(&want)
-                            })
-                            .collect();
-                        if hits.is_empty() {
-                            eprintln!(
-                                "error: no spec matches '{want}' (available: {})",
-                                map.keys().cloned().collect::<Vec<_>>().join(", ")
-                            );
-                            return 1;
-                        }
-                        for (k, v) in hits {
-                            println!("{k}");
-                            println!("{v}");
-                        }
-                        return 0;
+            // DS-EVAL §6.2 — build-then-rename. The web opens `db_path`
+            // read-only while a rebuild may run in another process: build at
+            // `<final>.building`, then atomically promote on success, so
+            // readers always see the previous complete store or the new one —
+            // never a half-built DB (the old delete-then-rebuild-in-place
+            // left both a no-DB window and a half-built window). The fresh
+            // `.building` file per run keeps the honest-recomputation
+            // contract: re-runs never collide with a previous revision's rows.
+            let building = std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building"));
+            let building_sidecars = [
+                building.clone(),
+                std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building-wal")),
+                std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building-shm")),
+            ];
+            // discard any half-build left by a previous crashed run
+            for stale in &building_sidecars {
+                let _ = std::fs::remove_file(stale);
+            }
+            match run_polyglot_build(
+                &building,
+                &path,
+                otel.as_deref(),
+                viewspec.as_deref(),
+                json,
+                &db_path,
+            ) {
+                Ok(rc) => match std::fs::rename(&building, &db_path) {
+                    Ok(()) => {
+                        // The rename replaced the inode; any `-wal`/`-shm` at
+                        // the final path belonged to the OLD inode (readonly
+                        // web readers create empty ones for coordination).
+                        // Drop them so the promoted, cleanly-checkpointed DB
+                        // always starts sidecar-free — a stale `-wal` must
+                        // never be recoverable onto the NEW database.
+                        let _ = std::fs::remove_file(std::env::temp_dir().join(format!(
+                            "cie-polyglot-{h:x}.db-wal"
+                        )));
+                        let _ = std::fs::remove_file(std::env::temp_dir().join(format!(
+                            "cie-polyglot-{h:x}.db-shm"
+                        )));
+                        rc
                     }
                     Err(e) => {
-                        eprintln!("error: {e}");
-                        return 1;
+                        for stale in &building_sidecars {
+                            let _ = std::fs::remove_file(stale);
+                        }
+                        eprintln!("error: promoting polyglot store: {e}");
+                        1
                     }
+                },
+                Err(e) => {
+                    for stale in &building_sidecars {
+                        let _ = std::fs::remove_file(stale);
+                    }
+                    eprintln!("error: {e}");
+                    1
                 }
             }
-
-            if json {
-                let report = serde_json::json!({
-                    "db": db_path.display().to_string(),
-                    "ingest": {
-                        "files": stats.files_ingested,
-                        "parse_errors": stats.files_parse_errors,
-                        "ast_nodes": stats.ast_nodes,
-                        "symbols": stats.symbols,
-                        "unsupported_files": stats.skipped_unsupported,
-                    },
-                    "ir": {
-                        "symbols_lowered": lower.symbols_lowered,
-                        "blocks": lower.blocks,
-                        "instructions": lower.instructions,
-                        "calls": lower.calls,
-                        "calls_resolved": lower.calls_resolved,
-                        "calls_unresolved": lower.calls_unresolved,
-                    },
-                    "frameworks": fw.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                    "c4": c4.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                    "state_machines": sm.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                    "workflows": wf.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                    "duplicates": dup.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                    "runtime": runtime.as_ref().map(|r| r.as_ref().map(|x| serde_json::to_value(x).unwrap_or_default()).unwrap_or(serde_json::json!("failed"))).unwrap_or(serde_json::json!("not-requested")),
-                });
-                println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-            } else {
-                println!("polyglot store: {}", db_path.display());
-                println!(
-                    "  ingest: {} files ({} parse errors), {} ast nodes, {} symbols, {} unsupported",
-                    stats.files_ingested, stats.files_parse_errors, stats.ast_nodes, stats.symbols, stats.skipped_unsupported
-                );
-                println!(
-                    "  ir: {} symbols lowered, {} blocks, {} instructions, {} calls ({} resolved / {} unresolved)",
-                    lower.symbols_lowered, lower.blocks, lower.instructions, lower.calls, lower.calls_resolved, lower.calls_unresolved
-                );
-                if let Ok(r) = &fw {
-                    println!(
-                        "  frameworks: {} role sites, {} declared + {} url-matched bindings ({} specs)",
-                        r.roles, r.declared_bindings, r.url_matched_bindings, r.specs_parsed
-                    );
-                }
-                if let Ok(r) = &c4 {
-                    println!(
-                        "  c4: {} containers, {} components, {} classes linked, {} relationships",
-                        r.containers, r.components, r.classes_linked, r.relationships
-                    );
-                }
-                if let Ok(r) = &sm {
-                    println!(
-                        "  state machines: {} T1 facts, {} T2 inference, {} T2 fog, {} T3 hypothesis",
-                        r.t1, r.t2, r.t2_fog, r.t3
-                    );
-                }
-                if let Ok(r) = &wf {
-                    println!(
-                        "  workflows: {} entries, {} nodes ({} async boundaries, {} gateways)",
-                        r.workflows, r.nodes, r.async_boundaries, r.gateways
-                    );
-                }
-                if let Ok(r) = &dup {
-                    println!(
-                        "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden; {} class/function containment pairs excluded, {} same-file span-nested pairs excluded)",
-                        r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps, r.skipped_kind_mismatch, r.skipped_nested
-                    );
-                }
-                if let Ok(Some(r)) = &runtime {
-                    println!(
-                        "  runtime: {} spans ({} mapped / {} unresolved), {} drift edges, {} flaky",
-                        r.spans, r.mapped, r.unresolved, r.drift_edges, r.flaky
-                    );
-                }
-            }
-            0
         }
         Command::Stories { cmd } => run_stories(cmd),
     }
+}
+
+/// DS-EVAL §6.2 — build the polyglot store at `building`; the caller promotes
+/// it over `db_path` by rename ONLY on success. The web opens `db_path`
+/// read-only while a rebuild may run in another process, so promotion must be
+/// atomic and the build must be complete-or-nothing.
+fn run_polyglot_build(
+    building: &std::path::Path,
+    path: &std::path::Path,
+    otel: Option<&std::path::Path>,
+    viewspec: Option<&str>,
+    json: bool,
+    db_path: &std::path::Path,
+) -> Result<i32, String> {
+    let conn = cie_polyglot::schema::open_db(building)?;
+    let rc = (|| -> Result<i32, String> {
+        let static_res =
+            cie_polyglot::ir::ingest_and_lower(&conn, 1, 41, &path);
+        let Ok((stats, lower)) = static_res else {
+            return Err(static_res.err().unwrap_or_default());
+        };
+        let _ = cie_polyglot::frameworks::install_registry(&conn);
+        let fw = cie_polyglot::frameworks::detect(&conn);
+        // C4 needs the ingested root for DDD dir checks
+        let c4 = cie_polyglot::c4::detect_c4(&conn, &path, 41);
+        let sm = cie_polyglot::statemachines::detect(&conn);
+        let wf = cie_polyglot::workflows::detect(&conn);
+        let dup = cie_polyglot::duplicates::detect(&conn);
+        let runtime = otel
+            .map(|p| {
+                std::fs::read_to_string(p)
+                    .map_err(|e| e.to_string())
+                    .and_then(|payload| cie_polyglot::runtime::ingest(&conn, &payload))
+            })
+            .map_or(Ok(None), |r| r.map(Some));
+
+        if let Some(want) = viewspec {
+            // `all` → one bundle document: every spec in one JSON,
+            // the seam the web pipeline consumes with a single read
+            if want == "all" {
+                match cie_polyglot::viewspec::produce_bundle(&conn) {
+                    Ok(bundle) => {
+                        println!("{bundle}");
+                        return Ok(0);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            let specs = cie_polyglot::viewspec::produce(&conn);
+            match specs {
+                Ok(map) => {
+                    let hits: Vec<_> = map
+                        .iter()
+                        .filter(|(k, _)| {
+                            k.starts_with(&want) || k.contains(&want)
+                        })
+                        .collect();
+                    if hits.is_empty() {
+                        return Err(format!(
+                            "no spec matches '{want}' (available: {})",
+                            map.keys().cloned().collect::<Vec<_>>().join(", ")
+                        ));
+                    }
+                    for (k, v) in hits {
+                        println!("{k}");
+                        println!("{v}");
+                    }
+                    return Ok(0);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        if json {
+            let report = serde_json::json!({
+                "db": db_path.display().to_string(),
+                "ingest": {
+                    "files": stats.files_ingested,
+                    "parse_errors": stats.files_parse_errors,
+                    "ast_nodes": stats.ast_nodes,
+                    "symbols": stats.symbols,
+                    "unsupported_files": stats.skipped_unsupported,
+                },
+                "ir": {
+                    "symbols_lowered": lower.symbols_lowered,
+                    "blocks": lower.blocks,
+                    "instructions": lower.instructions,
+                    "calls": lower.calls,
+                    "calls_resolved": lower.calls_resolved,
+                    "calls_unresolved": lower.calls_unresolved,
+                },
+                "frameworks": fw.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                "c4": c4.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                "state_machines": sm.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                "workflows": wf.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                "duplicates": dup.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
+                "runtime": runtime.as_ref().map(|r| r.as_ref().map(|x| serde_json::to_value(x).unwrap_or_default()).unwrap_or(serde_json::json!("failed"))).unwrap_or(serde_json::json!("not-requested")),
+            });
+            println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+        } else {
+            println!("polyglot store: {}", db_path.display());
+            println!(
+                "  ingest: {} files ({} parse errors), {} ast nodes, {} symbols, {} unsupported",
+                stats.files_ingested, stats.files_parse_errors, stats.ast_nodes, stats.symbols, stats.skipped_unsupported
+            );
+            println!(
+                "  ir: {} symbols lowered, {} blocks, {} instructions, {} calls ({} resolved / {} unresolved)",
+                lower.symbols_lowered, lower.blocks, lower.instructions, lower.calls, lower.calls_resolved, lower.calls_unresolved
+            );
+            if let Ok(r) = &fw {
+                println!(
+                    "  frameworks: {} role sites, {} declared + {} url-matched bindings ({} specs)",
+                    r.roles, r.declared_bindings, r.url_matched_bindings, r.specs_parsed
+                );
+            }
+            if let Ok(r) = &c4 {
+                println!(
+                    "  c4: {} containers, {} components, {} classes linked, {} relationships",
+                    r.containers, r.components, r.classes_linked, r.relationships
+                );
+            }
+            if let Ok(r) = &sm {
+                println!(
+                    "  state machines: {} T1 facts, {} T2 inference, {} T2 fog, {} T3 hypothesis",
+                    r.t1, r.t2, r.t2_fog, r.t3
+                );
+            }
+            if let Ok(r) = &wf {
+                println!(
+                    "  workflows: {} entries, {} nodes ({} async boundaries, {} gateways)",
+                    r.workflows, r.nodes, r.async_boundaries, r.gateways
+                );
+            }
+            if let Ok(r) = &dup {
+                println!(
+                    "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden; {} class/function containment pairs excluded, {} same-file span-nested pairs excluded)",
+                    r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps, r.skipped_kind_mismatch, r.skipped_nested
+                );
+            }
+            if let Ok(Some(r)) = &runtime {
+                println!(
+                    "  runtime: {} spans ({} mapped / {} unresolved), {} drift edges, {} flaky",
+                    r.spans, r.mapped, r.unresolved, r.drift_edges, r.flaky
+                );
+            }
+        }
+        Ok(0)
+    })();
+    // Best-effort: push every committed WAL frame into the main file so the
+    // caller's rename can never orphan rows in a leftover `-wal` (a clean
+    // close checkpoints anyway — this is the belt to its suspenders).
+    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+    drop(conn); // clean close: SQLite checkpoints + deletes the -wal/-shm
+    if rc.is_ok() {
+        let wal = std::path::PathBuf::from(format!("{}-wal", building.display()));
+        if wal.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+            return Err(
+                "polyglot WAL did not checkpoint cleanly; refusing to promote".to_string(),
+            );
+        }
+    }
+    rc
 }
 
 fn run_stories(cmd: StoriesCmd) -> i32 {

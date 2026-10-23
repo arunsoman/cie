@@ -1,6 +1,6 @@
 # Data-Store Evaluation — faster reads, lock-free writes, and a ≤3-type consolidation
 
-Status: DONE (DS-EVAL, backlog item 1) · Date: 2026-10-23
+Status: DONE (DS-EVAL, backlog item 1) · Date: 2026-10-23 · **Landed: §6 steps 1–5 implemented and verified** (WAL+NORMAL, build-then-rename, build-time dup indexes + `ensureIndexes` deleted, batched tombstones, sled off default features; receipts: readonly-WAL probe `scripts/ds-eval/verify-readonly-wal.mjs`, byte-identical viewspec bundles across runs, failure-run preserves the previous DB)
 Question (user): "evaluate the data store which is the best for faster reads and lock-free writes, because cie-ingest uses various datastructures but the polyglot just puts everything onto a sql table."
 Constraint (user): willing to keep **at most 3 storage solution types** if that helps overall system performance.
 Method: ground-truth census of every storage family in the tree (with file:line evidence) + a measured bench on the two families that actually run in production, using the shapes the code actually writes (`scripts/ds-bench/storage-bench.mjs`, raw numbers in `scripts/ds-bench/results.json`).

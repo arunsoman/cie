@@ -901,7 +901,7 @@ Work Log:
 
 Status legend: [ ] pending · [~] in progress · [x] done (record commit hash) · [-] deferred
 
-### 1. DS-EVAL — Data-store evaluation: faster reads + lock-free writes [x] 61ffd9f
+### 1. DS-EVAL — Data-store evaluation: faster reads + lock-free writes [x] 61ffd9f (+ verdict landed, see DS-EVAL-LAND)
 User ask: "evaluate the data store which is the best for faster reads and lock-free writes, because cie-ingest uses various datastructures but the polyglot just puts everything onto a sql table."
 Evaluation frame (CIE's REAL access patterns, not synthetic ones):
 - Writes: single-writer CLI per run; "lock-free" means writers never block readers — crash safety mid-write + the web/API surfaces reading while a regeneration runs.
@@ -983,3 +983,23 @@ Work Log:
 
 Stage Summary:
 - DS-EVAL complete with measured receipts: the system already owns the right primitives (atomic-rename JSON, rkyv mmap, rusqlite) — the win is configuration (WAL) + sequencing (build-then-rename), zero new engines, zero new dependencies. Point reads on the polyglot path 2.9× faster; crash safety restored; web read path made purely read-only. NEXT = item 9 (XFILTER) or item 2 (PERF-L1) per user's pick; item 6 (INCREMENTAL-ON) design is now unblocked by the storage verdict (WAL + content_hash reuse compose).
+
+---
+Task ID: DS-EVAL-LAND (backlog item 1 — verdict implementation)
+Agent: main (Z.ai)
+Task: "Yes plz" — implement the DS-EVAL verdict: land the six-step migration sketch from docs/data-store-evaluation.md §6 (the eval doc was delivered in 61ffd9f; the user confirmed proceeding with its adoption).
+
+Work Log:
+- Ground-truthed all six targets first: pragmas still OFF/OFF (schema.rs:225-227), CLI still delete-then-rebuild-in-place, web ensureIndexes still writing on the read path, mark_tombstone still whole-file-rewrite-per-record, sled still a default feature, kv tests already cfg-gated except task_027's perf gate.
+- Sandbox had been reset again (no cargo, no target/) — reinstalled rustup + rustfmt/clippy components; used in-repo samples/spring as the verification fixture.
+- Step 1 (§6.1): journal_mode=OFF/synchronous=OFF → WAL/NORMAL in cie-polyglot/src/schema.rs::open_db, comment rewritten with the measured rationale (C2 probe, 2.9× point reads, crash recovery).
+- Step 2 (§6.2): build-then-rename in Command::Polyglot — the ~140-line build body moved verbatim into run_polyglot_build() (returns Result; error paths converted from eprintln+return-1 to Err), the arm now: pre-clean stale .building sidecars → build at <final>.building → promote by rename ONLY on success → discard on failure. Belt-and-suspenders inside the helper: explicit PRAGMA wal_checkpoint(TRUNCATE) + a refusal-to-promote check if a non-empty -wal survived close. NEW finding during verification: node:sqlite readOnly opens of a WAL DB create empty -wal/-shm for coordination (fs-permitted dirs), so promotion now unlinks final-path sidecars — a stale -wal must never be recoverable onto the NEW database.
+- Step 3 (§6.3): idx_dup_detection/idx_dup_epistemic added to the build-time index batch in duplicates.rs (tier/symbol_a/symbol_b already existed); web ensureIndexes() DELETED — openPolyglotDb is now purely DatabaseSync(readOnly), zero writes on the read path.
+- Step 4 (§6.4): Store::mark_tombstones/clear_tombstones batch methods (one load+write per run, no-op when nothing changes — a no-deletion run no longer even creates tombstones.json); cie-ingest run_ingest switched to the batch form.
+- Step 5 (§6.5): cie-store default features = [] (sled cut from the default build); task_027_perf_latency_gates gated behind #[cfg(feature = "backend-sled")]. redb stays dormant behind its flag (step 6 needs nothing).
+- Process note: an intermediate cargo fmt pass reformatted four whole crates (the repo is NOT fmt-clean and no CI enforces it) — reverted wholesale and re-applied all edits surgically; final diff = 8 files, single contiguous hunk in main.rs.
+- Verification (all green): cargo build --release; cargo test --workspace 0 failures (62 polyglot, task_028_tombstones 2, determinism byte-parity gate, task_024 kv with sled correctly compiled out); real-run receipts on samples/spring — promoted DB is WAL-mode, all 5 dup indexes present, EXPLAIN QUERY PLAN = "SEARCH duplicates USING INDEX idx_dup_epistemic" (was a full scan), node:sqlite readOnly probe READONLY-WAL-OK (scripts/ds-eval/verify-readonly-wal.mjs), exactly 1 file at rest after re-promotion, failed run leaves the previous 561152-byte DB untouched, viewspec bundle byte-identical across two runs, real ingest 13 files/47 symbols/41 findings matching the eval doc's grounding. web tsc: only the two pre-existing viz-adapter module-resolution errors (confirmed present on HEAD before this change).
+- Worklog receipts committed together with the code.
+
+Stage Summary:
+- DS-EVAL verdict is now CODE, not just a recommendation: SQLite-WAL (Universe B), rkyv mmap (hot graph path, untouched), atomic-rename JSON (Universe A discipline enforced) = exactly 3 storage types, sled out of the default build. Crash-safe writes, 2.9× point reads, purely read-only web path, O(n²) tombstone pattern killed. INCREMENTAL-ON (item 6) remains unblocked (WAL + content_hash compose). NEXT per backlog: item 2 (PERF-L1 parallel fan-out) or item 9 (XFILTER cross-chart slice & dice) — user's pick.

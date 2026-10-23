@@ -787,11 +787,17 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     // "WHERE symbol_a = ? OR symbol_b = ?" lookup (SQLite OR-optimizes into
     // two indexed rowid scans + a merge — without them it's a full scan per
     // center, and `produce_bundle` queries up to 50 centers); tier backs
-    // the bundle's per-tier center-selection query.
+    // the bundle's per-tier center-selection query; detection/epistemic back
+    // the web's duplicates filters (polyglot-db.ts) — indexes MUST exist at
+    // build time so the web read path stays purely readOnly (DS-EVAL §6.3:
+    // the old lazy `ensureIndexes()` wrote on the read path and its
+    // read-write open blocked a concurrent writer under any journal mode).
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_dup_symbol_a ON duplicates(symbol_a);
          CREATE INDEX IF NOT EXISTS idx_dup_symbol_b ON duplicates(symbol_b);
-         CREATE INDEX IF NOT EXISTS idx_dup_tier ON duplicates(tier);",
+         CREATE INDEX IF NOT EXISTS idx_dup_tier ON duplicates(tier);
+         CREATE INDEX IF NOT EXISTS idx_dup_detection ON duplicates(detection);
+         CREATE INDEX IF NOT EXISTS idx_dup_epistemic ON duplicates(epistemic);",
     )
     .map_err(|e| e.to_string())?;
 

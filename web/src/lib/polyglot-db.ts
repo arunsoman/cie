@@ -1,10 +1,16 @@
 // Server-only reader for the cie-polyglot SQLite scratch store (PRD v2.0,
 // docs/prd-v2.0.md). `cie polyglot <path>` builds a FRESH store per run at
 // `<tmpdir>/cie-polyglot-<fnv1a64 hex of the canonicalized project path>.db`
-// (cie-cli/src/main.rs, Command::Polyglot) and deletes any prior one for
-// that same path first. This module locates that same file and reads it
-// read-only — it never runs `cie polyglot` itself (a real run on a large
-// repo can take a long time), so the UI must tolerate "not computed yet".
+// (cie-cli/src/main.rs, Command::Polyglot) and promotes it atomically
+// (build-then-rename, DS-EVAL §6.2), so this module always sees either the
+// previous complete store or the new one — never a half-built DB. The module
+// locates that same file and reads it read-only — it never runs
+// `cie polyglot` itself (a real run on a large repo can take a long time),
+// so the UI must tolerate "not computed yet". Strictly zero writes here:
+// every index the queries need is created at build time by the Rust side
+// (duplicates.rs), so the read path can never block a concurrent writer
+// (DS-EVAL §6.3: the old lazy `ensureIndexes()` opened read-write and
+// created indexes on first touch — a write on the read path).
 
 import { DatabaseSync } from "node:sqlite";
 import fs from "fs";
@@ -40,29 +46,9 @@ export function polyglotDbExists(root: string): boolean {
   }
 }
 
-/** The `duplicates` table can hold tens of millions of rows with no index
- *  of its own — filtering by tier/detection/epistemic is a full scan
- *  without one. Idempotent: CREATE INDEX IF NOT EXISTS is a cheap no-op
- *  once it exists, so this is safe to call on every open (the first call
- *  against a freshly-built large store pays the one-time index-build cost). */
-function ensureIndexes(dbPath: string) {
-  let db: DatabaseSync | undefined;
-  try {
-    db = new DatabaseSync(dbPath);
-    db.exec("CREATE INDEX IF NOT EXISTS idx_dup_tier ON duplicates(tier);");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_dup_detection ON duplicates(detection);");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_dup_epistemic ON duplicates(epistemic);");
-  } catch {
-    // best-effort — queries still work without it, just slower
-  } finally {
-    db?.close();
-  }
-}
-
 function openPolyglotDb(root: string): DatabaseSync | null {
   const p = polyglotDbPath(root);
   if (!fs.existsSync(p)) return null;
-  ensureIndexes(p);
   try {
     return new DatabaseSync(p, { readOnly: true });
   } catch {

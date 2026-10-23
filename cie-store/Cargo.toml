@@ -24,7 +24,12 @@ sled = { workspace = true, optional = true }
 redb = { workspace = true, optional = true }
 
 [features]
-default = ["backend-sled"]
+# DS-EVAL §4/§6.5: sled is CUT from the default build — zero production
+# call sites (grep-verified) and effectively unmaintained upstream (pinned
+# "0.34", last release 2021). MemKv is always available; redb stays behind
+# its flag as the designated dormant fallback (kv_suite-verified swap needs
+# zero call-site changes by TASK-024's design).
+default = []
 backend-sled = ["dep:sled"]
 backend-redb = ["dep:redb"]
 

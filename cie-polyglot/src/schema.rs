@@ -212,19 +212,25 @@ pub fn open_db(path: &Path) -> Result<Connection, String> {
     let conn = Connection::open(path).map_err(|e| e.to_string())?;
     conn.pragma_update(None, "foreign_keys", true)
         .map_err(|e| e.to_string())?;
-    // A disposable, single-process scratch store: deleted and rebuilt every
-    // `cie polyglot` run (see cie-cli's Command::Polyglot), never read
-    // concurrently while this process holds it. Durability guarantees
-    // (fsync-per-commit, rollback journal) buy nothing here and cost real
-    // time on multi-million-row bulk inserts and index builds — a crash
-    // mid-run just means re-running the command, which was already true.
-    // journal_mode=OFF (not MEMORY): MEMORY still buffers the whole
-    // rollback journal in RAM, which for a multi-GB insert competes with
-    // everything else on a memory-constrained box and net LOSES time to
-    // swapping — measured ~60s slower here than no journal at all.
-    conn.pragma_update(None, "journal_mode", "OFF")
+    // Single-writer scratch store, but READ concurrently: the web opens this
+    // exact file (node:sqlite, readOnly — polyglot-db.ts) while a rebuild may
+    // run in another process. WAL is the only journal mode where a writer's
+    // commit is never blocked by a live reader and vice versa (MVCC snapshot
+    // isolation) — measured decisive: under OFF/DELETE a reader holding a read
+    // transaction makes the writer's COMMIT fail with "database is locked"
+    // (scripts/ds-bench, C2 probe); under WAL it commits in 0.07 ms. WAL also
+    // returns 2.9× on point selects (11.4 ms vs 32.6 ms / 10k, bench B) and
+    // crash-recovers on next open instead of corrupting (no rollback journal
+    // under OFF). synchronous=NORMAL keeps the fsync out of the commit path
+    // (WAL commits are app-crash-safe without it; an OS crash may lose the
+    // last transactions — acceptable for a store that rebuilds
+    // deterministically). Combined with the CLI's build-then-rename promotion
+    // (Command::Polyglot) readers see old-complete or new-complete, never a
+    // half-built DB. Cost: ~+13% on bulk writes, +36% file size incl. the WAL
+    // file (bench B) — worth it by an order of magnitude.
+    conn.pragma_update(None, "journal_mode", "WAL")
         .map_err(|e| e.to_string())?;
-    conn.pragma_update(None, "synchronous", "OFF")
+    conn.pragma_update(None, "synchronous", "NORMAL")
         .map_err(|e| e.to_string())?;
     conn.pragma_update(None, "temp_store", "MEMORY")
         .map_err(|e| e.to_string())?;

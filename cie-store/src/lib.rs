@@ -175,6 +175,45 @@ impl Store {
         self.write_json(&self.root.join("tombstones.json"), &t)
     }
 
+    /// Batch form of `mark_tombstone`: loads and writes the tombstone file
+    /// ONCE per run instead of once per deleted file. The per-record rewrite
+    /// is O(n²) in bytes — every record rewrites the whole growing file
+    /// (DS-EVAL §6.4, bench A3 measured 0.80 ms/record and climbing) — so a
+    /// mass-delete run used to pay file-size × deleted-count. No-op (no file
+    /// write at all) when the batch changes nothing.
+    pub fn mark_tombstones<I, S>(&self, paths: I) -> std::io::Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let mut t = self.load_tombstones()?;
+        let before = t.paths.len();
+        t.paths.extend(paths.into_iter().map(Into::into));
+        if t.paths.len() == before {
+            return Ok(());
+        }
+        self.write_json(&self.root.join("tombstones.json"), &t)
+    }
+
+    /// Batch form of `clear_tombstone` (paths reappeared — re-added/changed):
+    /// same once-per-run load/write discipline. No-op when nothing clears,
+    /// so a run with no deletions never even creates `tombstones.json`.
+    pub fn clear_tombstones<I, S>(&self, paths: I) -> std::io::Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let mut t = self.load_tombstones()?;
+        let before = t.paths.len();
+        for p in paths {
+            t.paths.remove(&p.into());
+        }
+        if t.paths.len() == before {
+            return Ok(());
+        }
+        self.write_json(&self.root.join("tombstones.json"), &t)
+    }
+
     /// Clear the tombstone when the path reappears (re-added/changed).
     pub fn clear_tombstone(&self, path: &str) -> std::io::Result<()> {
         let mut t = self.load_tombstones()?;

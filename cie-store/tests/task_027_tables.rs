@@ -71,7 +71,11 @@ fn task_027_kv_suite_still_green() {
 
 /// §15.4 latency gates: sym ≤ 50 ns, sym_by_hash ≤ 30 ns (hot paths),
 /// cold L1 summary get ≤ 5 µs — `#[perf]` `#[ignore]`-gated (rule 5).
+/// sled is no longer a default feature (DS-EVAL §6.5 — cut as unmaintained
+/// with zero production users); the gate compiles only when the backend is
+/// explicitly requested (`cargo test --features backend-sled`).
 #[test]
+#[cfg(feature = "backend-sled")]
 #[ignore = "perf: run with `cargo test --release -- --ignored` (global rule 5)"]
 fn task_027_perf_latency_gates() {
     let sled = cie_store::kv::sled_backend::SledStore::open_temporary().unwrap();

@@ -218,12 +218,15 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
 
     // TASK-028: deletions leave tombstones (`file:{path}:tombstone`, §15.1)
     // so stale facts are purged explicitly; re-appearing paths clear theirs.
-    for path in &plan.deleted {
-        store.mark_tombstone(path)?;
-    }
-    for path in plan.changed.iter().chain(plan.added.iter()) {
-        store.clear_tombstone(path)?;
-    }
+    // Batched (DS-EVAL §6.4): one load+write per run, not per file — the
+    // per-record whole-file rewrite is O(n²) in bytes.
+    store.mark_tombstones(plan.deleted.iter().cloned())?;
+    store.clear_tombstones(
+        plan.changed
+            .iter()
+            .chain(plan.added.iter())
+            .cloned(),
+    )?;
 
     // Fast path: nothing changed (acceptance #10). Deliberately does NOT
     // load the analysis snapshot — re-ingest wall time is hashing + plan only.
