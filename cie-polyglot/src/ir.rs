@@ -991,6 +991,41 @@ pub fn ingest_and_lower(
     Ok((st, rep))
 }
 
+/// INCREMENTAL-ON (backlog item 6) — the same pipeline with the reuse tier:
+/// `prev_db` (the previous promoted store) is ATTACHed during ingest and any
+/// walked file whose blake3 matches the previous row (same language, same
+/// pinned grammar) carries its parse rows over verbatim instead of
+/// re-parsing. Every derivation after the parse tier — source cache, UAST
+/// normalization, IR lowering, and everything the CLI stacks on top —
+/// recomputes from those rows exactly as before, so a warm rebuild of an
+/// unchanged tree is row-for-row the full rebuild. `prev_db = None` is the
+/// cold path and behaves exactly like [`ingest_and_lower`].
+pub fn ingest_and_lower_reusing(
+    conn: &Connection,
+    repo_id: i64,
+    revision: i64,
+    root: &std::path::Path,
+    prev_db: Option<&std::path::Path>,
+) -> Result<
+    (
+        crate::schema::IngestStats,
+        LowerReport,
+        crate::schema::ReuseReport,
+    ),
+    String,
+> {
+    crate::ensure_all_schemas(conn)?;
+    let mut st = crate::schema::IngestStats::default();
+    let reuse =
+        crate::schema::ingest_folder_reusing(conn, repo_id, revision, root, &mut st, prev_db)?;
+    store_sources(conn, root)?;
+    let rep = lower_all(conn)?;
+    // INCREMENTAL-ON: stamp the completed build with the tree fingerprint —
+    // best-effort, a missing stamp only disables the short-circuit.
+    let _ = crate::schema::write_tree_fingerprint(conn, root);
+    Ok((st, rep, reuse))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

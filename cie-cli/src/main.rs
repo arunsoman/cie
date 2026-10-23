@@ -322,6 +322,11 @@ pub enum Command {
         viewspec: Option<String>,
         #[arg(long)]
         json: bool,
+        /// INCREMENTAL-ON: skip the reuse tier — re-parse every file into a
+        /// fresh store (the honest-recomputation contract, byte-identical to
+        /// a pre-INCREMENTAL build)
+        #[arg(long)]
+        full: bool,
     },
     /// User-story catalogue and coverage (CIE-US layer, 147 stories)
     Stories {
@@ -1691,6 +1696,7 @@ fn run(cli: Cli) -> i32 {
             otel,
             viewspec,
             json,
+            full,
         } => {
             let path = path.canonicalize().unwrap_or(path);
             // stable per-path store name: FNV-1a over the canonical path
@@ -1725,7 +1731,13 @@ fn run(cli: Cli) -> i32 {
                 viewspec.as_deref(),
                 json,
                 &db_path,
+                full,
             ) {
+                Ok(rc) if !building.exists() => {
+                    // the INCREMENTAL-ON short-circuit served from the
+                    // previous store — nothing was built, nothing to promote
+                    rc
+                }
                 Ok(rc) => match std::fs::rename(&building, &db_path) {
                     Ok(()) => {
                         // The rename replaced the inode; any `-wal`/`-shm` at
@@ -1763,6 +1775,38 @@ fn run(cli: Cli) -> i32 {
     }
 }
 
+/// Emit a produced ViewSpec artifact to stdout — `all` gives the one bundle
+/// document the web pipeline consumes with a single read. Runs against
+/// either a fresh build connection or a read-only previous store (the
+/// INCREMENTAL-ON short-circuit).
+fn emit_viewspec(conn: &cie_polyglot::Connection, want: &str) -> Result<i32, String> {
+    if want == "all" {
+        match cie_polyglot::viewspec::produce_bundle(conn) {
+            Ok(bundle) => {
+                println!("{bundle}");
+                return Ok(0);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    let specs = cie_polyglot::viewspec::produce(conn)?;
+    let hits: Vec<_> = specs
+        .iter()
+        .filter(|(k, _)| k.starts_with(want) || k.contains(want))
+        .collect();
+    if hits.is_empty() {
+        return Err(format!(
+            "no spec matches '{want}' (available: {})",
+            specs.keys().cloned().collect::<Vec<_>>().join(", ")
+        ));
+    }
+    for (k, v) in hits {
+        println!("{k}");
+        println!("{v}");
+    }
+    Ok(0)
+}
+
 /// DS-EVAL §6.2 — build the polyglot store at `building`; the caller promotes
 /// it over `db_path` by rename ONLY on success. The web opens `db_path`
 /// read-only while a rebuild may run in another process, so promotion must be
@@ -1774,14 +1818,103 @@ fn run_polyglot_build(
     viewspec: Option<&str>,
     json: bool,
     db_path: &std::path::Path,
+    full: bool,
 ) -> Result<i32, String> {
+    // INCREMENTAL-ON short-circuit (backlog item 6): when the tree and the
+    // engine fingerprint match the previous store exactly, every derivation
+    // would recompute to the rows that store already holds (the warm==full
+    // gate pins that row-for-row) — so the honest maximum is to not rebuild
+    // at all and serve from the previous store. --full bypasses; a runtime
+    // (--otel) build never takes it; --json bypasses because its report is
+    // the fresh detection summary.
+    if !full && otel.is_none() && !json {
+        if let (Some(prev_fp), Ok(now_fp)) = (
+            cie_polyglot::schema::read_tree_fingerprint(db_path),
+            cie_polyglot::schema::hash_tree(path),
+        ) {
+            if prev_fp.hash == now_fp.hash {
+                let line = format!(
+                    "polyglot reuse: tree unchanged ({} files, engine fingerprint match) — store reused as-is, nothing re-parsed (--full recomputes)",
+                    now_fp.files
+                );
+                if viewspec.is_none() {
+                    println!("{line}");
+                    println!("polyglot store: {}", db_path.display());
+                    if let Ok(prev) = cie_polyglot::schema::open_read_only(db_path) {
+                        let files: i64 = prev
+                            .query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))
+                            .unwrap_or(0);
+                        let symbols: i64 = prev
+                            .query_row("SELECT COUNT(*) FROM symbols", [], |r| r.get(0))
+                            .unwrap_or(0);
+                        let _ = prev;
+                        println!(
+                            "  ingest: {files} files, {symbols} symbols in store (unchanged — carried from the previous build)"
+                        );
+                    }
+                    return Ok(0);
+                }
+                // --viewspec on an unchanged tree: serve the bundle from the
+                // previous store; on any failure fall through to a rebuild
+                if let Some(want) = viewspec {
+                    match cie_polyglot::schema::open_read_only(db_path)
+                        .and_then(|prev| emit_viewspec(&prev, want))
+                    {
+                        Ok(rc) => {
+                            eprintln!("{line}");
+                            return Ok(rc);
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "polyglot reuse: previous store unusable for viewspec ({e}) — rebuilding"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
     let conn = cie_polyglot::schema::open_db(building)?;
     let rc = (|| -> Result<i32, String> {
-        let static_res =
-            cie_polyglot::ir::ingest_and_lower(&conn, 1, 41, &path);
-        let Ok((stats, lower)) = static_res else {
+        // INCREMENTAL-ON (backlog item 6): the previous promoted store feeds
+        // the reuse tier — unchanged files carry their parse rows over,
+        // hash-verified, instead of re-parsing; every derivation recomputes.
+        // --full keeps the honest-recomputation escape hatch.
+        let prev_db: Option<&std::path::Path> = if full || !db_path.exists() {
+            None
+        } else {
+            Some(db_path)
+        };
+        let static_res = cie_polyglot::ir::ingest_and_lower_reusing(&conn, 1, 41, &path, prev_db);
+        let Ok((stats, lower, reuse)) = static_res else {
             return Err(static_res.err().unwrap_or_default());
         };
+        // INCREMENTAL-ON receipt: say where the parse work went — engaged,
+        // forced off, or degraded. stdout is a machine contract in
+        // --viewspec / --json mode, so only the human summary prints there.
+        let reuse_line = if full {
+            Some(format!(
+                "polyglot reuse: off (--full) — {} files re-parsed, honest recomputation",
+                stats.files_ingested
+            ))
+        } else if reuse.files_reused > 0 {
+            Some(format!(
+                "polyglot reuse: {} of {} files carried over from the previous store (hash-verified) — {} re-parsed, {} gone from the tree",
+                reuse.files_reused,
+                reuse.files_reused + reuse.files_parsed,
+                reuse.files_parsed,
+                reuse.files_dropped
+            ))
+        } else {
+            reuse.note.clone()
+        };
+        if let Some(line) = &reuse_line {
+            if viewspec.is_none() && !json {
+                println!("{line}");
+            } else {
+                eprintln!("{line}");
+            }
+        }
         let _ = cie_polyglot::frameworks::install_registry(&conn);
         let fw = cie_polyglot::frameworks::detect(&conn);
         // C4 needs the ingested root for DDD dir checks
@@ -1798,40 +1931,7 @@ fn run_polyglot_build(
             .map_or(Ok(None), |r| r.map(Some));
 
         if let Some(want) = viewspec {
-            // `all` → one bundle document: every spec in one JSON,
-            // the seam the web pipeline consumes with a single read
-            if want == "all" {
-                match cie_polyglot::viewspec::produce_bundle(&conn) {
-                    Ok(bundle) => {
-                        println!("{bundle}");
-                        return Ok(0);
-                    }
-                    Err(e) => return Err(e),
-                }
-            }
-            let specs = cie_polyglot::viewspec::produce(&conn);
-            match specs {
-                Ok(map) => {
-                    let hits: Vec<_> = map
-                        .iter()
-                        .filter(|(k, _)| {
-                            k.starts_with(&want) || k.contains(&want)
-                        })
-                        .collect();
-                    if hits.is_empty() {
-                        return Err(format!(
-                            "no spec matches '{want}' (available: {})",
-                            map.keys().cloned().collect::<Vec<_>>().join(", ")
-                        ));
-                    }
-                    for (k, v) in hits {
-                        println!("{k}");
-                        println!("{v}");
-                    }
-                    return Ok(0);
-                }
-                Err(e) => return Err(e),
-            }
+            return emit_viewspec(&conn, want);
         }
 
         if json {
@@ -1839,6 +1939,9 @@ fn run_polyglot_build(
                 "db": db_path.display().to_string(),
                 "ingest": {
                     "files": stats.files_ingested,
+                    "files_reused": reuse.files_reused,
+                    "files_parsed": reuse.files_parsed,
+                    "files_dropped": reuse.files_dropped,
                     "parse_errors": stats.files_parse_errors,
                     "ast_nodes": stats.ast_nodes,
                     "symbols": stats.symbols,

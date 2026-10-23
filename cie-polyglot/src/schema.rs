@@ -14,7 +14,7 @@
 //! * content and text are content-addressed (`blake3`), so unchanged files
 //!   re-ingest as no-ops and `node_text` is shared across languages (§42).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -205,6 +205,13 @@ CREATE INDEX IF NOT EXISTS idx_sym_name   ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_sym_qual   ON symbols(qual_name);
 CREATE INDEX IF NOT EXISTS idx_sym_kind   ON symbols(kind);
 CREATE INDEX IF NOT EXISTS idx_sym_span   ON symbols(file_id, start_byte, end_byte);
+
+-- INCREMENTAL-ON (backlog item 6): build metadata — the tree fingerprint
+-- the unchanged-tree short-circuit compares against (key 'tree_fingerprint').
+CREATE TABLE IF NOT EXISTS store_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 "#;
 
 /// Open (or create) a polyglot store and apply the §11 schema.
@@ -416,6 +423,10 @@ pub struct IngestStats {
     pub symbols: usize,
     pub skipped_unsupported: usize,
     pub skipped_no_name: usize,
+    /// INCREMENTAL-ON (backlog item 6): files whose rows were carried over
+    /// from the previous store instead of re-parsed. Included in
+    /// `files_ingested` (which keeps its meaning: files now in the store).
+    pub files_reused: usize,
 }
 
 fn intern_kind(
@@ -818,24 +829,539 @@ pub fn ingest_folder(
     let mut files: Vec<(String, Lang, String)> = Vec::new();
     collect_files(root, root, &mut files, stats)?;
     files.sort_by(|a, b| a.0.cmp(&b.0));
-    ingest_collected(conn, repo_id, revision, files, stats)
+    ingest_collected(conn, repo_id, revision, files, stats, None)
+}
+
+// ---------------------------------------------------------------------------
+// INCREMENTAL-ON (backlog item 6) — the reuse tier
+//
+// The DS-EVAL build-then-rename contract rebuilds the store fresh each run;
+// the honest-recomputation price is a full tree-sitter re-parse of every
+// file. The reuse tier keeps the contract and drops the price: the PREVIOUS
+// promoted store is ATTACHed as `prev`, and any walked file whose blake3
+// equals the previous row's `content_hash` (same language, same pinned
+// grammar version) has its `files`/`ast_nodes`/`symbols` rows copied verbatim
+// — ids included — instead of re-parsed. Every derivation (source cache,
+// UAST normalization, IR lowering, frameworks, C4, state machines, workflows,
+// duplicates, runtime, viewspec) still recomputes each run from those rows,
+// so a warm rebuild of an unchanged tree is row-for-row the full rebuild;
+// a `--full` flag keeps the escape hatch. Reuse problems degrade to a full
+// parse with a named note — never to a silently stale store.
+// ---------------------------------------------------------------------------
+
+/// The outcome of one reuse-tier pass. Invariant:
+/// `files_reused + files_parsed == files_ingested` (the store population).
+#[derive(Debug, Clone, Default)]
+pub struct ReuseReport {
+    /// files whose rows were copied from the previous store (hash-verified)
+    pub files_reused: usize,
+    /// files re-parsed this run (changed or new)
+    pub files_parsed: usize,
+    /// paths the previous store knew that the current walk no longer sees
+    pub files_dropped: usize,
+    /// why reuse did not engage (previous store unusable) — full parse ran
+    pub note: Option<String>,
+}
+
+/// Walk + hash-match against the ATTACHed previous store, then ingest: the
+/// unchanged subset is copied verbatim, the changed/new subset re-parses,
+/// and every walked file that fails the hash/language/grammar match is
+/// re-parsed too. `prev_db = None` is the plain cold path (`ingest_folder`).
+pub fn ingest_folder_reusing(
+    conn: &Connection,
+    repo_id: i64,
+    revision: i64,
+    root: &Path,
+    stats: &mut IngestStats,
+    prev_db: Option<&Path>,
+) -> Result<ReuseReport, String> {
+    let Some(prev_db) = prev_db else {
+        ingest_folder(conn, repo_id, revision, root, stats)?;
+        return Ok(ReuseReport {
+            files_reused: 0,
+            files_parsed: stats.files_ingested,
+            files_dropped: 0,
+            note: None,
+        });
+    };
+    // ATTACH the live promoted store. Only SELECTs ever touch it; the
+    // build-then-rename promotion replaces the file afterwards and drops
+    // stale sidecars (the ATTACH may create the same -wal/-shm coordination
+    // files every WAL reader makes).
+    let attach_sql = format!(
+        "ATTACH DATABASE '{}' AS prev",
+        prev_db.display().to_string().replace('\'', "''")
+    );
+    if let Err(e) = conn.execute_batch(&attach_sql) {
+        let note = format!("previous store unusable ({e}) — full reparse");
+        ingest_folder(conn, repo_id, revision, root, stats)?;
+        return Ok(ReuseReport {
+            files_reused: 0,
+            files_parsed: stats.files_ingested,
+            files_dropped: 0,
+            note: Some(note),
+        });
+    }
+    let result: Result<ReuseReport, String> = (|| {
+        if let Err(e) = validate_prev_schema(conn) {
+            ingest_folder(conn, repo_id, revision, root, stats)?;
+            return Ok(ReuseReport {
+                files_reused: 0,
+                files_parsed: stats.files_ingested,
+                files_dropped: 0,
+                note: Some(format!(
+                    "previous store schema not reusable ({e}) — full reparse"
+                )),
+            });
+        }
+        let mut files: Vec<(String, Lang, String)> = Vec::new();
+        collect_files(root, root, &mut files, stats)?;
+        files.sort_by(|a, b| a.0.cmp(&b.0));
+        let plan = plan_reuse(conn, repo_id, files)?;
+        let ReusePlan {
+            reused_ids,
+            parse,
+            dropped,
+        } = plan;
+        let report = ReuseReport {
+            files_reused: reused_ids.len(),
+            files_parsed: parse.len(),
+            files_dropped: dropped,
+            note: None,
+        };
+        ingest_collected(conn, repo_id, revision, parse, stats, Some(&reused_ids))?;
+        Ok(report)
+    })();
+    let _ = conn.execute_batch("DETACH DATABASE prev");
+    let report = result?;
+    stats.files_ingested += report.files_reused;
+    stats.files_reused = report.files_reused;
+    Ok(report)
+}
+
+/// The planned partition of one walk: carried-over prev file ids vs the
+/// re-parse subset, plus the count of prev paths the walk no longer sees.
+struct ReusePlan {
+    reused_ids: Vec<i64>,
+    parse: Vec<(String, Lang, String)>,
+    dropped: usize,
+}
+
+/// Required prev-store columns — a store missing any of these predates the
+/// reuse tier's expectations and falls back to a full parse, named.
+fn validate_prev_schema(conn: &Connection) -> Result<(), String> {
+    let required: &[(&str, &[&str])] = &[
+        (
+            "files",
+            &[
+                "id",
+                "repo_id",
+                "path",
+                "content_hash",
+                "language",
+                "revision",
+                "size_bytes",
+                "tree_sitter_grammar_version",
+            ],
+        ),
+        (
+            "ast_nodes",
+            &[
+                "id",
+                "file_id",
+                "parent_id",
+                "kind_id",
+                "child_index",
+                "start_byte",
+                "end_byte",
+                "start_row",
+                "start_col",
+                "end_row",
+                "end_col",
+                "is_named",
+                "is_error",
+                "is_missing",
+                "text_id",
+                "shape_hash",
+            ],
+        ),
+        (
+            "symbols",
+            &[
+                "id",
+                "file_id",
+                "ast_node_id",
+                "name",
+                "qual_name",
+                "kind",
+                "parent_symbol_id",
+                "start_byte",
+                "end_byte",
+                "sig_end_byte",
+                "subtree_hash",
+            ],
+        ),
+        ("node_kinds", &["id", "name", "language"]),
+        ("node_text", &["id", "content", "hash", "kind_hint"]),
+    ];
+    for (table, cols) in required {
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA prev.table_info({table})"))
+            .map_err(|e| e.to_string())?;
+        let have: Vec<String> = stmt
+            .query_map([], |r| r.get::<_, String>(1))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        for col in *cols {
+            if !have.iter().any(|h| h == col) {
+                return Err(format!("{table}.{col} missing"));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Latest-revision index of the previous store, then the per-file decision:
+/// same path + same blake3 + same language + same pinned grammar → reuse;
+/// anything else → re-parse. A path present before but absent from the walk
+/// is counted dropped (its rows simply never get copied).
+fn plan_reuse(
+    conn: &Connection,
+    repo_id: i64,
+    files: Vec<(String, Lang, String)>,
+) -> Result<ReusePlan, String> {
+    // SQLite's bare-column-with-MAX rule returns the max-revision row's
+    // columns, so this is the latest state per path.
+    let mut stmt = conn
+        .prepare(
+            "SELECT path, id, content_hash, language, tree_sitter_grammar_version, MAX(revision)
+             FROM prev.files WHERE repo_id = ?1 GROUP BY path",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([repo_id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, Vec<u8>>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut prev_by_path: HashMap<String, (i64, Vec<u8>, String, String)> = HashMap::new();
+    for row in rows {
+        let (path, id, hash, language, gv) = row.map_err(|e| e.to_string())?;
+        prev_by_path.insert(path, (id, hash, language, gv));
+    }
+    drop(stmt);
+
+    let mut walked: HashSet<String> = HashSet::new();
+    let mut plan = ReusePlan {
+        reused_ids: Vec::new(),
+        parse: Vec::new(),
+        dropped: 0,
+    };
+    for (rel, lang, src) in files {
+        walked.insert(rel.clone());
+        let reusable = prev_by_path
+            .get(&rel)
+            .filter(|(_, hash, language, gv)| {
+                language == lang.name() && gv == lang.grammar_version()
+            })
+            .map(|(_, hash, _, _)| file_hash(src.as_bytes()) == *hash)
+            .unwrap_or(false);
+        if reusable {
+            plan.reused_ids.push(prev_by_path[&rel].0);
+        } else {
+            plan.parse.push((rel, lang, src));
+        }
+    }
+    // dropped = previous paths the walk no longer sees — a walked-but-changed
+    // path is a re-parse, not a drop
+    plan.dropped = prev_by_path.keys().filter(|p| !walked.contains(*p)).count();
+    Ok(plan)
+}
+
+/// Copy the reused files' rows verbatim — ids included — in FK-safe order
+/// (shared intern rows → files → ast parents-before-children → symbols).
+/// Kinds/texts use OR IGNORE: chunks overlap on shared intern rows by
+/// design, and the ids come from one store, so same id == same row.
+/// `file_source_cache` is NOT copied: `store_sources` recompresses every
+/// file this run, deterministic over identical content.
+fn copy_reused_rows(
+    conn: &Connection,
+    ids: &[i64],
+    repo_id: i64,
+    revision: i64,
+    stats: &mut IngestStats,
+) -> Result<(), String> {
+    for chunk in ids.chunks(900) {
+        let in_list = chunk
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        conn.execute(
+            &format!(
+                "INSERT OR IGNORE INTO node_kinds(id, name, language)
+                 SELECT DISTINCT k.id, k.name, k.language
+                 FROM prev.node_kinds k JOIN prev.ast_nodes a ON a.kind_id = k.id
+                 WHERE a.file_id IN ({in_list})"
+            ),
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!(
+                "INSERT OR IGNORE INTO node_text(id, content, hash, kind_hint)
+                 SELECT DISTINCT t.id, t.content, t.hash, t.kind_hint
+                 FROM prev.node_text t JOIN prev.ast_nodes a ON a.text_id = t.id
+                 WHERE a.file_id IN ({in_list})"
+            ),
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!(
+                "INSERT INTO files(id, repo_id, path, content_hash, language, revision,
+                     size_bytes, tree_sitter_grammar_version)
+                 SELECT id, ?1, path, content_hash, language, ?2, size_bytes,
+                     tree_sitter_grammar_version
+                 FROM prev.files WHERE id IN ({in_list})"
+            ),
+            rusqlite::params![repo_id, revision],
+        )
+        .map_err(|e| e.to_string())?;
+        // the ingest walk inserts a parent before its children, so
+        // parent_id < id on every row — ORDER BY id satisfies the self-FK
+        // even under per-row immediate checking
+        conn.execute(
+            &format!(
+                "INSERT INTO ast_nodes(id, file_id, parent_id, kind_id, child_index,
+                     start_byte, end_byte, start_row, start_col, end_row, end_col,
+                     is_named, is_error, is_missing, text_id, shape_hash)
+                 SELECT id, file_id, parent_id, kind_id, child_index,
+                     start_byte, end_byte, start_row, start_col, end_row, end_col,
+                     is_named, is_error, is_missing, text_id, shape_hash
+                 FROM prev.ast_nodes WHERE file_id IN ({in_list}) ORDER BY id"
+            ),
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!(
+                "INSERT INTO symbols(id, file_id, ast_node_id, name, qual_name, kind,
+                     parent_symbol_id, start_byte, end_byte, sig_end_byte, subtree_hash)
+                 SELECT id, file_id, ast_node_id, name, qual_name, kind,
+                     parent_symbol_id, start_byte, end_byte, sig_end_byte, subtree_hash
+                 FROM prev.symbols WHERE file_id IN ({in_list}) ORDER BY id"
+            ),
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        // honest stats: the carried rows count exactly as parsed rows would
+        let (nodes, syms, errs): (i64, i64, i64) = conn
+            .query_row(
+                &format!(
+                    "SELECT
+                       (SELECT COUNT(*) FROM prev.ast_nodes WHERE file_id IN ({in_list})),
+                       (SELECT COUNT(*) FROM prev.symbols WHERE file_id IN ({in_list})),
+                       (SELECT COUNT(DISTINCT file_id) FROM prev.ast_nodes
+                          WHERE file_id IN ({in_list}) AND (is_error = 1 OR is_missing = 1))"
+                ),
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|e| e.to_string())?;
+        stats.ast_nodes += nodes as usize;
+        stats.symbols += syms as usize;
+        stats.files_parse_errors += errs as usize;
+        stats.files_reused += chunk.len();
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// INCREMENTAL-ON — the unchanged-tree short-circuit
+//
+// The per-file reuse tier already makes warm rebuilds parity-identical, but
+// at scale the pipeline is DERIVATION-bound (IR lowering, frameworks, C4,
+// state machines, workflows, duplicates all recompute over 1M+ carried
+// rows), so skipping only the parse is perf-neutral. When the tree is
+// UNCHANGED and the engine is the same, every one of those derivations
+// recomputes to exactly the rows the previous store already holds (the
+// warm==full gate above proves it row-for-row) — so the honest maximum is
+// to not rebuild at all: hash the tree (files + dirs + walk ignores +
+// engine stamp), compare with the previous store's `store_meta` row, and
+// hand back the previous store as-is. Any change — file content, a new or
+// gone path, a directory, the ignored-dir list, a grammar pin, the engine
+// version — changes the fingerprint and forces the rebuild. `--full`
+// bypasses the check entirely; a runtime (--otel) build never takes it.
+// ---------------------------------------------------------------------------
+
+/// The engine half of the fingerprint: the crate version plus every input
+/// the derivations depend on that is not file content. Bump the
+/// cie-polyglot version when derivation logic changes — the stamp is what
+/// keeps a changed engine from serving stale derived rows.
+fn engine_stamp() -> String {
+    const EXTS: &str = "py,pyi,js,jsx,mjs,cjs,ts,go,rs,java,c,cpp,cs,php";
+    let grammars: Vec<&str> = [
+        Lang::Python,
+        Lang::JavaScript,
+        Lang::TypeScript,
+        Lang::Go,
+        Lang::Rust,
+        Lang::Java,
+        Lang::C,
+        Lang::Cpp,
+        Lang::CSharp,
+        Lang::Php,
+    ]
+    .iter()
+    .map(|l| l.grammar_version())
+    .collect();
+    format!(
+        "cie-polyglot v{} | grammars [{}] | exts [{}] | ignored [{}]",
+        env!("CARGO_PKG_VERSION"),
+        grammars.join(","),
+        EXTS,
+        IGNORED_DIRS.join(",")
+    )
+}
+
+/// A tree fingerprint: how many supported files the walk saw, and the
+/// blake3 over (every supported file's path + size + content hash, every
+/// visited directory, the unsupported-file count, the engine stamp).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TreeFingerprint {
+    pub files: usize,
+    pub hash: String,
+}
+
+/// Walk the tree exactly like `collect_files` (same ignore list, same
+/// unsupported rule) but streaming — nothing is held in memory — and hash
+/// the structure into one blake3. Deterministic for a deterministic tree.
+pub fn hash_tree(root: &Path) -> Result<TreeFingerprint, String> {
+    let mut files: Vec<(String, usize, Vec<u8>)> = Vec::new();
+    let mut dirs: Vec<String> = Vec::new();
+    let mut skipped = 0usize;
+    fn visit(
+        dir: &Path,
+        rel: &str,
+        files: &mut Vec<(String, usize, Vec<u8>)>,
+        dirs: &mut Vec<String>,
+        skipped: &mut usize,
+    ) -> Result<(), String> {
+        dirs.push(rel.to_string());
+        let entries = std::fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let p = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            let child_rel = if rel.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel}/{name}")
+            };
+            if p.is_dir() {
+                if IGNORED_DIRS.contains(&name.as_str()) {
+                    continue;
+                }
+                visit(&p, &child_rel, files, dirs, skipped)?;
+            } else if Lang::from_path(&child_rel).is_some() {
+                let bytes = std::fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+                let hash = blake3::hash(&bytes).as_bytes().to_vec();
+                files.push((child_rel, bytes.len(), hash));
+            } else {
+                *skipped += 1;
+            }
+        }
+        Ok(())
+    }
+    visit(root, "", &mut files, &mut dirs, &mut skipped)?;
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+    dirs.sort();
+    let mut buf: Vec<u8> = Vec::new();
+    for (path, size, hash) in &files {
+        buf.extend_from_slice(format!("F\x00{}\x00{}\x00", path, size).as_bytes());
+        buf.extend_from_slice(&hash[..]);
+        buf.push(0);
+    }
+    for d in &dirs {
+        buf.extend_from_slice(format!("D\x00{}\x00", d).as_bytes());
+    }
+    buf.extend_from_slice(format!("S\x00{}\x00", skipped).as_bytes());
+    buf.extend_from_slice(format!("E\x00{}\x00", engine_stamp()).as_bytes());
+    Ok(TreeFingerprint {
+        files: files.len(),
+        hash: hex(&blake3::hash(&buf).as_bytes()[..]),
+    })
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Read the previous store's tree fingerprint. `None` on anything unusual —
+/// missing file, unreadable file, store predating `store_meta` — which the
+/// caller treats as "no short-circuit, rebuild normally".
+pub fn read_tree_fingerprint(db: &Path) -> Option<TreeFingerprint> {
+    let conn = Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY).ok()?;
+    let raw: String = conn
+        .query_row(
+            "SELECT value FROM store_meta WHERE key = 'tree_fingerprint'",
+            [],
+            |r| r.get(0),
+        )
+        .ok()?;
+    let (files, hash) = raw.split_once('|')?;
+    let files: usize = files.strip_prefix("files:")?.parse().ok()?;
+    let hash = hash.strip_prefix("hash:")?.to_string();
+    Some(TreeFingerprint { files, hash })
+}
+
+/// Stamp the just-built store with the tree's fingerprint (best-effort: a
+/// missing stamp only disables the short-circuit — the safe direction).
+pub(crate) fn write_tree_fingerprint(conn: &Connection, root: &Path) -> Result<(), String> {
+    let fp = hash_tree(root)?;
+    conn.execute(
+        "INSERT OR REPLACE INTO store_meta(key, value) VALUES ('tree_fingerprint', ?1)",
+        rusqlite::params![format!("files:{}|hash:{}", fp.files, fp.hash)],
+    )
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+/// Read-only handle on a promoted store — the short-circuit serves
+/// `--viewspec` bundles from the previous store without rebuilding.
+pub fn open_read_only(db: &Path) -> Result<Connection, String> {
+    Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("{}: {e}", db.display()))
 }
 
 /// Ingest a pre-collected (path, lang, source) list under one transaction
 /// with per-file savepoints. The intern caches are shared across the folder:
 /// node_kinds and node_text are folder-global tables, so this only memoizes
 /// lookups an earlier file already answered — the first-encounter order that
-/// assigns every id is unchanged.
+/// assigns every id is unchanged. `reused_ids` (INCREMENTAL-ON) carries the
+/// previous store's file ids to copy verbatim BEFORE any parsing, so the
+/// parse tier's interned ids land strictly above every copied id.
 fn ingest_collected(
     conn: &Connection,
     repo_id: i64,
     revision: i64,
     files: Vec<(String, Lang, String)>,
     stats: &mut IngestStats,
+    reused_ids: Option<&[i64]>,
 ) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
     let mut kind_cache: HashMap<(String, &'static str), i64> = HashMap::new();
     let mut text_cache: HashMap<String, i64> = HashMap::new();
+    if let Some(ids) = reused_ids {
+        copy_reused_rows(&tx, ids, repo_id, revision, stats)?;
+    }
     for (i, (rel, lang, src)) in files.into_iter().enumerate() {
         let sp = format!("f{i}");
         tx.execute_batch(&format!("SAVEPOINT {sp}"))

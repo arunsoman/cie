@@ -34,7 +34,11 @@ pub mod duplicates;
 pub mod runtime;
 pub mod viewspec;
 
-use rusqlite::Connection;
+// re-exported for consumers that touch store connections (the CLI's viewspec
+// emitter runs against either a fresh build or a read-only previous store);
+// internal code uses the same re-exported path
+pub use rusqlite;
+pub use rusqlite::Connection;
 
 /// Apply every module's DDL in dependency order — one call that leaves a
 /// store ready for the full pipeline (ingest → lower → detect → runtime).
