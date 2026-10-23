@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // Everything the cie-polyglot run (PRD v2.0 — docs/prd-v2.0.md) recorded
 // for this project, read straight from the SQLite scratch store — never
@@ -50,7 +51,7 @@ export function PolyglotAdminView() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/polyglot/summary", {
+      const res = await repositoryFetch("/api/polyglot/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root }),

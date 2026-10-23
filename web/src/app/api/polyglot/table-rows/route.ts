@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 const PAGE_SIZE = 50;
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string; table?: string; page?: number };
+  let body: { root?: string; revision?: string; table?: string; page?: number };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
   }
 
   const page = Math.max(body.page ?? 0, 0);
-  const result = getPolyglotTableRows(rootCheck.path, body.table, {
+  const result = await getPolyglotTableRows(rootCheck.path, body.table, {
+    revision: body.revision,
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });

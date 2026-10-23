@@ -10,7 +10,7 @@ import { getDuplicateClusters } from "@/lib/polyglot-db";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string };
+  let body: { root?: string; revision?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rootCheck.plain }, { status: 400 });
   }
 
-  const result = getDuplicateClusters(rootCheck.path);
+  const result = await getDuplicateClusters(rootCheck.path, { revision: body.revision });
   if (!result) {
     return NextResponse.json({ available: false as const });
   }

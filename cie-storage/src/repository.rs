@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::path::{Path, PathBuf};
-const FORMAT: &str = "stream-facts-v3";
+const FORMAT: &str = "stream-facts-v4";
 
 #[derive(Serialize, Deserialize)]
 struct CachedFacts {
@@ -137,6 +137,7 @@ impl RepositoryWriter {
         let tree = file.tree;
         let file_facts = file.facts;
         let bytes = src.as_bytes();
+        self.conn.execute("INSERT OR REPLACE INTO captured_sources(path,content_hash,size_bytes,zstd_bytes) VALUES(?1,?2,?3,?4)",params![rel,blake3::hash(bytes).to_hex().to_string(),bytes.len(),zstd::bulk::compress(bytes,self.policy.compression_level).map_err(err)?]).map_err(err)?;
         // The existing polyglot grammar set owns AST/IR derivation. Other
         // adapters still persist their complete semantic facts below.
         if let (Some(lang), Some(tree)) = (cie_polyglot::schema::Lang::from_path(&rel), tree) {
@@ -236,6 +237,7 @@ impl RepositoryWriter {
         cie_polyglot::ensure_all_schemas(&conn).map_err(err)?;
         conn.execute_batch("CREATE TABLE IF NOT EXISTS ingest_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS semantic_files(path TEXT PRIMARY KEY,hash BLOB NOT NULL,payload BLOB NOT NULL);
+            CREATE TABLE IF NOT EXISTS captured_sources(path TEXT PRIMARY KEY,content_hash TEXT NOT NULL,size_bytes INTEGER NOT NULL,zstd_bytes BLOB NOT NULL);
             CREATE TABLE IF NOT EXISTS file_status(path TEXT PRIMARY KEY,status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS stage_status(name TEXT PRIMARY KEY,status TEXT NOT NULL,detail TEXT NOT NULL);
             PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE;").map_err(err)?;
@@ -329,6 +331,7 @@ impl RepositoryWriter {
         Ok(())
     }
     fn remove_file(&self, path: &str) -> io::Result<()> {
+        self.conn.execute("DELETE FROM captured_sources WHERE path=?1",[path]).map_err(err)?;
         self.conn
             .execute_batch(
                 "CREATE TEMP TABLE IF NOT EXISTS removed_symbols(id INTEGER PRIMARY KEY);
@@ -530,6 +533,11 @@ impl RepositoryWriter {
             .map_err(err)?;
         // Close before promotion. Drop also cleans failed builds.
         self.conn.close().map_err(|(_, e)| err(e))?;
+        let revision_dir = root.join(".cie/revs").join(rev.to_string());
+        std::fs::create_dir_all(&revision_dir)?;
+        let archived = revision_dir.join("repository.sqlite.tmp");
+        std::fs::copy(&self.building, &archived)?;
+        std::fs::rename(&archived, revision_dir.join("repository.sqlite"))?;
         std::fs::rename(&self.building, &self.final_path)?;
         for suffix in ["-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{}{suffix}", self.final_path.display()));

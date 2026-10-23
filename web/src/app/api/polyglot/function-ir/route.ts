@@ -8,7 +8,7 @@ import { getFunctionIr } from "@/lib/polyglot-db";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string; symbolId?: number };
+  let body: { root?: string; revision?: string; symbolId?: number };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing symbolId." }, { status: 400 });
   }
 
-  const ir = getFunctionIr(rootCheck.path, body.symbolId);
+  const ir = await getFunctionIr(rootCheck.path, body.symbolId, body.revision);
   if (!ir) {
     return NextResponse.json({ available: false as const });
   }

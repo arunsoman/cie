@@ -11,7 +11,7 @@ import { getPolyglotSummary } from "@/lib/polyglot-db";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string };
+  let body: { root?: string; revision?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rootCheck.plain }, { status: 400 });
   }
 
-  const summary = getPolyglotSummary(rootCheck.path);
+  const summary = await getPolyglotSummary(rootCheck.path, body.revision);
   if (!summary) {
     return NextResponse.json({ available: false as const });
   }

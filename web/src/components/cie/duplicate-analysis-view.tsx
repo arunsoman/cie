@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // Duplicate Analysis — flat, filterable view over every row of the
 // `duplicates` table (all tiers, unlike DuplicateClustersView which is
@@ -85,7 +86,7 @@ function SnippetPane({ root, member, title }: { root: string; member: SymbolRef;
     setText(null);
     (async () => {
       try {
-        const res = await fetch("/api/polyglot/snippet", {
+        const res = await repositoryFetch("/api/polyglot/snippet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -137,7 +138,7 @@ export function DuplicateAnalysisView() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/polyglot/duplicates", {
+        const res = await repositoryFetch("/api/polyglot/duplicates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

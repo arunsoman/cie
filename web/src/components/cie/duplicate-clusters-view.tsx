@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // Duplicate-code clusters from the cie-polyglot run — exact-IR-hash
 // families (tier='canonical', the one Fact-tier result; cosine tiers are
@@ -47,7 +48,7 @@ function SnippetPane({ root, member, title }: { root: string; member: Member; ti
     setLoading(true);
     setText(null);
     try {
-      const res = await fetch("/api/polyglot/snippet", {
+      const res = await repositoryFetch("/api/polyglot/snippet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -212,7 +213,7 @@ export function DuplicateClustersView() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/polyglot/duplicate-clusters", {
+      const res = await repositoryFetch("/api/polyglot/duplicate-clusters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root }),

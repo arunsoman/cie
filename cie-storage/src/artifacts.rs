@@ -103,3 +103,9 @@ pub fn get<T: DeserializeOwned>(
             .join(kind.file_name()),
     )
 }
+
+/// Persist web-compatible outputs once; retrieval never re-runs ingestion.
+pub fn put_web_bundle(root: &Path, revision: RevId, payload: &serde_json::Value) -> io::Result<()> {
+    let store = Store::open(root)?;
+    store.write_json(&store.root().join("revs").join(revision.to_string()).join("web-bundle.json"),payload)
+}

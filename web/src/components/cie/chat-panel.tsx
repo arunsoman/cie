@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // "Ask CIE" — the chat that lives on the right side of the workspace.
 //
@@ -298,7 +299,7 @@ export function ChatPanel() {
         }
         setChatBusy(true);
         try {
-          const res = await fetch("/api/impact", {
+          const res = await repositoryFetch("/api/impact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sourceRoot, symbol: target.qual_name }),

@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // The mastery journey's interactive cards, rendered inside "Ask CIE"
 // bubbles — and the blast-radius popover for the source panel.
@@ -402,7 +403,7 @@ export function BlastRadiusPopover({
     let dead = false;
     const run = async () => {
       try {
-        const res = await fetch("/api/impact", {
+        const res = await repositoryFetch("/api/impact", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sourceRoot, symbol: sym!.qual_name || sym!.name }),

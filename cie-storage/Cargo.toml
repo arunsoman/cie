@@ -8,6 +8,8 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+cie-viz = { workspace = true }
+cie-analysis = { workspace = true }
 cie-core = { workspace = true }
 cie-store = { workspace = true }
 cie-semantic = { workspace = true }
@@ -20,11 +22,12 @@ cie-incremental = { workspace = true }
 cie-concepts = { workspace = true }
 cie-llm = { workspace = true }
 serde = { workspace = true }
+schemars = "1"
 serde_json = { workspace = true }
 blake3 = { workspace = true }
 zstd = { workspace = true }
 tree-sitter = { workspace = true }
-rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+rusqlite = { version = "0.32", features = ["bundled", "backup", "hooks"] }
 
 [dev-dependencies]
 cie-adapter-python = { workspace = true }

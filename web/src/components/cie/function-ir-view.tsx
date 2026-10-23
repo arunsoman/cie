@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // Function IR viewer — pick a function by name, see its lowered CFG: blocks
 // in order, each with its instructions (opcode + source span — `operands`
@@ -62,7 +63,7 @@ function SourcePane({ root, path, startByte, endByte }: { root: string; path: st
     setText(null);
     (async () => {
       try {
-        const res = await fetch("/api/polyglot/snippet", {
+        const res = await repositoryFetch("/api/polyglot/snippet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ root, path, startByte, endByte }),
@@ -103,7 +104,7 @@ function FunctionIrPanel({ root, symbolId }: { root: string; symbolId: number })
     setLoading(true);
     (async () => {
       try {
-        const res = await fetch("/api/polyglot/function-ir", {
+        const res = await repositoryFetch("/api/polyglot/function-ir", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ root, symbolId }),
@@ -234,7 +235,7 @@ export function FunctionIrView({ root }: { root: string }) {
     (q: string) => {
       const mine = ++reqId.current;
       setSearching(true);
-      fetch("/api/polyglot/symbols", {
+      repositoryFetch("/api/polyglot/symbols", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root, query: q }),

@@ -34,6 +34,7 @@ members = [
     "cie-fault",
     "cie-store",
     "cie-storage",
+    "cie-storage-node",
     "cie-llm",
     "cie-docs",
     "cie-stack",

@@ -8,7 +8,7 @@ import { searchPolyglotSymbols } from "@/lib/polyglot-db";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string; query?: string };
+  let body: { root?: string; revision?: string; query?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ available: true as const, symbols: [] });
   }
 
-  const symbols = searchPolyglotSymbols(rootCheck.path, query, 30);
+  const symbols = await searchPolyglotSymbols(rootCheck.path, query, 30, body.revision);
   if (!symbols) {
     return NextResponse.json({ available: false as const });
   }

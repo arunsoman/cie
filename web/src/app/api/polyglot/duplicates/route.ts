@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 const PAGE_SIZE = 50;
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string; tier?: string; detection?: string; epistemic?: string; page?: number };
+  let body: { root?: string; revision?: string; tier?: string; detection?: string; epistemic?: string; page?: number };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
   }
 
   const page = Math.max(body.page ?? 0, 0);
-  const result = getDuplicates(rootCheck.path, {
+  const result = await getDuplicates(rootCheck.path, {
+    revision: body.revision,
     tier: body.tier || undefined,
     detection: body.detection || undefined,
     epistemic: body.epistemic || undefined,

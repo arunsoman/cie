@@ -131,6 +131,7 @@ pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    cie_storage::artifacts::put_web_bundle(root, rev, &result)?;
     let tmp = out.with_extension("tmp");
     std::fs::write(&tmp, serde_json::to_vec(&result)?)?;
     std::fs::rename(tmp, out)?;

@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // A browser over every table cie-polyglot's schema creates (see
 // POLYGLOT_TABLES in src/lib/polyglot-db.ts) — not just the curated summary
@@ -59,7 +60,7 @@ function TableRowBrowser({ root, table }: { root: string; table: string }) {
     const mine = ++reqId.current;
     setLoading(true);
     try {
-      const res = await fetch("/api/polyglot/table-rows", {
+      const res = await repositoryFetch("/api/polyglot/table-rows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root, table, page }),
@@ -160,7 +161,7 @@ export function PolyglotTableBrowser({ root }: { root: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/polyglot/tables", {
+      const res = await repositoryFetch("/api/polyglot/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root: r }),

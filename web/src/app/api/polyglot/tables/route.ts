@@ -9,7 +9,7 @@ import { getPolyglotTableInventory } from "@/lib/polyglot-db";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string };
+  let body: { root?: string; revision?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rootCheck.plain }, { status: 400 });
   }
 
-  const tables = getPolyglotTableInventory(rootCheck.path);
+  const tables = await getPolyglotTableInventory(rootCheck.path, body.revision);
   if (!tables) {
     return NextResponse.json({ available: false as const });
   }
