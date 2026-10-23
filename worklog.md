@@ -1116,3 +1116,18 @@ Work Log:
 
 Stage Summary:
 - INCREMENTAL-ON (backlog item 6) is ON ORIGIN: local == origin/main == ee2d7b3. Backlog state: items 1 (DS-EVAL), 2 (PERF-L1), 5 (BRIDGE, as the source seam), 6 (INCREMENTAL-ON), 9 (XFILTER) done and pushed. NEXT: item 3 (PERF-L2 store-first), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
+
+---
+Task ID: RETRIEVAL-SPEC-GAPS-push
+Agent: main
+Task: Push the retrieval-spec-gaps implementation (21f8336) and the storage worker bundler fix (94f6972) to origin/main via gh, fetch-verify, record the receipt.
+
+Work Log:
+- Two commits pushed together: 94f6972 (fix(web): keep the storage worker bridge visible to Node only, opaque to bundlers — indirect eval('require') for the native binding + namespace-imported Worker constructor so Next.js/Turbopack never statically traces node:worker_threads or the runtime-resolved .node file; bridge contract unchanged) and 21f8336 (Implement storage retrieval spec gaps: resolution, quantifiers, cube analytics — resolve_symbol ByName/AtPosition with ambiguity candidates and normalized paths, RelationQuantifier Any/None/All, MembershipScope enum, min_depth cycle-safe traversal, declared endpoint validation, case-folded string ops, identity-tie-break ordering, CursorExpired expiring continuations, full §16 cube with typed dimensions/numeric buckets/declared-timezone time buckets/HAVING/order/pivot/scoped totals/typed unknown members, facet self-exclusion, §18 source-range/context-lines/IR-calls/impact-availability, Node binding revisions+resolve ops, 7 retrieval fixtures + extended native test, 572 workspace cargo tests green).
+- First push went through scripts/push-with-token.sh with the gh CLI token (one-off token URL, token never stored): f7cc4f7..21f8336 main -> main.
+- Fetch-verified via the same token URL: local HEAD 21f8336 == FETCH_HEAD == origin/main.
+- Independently verified through gh api (separate auth channel): repos/arunsoman/cie/commits/main shows sha 21f8336 with parent 94f6972, authored 2026-10-23T16:33:03Z.
+- Switched the push flow to gh per user instruction: gh auth setup-git configured the gh credential helper (!/usr/bin/gh auth git-credential) for github.com; remote.origin.url remains the clean https URL, no token ever written into the repo.
+
+Stage Summary:
+- RETRIEVAL-SPEC-GAPS is ON ORIGIN: local == origin/main == 21f8336, verified via token URL AND gh api. The spec-to-code gap list in docs/storage-retrieval-implementation.md is now reduced to: component/dependency dimension mappings, calendar time units + IANA timezones, provider projection caching, stored-impact artifacts, remaining renderer projection mappings. web/server.log remains an untracked stray runtime log, intentionally not committed.
