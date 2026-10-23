@@ -24,6 +24,18 @@ fn dispatch(input: &str) -> Result<Value> {
         .map_err(|_| StorageError::new("Io", "Reader registry poisoned"))?;
     readers.retain(|_, c| c.touched.elapsed() < Duration::from_secs(900));
     let op = v["op"].as_str().unwrap_or("");
+    // Revision listing and resolution take no context handle.
+    if op == "revisions" {
+        let root = v["root"].as_str().ok_or_else(|| {
+            StorageError::new("InvalidRequest", "Host must supply repository root")
+        })?;
+        let limit = v["limit"].as_u64().unwrap_or(100) as usize;
+        let after = v["after"].as_str().map(str::to_string);
+        return Ok(serde_json::to_value(
+            Storage::open(std::path::Path::new(root), StoragePolicy::default())?
+                .list_revisions(RevisionListRequest { limit, after })?,
+        )?);
+    }
     if op == "open" {
         if readers.len() >= 32 {
             return Err(StorageError::new(
@@ -77,6 +89,12 @@ fn dispatch(input: &str) -> Result<Value> {
             &context.reader,
             &v["request"].to_string(),
         )?)?),
+        "resolve" => {
+            Ok(serde_json::to_value(context.reader.resolve_symbol(
+                serde_json::from_value(v["lookup"].clone())?,
+            )?)?)
+        }
+        "capabilities" => Ok(context.reader.capabilities()),
         "compatibility" => context
             .reader
             .ui_compatibility(v["kind"].as_str().unwrap_or(""), &v["args"]),

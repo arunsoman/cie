@@ -52,6 +52,15 @@ pub enum EntityKind {
     DuplicatePair,
     Cluster,
 }
+/// Typed entity reference. IDs embed the repository and revision; a reference
+/// from another revision is rejected wherever it is validated.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EntityRef {
+    pub repository: String,
+    pub revision: String,
+    pub kind: EntityKind,
+    pub id: String,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Entity {
@@ -59,7 +68,9 @@ pub struct Entity {
     pub kind: EntityKind,
     pub fields: BTreeMap<String, Value>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RelationKind {
     DefinedIn,
@@ -72,6 +83,28 @@ pub enum RelationKind {
     LeftSymbol,
     RightSymbol,
     CanonicalSymbol,
+}
+impl RelationKind {
+    /// Declared endpoint kinds. Incompatible endpoints are validation errors.
+    pub fn allows(self, source: EntityKind, target: EntityKind) -> bool {
+        use EntityKind::*;
+        matches!(
+            (self, source, target),
+            (RelationKind::DefinedIn, Symbol, File)
+                | (RelationKind::Calls, Symbol, Symbol)
+                | (RelationKind::MemberOfConcept, Symbol, Concept)
+                | (RelationKind::MemberOfConcept, File, Concept)
+                | (RelationKind::ChildConceptOf, Concept, Concept)
+                | (RelationKind::MemberOfCluster, Symbol, Cluster)
+                | (RelationKind::Summarizes, Summary, Symbol)
+                | (RelationKind::Summarizes, Summary, File)
+                | (RelationKind::Constrains, Contract, Symbol)
+                | (RelationKind::Constrains, Contract, File)
+                | (RelationKind::LeftSymbol, DuplicatePair, Symbol)
+                | (RelationKind::RightSymbol, DuplicatePair, Symbol)
+                | (RelationKind::CanonicalSymbol, DuplicatePair, Symbol)
+        )
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Edge {
@@ -96,22 +129,43 @@ pub enum Predicate {
     ConceptMembership {
         concepts: Vec<String>,
         #[serde(default)]
-        include_descendants: bool,
+        scope: MembershipScope,
     },
     Related {
         relation: RelationKind,
         #[serde(default)]
         incoming: bool,
         target: Box<Query>,
+        #[serde(default)]
+        quantifier: RelationQuantifier,
     },
 }
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MembershipScope {
+    #[default]
+    Direct,
+    IncludeDescendants,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationQuantifier {
+    #[default]
+    Any,
+    None,
+    All,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CompareOp {
     Eq,
     In,
     Prefix,
     Contains,
+    /// Unicode case-folded prefix, per the compatibility field semantics.
+    PrefixFold,
+    /// Unicode case-folded substring, per the compatibility field semantics.
+    ContainsFold,
     Gt,
     Ge,
     Lt,
@@ -138,6 +192,8 @@ pub enum Query {
         incoming: bool,
         #[serde(default = "one")]
         max_depth: u8,
+        #[serde(default = "one")]
+        min_depth: u8,
     },
     CellContributors {
         descriptor: String,
@@ -174,6 +230,8 @@ pub enum Output {
         #[serde(default)]
         fields: Vec<String>,
         #[serde(default)]
+        order: Vec<Sort>,
+        #[serde(default)]
         page: PageRequest,
     },
     Relationships {
@@ -193,6 +251,9 @@ pub enum Output {
     Cube(CubeRequest),
     Facets {
         dimensions: Vec<String>,
+        /// Fields whose own filters are removed for the tagged facet counts.
+        #[serde(default)]
+        self_excluding: Vec<String>,
         #[serde(default)]
         page: PageRequest,
     },
@@ -203,7 +264,9 @@ pub enum Output {
     View {
         kind: String,
         #[serde(default)]
-        source_output: Option<String>,
+        source: ViewSource,
+        #[serde(default)]
+        availability: AvailabilityPolicy,
         #[serde(default = "default_nodes")]
         max_nodes: usize,
         #[serde(default = "default_edges")]
@@ -216,17 +279,70 @@ fn default_nodes() -> usize {
 fn default_edges() -> usize {
     1000
 }
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewSource {
+    #[default]
+    Matches,
+    Output(String),
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AvailabilityPolicy {
+    StoredOnly,
+    /// Bounded projection from stored evidence in the pinned revision.
+    #[default]
+    BuildIfMissing,
+}
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord, Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SortDirection {
+    #[default]
+    Asc,
+    Desc,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Sort {
+    pub field: String,
+    #[serde(default)]
+    pub direction: SortDirection,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Detail {
     Source {
         #[serde(default)]
-        start: Option<usize>,
+        range: SourceRange,
         #[serde(default)]
-        end: Option<usize>,
+        context_lines: u16,
+        #[serde(default)]
+        continuation: Option<String>,
     },
-    FunctionIr,
-    Impact,
+    FunctionIr {
+        #[serde(default = "yes")]
+        include_calls: bool,
+    },
+    Impact {
+        #[serde(default)]
+        availability: AvailabilityPolicy,
+    },
+}
+fn yes() -> bool {
+    true
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceRange {
+    #[default]
+    Declaration,
+    WholeFile,
+    Bytes {
+        start: u64,
+        end: u64,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -313,29 +429,184 @@ impl Default for Budget {
         }
     }
 }
+/// Slice-and-dice analytical request over the outer query's population.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CubeRequest {
-    pub dimensions: Vec<String>,
     #[serde(default)]
-    pub measures: Vec<Measure>,
+    pub dimensions: Vec<DimensionSelection>,
     #[serde(default)]
-    pub rows: Vec<String>,
+    pub measures: Vec<NamedMeasure>,
     #[serde(default)]
-    pub columns: Vec<String>,
+    pub layout: CubeLayout,
+    /// Measure predicates applied after grouping (HAVING).
     #[serde(default)]
-    pub include_unknown: bool,
+    pub cell_filter: Option<MeasurePredicate>,
+    #[serde(default)]
+    pub order: Vec<CellSort>,
     #[serde(default)]
     pub page: PageRequest,
+    #[serde(default)]
+    pub totals: TotalsRequest,
+    #[serde(default)]
+    pub missing: MissingMemberPolicy,
+    #[serde(default)]
+    pub drill_through: DrillThroughPolicy,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DimensionSelection {
+    pub id: String,
+    pub dimension: DimensionRef,
+    /// Named hierarchy level, declared in the capability catalog.
+    #[serde(default)]
+    pub level: Option<HierarchyLevel>,
+    #[serde(default)]
+    pub membership: DimensionMembership,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DimensionRef {
+    Field(String),
+    RelatedEntity {
+        relation_path: Vec<RelationStep>,
+        attribute: String,
+    },
+    NumericBucket {
+        field: String,
+        boundaries: Vec<f64>,
+    },
+    TimeBucket {
+        field: String,
+        interval: TimeInterval,
+        timezone: String,
+    },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RelationStep {
+    pub relation: RelationKind,
+    #[serde(default)]
+    pub incoming: bool,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HierarchyLevel {
+    Directory,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DimensionMembership {
+    /// Only the directly recorded member value.
+    #[default]
+    RecordedOnly,
+    /// Roll up through declared ancestry (directory chain) into every level.
+    IncludeAncestors,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TimeInterval {
+    pub unit: TimeUnit,
+    #[serde(default = "one_u64")]
+    pub count: u64,
+}
+fn one_u64() -> u64 {
+    1
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeUnit {
+    Seconds,
+    Minutes,
+    Hours,
+    Days,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CubeLayout {
+    #[default]
+    Cells,
+    Pivot {
+        rows: Vec<String>,
+        columns: Vec<String>,
+    },
+}
+/// Measure definitions with explicit IDs referenced by filters and ordering.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NamedMeasure {
+    pub id: String,
+    #[serde(default)]
+    pub measure: Measure,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Measure {
+    #[default]
     Count,
     Sum(String),
     Average(String),
     Min(String),
     Max(String),
+}
+/// Post-grouping measure predicate (HAVING semantics).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MeasurePredicate {
+    Measure {
+        id: String,
+        op: CompareOp,
+        value: f64,
+    },
+    And(Vec<MeasurePredicate>),
+    Or(Vec<MeasurePredicate>),
+    Not(Box<MeasurePredicate>),
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CellSort {
+    pub by: CellSortKey,
+    #[serde(default)]
+    pub direction: SortDirection,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CellSortKey {
+    Measure(String),
+    Dimension(String),
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct TotalsRequest {
+    /// Grand totals over all pre-HAVING matches (the default scope).
+    #[serde(default = "yes")]
+    pub grand: bool,
+    /// Separate totals over the displayed page.
+    #[serde(default)]
+    pub page: bool,
+}
+impl Default for TotalsRequest {
+    fn default() -> Self {
+        Self {
+            grand: true,
+            page: false,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MissingMemberPolicy {
+    #[default]
+    Exclude,
+    IncludeUnknown,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DrillThroughPolicy {
+    /// Cells carry an opaque contributor descriptor bound to this query.
+    #[default]
+    Enabled,
+    Disabled,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Response {
@@ -362,4 +633,54 @@ pub struct OutputResult {
 pub enum RevisionSelector {
     Latest,
     Id(String),
+}
+/// Revision listing request and result page (§4).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(deny_unknown_fields)]
+pub struct RevisionListRequest {
+    #[serde(default = "default_page")]
+    pub limit: usize,
+    #[serde(default)]
+    pub after: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RevisionInfo {
+    pub revision: String,
+    pub head: bool,
+    /// Published retained databases are complete; absent ones are not listed.
+    pub complete: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RevisionPage {
+    pub items: Vec<RevisionInfo>,
+    pub total: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<String>,
+}
+/// Symbol resolution by qualified name or captured byte position (§6).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SymbolLookup {
+    ByName {
+        file: String,
+        qualified_name: String,
+    },
+    AtPosition {
+        file: String,
+        byte_offset: u64,
+    },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "resolution", rename_all = "snake_case")]
+pub enum SymbolResolution {
+    Found(EntityRef),
+    NotFound,
+    Ambiguous { candidates: Vec<SymbolCandidate> },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SymbolCandidate {
+    pub entity: EntityRef,
+    pub file: String,
+    pub qualified_name: String,
+    pub kind: Option<String>,
 }

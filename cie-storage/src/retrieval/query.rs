@@ -253,7 +253,7 @@ impl RevisionReader {
         }
         match q {
             Query::Select { kind, filter } => {
-                self.validate_predicate(filter, ds, depth + 1)?;
+                self.validate_predicate(filter, ds, depth + 1, *kind)?;
                 let mut out = BTreeSet::new();
                 for e in ds.entities.values().filter(|e| &e.kind == kind) {
                     ex.check(1)?;
@@ -290,37 +290,17 @@ impl RevisionReader {
                 relation,
                 incoming,
                 max_depth,
-            } => {
-                if *max_depth == 0 || *max_depth > 8 {
-                    return Err(StorageError::new(
-                        "InvalidRequest",
-                        "Traversal depth must be 1..8",
-                    ));
-                }
-                let mut frontier = self.evaluate(input, ds, ex, depth + 1)?;
-                let mut result = BTreeSet::new();
-                for _ in 0..*max_depth {
-                    let mut next = BTreeSet::new();
-                    for edge in &ds.edges {
-                        ex.check(1)?;
-                        let (a, b) = if *incoming {
-                            (&edge.target, &edge.source)
-                        } else {
-                            (&edge.source, &edge.target)
-                        };
-                        if &edge.relation == relation && frontier.contains(a) && !result.contains(b)
-                        {
-                            next.insert(b.clone());
-                        }
-                    }
-                    result.extend(next.clone());
-                    frontier = next;
-                    if frontier.is_empty() {
-                        break;
-                    }
-                }
-                Ok(result)
-            }
+                min_depth,
+            } => self.follow(
+                input,
+                *relation,
+                *incoming,
+                *min_depth,
+                *max_depth,
+                ds,
+                ex,
+                depth + 1,
+            ),
             Query::CellContributors { descriptor } => {
                 let value = self.decode(descriptor)?;
                 if value["type"] != "cell" {
@@ -339,6 +319,59 @@ impl RevisionReader {
             }
         }
     }
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn follow(
+        &self,
+        input: &Query,
+        relation: RelationKind,
+        incoming: bool,
+        min_depth: u8,
+        max_depth: u8,
+        ds: &Dataset,
+        ex: &mut Execution,
+        depth: usize,
+    ) -> Result<BTreeSet<String>> {
+        if min_depth == 0 || max_depth == 0 || max_depth > 8 || min_depth > max_depth {
+            return Err(StorageError::new(
+                "InvalidRequest",
+                "Traversal depth must satisfy 1 <= min <= max <= 8",
+            ));
+        }
+        for kind in kinds_of(input, ds, depth)? {
+            if !relation_allows_direction(relation, kind, incoming, ds) {
+                return Err(StorageError::new(
+                    "InvalidRequest",
+                    format!("{relation:?} does not connect {kind:?} along this direction"),
+                ));
+            }
+        }
+        let mut frontier = self.evaluate(input, ds, ex, depth)?;
+        let mut visited = frontier.clone();
+        let mut result = BTreeSet::new();
+        for current in 1..=max_depth {
+            let mut next = BTreeSet::new();
+            for edge in &ds.edges {
+                ex.check(1)?;
+                let (a, b) = if incoming {
+                    (&edge.target, &edge.source)
+                } else {
+                    (&edge.source, &edge.target)
+                };
+                if edge.relation == relation && frontier.contains(a) && !visited.contains(b) {
+                    next.insert(b.clone());
+                }
+            }
+            visited.extend(next.clone());
+            if current >= min_depth {
+                result.extend(next.clone());
+            }
+            frontier = next;
+            if frontier.is_empty() {
+                break;
+            }
+        }
+        Ok(result)
+    }
     fn compatible_sets(
         &self,
         a: &BTreeSet<String>,
@@ -355,7 +388,13 @@ impl RevisionReader {
             Ok(())
         }
     }
-    fn validate_predicate(&self, p: &Predicate, ds: &Dataset, depth: usize) -> Result<()> {
+    fn validate_predicate(
+        &self,
+        p: &Predicate,
+        ds: &Dataset,
+        depth: usize,
+        kind: EntityKind,
+    ) -> Result<()> {
         if depth > 16 {
             return Err(StorageError::new(
                 "InvalidRequest",
@@ -368,10 +407,10 @@ impl RevisionReader {
                     return Err(StorageError::new("InvalidRequest", "Empty predicate list"));
                 }
                 for p in ps {
-                    self.validate_predicate(p, ds, depth + 1)?;
+                    self.validate_predicate(p, ds, depth + 1, kind)?;
                 }
             }
-            Predicate::Not(p) => self.validate_predicate(p, ds, depth + 1)?,
+            Predicate::Not(p) => self.validate_predicate(p, ds, depth + 1, kind)?,
             Predicate::Ids(ids) => {
                 for id in ids {
                     if !ds.entities.contains_key(id) {
@@ -404,6 +443,26 @@ impl RevisionReader {
                         "InvalidRequest",
                         "Expected concept IDs from this revision",
                     ));
+                }
+            }
+            Predicate::Related {
+                relation,
+                incoming,
+                target,
+                ..
+            } => {
+                for target_kind in kinds_of(target, ds, depth + 1)? {
+                    let allowed = if *incoming {
+                        relation.allows(target_kind, kind)
+                    } else {
+                        relation.allows(kind, target_kind)
+                    };
+                    if !allowed {
+                        return Err(StorageError::new(
+                            "InvalidRequest",
+                            format!("{relation:?} does not connect {kind:?} and {target_kind:?}"),
+                        ));
+                    }
                 }
             }
             _ => {}
@@ -448,7 +507,10 @@ impl RevisionReader {
                         .as_array()
                         .ok_or_else(|| StorageError::new("InvalidRequest", "In requires an array"))?
                         .contains(&actual),
-                    CompareOp::Prefix | CompareOp::Contains => {
+                    CompareOp::Prefix
+                    | CompareOp::Contains
+                    | CompareOp::PrefixFold
+                    | CompareOp::ContainsFold => {
                         let a = actual.as_str().ok_or_else(|| {
                             StorageError::new(
                                 "InvalidRequest",
@@ -458,10 +520,11 @@ impl RevisionReader {
                         let b = value.as_str().ok_or_else(|| {
                             StorageError::new("InvalidRequest", "Expected string value")
                         })?;
-                        if matches!(op, CompareOp::Prefix) {
-                            a.starts_with(b)
-                        } else {
-                            a.contains(b)
+                        match op {
+                            CompareOp::Prefix => a.starts_with(b),
+                            CompareOp::Contains => a.contains(b),
+                            CompareOp::PrefixFold => fold_text(a).starts_with(&fold_text(b)),
+                            _ => fold_text(a).contains(&fold_text(b)),
                         }
                     }
                     _ => {
@@ -483,12 +546,9 @@ impl RevisionReader {
                     }
                 }
             }
-            Predicate::ConceptMembership {
-                concepts,
-                include_descendants,
-            } => {
+            Predicate::ConceptMembership { concepts, scope } => {
                 let mut concepts: BTreeSet<_> = concepts.iter().cloned().collect();
-                if *include_descendants {
+                if *scope == MembershipScope::IncludeDescendants {
                     loop {
                         let before = concepts.len();
                         for edge in &ds.edges {
@@ -514,16 +574,32 @@ impl RevisionReader {
                 relation,
                 incoming,
                 target,
+                quantifier,
             } => {
                 let target = self.evaluate(target, ds, ex, depth + 1)?;
-                ds.edges.iter().any(|edge| {
+                let mut related = BTreeSet::new();
+                let mut any = false;
+                for edge in &ds.edges {
+                    ex.check(1)?;
                     let (a, b) = if *incoming {
                         (&edge.target, &edge.source)
                     } else {
                         (&edge.source, &edge.target)
                     };
-                    &edge.relation == relation && a == &e.id && target.contains(b)
-                })
+                    if &edge.relation == relation && a == &e.id && target.contains(b) {
+                        any = true;
+                        related.insert(b.clone());
+                    }
+                }
+                match quantifier {
+                    RelationQuantifier::Any => any,
+                    RelationQuantifier::None => !any,
+                    RelationQuantifier::All => {
+                        // Requires a non-empty target set and a relation to
+                        // every target entity.
+                        !target.is_empty() && related.len() == target.len()
+                    }
+                }
             }
         })
     }
@@ -559,4 +635,311 @@ fn add(
         .collect();
     ds.entities.insert(id.clone(), Entity { id, kind, fields });
     Ok(())
+}
+
+/// Unicode case-folded comparison form for compatibility string presets.
+pub(crate) fn fold_text(s: &str) -> String {
+    s.chars().flat_map(|c| c.to_lowercase()).collect()
+}
+
+/// Normalized repository-relative path using '/'. Absolute paths, traversal
+/// outside the repository and empty components are rejected.
+pub(crate) fn normalize_repo_path(input: &str) -> Result<String> {
+    if input.is_empty()
+        || input.contains('\\')
+        || input.starts_with('/')
+        || input.split('/').next() == Some("")
+    {
+        return Err(StorageError::new(
+            "InvalidRequest",
+            "Paths must be repository-relative with / separators",
+        ));
+    }
+    let mut parts = Vec::new();
+    for part in input.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                return Err(StorageError::new(
+                    "InvalidRequest",
+                    "Path traversal outside the repository is rejected",
+                ))
+            }
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() {
+        return Err(StorageError::new(
+            "InvalidRequest",
+            "Path must name a repository file",
+        ));
+    }
+    Ok(parts.join("/"))
+}
+
+/// Static entity-kind inference for a query sub-expression. Cell contributors
+/// have unknown kinds until decoded, represented by an empty set.
+pub(crate) fn kinds_of(q: &Query, ds: &Dataset, depth: usize) -> Result<BTreeSet<EntityKind>> {
+    if depth > 32 {
+        return Ok(BTreeSet::new());
+    }
+    Ok(match q {
+        Query::Select { kind, .. } => [*kind].into_iter().collect(),
+        Query::Union(qs) | Query::Intersect(qs) => {
+            let mut kinds = BTreeSet::new();
+            for q in qs {
+                kinds.extend(kinds_of(q, ds, depth + 1)?);
+            }
+            kinds
+        }
+        Query::Difference { left, .. } => kinds_of(left, ds, depth + 1)?,
+        Query::Follow {
+            input,
+            relation,
+            incoming,
+            min_depth,
+            max_depth: _,
+        } => {
+            let mut kinds = BTreeSet::new();
+            if *min_depth == 0 {
+                kinds.extend(kinds_of(input, ds, depth + 1)?);
+            }
+            for source in kinds_of(input, ds, depth + 1)? {
+                for edge in &ds.edges {
+                    if edge.relation == *relation {
+                        let (from, to) = if *incoming {
+                            (&edge.target, &edge.source)
+                        } else {
+                            (&edge.source, &edge.target)
+                        };
+                        if ds.entities.get(from).map(|e| e.kind) == Some(source) {
+                            if let Some(e) = ds.entities.get(to) {
+                                kinds.insert(e.kind);
+                            }
+                        }
+                    }
+                }
+            }
+            kinds
+        }
+        Query::CellContributors { .. } => BTreeSet::new(),
+    })
+}
+
+/// Endpoint validation along a traversal direction. Unknown contributor kinds
+/// (empty set) are not statically decidable and pass.
+pub(crate) fn relation_allows_direction(
+    relation: RelationKind,
+    from_kind: EntityKind,
+    incoming: bool,
+    ds: &Dataset,
+) -> bool {
+    for edge in &ds.edges {
+        if edge.relation != relation {
+            continue;
+        }
+        let source = ds.entities.get(&edge.source).map(|e| e.kind);
+        let target = ds.entities.get(&edge.target).map(|e| e.kind);
+        let allowed = if incoming {
+            matches!((target, source), (Some(k), Some(_)) if k == from_kind)
+        } else {
+            matches!((source, target), (Some(k), Some(_)) if k == from_kind)
+        };
+        if allowed {
+            return true;
+        }
+    }
+    false
+}
+
+/// Remove exactly the tagged dimension's own field filters from a top-level
+/// Select. Nested or indirect use is ambiguous and rejected (§16.4).
+pub(crate) fn strip_dimension_filters(q: &Query, dimension: &str) -> Result<Query> {
+    fn field_for(p: &Predicate) -> Option<&String> {
+        match p {
+            Predicate::Field { field, .. } => Some(field),
+            _ => None,
+        }
+    }
+    fn uses_dimension(p: &Predicate, dimension: &str) -> bool {
+        match p {
+            Predicate::Field { field, .. } => {
+                field == dimension || field.starts_with(&format!("{dimension}."))
+            }
+            Predicate::And(ps) | Predicate::Or(ps) => {
+                ps.iter().any(|p| uses_dimension(p, dimension))
+            }
+            Predicate::Not(p) => uses_dimension(p, dimension),
+            _ => false,
+        }
+    }
+    match q {
+        Query::Select { kind, filter } => {
+            if !uses_dimension(filter, dimension) {
+                // No filter for this dimension: exclusion is a no-op.
+                return Ok(Query::Select {
+                    kind: *kind,
+                    filter: filter.clone(),
+                });
+            }
+            match filter {
+                Predicate::And(prongs) => {
+                    let mut kept = Vec::new();
+                    for prong in prongs {
+                        if field_for(prong).is_some() && uses_dimension(prong, dimension) {
+                            continue;
+                        }
+                        if uses_dimension(prong, dimension) {
+                            return Err(StorageError::new(
+                                "InvalidRequest",
+                                "Self-exclusion is ambiguous under nested dimension filters",
+                            ));
+                        }
+                        kept.push(prong.clone());
+                    }
+                    Ok(Query::Select {
+                        kind: *kind,
+                        filter: if kept.is_empty() {
+                            Predicate::All
+                        } else {
+                            Predicate::And(kept)
+                        },
+                    })
+                }
+                Predicate::Field { .. } => {
+                    if uses_dimension(filter, dimension) {
+                        Ok(Query::Select {
+                            kind: *kind,
+                            filter: Predicate::All,
+                        })
+                    } else {
+                        Ok(q.clone())
+                    }
+                }
+                _ => Err(StorageError::new(
+                    "InvalidRequest",
+                    "Self-exclusion is ambiguous under this query shape",
+                )),
+            }
+        }
+        _ => Err(StorageError::new(
+            "InvalidRequest",
+            "Self-excluding facets require a top-level Select query",
+        )),
+    }
+}
+
+impl RevisionReader {
+    /// §6: resolve a symbol by file and qualified name, or by a zero-based
+    /// UTF-8 byte position inside the captured revision's source.
+    pub fn resolve_symbol(&self, lookup: SymbolLookup) -> Result<SymbolResolution> {
+        let mut ex = Execution {
+            deadline: Instant::now() + Duration::from_secs(30),
+            max_visited: 1_000_000,
+            visited: 0,
+        };
+        let ds = self.dataset(&mut ex)?;
+        let file = match &lookup {
+            SymbolLookup::ByName { file, .. } => normalize_repo_path(file)?,
+            SymbolLookup::AtPosition { file, .. } => normalize_repo_path(file)?,
+        };
+        let in_file = |e: &Entity| {
+            let path = e
+                .fields
+                .get("file")
+                .and_then(|f| f.get("path"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            path == file
+        };
+        let mut symbols: Vec<&Entity> = ds
+            .entities
+            .values()
+            .filter(|e| e.kind == EntityKind::Symbol && in_file(e))
+            .collect();
+        symbols.sort_by(|a, b| a.id.cmp(&b.id));
+        if symbols.is_empty() {
+            // Explicitly unavailable, never inferred from the live tree.
+            return Err(StorageError::new(
+                "ArtifactUnavailable",
+                "No captured symbol spans for file",
+            ));
+        }
+        match lookup {
+            SymbolLookup::ByName { qualified_name, .. } => {
+                let matches: Vec<&Entity> = symbols
+                    .into_iter()
+                    .filter(|e| {
+                        e.fields.get("qualified_name").and_then(Value::as_str)
+                            == Some(qualified_name.as_str())
+                    })
+                    .collect();
+                match matches.len() {
+                    0 => Ok(SymbolResolution::NotFound),
+                    1 => Ok(SymbolResolution::Found(self.entity_ref(matches[0]))),
+                    _ => Ok(SymbolResolution::Ambiguous {
+                        candidates: matches.iter().map(|e| self.candidate(e)).collect(),
+                    }),
+                }
+            }
+            SymbolLookup::AtPosition { byte_offset, .. } => {
+                // Narrowest containing declaration span; equal spans stay
+                // ambiguous. Missing spans were rejected above.
+                let mut candidates: Vec<&Entity> = Vec::new();
+                let mut best = u64::MAX;
+                for e in symbols {
+                    let loc = match e.fields.get("location") {
+                        Some(l) => l,
+                        None => continue,
+                    };
+                    let (start, end) = match (loc["start"].as_u64(), loc["end"].as_u64()) {
+                        (Some(s), Some(t)) if s <= byte_offset && byte_offset < t => (s, t),
+                        _ => continue,
+                    };
+                    let width = end.saturating_sub(start);
+                    if width < best {
+                        best = width;
+                        candidates.clear();
+                        candidates.push(e);
+                    } else if width == best {
+                        candidates.push(e);
+                    }
+                }
+                match candidates.len() {
+                    0 => Ok(SymbolResolution::NotFound),
+                    1 => Ok(SymbolResolution::Found(self.entity_ref(candidates[0]))),
+                    _ => Ok(SymbolResolution::Ambiguous {
+                        candidates: candidates.iter().map(|e| self.candidate(e)).collect(),
+                    }),
+                }
+            }
+        }
+    }
+    fn entity_ref(&self, e: &Entity) -> EntityRef {
+        EntityRef {
+            repository: self.repository.clone(),
+            revision: self.revision.clone(),
+            kind: e.kind,
+            id: e.id.clone(),
+        }
+    }
+    fn candidate(&self, e: &Entity) -> SymbolCandidate {
+        SymbolCandidate {
+            entity: self.entity_ref(e),
+            file: e
+                .fields
+                .get("file")
+                .and_then(|f| f.get("path"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .into(),
+            qualified_name: e
+                .fields
+                .get("qualified_name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .into(),
+            kind: e.fields.get("kind").and_then(Value::as_str).map(Into::into),
+        }
+    }
 }

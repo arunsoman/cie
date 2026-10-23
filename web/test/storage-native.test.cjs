@@ -27,6 +27,17 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
     const id=tool.outputs[0].data.items[0].id;
     await fs.unlink(path.join(root,'app.py'));
     const source=await call({op:'retrieve',context,request:{query:{select:{kind:'symbol',filter:{ids:[id]}}},outputs:[{id:'source',output:{detail:{source:{}}}}]}});assert.ok(source.outputs[0].data.text.startsWith('def save'));
+    // Symbol resolution stays within the pinned revision; byte offsets are
+    // zero-based UTF-8 offsets into the captured source.
+    const found=await call({op:'resolve',context,lookup:{by_name:{file:'app.py',qualified_name:'app.save'}}});
+    assert.equal(found.resolution,'found');assert.equal(found.id,id);
+    const offset=source.outputs[0].data.returned.start;
+    const atPosition=await call({op:'resolve',context,lookup:{at_position:{file:'app.py',byte_offset:offset}}});
+    assert.ok(['found','ambiguous'].includes(atPosition.resolution),atPosition.resolution);
+    await assert.rejects(()=>call({op:'resolve',context,lookup:{by_name:{file:'../escape.py',qualified_name:'app.save'}}}),e=>e.code==='InvalidRequest');
+    // Revision listing is bounded and paginated without a context handle.
+    const revisions=await call({op:'revisions',root,limit:10});
+    assert.equal(revisions.total,1);assert.equal(revisions.items[0].head,true);
     await assert.rejects(()=>call({op:'tool_retrieve',context,request:{query:{select:{kind:'symbol'}},select:{kind:'symbol'},outputs:[]}}),e=>e.code==='InvalidRequest');
     await call({op:'close',context});await assert.rejects(()=>call({op:'describe',context}),e=>e.code==='CursorExpired');
   } finally {await worker.terminate();await fs.rm(root,{recursive:true,force:true,maxRetries:5});}

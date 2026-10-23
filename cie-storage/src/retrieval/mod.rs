@@ -13,6 +13,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Declared continuation-cursor lifetime. Tokens embed an expiry and are
+/// rejected as expired afterwards; they never outlive their reader anyway.
+pub(crate) const CURSOR_TTL_SECS: u64 = 15 * 60;
+
 pub struct Storage {
     root: PathBuf,
     policy: crate::StoragePolicy,
@@ -39,9 +43,63 @@ impl Storage {
         Ok(Self { root, policy })
     }
     pub fn revisions(&self) -> Result<Vec<String>> {
+        Ok(self
+            .revision_numbers()?
+            .into_iter()
+            .map(|n| n.to_string())
+            .collect())
+    }
+    /// §4: typed, bounded revision listing.
+    pub fn list_revisions(&self, request: RevisionListRequest) -> Result<RevisionPage> {
+        if request.limit == 0 || request.limit > self.policy.max_page_size {
+            return Err(StorageError::new(
+                "InvalidRequest",
+                "Revision page size out of policy",
+            ));
+        }
+        let head = self.head_revision()?;
+        let numbers = self.revision_numbers()?;
+        let total = numbers.len();
+        let start = match &request.after {
+            Some(after) => {
+                let after = after.parse::<u64>().map_err(|_| {
+                    StorageError::new("CursorInvalid", "Revision continuation must be numeric")
+                })?;
+                let position = numbers.iter().position(|n| *n > after).ok_or_else(|| {
+                    StorageError::new("CursorInvalid", "Revision continuation exhausted")
+                })?;
+                position
+            }
+            None => 0,
+        };
+        let items = numbers[start..]
+            .iter()
+            .take(request.limit)
+            .map(|n| RevisionInfo {
+                revision: n.to_string(),
+                head: *n == head,
+                complete: true,
+            })
+            .collect::<Vec<_>>();
+        let continuation = items
+            .last()
+            .filter(|_| start + items.len() < total)
+            .map(|info| info.revision.clone());
+        Ok(RevisionPage {
+            items,
+            total,
+            continuation,
+        })
+    }
+    fn head_revision(&self) -> Result<u64> {
         let meta: Value =
             serde_json::from_slice(&std::fs::read(self.root.join(".cie/meta.json"))?)?;
-        let head = meta["last_rev"].as_u64().unwrap_or(0);
+        meta["last_rev"]
+            .as_u64()
+            .ok_or_else(|| StorageError::new("CorruptData", "Missing revision head"))
+    }
+    fn revision_numbers(&self) -> Result<Vec<u64>> {
+        let head = self.head_revision()?;
         let mut revisions = Vec::new();
         for entry in std::fs::read_dir(self.root.join(".cie/revs"))? {
             let entry = entry?;
@@ -55,16 +113,12 @@ impl Storage {
             }
         }
         revisions.sort();
-        Ok(revisions.into_iter().map(|n| n.to_string()).collect())
+        Ok(revisions)
     }
     pub fn open_revision(&self, selector: RevisionSelector) -> Result<RevisionReader> {
         // Publication lock spans DB, core snapshot, and committed head.
         let _lock = crate::repository::ProjectLock::acquire(&self.root.join(".cie"))?;
-        let meta: Value =
-            serde_json::from_slice(&std::fs::read(self.root.join(".cie/meta.json"))?)?;
-        let head = meta["last_rev"]
-            .as_u64()
-            .ok_or_else(|| StorageError::new("CorruptData", "Missing revision head"))?;
+        let head = self.head_revision()?;
         let rev = match selector {
             RevisionSelector::Latest => head,
             RevisionSelector::Id(s) => s.parse::<u64>().map_err(|_| {
@@ -141,7 +195,7 @@ impl RevisionReader {
         &self.revision
     }
     pub fn capabilities(&self) -> Value {
-        json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":["source","function_ir","impact"],"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16777216},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution"]})
+        json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster"],"relationships":["defined_in","calls","member_of_concept","child_concept_of","member_of_cluster","summarizes","constrains","left_symbol","right_symbol","canonical_symbol"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":{"source":{"ranges":["declaration","whole_file","bytes"],"context_lines":true,"truncation_continuation":true},"function_ir":{"include_calls":true},"impact":{"availability":["build_if_missing"]}},"compare_ops":["eq","in","prefix","contains","prefix_fold","contains_fold","gt","ge","lt","le"],"quantifiers":["any","none","all"],"membership_scopes":["direct","include_descendants"],"dimensions":["file.path","language","entity_kind","kind","concept","cluster"],"hierarchies":{"file.path":{"levels":["file","directory"]}},"bucketing":{"numeric":{"boundary_rule":"lower_inclusive_upper_exclusive"},"time":{"timezones":"utc_or_fixed_offset_only","units":["seconds","minutes","hours","days"]}},"facets":{"self_exclusion":true},"cube_limits":{"dimensions":8,"measures":32,"evaluated_groups":1_000_000},"details_list":["source","function_ir","impact"],"artifact_kinds":["report","viewspec","concepts","stack","deps","runtime","stories","quality","overlap","drift","cochange","fault","polyglotSpecs","bootstrap"],"view_renderers":["viz-adapter","cie-polyglot","cie-cube"],"symbol_resolution":true,"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16_777_216,"cursor_ttl_seconds":CURSOR_TTL_SECS},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution","component_hierarchy","calendar_time_units"]})
     }
     pub fn retrieve(&self, request: Request) -> Result<Response> {
         if request.api_version != 1 || request.outputs.is_empty() || request.outputs.len() > 16 {
@@ -185,7 +239,15 @@ impl RevisionReader {
         let mut outputs = Vec::new();
         for output in &request.outputs {
             ex.check(0)?;
-            let result = self.output(&output.output, &matches, &dataset, &hash, &mut ex, &prior);
+            let result = self.output(
+                &output.output,
+                &request.query,
+                &matches,
+                &dataset,
+                &hash,
+                &mut ex,
+                &prior,
+            );
             let (status, data, error) = match result {
                 Ok(data) => {
                     let status = if data.get("truncated") == Some(&json!(true)) {
