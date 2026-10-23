@@ -68,8 +68,7 @@ pub fn detect(conn: &Connection) -> Result<SmReport, String> {
             Err(_) => continue,
         };
         let src = zstd::bulk::decompress(&compressed, 16 << 20).map_err(|e| e.to_string())?;
-        detect_t1(conn, file_id, lang, &src, &mut report)?;
-        detect_t2(conn, file_id, lang, &src, &mut report)?;
+        if let Some(tree) = parse(lang, &src) { detect_file_tree(conn, file_id, lang, &src, &tree, &mut report)?; }
     }
     detect_t3(conn, &mut report)?;
     Ok(report)
@@ -79,18 +78,18 @@ pub fn detect(conn: &Connection) -> Result<SmReport, String> {
 // T1 — explicit definitions (Fact)
 // ---------------------------------------------------------------------------
 
-fn detect_t1(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], report: &mut SmReport) -> Result<(), String> {
+pub fn detect_file_tree(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], tree: &tree_sitter::Tree, report: &mut SmReport) -> Result<(), String> {
     match lang {
-        Lang::JavaScript | Lang::TypeScript => detect_t1_xstate(conn, file_id, lang, src, report),
-        Lang::Java => detect_t1_marker(conn, file_id, lang, src, "StateMachineBuilder", report),
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => detect_t1_xstate(conn, file_id, lang, src, tree, report),
+        Lang::Java => detect_t1_marker(conn, file_id, lang, src, "StateMachineBuilder", tree, report),
         _ => Ok(()),
-    }
+    }?;
+    detect_t2(conn, file_id, lang, src, tree, report)
 }
 
 /// XState `createMachine({ id, states: { <name>: { on: { <event>: { target } } } } })`
 /// — states and transitions extracted VERBATIM from the literal (§19.2 T1).
-fn detect_t1_xstate(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], report: &mut SmReport) -> Result<(), String> {
-    let Some(tree) = parse(lang, src) else { return Ok(()) };
+fn detect_t1_xstate(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], tree: &tree_sitter::Tree, report: &mut SmReport) -> Result<(), String> {
     let mut stack = vec![tree.root_node()];
     while let Some(n) = stack.pop() {
         if n.kind() == "call_expression" {
@@ -202,8 +201,7 @@ fn string_text<'t>(node: tree_sitter::Node<'t>, src: &'t [u8]) -> Option<String>
 /// its evidence; states extracted only when a verbatim literal exists
 /// (builder-style configuration is method chains, honestly recorded empty
 /// with the evidence text preserved).
-fn detect_t1_marker(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], marker: &str, report: &mut SmReport) -> Result<(), String> {
-    let Some(tree) = parse(lang, src) else { return Ok(()) };
+fn detect_t1_marker(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], marker: &str, tree: &tree_sitter::Tree, report: &mut SmReport) -> Result<(), String> {
     let text = String::from_utf8_lossy(src);
     if !text.contains(marker) && !text.contains("@Workflow") {
         return Ok(());
@@ -416,8 +414,7 @@ fn assignment_target(text: &str, subject: &str) -> Option<String> {
     None
 }
 
-fn detect_t2(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], report: &mut SmReport) -> Result<(), String> {
-    let Some(tree) = parse(lang, src) else { return Ok(()) };
+fn detect_t2(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], tree: &tree_sitter::Tree, report: &mut SmReport) -> Result<(), String> {
     let enums = enum_decls(lang, tree.root_node(), src);
     if enums.is_empty() {
         return Ok(());
@@ -491,7 +488,7 @@ fn detect_t2(conn: &Connection, file_id: i64, lang: Lang, src: &[u8], report: &m
 /// A symbol whose CFG shows ≥2 conditional branches AND ≥2 resolved
 /// cross-file calls behaves like a state machine over its effects — a
 /// Hypothesis, labelled as such.
-fn detect_t3(conn: &Connection, report: &mut SmReport) -> Result<(), String> {
+pub fn detect_t3(conn: &Connection, report: &mut SmReport) -> Result<(), String> {
     let mut stmt = conn
         .prepare(
             "SELECT s.id, s.name, s.file_id,

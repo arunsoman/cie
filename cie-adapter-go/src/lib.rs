@@ -19,7 +19,7 @@
 //! - a returned `error` with no checked `err != nil` at the call site is
 //!   still just an `ErrorValue` fact — structure, not judgment (FR-2)
 
-use cie_adapters::light_engine::{extract_light, LightLang};
+use cie_adapters::light_engine::LightLang;
 use cie_adapters::{
     CoercionPolicy, DispatchKind, FrameworkRule, LanguageAdapter, NumericSemantics,
     OverflowPolicy, Precision,
@@ -39,16 +39,20 @@ fn text_of<'a>(node: tree_sitter::Node<'a>, bytes: &'a [u8]) -> &'a str {
 impl GoAdapter {
     /// Deep extraction: light-engine base + Go deep passes (§16.1).
     pub fn extract_deep(&self, path: &str, src: &str) -> LangFacts {
-        let mut facts = extract_light(path, src, LightLang::Go);
-        let bytes = src.as_bytes();
-
         let mut parser = Parser::new();
         parser
             .set_language(&tree_sitter_go::LANGUAGE.into())
             .expect("go grammar");
         let Some(tree) = parser.parse(src, None) else {
-            return facts;
+            return LangFacts::new(path, LangId::Go, "parse-aborted");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        let mut facts = cie_adapters::light_engine::extract_light_tree(path, src, LightLang::Go, tree);
+        let bytes = src.as_bytes();
+
         let root = tree.root_node();
 
         // ---- Pass 1: interface types + typed variables ----
@@ -195,6 +199,14 @@ impl GoAdapter {
 }
 
 impl LanguageAdapter for GoAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(tree_sitter_go::LANGUAGE.into())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::Go
     }

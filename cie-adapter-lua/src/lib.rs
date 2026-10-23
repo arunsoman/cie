@@ -627,6 +627,10 @@ impl LuaAdapter {
         let Some(tree) = parser.parse(src, None) else {
             return LangFacts::new(path, LangId::Lua, "tree-sitter-deep:lua");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let bytes = src.as_bytes();
         let module = path.trim_end_matches(".lua").replace('/', ".");
         let module_id = SymbolId(0);
@@ -678,6 +682,14 @@ impl LuaAdapter {
 }
 
 impl LanguageAdapter for LuaAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(to_language())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::Lua
     }

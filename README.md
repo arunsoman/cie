@@ -21,6 +21,10 @@ export PATH="$PWD/target/release:$PATH"
 # Ingest + analyze a folder (human report; exit code 2 on critical findings)
 cie analyze examples/bankapp
 
+# Unified streaming ingestion and a compatible web artifact bundle
+cie ingest-polyglot examples/bankapp --web-out /tmp/bankapp-artifacts.json
+# `cie ingest` remains a compatibility alias.
+
 # Machine-readable outputs
 cie analyze examples/bankapp --format sarif   # SARIF 2.1.0 for security tooling
 cie analyze examples/bankapp --format json
@@ -44,6 +48,9 @@ cie fault examples/bankapp --json --max-faults 2 --budget-ms 500
 # Time-travel report (FR-23)
 cie report examples/bankapp --as-of-rev 1
 ```
+
+The current ingestion flow, memory boundaries, incremental behavior and clustering
+ownership are documented in [Ingest-polyglot architecture](docs/ingest-polyglot-architecture.md).
 
 ## Architecture (PRD §6)
 

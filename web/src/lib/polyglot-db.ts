@@ -354,41 +354,17 @@ export function getDuplicateClusters(
     const maxClusters = opts?.maxClusters ?? 12;
     const maxMembers = opts?.maxMembersPerCluster ?? 24;
 
-    const pairs = db
-      .prepare("SELECT symbol_a, symbol_b FROM duplicates WHERE tier='canonical'")
-      .all() as { symbol_a: number; symbol_b: number }[];
-
-    const parent = new Map<number, number>();
-    const find = (x: number): number => {
-      let r = x;
-      while ((parent.get(r) ?? r) !== r) r = parent.get(r) as number;
-      let cur = x;
-      while (cur !== r) {
-        const next = parent.get(cur) as number;
-        parent.set(cur, r);
-        cur = next;
-      }
-      return r;
-    };
-    const union = (a: number, b: number) => {
-      const ra = find(a);
-      const rb = find(b);
-      if (ra !== rb) parent.set(ra, rb);
-    };
-    for (const { symbol_a, symbol_b } of pairs) {
-      if (!parent.has(symbol_a)) parent.set(symbol_a, symbol_a);
-      if (!parent.has(symbol_b)) parent.set(symbol_b, symbol_b);
-      union(symbol_a, symbol_b);
-    }
-
+    // Families are computed once by ingest-polyglot, using canonical
+    // edges only. Older stores need a re-ingest before this view is available.
+    if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='duplicate_clusters'").get()) return null;
+    const rows = db.prepare("SELECT cluster_id, symbol_id FROM duplicate_clusters ORDER BY cluster_id, ordinal").all() as { cluster_id: number; symbol_id: number }[];
     const byRoot = new Map<number, number[]>();
-    for (const id of parent.keys()) {
-      const r = find(id);
-      const list = byRoot.get(r);
-      if (list) list.push(id);
-      else byRoot.set(r, [id]);
+    for (const row of rows) {
+      const members = byRoot.get(row.cluster_id) ?? [];
+      members.push(row.symbol_id);
+      byRoot.set(row.cluster_id, members);
     }
-    const families = Array.from(byRoot.values()).sort((a, b) => b.length - a.length);
+    const families = Array.from(byRoot.values()).sort((a, b) => b.length - a.length || a[0] - b[0]);
 
     // Small table (9,503 symbols even on a large repo) — one join, no
     // parameter-count limits to worry about, instead of an IN(...) per family.
@@ -425,7 +401,7 @@ export function getDuplicateClusters(
     return {
       tierUsed: "canonical",
       totalFamilies: families.length,
-      totalSymbolsInvolved: parent.size,
+      totalSymbolsInvolved: rows.length,
       clusters,
     };
   } finally {

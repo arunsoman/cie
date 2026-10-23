@@ -78,7 +78,7 @@ pub fn uast_map_seed(lang: Lang) -> &'static [(&'static str, Uast)] {
             ("call_expression", Uast::CallExpr),
             ("import_statement", Uast::ImportDecl),
         ],
-        Lang::TypeScript => &[
+        Lang::TypeScript | Lang::Tsx => &[
             ("function_declaration", Uast::FunctionDecl),
             ("generator_function_declaration", Uast::FunctionDecl),
             ("class_declaration", Uast::TypeDecl),
@@ -128,6 +128,8 @@ pub fn uast_map_seed(lang: Lang) -> &'static [(&'static str, Uast)] {
             ("invocation_expression", Uast::CallExpr),
             ("using_directive", Uast::ImportDecl),
         ],
+        Lang::Kotlin => &[("function_declaration", Uast::FunctionDecl), ("class_declaration", Uast::TypeDecl), ("call_expression", Uast::CallExpr), ("import", Uast::ImportDecl)],
+        Lang::Lua => &[("function_declaration", Uast::FunctionDecl), ("function_call", Uast::CallExpr)],
         Lang::Php => &[
             ("function_definition", Uast::FunctionDecl),
             ("method_declaration", Uast::MethodDecl),
@@ -195,6 +197,9 @@ pub fn normalize(conn: &Connection) -> Result<NormalizeReport, String> {
         Lang::Cpp,
         Lang::CSharp,
         Lang::Php,
+        Lang::Kotlin,
+        Lang::Lua,
+        Lang::Tsx,
     ] {
         for (grammar_kind, uast) in uast_map_seed(lang) {
             let Some(ast_kind_id) = kind_ids.get(&(grammar_kind.to_string(), lang.name().to_string()))

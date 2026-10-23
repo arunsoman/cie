@@ -7,7 +7,7 @@ pub mod cochange;
 pub mod sample;
 pub mod history;
 pub mod pipeline;
-pub mod polyglot_sources;
+pub mod stream;
 pub mod stack_store;
 pub mod state_model_store;
 pub mod relations_store;
@@ -15,7 +15,7 @@ pub mod navigation;
 pub mod org_store;
 pub mod vector_store;
 
-pub use polyglot_sources::{FactsSource, SourceReceipt};
+pub use stream::{FactsSource, SourceReceipt};
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -84,12 +84,8 @@ pub struct IngestOptions {
     pub llm: ProviderKind,
     pub llm_budget_usd: f64,
     pub include_coverage_gaps: bool,
-    /// BRIDGE (backlog item 5, un-deferred): where the parse input comes
-    /// from. The default is `FactsSource::Polyglot` — the polyglot store
-    /// (hash-verified `file_source_cache` rows) feeds the adapters, disk
-    /// fallback per file. `FactsSource::Own` restores the disk-only read
-    /// (the CLI's `--facts-from own`). Artifacts are byte-identical either
-    /// way — pinned by `tests/bridge_parity.rs`.
+    /// Reuse hash-matched semantic facts or force fresh extraction. Both
+    /// modes use the same shared-tree pipeline and language adapters.
     pub facts_from: FactsSource,
 }
 
@@ -117,8 +113,7 @@ pub struct IngestOutcome {
     pub test_map: cie_analysis::testing::TestMap,
     /// TASK-030: per-file summary reuse counters for this pass.
     pub summary_reuse: cie_analysis::behavior::SummaryReuseStats,
-    /// BRIDGE: how the parse inputs were sourced this pass (None: fast path
-    /// or `load_outcome` — no sources were read at all).
+    /// File reads, shared parses and semantic cache reuse (None on snapshot-only outcomes).
     pub source_receipt: Option<SourceReceipt>,
 }
 
@@ -221,7 +216,10 @@ pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Resul
 pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<IngestOutcome> {
     let t0 = now_ns();
     let store = Store::open(project)?;
-    let walked = walk_and_hash(project, opts.langs.as_ref())?;
+    let _lock = stream::ProjectLock::acquire(store.root())?;
+    let registry = default_registry();
+    let mut stream = stream::StreamSession::capture_deferred(project, &registry, opts)?;
+    let walked = stream.walked.clone();
     let current = walked.files;
     let prev_index = store.load_index()?;
     let plan = plan_ingest(prev_index.as_ref(), &current, &walked.stack_inputs);
@@ -248,7 +246,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // re-hash above) and, when it predates the marker, fall through to the
     // full pass — which rebuilds the concepts (and everything else) and
     // re-stamps; the fast path then holds again for every run after that.
-    if !plan.has_work() && !head_concepts_tier_stale(&store) {
+    if opts.facts_from == FactsSource::Polyglot && !plan.has_work() && !head_concepts_tier_stale(&store) && stream.has_revision(store.last_rev()) {
         let last = store.last_rev();
         let wall = now_ns() - t0;
         let mut index = prev_index.unwrap_or_default();
@@ -312,19 +310,8 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         _ => None,
     };
 
-    // Read + extract current files. BRIDGE (backlog item 5, un-deferred):
-    // the polyglot store is the DEFAULT source of the parse input —
-    // hash-verified `file_source_cache` rows feed the adapters, disk
-    // fallback per file (`polyglot_sources::resolve_current_files`). The
-    // race check, walk order, and skip semantics are the inline loop this
-    // call replaced; only the bytes' provenance changes, and the bytes are
-    // proven identical (double hash-verification), so artifacts are
-    // byte-identical by construction — `tests/bridge_parity.rs` pins it.
-    let (files, source_receipt) =
-        polyglot_sources::resolve_current_files(project, &current, opts.facts_from);
-
-    let registry = default_registry();
-    let extracted = cie_adapters::extract_project(&files, &registry);
+    let extracted = stream.materialize()?;
+    let source_receipt = stream.receipt.clone();
 
     // TASK-030: assemble the reuse plan — per-file (blake3(file),
     // blake3(dep set)) keys against the prior analysis.
@@ -633,7 +620,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
             },
         );
     }
-    store.save_index(&index)?;
+    // Publish the index only after the new snapshot is safely written.
 
     let mut snapshot = RevSnapshot {
         rev,
@@ -659,7 +646,15 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         findings: analysis.findings.clone(),
         contracts: analysis.contracts.clone(),
         concepts: analysis.concepts.clone(),
-        coverage: analysis.coverage.clone(),
+        coverage: {
+            let mut coverage = analysis.coverage.clone();
+            if !source_receipt.skipped.is_empty() || !source_receipt.partial.is_empty() {
+                coverage.complete = false;
+                coverage.notes.extend(source_receipt.skipped.iter().cloned());
+                coverage.notes.extend(source_receipt.partial.iter().cloned());
+            }
+            coverage
+        },
         evidence: analysis.evidence.clone(),
         warnings: source_receipt
             .disclosure()
@@ -727,11 +722,13 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &snapshot.concepts,
         &SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files.clone()),
     );
+    stream.finish(project, rev, &extracted)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous
     // revision intact and loadable (load_outcome reads this pointer); the
     // aborted run's rev id is simply reused by the next successful ingest.
+    store.save_index(&index)?;
     store.commit_rev(rev)?;
 
     // Issue #10 companion: when the purge actually removed symbols it also
@@ -810,7 +807,14 @@ pub fn run_drift(
     inject_timeout: bool,
 ) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
     let raw = run_ingest(project, opts)?;
+    run_drift_from_outcome(project, docs, raw, verify_deadline_ns, inject_timeout)
+}
 
+/// Check docs against an already captured revision; never re-ingest.
+pub fn run_drift_from_outcome(
+    project: &Path, docs: &[(String,String)], raw: IngestOutcome,
+    verify_deadline_ns: Option<Ns>, inject_timeout: bool,
+) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
     // TASK-071: cheap ingestion formats — normalize rst/adoc/html to plain
     // prose before hashing and claim extraction (markdown/text pass through).
     let normalized_docs: Vec<(String, String)> = docs

@@ -61,6 +61,12 @@ CREATE TABLE IF NOT EXISTS duplicates (
     canonical_symbol_id INTEGER REFERENCES symbols(id),
     counter_argument   TEXT
 );
+CREATE TABLE IF NOT EXISTS duplicate_clusters (
+    cluster_id INTEGER NOT NULL,
+    symbol_id INTEGER NOT NULL REFERENCES symbols(id),
+    ordinal INTEGER NOT NULL,
+    PRIMARY KEY (cluster_id, symbol_id)
+);
 CREATE TABLE IF NOT EXISTS duplicate_gaps (
     symbol_id    INTEGER PRIMARY KEY REFERENCES symbols(id),
     hidden_count INTEGER NOT NULL
@@ -69,6 +75,46 @@ CREATE TABLE IF NOT EXISTS duplicate_gaps (
 
 pub fn create_dup_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(DDL_DUP).map_err(|e| e.to_string())
+}
+
+/// Persist connected components of canonical duplicate edges. Similarity
+/// inferences never enter these exact-IR-hash families. Memory is O(symbols),
+/// and pairs are streamed from SQLite rather than collected in the browser.
+pub fn cluster_canonical(conn: &Connection) -> Result<usize,String> {
+    fn find(parent: &mut std::collections::BTreeMap<i64,i64>, x:i64)->i64 {
+        let mut root=x;
+        while parent[&root]!=root {root=parent[&root];}
+        let mut cur=x;
+        while parent[&cur]!=root {let next=parent[&cur];parent.insert(cur,root);cur=next;}
+        root
+    }
+    let mut parent=std::collections::BTreeMap::new();
+    let mut sizes=std::collections::BTreeMap::new();
+    {
+        let mut q=conn.prepare("SELECT symbol_a,symbol_b FROM duplicates WHERE tier='canonical' ORDER BY id").map_err(|e|e.to_string())?;
+        let rows=q.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?))).map_err(|e|e.to_string())?;
+        for row in rows {
+            let (a,b)=row.map_err(|e|e.to_string())?;
+            parent.entry(a).or_insert(a);parent.entry(b).or_insert(b);
+            sizes.entry(a).or_insert(1usize);sizes.entry(b).or_insert(1usize);
+            let mut a=find(&mut parent,a);let mut b=find(&mut parent,b);
+            if a!=b {if sizes[&a]<sizes[&b]{std::mem::swap(&mut a,&mut b);}parent.insert(b,a);let count=sizes[&b];*sizes.get_mut(&a).unwrap()+=count;}
+        }
+    }
+    let keys:Vec<_>=parent.keys().copied().collect();
+    let mut groups:std::collections::BTreeMap<i64,Vec<i64>>=std::collections::BTreeMap::new();
+    for id in keys {groups.entry(find(&mut parent,id)).or_default().push(id);}
+    let tx=conn.unchecked_transaction().map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM duplicate_clusters",[]).map_err(|e|e.to_string())?;
+    {
+        let mut insert=tx.prepare("INSERT INTO duplicate_clusters VALUES (?1,?2,?3)").map_err(|e|e.to_string())?;
+        for members in groups.values() {
+            let cluster=members[0];
+            for (ordinal,id) in members.iter().enumerate(){insert.execute(rusqlite::params![cluster,id,ordinal as i64]).map_err(|e|e.to_string())?;}
+        }
+    }
+    tx.commit().map_err(|e|e.to_string())?;
+    Ok(groups.len())
 }
 
 #[derive(Debug, Default, serde::Serialize)]

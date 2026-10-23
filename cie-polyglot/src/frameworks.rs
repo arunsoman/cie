@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS framework_roles (
 );
 CREATE INDEX IF NOT EXISTS idx_fw_roles_file ON framework_roles(file_id);
 
+CREATE TABLE IF NOT EXISTS client_paths (
+    file_id INTEGER NOT NULL REFERENCES files(id),
+    symbol_id INTEGER NOT NULL REFERENCES symbols(id),
+    literal TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS cross_language_bindings (
     id                INTEGER PRIMARY KEY,
     source_symbol_id  INTEGER REFERENCES symbols(id),
@@ -234,6 +239,26 @@ pub fn detect(conn: &Connection) -> Result<FwReport, String> {
     Ok(report)
 }
 
+/// Local framework observations consume the shared tree before it is released.
+pub fn detect_file_tree(conn: &Connection, file_id: i64, lang: Lang, text: &str, tree: &tree_sitter::Tree) -> Result<FwReport,String> {
+    let mut report = FwReport::default();
+    let attributed = attribute_framework(lang,text);
+    detect_roles_tree(conn,file_id,lang,text,tree,&attributed,&mut report)?;
+    for (symbol,literal) in client_path_literals_tree(conn,file_id,lang,text,tree)? {
+        conn.execute("INSERT INTO client_paths VALUES (?1,?2,?3)",rusqlite::params![file_id,symbol,literal]).map_err(|e|e.to_string())?;
+    }
+    Ok(report)
+}
+
+/// Project barrier: link cached client observations to declared contracts.
+pub fn link_clients(conn: &Connection) -> Result<(),String> {
+    conn.execute("INSERT INTO cross_language_bindings(source_symbol_id,protocol,spec_file_id,spec_pointer,confidence,resolution)
+        SELECT c.symbol_id,'http',d.spec_file_id,d.spec_pointer,0.7,'URL_MATCHED'
+        FROM client_paths c JOIN cross_language_bindings d
+        ON d.resolution='DECLARED' AND (c.literal=d.spec_pointer OR c.literal='/api'||d.spec_pointer)",[]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
 fn is_spec_path(path: &str) -> bool {
     let p = path.to_ascii_lowercase();
     (p.ends_with(".yaml") || p.ends_with(".yml") || p.ends_with(".json"))
@@ -316,7 +341,7 @@ fn attribute_framework(lang: Lang, text: &str) -> Vec<(String, String)> {
                 push("chi");
             }
         }
-        Lang::JavaScript | Lang::TypeScript => {
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => {
             if text.contains("require('express')")
                 || text.contains("require(\"express\")")
                 || text.contains("from 'express'")
@@ -388,6 +413,21 @@ fn detect_roles(
     attributed: &[(String, String)],
     report: &mut FwReport,
 ) -> Result<Vec<(String, String)>, String> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&lang.ts_language().ok_or("grammar unavailable")?).map_err(|e|e.to_string())?;
+    let Some(tree) = parser.parse(text.as_bytes(),None) else { return Ok(Vec::new()) };
+    detect_roles_tree(conn, file_id, lang, text, &tree, attributed, report)
+}
+
+fn detect_roles_tree(
+    conn: &Connection,
+    file_id: i64,
+    lang: Lang,
+    text: &str,
+    tree: &tree_sitter::Tree,
+    attributed: &[(String, String)],
+    report: &mut FwReport,
+) -> Result<Vec<(String, String)>, String> {
     let fw_of = |names: &[&str]| -> String {
         for (fw, _) in attributed {
             for want in names {
@@ -401,13 +441,6 @@ fn detect_roles(
     let conf_of = |fw: &str| if fw == "unattributed" { 0.5 } else { 1.0 };
     let mut sites: Vec<(String, String)> = Vec::new();
 
-    let mut parser = tree_sitter::Parser::new();
-    parser
-        .set_language(&lang.ts_language().ok_or("grammar unavailable")?)
-        .map_err(|e| e.to_string())?;
-    let Some(tree) = parser.parse(text.as_bytes(), None) else {
-        return Ok(sites);
-    };
     let src = text.as_bytes();
 
     // Pre-order walk collecting the per-language patterns.
@@ -518,7 +551,7 @@ fn detect_roles(
                     }
                 }
             }
-            Lang::JavaScript | Lang::TypeScript => {
+            Lang::JavaScript | Lang::TypeScript | Lang::Tsx => {
                 if k == "call_expression" {
                     let t = n.utf8_text(src).unwrap_or("");
                     if t.contains(".get(") || t.contains(".post(") || t.contains(".use(") || t.contains(".put(") || t.contains(".delete(") {
@@ -584,10 +617,23 @@ fn client_path_literals(
     lang: Lang,
     text: &str,
 ) -> Result<Vec<(i64, String)>, String> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&lang.ts_language().ok_or("grammar unavailable")?).map_err(|e|e.to_string())?;
+    let Some(tree) = parser.parse(text.as_bytes(),None) else { return Ok(Vec::new()) };
+    client_path_literals_tree(conn, file_id, lang, text, &tree)
+}
+
+fn client_path_literals_tree(
+    conn: &Connection,
+    file_id: i64,
+    lang: Lang,
+    text: &str,
+    tree: &tree_sitter::Tree,
+) -> Result<Vec<(i64, String)>, String> {
     let mut out = Vec::new();
     let client_markers: &[&str] = match lang {
         Lang::Python => &["requests.", "httpx.", "session.get(", "session.post("],
-        Lang::JavaScript | Lang::TypeScript => &["fetch(", "axios."],
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => &["fetch(", "axios."],
         Lang::Go => &["http.Get(", "http.Post("],
         Lang::Rust => &["reqwest::", ".get(\"http"],
         _ => return Ok(out),
@@ -615,13 +661,6 @@ fn client_path_literals(
             .filter(|(_, s, e)| pos >= *s && pos <= *e)
             .map(|(id, _, _)| *id)
             .next_back()
-    };
-    let mut parser = tree_sitter::Parser::new();
-    parser
-        .set_language(&lang.ts_language().ok_or("grammar unavailable")?)
-        .map_err(|e| e.to_string())?;
-    let Some(tree) = parser.parse(text.as_bytes(), None) else {
-        return Ok(out);
     };
     let src = text.as_bytes();
     let mut stack = vec![tree.root_node()];

@@ -206,6 +206,10 @@ impl CAdapter {
         let Some(tree) = parser.parse(src, None) else {
             return LangFacts::new(path, LangId::C, "tree-sitter-deep:c");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let module = path.trim_end_matches(".c").replace('/', ".");
         let module_id = SymbolId(0);
         let mut ctx = CCtx {
@@ -236,6 +240,14 @@ impl CAdapter {
 }
 
 impl LanguageAdapter for CAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(tree_sitter_c::LANGUAGE.into())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::C
     }

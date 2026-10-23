@@ -273,6 +273,10 @@ impl CSharpAdapter {
         let Some(tree) = parser.parse(src, None) else {
             return LangFacts::new(path, LangId::CSharp, "tree-sitter-deep:csharp");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let module = path.trim_end_matches(".cs").replace('/', ".");
         let module_id = SymbolId(0);
         let mut ctx = CsCtx {
@@ -324,6 +328,14 @@ impl CSharpAdapter {
 }
 
 impl LanguageAdapter for CSharpAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(tree_sitter_c_sharp::LANGUAGE.into())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::CSharp
     }

@@ -689,8 +689,10 @@ dependencies = [
  "cie-store",
  "cie-summary",
  "rayon",
+ "rusqlite",
  "serde",
  "serde_json",
+ "tree-sitter",
  "zstd",
 ]
 
@@ -723,7 +725,9 @@ dependencies = [
  "tree-sitter-go",
  "tree-sitter-java",
  "tree-sitter-javascript",
+ "tree-sitter-kotlin-ng",
  "tree-sitter-language",
+ "tree-sitter-lua",
  "tree-sitter-php",
  "tree-sitter-python",
  "tree-sitter-rust",

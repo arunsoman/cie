@@ -3,6 +3,8 @@
 //! Commands: ingest, analyze, concepts, drift, impact, overlap, report,
 //! sample, ingest-org, viz, stories, cochange, deps, stack.
 
+mod ingestion_job;
+
 use cie_drift::persist::DriftStoreExt;
 use cie_incremental::SnapshotStoreExt;
 pub use cie_ingest;
@@ -151,6 +153,7 @@ pub enum Command {
         force: bool,
     },
     /// Ingest a folder path (full assimilation or incremental re-ingest)
+    #[command(name = "ingest-polyglot", visible_alias = "ingest")]
     Ingest {
         path: PathBuf,
         #[arg(long)]
@@ -165,12 +168,12 @@ pub enum Command {
         llm_provider: LlmChoice,
         #[arg(long, default_value_t = 1.0)]
         llm_budget_usd: f64,
-        /// BRIDGE (backlog item 5): where the parse input comes from.
-        /// `polyglot` (default) feeds the adapters hash-verified sources
-        /// from the polyglot store, disk fallback per file; `own` is the
-        /// disk-only read. Artifacts are byte-identical either way.
+        /// Reuse cached semantic facts (polyglot) or force fresh extraction (own).
         #[arg(long, value_enum, default_value = "polyglot")]
         facts_from: FactsFromChoice,
+        /// Export every web artifact from one coordinated job.
+        #[arg(long, conflicts_with = "watch")]
+        web_out: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -322,9 +325,7 @@ pub enum Command {
         viewspec: Option<String>,
         #[arg(long)]
         json: bool,
-        /// INCREMENTAL-ON: skip the reuse tier — re-parse every file into a
-        /// fresh store (the honest-recomputation contract, byte-identical to
-        /// a pre-INCREMENTAL build)
+        /// Force fresh extraction; bypass semantic and AST reuse.
         #[arg(long)]
         full: bool,
     },
@@ -798,6 +799,7 @@ fn run(cli: Cli) -> i32 {
             llm_provider,
             llm_budget_usd,
             facts_from,
+            web_out,
             json,
         } => {
             let opts = IngestOptions {
@@ -813,6 +815,9 @@ fn run(cli: Cli) -> i32 {
             loop {
                 match cie_ingest::run_ingest(&path, &opts) {
                     Ok(outcome) => {
+                        if let Some(out) = web_out.as_ref() {
+                            return match ingestion_job::export(&path,outcome,out) {Ok(())=>0,Err(e)=>{eprintln!("error: {e}");1}};
+                        }
                         if json {
                             let outcome = match cie_ingest::materialize(outcome) {
                                 Ok(o) => o,
@@ -834,23 +839,8 @@ fn run(cli: Cli) -> i32 {
                                 plan.added.len(),
                                 plan.deleted.len()
                             );
-                            // BRIDGE receipt (backlog item 5): say where the
-                            // parse inputs came from — or that the store was
-                            // absent, so the default mode's fallback is named,
-                            // never silent.
-                            if let Some(rcpt) = &outcome.source_receipt {
-                                match (&rcpt.store_path, rcpt.from_store) {
-                                    (Some(db), n) => println!(
-                                        "facts-from polyglot: {n} of {} sources from the store ({}) — {} from disk",
-                                        n + rcpt.from_disk,
-                                        db.display(),
-                                        rcpt.from_disk
-                                    ),
-                                    (None, _) => println!(
-                                        "facts-from polyglot: no store for this path — all {} sources read from disk (run `cie polyglot <path>` to seed it)",
-                                        rcpt.from_disk
-                                    ),
-                                }
+                            if let Some(receipt) = &outcome.source_receipt {
+                                if let Some(detail) = receipt.disclosure() { println!("{detail}"); }
                             }
                             if outcome.snapshot.incremental {
                                 println!(
@@ -1691,342 +1681,60 @@ fn run(cli: Cli) -> i32 {
                 }
             }
         }
-        Command::Polyglot {
-            path,
-            otel,
-            viewspec,
-            json,
-            full,
-        } => {
+        Command::Polyglot { path, otel, viewspec, json, full } => {
             let path = path.canonicalize().unwrap_or(path);
-            // stable per-path store name: FNV-1a over the canonical path
-            let mut h: u64 = 0xcbf29ce484222325;
-            for b in path.to_string_lossy().as_bytes() {
-                h ^= *b as u64;
-                h = h.wrapping_mul(0x100000001b3);
-            }
-            let db_path = std::env::temp_dir().join(format!("cie-polyglot-{h:x}.db"));
-            // DS-EVAL §6.2 — build-then-rename. The web opens `db_path`
-            // read-only while a rebuild may run in another process: build at
-            // `<final>.building`, then atomically promote on success, so
-            // readers always see the previous complete store or the new one —
-            // never a half-built DB (the old delete-then-rebuild-in-place
-            // left both a no-DB window and a half-built window). The fresh
-            // `.building` file per run keeps the honest-recomputation
-            // contract: re-runs never collide with a previous revision's rows.
-            let building = std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building"));
-            let building_sidecars = [
-                building.clone(),
-                std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building-wal")),
-                std::env::temp_dir().join(format!("cie-polyglot-{h:x}.building-shm")),
-            ];
-            // discard any half-build left by a previous crashed run
-            for stale in &building_sidecars {
-                let _ = std::fs::remove_file(stale);
-            }
-            match run_polyglot_build(
-                &building,
-                &path,
-                otel.as_deref(),
-                viewspec.as_deref(),
-                json,
-                &db_path,
-                full,
-            ) {
-                Ok(rc) if !building.exists() => {
-                    // the INCREMENTAL-ON short-circuit served from the
-                    // previous store — nothing was built, nothing to promote
-                    rc
-                }
-                Ok(rc) => match std::fs::rename(&building, &db_path) {
-                    Ok(()) => {
-                        // The rename replaced the inode; any `-wal`/`-shm` at
-                        // the final path belonged to the OLD inode (readonly
-                        // web readers create empty ones for coordination).
-                        // Drop them so the promoted, cleanly-checkpointed DB
-                        // always starts sidecar-free — a stale `-wal` must
-                        // never be recoverable onto the NEW database.
-                        let _ = std::fs::remove_file(std::env::temp_dir().join(format!(
-                            "cie-polyglot-{h:x}.db-wal"
-                        )));
-                        let _ = std::fs::remove_file(std::env::temp_dir().join(format!(
-                            "cie-polyglot-{h:x}.db-shm"
-                        )));
-                        rc
-                    }
-                    Err(e) => {
-                        for stale in &building_sidecars {
-                            let _ = std::fs::remove_file(stale);
+            // Compatibility command: one ingestion owner, no second AST build.
+            let options=IngestOptions {facts_from:if full {FactsSource::Own}else{FactsSource::Polyglot},..IngestOptions::default()};
+            let outcome = match cie_ingest::run_ingest(&path, &options) {
+                Ok(o) => o,
+                Err(e) => { eprintln!("error: {e}"); return 1; }
+            };
+            if full { eprintln!("polyglot reuse: off (--full) — honest recomputation"); }
+            else if let Some(receipt)=&outcome.source_receipt { if let Some(line)=receipt.disclosure(){eprintln!("{line}");} }
+            else {eprintln!("polyglot reuse: tree unchanged — store reused as-is, nothing re-parsed (--full recomputes)");}
+            let db = cie_polyglot::schema::default_db_path(&path);
+            let result = (|| -> Result<(), String> {
+                let conn = cie_polyglot::schema::open_db(&db)?;
+                let runtime = if let Some(otel) = otel {
+                    let payload = std::fs::read_to_string(otel).map_err(|e| e.to_string())?;
+                    Some(serde_json::to_value(cie_polyglot::runtime::ingest(&conn, &payload)?).map_err(|e|e.to_string())?)
+                } else { None };
+                if let Some(want) = viewspec {
+                    if want == "all" {
+                        println!("{}", cie_polyglot::viewspec::produce_bundle(&conn)?);
+                    } else {
+                        let specs = cie_polyglot::viewspec::produce(&conn)?;
+                        let mut found = false;
+                        for (key, value) in specs.iter().filter(|(k,_)| k.starts_with(&want) || k.contains(&want)) {
+                            found = true; println!("{key}"); println!("{value}");
                         }
-                        eprintln!("error: promoting polyglot store: {e}");
-                        1
+                        if !found { return Err(format!("no spec matches '{want}'")); }
                     }
-                },
-                Err(e) => {
-                    for stale in &building_sidecars {
-                        let _ = std::fs::remove_file(stale);
-                    }
-                    eprintln!("error: {e}");
-                    1
-                }
-            }
+                } else if json {
+                    let count = |sql: &str| -> Result<u64,String> {conn.query_row(sql,[],|r|r.get(0)).map_err(|e|e.to_string())};
+                    let calls = count("SELECT COUNT(*) FROM calls")?;
+                    let resolved = count("SELECT COUNT(*) FROM calls WHERE resolution='RESOLVED'")?;
+                    println!("{}", serde_json::json!({
+                        "db":db,"revision":outcome.rev,"pipeline":"ingest-polyglot",
+                        "ingest":{"files":count("SELECT COUNT(*) FROM semantic_files")?,"files_reused":outcome.source_receipt.as_ref().map(|r|r.facts_reused as u64).unwrap_or(count("SELECT COUNT(*) FROM semantic_files")?),"files_parsed":outcome.source_receipt.as_ref().map(|r|r.from_disk).unwrap_or(0),"files_dropped":outcome.plan.deleted.len(),"parse_errors":count("SELECT COUNT(*) FROM file_status WHERE status='partial-parse'")?,"ast_nodes":count("SELECT COUNT(*) FROM ast_nodes")?,"symbols":count("SELECT COUNT(*) FROM symbols")?,"unsupported_files":count("SELECT COUNT(*) FROM file_status WHERE status NOT IN ('done','partial-parse')")?},
+                        "ir":{"symbols_lowered":count("SELECT COUNT(*) FROM ir_meta")?,"blocks":count("SELECT COUNT(*) FROM ir_blocks")?,"instructions":count("SELECT COUNT(*) FROM ir_instructions")?,"calls":calls,"calls_resolved":resolved,"calls_unresolved":calls-resolved},
+                        "frameworks":{"roles":count("SELECT COUNT(*) FROM framework_roles")?,"declared_bindings":count("SELECT COUNT(*) FROM cross_language_bindings WHERE resolution='DECLARED'")?,"url_matched_bindings":count("SELECT COUNT(*) FROM cross_language_bindings WHERE resolution='URL_MATCHED'")?},
+                        "c4":{"containers":count("SELECT COUNT(*) FROM concept_nodes WHERE kind='Container'")?,"components":count("SELECT COUNT(*) FROM concept_nodes WHERE kind='Component'")?,"relationships":count("SELECT COUNT(*) FROM c4_relationships")?},
+                        "state_machines":{"t1":count("SELECT COUNT(*) FROM state_machines WHERE tier='T1'")?,"t2":count("SELECT COUNT(*) FROM state_machines WHERE tier='T2'")?,"t3":count("SELECT COUNT(*) FROM state_machines WHERE tier='T3'")?},
+                        "workflows":{"workflows":count("SELECT COUNT(*) FROM workflows")?,"nodes":count("SELECT COUNT(*) FROM workflow_nodes")?},
+                        "duplicates":{"pairs":count("SELECT COUNT(*) FROM duplicates")?,"canonical_hash":count("SELECT COUNT(*) FROM duplicates WHERE tier='canonical'")?},
+                        "runtime":runtime.unwrap_or(serde_json::json!("not-requested"))
+                    }));
+                } else { println!("polyglot store: {} (revision {})", db.display(), outcome.rev); }
+                Ok(())
+            })();
+            match result { Ok(()) => 0, Err(e) => { eprintln!("error: {e}"); 1 } }
         }
         Command::Stories { cmd } => run_stories(cmd),
     }
 }
 
-/// Emit a produced ViewSpec artifact to stdout — `all` gives the one bundle
-/// document the web pipeline consumes with a single read. Runs against
-/// either a fresh build connection or a read-only previous store (the
-/// INCREMENTAL-ON short-circuit).
-fn emit_viewspec(conn: &cie_polyglot::Connection, want: &str) -> Result<i32, String> {
-    if want == "all" {
-        match cie_polyglot::viewspec::produce_bundle(conn) {
-            Ok(bundle) => {
-                println!("{bundle}");
-                return Ok(0);
-            }
-            Err(e) => return Err(e),
-        }
-    }
-    let specs = cie_polyglot::viewspec::produce(conn)?;
-    let hits: Vec<_> = specs
-        .iter()
-        .filter(|(k, _)| k.starts_with(want) || k.contains(want))
-        .collect();
-    if hits.is_empty() {
-        return Err(format!(
-            "no spec matches '{want}' (available: {})",
-            specs.keys().cloned().collect::<Vec<_>>().join(", ")
-        ));
-    }
-    for (k, v) in hits {
-        println!("{k}");
-        println!("{v}");
-    }
-    Ok(0)
-}
 
-/// DS-EVAL §6.2 — build the polyglot store at `building`; the caller promotes
-/// it over `db_path` by rename ONLY on success. The web opens `db_path`
-/// read-only while a rebuild may run in another process, so promotion must be
-/// atomic and the build must be complete-or-nothing.
-fn run_polyglot_build(
-    building: &std::path::Path,
-    path: &std::path::Path,
-    otel: Option<&std::path::Path>,
-    viewspec: Option<&str>,
-    json: bool,
-    db_path: &std::path::Path,
-    full: bool,
-) -> Result<i32, String> {
-    // INCREMENTAL-ON short-circuit (backlog item 6): when the tree and the
-    // engine fingerprint match the previous store exactly, every derivation
-    // would recompute to the rows that store already holds (the warm==full
-    // gate pins that row-for-row) — so the honest maximum is to not rebuild
-    // at all and serve from the previous store. --full bypasses; a runtime
-    // (--otel) build never takes it; --json bypasses because its report is
-    // the fresh detection summary.
-    if !full && otel.is_none() && !json {
-        if let (Some(prev_fp), Ok(now_fp)) = (
-            cie_polyglot::schema::read_tree_fingerprint(db_path),
-            cie_polyglot::schema::hash_tree(path),
-        ) {
-            if prev_fp.hash == now_fp.hash {
-                let line = format!(
-                    "polyglot reuse: tree unchanged ({} files, engine fingerprint match) — store reused as-is, nothing re-parsed (--full recomputes)",
-                    now_fp.files
-                );
-                if viewspec.is_none() {
-                    println!("{line}");
-                    println!("polyglot store: {}", db_path.display());
-                    if let Ok(prev) = cie_polyglot::schema::open_read_only(db_path) {
-                        let files: i64 = prev
-                            .query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))
-                            .unwrap_or(0);
-                        let symbols: i64 = prev
-                            .query_row("SELECT COUNT(*) FROM symbols", [], |r| r.get(0))
-                            .unwrap_or(0);
-                        let _ = prev;
-                        println!(
-                            "  ingest: {files} files, {symbols} symbols in store (unchanged — carried from the previous build)"
-                        );
-                    }
-                    return Ok(0);
-                }
-                // --viewspec on an unchanged tree: serve the bundle from the
-                // previous store; on any failure fall through to a rebuild
-                if let Some(want) = viewspec {
-                    match cie_polyglot::schema::open_read_only(db_path)
-                        .and_then(|prev| emit_viewspec(&prev, want))
-                    {
-                        Ok(rc) => {
-                            eprintln!("{line}");
-                            return Ok(rc);
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "polyglot reuse: previous store unusable for viewspec ({e}) — rebuilding"
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let conn = cie_polyglot::schema::open_db(building)?;
-    let rc = (|| -> Result<i32, String> {
-        // INCREMENTAL-ON (backlog item 6): the previous promoted store feeds
-        // the reuse tier — unchanged files carry their parse rows over,
-        // hash-verified, instead of re-parsing; every derivation recomputes.
-        // --full keeps the honest-recomputation escape hatch.
-        let prev_db: Option<&std::path::Path> = if full || !db_path.exists() {
-            None
-        } else {
-            Some(db_path)
-        };
-        let static_res = cie_polyglot::ir::ingest_and_lower_reusing(&conn, 1, 41, &path, prev_db);
-        let Ok((stats, lower, reuse)) = static_res else {
-            return Err(static_res.err().unwrap_or_default());
-        };
-        // INCREMENTAL-ON receipt: say where the parse work went — engaged,
-        // forced off, or degraded. stdout is a machine contract in
-        // --viewspec / --json mode, so only the human summary prints there.
-        let reuse_line = if full {
-            Some(format!(
-                "polyglot reuse: off (--full) — {} files re-parsed, honest recomputation",
-                stats.files_ingested
-            ))
-        } else if reuse.files_reused > 0 {
-            Some(format!(
-                "polyglot reuse: {} of {} files carried over from the previous store (hash-verified) — {} re-parsed, {} gone from the tree",
-                reuse.files_reused,
-                reuse.files_reused + reuse.files_parsed,
-                reuse.files_parsed,
-                reuse.files_dropped
-            ))
-        } else {
-            reuse.note.clone()
-        };
-        if let Some(line) = &reuse_line {
-            if viewspec.is_none() && !json {
-                println!("{line}");
-            } else {
-                eprintln!("{line}");
-            }
-        }
-        let _ = cie_polyglot::frameworks::install_registry(&conn);
-        let fw = cie_polyglot::frameworks::detect(&conn);
-        // C4 needs the ingested root for DDD dir checks
-        let c4 = cie_polyglot::c4::detect_c4(&conn, &path, 41);
-        let sm = cie_polyglot::statemachines::detect(&conn);
-        let wf = cie_polyglot::workflows::detect(&conn);
-        let dup = cie_polyglot::duplicates::detect(&conn);
-        let runtime = otel
-            .map(|p| {
-                std::fs::read_to_string(p)
-                    .map_err(|e| e.to_string())
-                    .and_then(|payload| cie_polyglot::runtime::ingest(&conn, &payload))
-            })
-            .map_or(Ok(None), |r| r.map(Some));
-
-        if let Some(want) = viewspec {
-            return emit_viewspec(&conn, want);
-        }
-
-        if json {
-            let report = serde_json::json!({
-                "db": db_path.display().to_string(),
-                "ingest": {
-                    "files": stats.files_ingested,
-                    "files_reused": reuse.files_reused,
-                    "files_parsed": reuse.files_parsed,
-                    "files_dropped": reuse.files_dropped,
-                    "parse_errors": stats.files_parse_errors,
-                    "ast_nodes": stats.ast_nodes,
-                    "symbols": stats.symbols,
-                    "unsupported_files": stats.skipped_unsupported,
-                },
-                "ir": {
-                    "symbols_lowered": lower.symbols_lowered,
-                    "blocks": lower.blocks,
-                    "instructions": lower.instructions,
-                    "calls": lower.calls,
-                    "calls_resolved": lower.calls_resolved,
-                    "calls_unresolved": lower.calls_unresolved,
-                },
-                "frameworks": fw.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                "c4": c4.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                "state_machines": sm.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                "workflows": wf.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                "duplicates": dup.as_ref().map(|r| serde_json::to_value(r).unwrap_or_default()).unwrap_or(serde_json::json!("failed")),
-                "runtime": runtime.as_ref().map(|r| r.as_ref().map(|x| serde_json::to_value(x).unwrap_or_default()).unwrap_or(serde_json::json!("failed"))).unwrap_or(serde_json::json!("not-requested")),
-            });
-            println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-        } else {
-            println!("polyglot store: {}", db_path.display());
-            println!(
-                "  ingest: {} files ({} parse errors), {} ast nodes, {} symbols, {} unsupported",
-                stats.files_ingested, stats.files_parse_errors, stats.ast_nodes, stats.symbols, stats.skipped_unsupported
-            );
-            println!(
-                "  ir: {} symbols lowered, {} blocks, {} instructions, {} calls ({} resolved / {} unresolved)",
-                lower.symbols_lowered, lower.blocks, lower.instructions, lower.calls, lower.calls_resolved, lower.calls_unresolved
-            );
-            if let Ok(r) = &fw {
-                println!(
-                    "  frameworks: {} role sites, {} declared + {} url-matched bindings ({} specs)",
-                    r.roles, r.declared_bindings, r.url_matched_bindings, r.specs_parsed
-                );
-            }
-            if let Ok(r) = &c4 {
-                println!(
-                    "  c4: {} containers, {} components, {} classes linked, {} relationships",
-                    r.containers, r.components, r.classes_linked, r.relationships
-                );
-            }
-            if let Ok(r) = &sm {
-                println!(
-                    "  state machines: {} T1 facts, {} T2 inference, {} T2 fog, {} T3 hypothesis",
-                    r.t1, r.t2, r.t2_fog, r.t3
-                );
-            }
-            if let Ok(r) = &wf {
-                println!(
-                    "  workflows: {} entries, {} nodes ({} async boundaries, {} gateways)",
-                    r.workflows, r.nodes, r.async_boundaries, r.gateways
-                );
-            }
-            if let Ok(r) = &dup {
-                println!(
-                    "  duplicates: {} pairs ({} canonical-hash facts, {} high, {} medium, {} low, {} hidden; {} class/function containment pairs excluded, {} same-file span-nested pairs excluded)",
-                    r.pairs, r.canonical_hash, r.high, r.medium, r.low, r.hidden_gaps, r.skipped_kind_mismatch, r.skipped_nested
-                );
-            }
-            if let Ok(Some(r)) = &runtime {
-                println!(
-                    "  runtime: {} spans ({} mapped / {} unresolved), {} drift edges, {} flaky",
-                    r.spans, r.mapped, r.unresolved, r.drift_edges, r.flaky
-                );
-            }
-        }
-        Ok(0)
-    })();
-    // Best-effort: push every committed WAL frame into the main file so the
-    // caller's rename can never orphan rows in a leftover `-wal` (a clean
-    // close checkpoints anyway — this is the belt to its suspenders).
-    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-    drop(conn); // clean close: SQLite checkpoints + deletes the -wal/-shm
-    if rc.is_ok() {
-        let wal = std::path::PathBuf::from(format!("{}-wal", building.display()));
-        if wal.metadata().map(|m| m.len() > 0).unwrap_or(false) {
-            return Err(
-                "polyglot WAL did not checkpoint cleanly; refusing to promote".to_string(),
-            );
-        }
-    }
-    rc
-}
 
 fn run_stories(cmd: StoriesCmd) -> i32 {
     use cie_stories::{registry::Disposition, verify::Verdict};

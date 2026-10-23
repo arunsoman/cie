@@ -158,7 +158,7 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
             else_field: "alternative",
             block_kinds: &["block"],
         },
-        Lang::JavaScript | Lang::TypeScript => CfSeed {
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
             loop_kinds: &["for_statement", "for_in_statement", "for_of_statement", "while_statement", "do_statement"],
             return_kinds: &["return_statement"],
@@ -209,6 +209,16 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
             then_field: "consequence",
             else_field: "alternative",
             block_kinds: &["block"],
+        },
+        Lang::Kotlin => CfSeed {
+            if_kinds: &["if_expression"], loop_kinds: &["for_statement", "while_statement", "do_while_statement"],
+            return_kinds: &["jump_expression"], throw_kinds: &[], await_kinds: &[], spawn_kinds: &[],
+            lambda_kinds: &["lambda_literal"], cond_field: "condition", then_field: "consequence", else_field: "alternative", block_kinds: &["block", "statements"],
+        },
+        Lang::Lua => CfSeed {
+            if_kinds: &["if_statement", "elseif_statement"], loop_kinds: &["for_statement", "while_statement", "repeat_statement"],
+            return_kinds: &["return_statement"], throw_kinds: &[], await_kinds: &[], spawn_kinds: &[],
+            lambda_kinds: &["function_definition"], cond_field: "condition", then_field: "body", else_field: "alternative", block_kinds: &["block"],
         },
         Lang::Php => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
@@ -527,6 +537,9 @@ fn is_call_node(lang: Lang, kind: &str) -> bool {
             | (Lang::C, "call_expression")
             | (Lang::Cpp, "call_expression")
             | (Lang::CSharp, "invocation_expression")
+            | (Lang::Tsx, "call_expression")
+            | (Lang::Kotlin, "call_expression")
+            | (Lang::Lua, "function_call")
             | (Lang::Php, "function_call_expression")
             | (Lang::Php, "member_call_expression")
     )
@@ -761,6 +774,14 @@ pub fn lower_file(
         .set_language(&lang.ts_language().ok_or("grammar unavailable")?)
         .map_err(|e| e.to_string())?;
     let tree = parser.parse(src, None).ok_or("parse aborted")?;
+    lower_tree(conn, file_id, lang, src, &tree, name_ids, report)
+}
+
+/// Lower the shared parse tree; caller controls the file transaction.
+pub fn lower_tree(
+    conn: &Connection, file_id: i64, lang: Lang, src: &[u8], tree: &tree_sitter::Tree,
+    name_ids: &BTreeMap<String, i64>, report: &mut LowerReport,
+) -> Result<(), String> {
     let root = tree.root_node();
     let ast_map = AstIdMap::build(conn, file_id)?;
 

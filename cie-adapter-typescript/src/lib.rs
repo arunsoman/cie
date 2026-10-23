@@ -15,7 +15,7 @@
 //! - exceptions/async: same model as §16 #2, re-vouched here
 //! - conventions: decorators, `implements`, declaration merging
 
-use cie_adapters::light_engine::{extract_light, LightLang};
+use cie_adapters::light_engine::LightLang;
 use cie_adapters::{
     CoercionPolicy, DispatchKind, FrameworkRule, LanguageAdapter, NumericSemantics,
     OverflowPolicy, Precision,
@@ -60,21 +60,25 @@ fn mark_ts_dispatch(
 impl TypeScriptAdapter {
     /// Deep extraction: light-engine base + TS deep passes (§16.3).
     pub fn extract_deep(&self, path: &str, src: &str) -> LangFacts {
+        let mut parser = Parser::new();
+        parser
+            .set_language(&self.grammar(path).expect("typescript grammar"))
+            .expect("typescript grammar");
+        let Some(tree) = parser.parse(src, None) else {
+            return LangFacts::new(path, LangId::TypeScript, "parse-aborted");
+        };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let lang = if path.ends_with(".tsx") {
             LightLang::Tsx
         } else {
             LightLang::TypeScript
         };
-        let mut facts = extract_light(path, src, lang);
+        let mut facts = cie_adapters::light_engine::extract_light_tree(path, src, lang, tree);
         let bytes = src.as_bytes();
 
-        let mut parser = Parser::new();
-        parser
-            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
-            .expect("typescript grammar");
-        let Some(tree) = parser.parse(src, None) else {
-            return facts;
-        };
         let root = tree.root_node();
 
         // ---- Pass 1: interface symbols + typed-variable bindings ----
@@ -287,6 +291,14 @@ impl TypeScriptAdapter {
 }
 
 impl LanguageAdapter for TypeScriptAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(if path.ends_with(".tsx") { tree_sitter_typescript::LANGUAGE_TSX.into() } else { tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into() })
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::TypeScript
     }

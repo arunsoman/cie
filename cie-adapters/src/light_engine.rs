@@ -292,6 +292,11 @@ pub fn extract_light(path: &str, src: &str, lang: LightLang) -> LangFacts {
         return f;
     };
 
+    extract_light_tree(path, src, lang, &tree)
+}
+
+/// Reuse a tree parsed by the ingestion coordinator.
+pub fn extract_light_tree(path: &str, src: &str, lang: LightLang, tree: &tree_sitter::Tree) -> LangFacts {
     let bytes = src.as_bytes();
     let module_name = super::stem_module(path);
     let mut facts = LangFacts::new(path, lang.lang_id(), lang.analyzer());

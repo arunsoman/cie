@@ -15,6 +15,11 @@ use tree_sitter::{Node, Parser};
 pub struct PythonAdapter;
 
 impl cie_adapters::LanguageAdapter for PythonAdapter {
+    fn grammar(&self, _path: &str) -> Option<tree_sitter::Language> { Some(to_language()) }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        extract_python_tree(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::Python
     }
@@ -100,6 +105,10 @@ pub fn extract_python(path: &str, src: &str) -> LangFacts {
         return f;
     };
 
+    extract_python_tree(path, src, &tree)
+}
+
+pub fn extract_python_tree(path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
     let bytes = src.as_bytes();
     let module_name = cie_adapters::stem_module(path);
     let mut facts = LangFacts::new(path, LangId::Python, "tree-sitter-deep:python");

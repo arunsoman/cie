@@ -299,6 +299,10 @@ impl CppAdapter {
         let Some(tree) = parser.parse(src, None) else {
             return LangFacts::new(path, LangId::Cpp, "tree-sitter-deep:cpp");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let module = path.trim_end_matches(|c| c != '.' && c != '/').to_string();
         let module = module.trim_end_matches(".cpp").trim_end_matches(".cc").trim_end_matches(".cxx").replace('/', ".");
         let module_id = SymbolId(0);
@@ -332,6 +336,14 @@ impl CppAdapter {
 }
 
 impl LanguageAdapter for CppAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(tree_sitter_cpp::LANGUAGE.into())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::Cpp
     }

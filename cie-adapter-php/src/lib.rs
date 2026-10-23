@@ -251,6 +251,10 @@ impl PhpAdapter {
         let Some(tree) = parser.parse(src, None) else {
             return LangFacts::new(path, LangId::Php, "tree-sitter-deep:php");
         };
+        self.extract_tree(path, src, &tree)
+    }
+
+    fn extract_shared(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
         let module = path.trim_end_matches(".php").replace('/', ".");
         let module_id = SymbolId(0);
         let mut ctx = PhpCtx {
@@ -283,6 +287,14 @@ impl PhpAdapter {
 }
 
 impl LanguageAdapter for PhpAdapter {
+    fn grammar(&self, path: &str) -> Option<tree_sitter::Language> {
+        let _ = path;
+        Some(tree_sitter_php::LANGUAGE_PHP.into())
+    }
+    fn extract_tree(&self, path: &str, src: &str, tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract_shared(path, src, tree)
+    }
+
     fn id(&self) -> LangId {
         LangId::Php
     }

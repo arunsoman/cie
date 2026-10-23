@@ -44,3 +44,6 @@ serde_json = { workspace = true }
 rayon = { workspace = true }
 blake3 = { workspace = true }
 zstd = { workspace = true }
+
+tree-sitter = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }

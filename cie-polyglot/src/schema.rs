@@ -37,6 +37,9 @@ pub enum Lang {
     Cpp,
     CSharp,
     Php,
+    Kotlin,
+    Lua,
+    Tsx,
 }
 
 impl Lang {
@@ -45,7 +48,10 @@ impl Lang {
         Some(match ext {
             "py" | "pyi" => Lang::Python,
             "js" | "jsx" | "mjs" | "cjs" => Lang::JavaScript,
-            "ts" | "tsx" | "mts" | "cts" => Lang::TypeScript,
+            "ts" | "mts" | "cts" => Lang::TypeScript,
+            "tsx" => Lang::Tsx,
+            "kt" | "kts" => Lang::Kotlin,
+            "lua" => Lang::Lua,
             "go" => Lang::Go,
             "rs" => Lang::Rust,
             "java" => Lang::Java,
@@ -70,6 +76,9 @@ impl Lang {
             Lang::Cpp => "tree-sitter-cpp 0.23",
             Lang::CSharp => "tree-sitter-c-sharp 0.23",
             Lang::Php => "tree-sitter-php 0.25",
+            Lang::Kotlin => "tree-sitter-kotlin-ng 1.1",
+            Lang::Lua => "tree-sitter-lua 0.5",
+            Lang::Tsx => "tree-sitter-typescript TSX 0.23",
         }
     }
 
@@ -85,6 +94,9 @@ impl Lang {
             Lang::Cpp => tree_sitter_cpp::LANGUAGE.into(),
             Lang::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
             Lang::Php => tree_sitter_php::LANGUAGE_PHP.into(),
+            Lang::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
+            Lang::Lua => tree_sitter_lua::LANGUAGE.into(),
+            Lang::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
         };
         Some(l)
     }
@@ -101,6 +113,9 @@ impl Lang {
             Lang::Cpp => "cpp",
             Lang::CSharp => "csharp",
             Lang::Php => "php",
+            Lang::Kotlin => "kotlin",
+            Lang::Lua => "lua",
+            Lang::Tsx => "typescript",
         }
     }
 }
@@ -341,7 +356,7 @@ pub fn decl_kinds(lang: Lang) -> &'static [(&'static str, &'static str)] {
             ("class_declaration", "class"),
             ("method_definition", "method"),
         ],
-        Lang::TypeScript => &[
+        Lang::TypeScript | Lang::Tsx => &[
             ("function_declaration", "function"),
             ("generator_function_declaration", "function"),
             ("class_declaration", "class"),
@@ -375,6 +390,8 @@ pub fn decl_kinds(lang: Lang) -> &'static [(&'static str, &'static str)] {
             ("class_declaration", "class"),
             ("interface_declaration", "trait"),
         ],
+        Lang::Kotlin => &[("function_declaration", "function"), ("class_declaration", "class"), ("object_declaration", "class")],
+        Lang::Lua => &[("function_declaration", "function"), ("function_definition", "function")],
         Lang::Php => &[
             ("function_definition", "function"),
             ("method_declaration", "method"),
@@ -642,6 +659,18 @@ fn ingest_file_tx(
 
     let file_id = ingest_walk(conn, repo_id, revision, path, lang, bytes, root, stats, kind_cache, text_cache)?;
     Ok((file_id, parse_errored))
+}
+
+/// Persist the coordinator's existing tree, without parsing source again.
+pub fn ingest_tree(
+    conn: &Connection, repo_id: i64, revision: i64, path: &str, lang: Lang,
+    src: &str, tree: &tree_sitter::Tree, stats: &mut IngestStats,
+) -> Result<i64, String> {
+    let id = ingest_walk(conn, repo_id, revision, path, lang, src.as_bytes(), tree.root_node(), stats,
+        &mut HashMap::new(), &mut HashMap::new())?;
+    stats.files_ingested += 1;
+    stats.files_parse_errors += usize::from(tree.root_node().has_error());
+    Ok(id)
 }
 
 fn ingest_walk(

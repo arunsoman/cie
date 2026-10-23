@@ -20,6 +20,15 @@ pub trait LanguageAdapter: Send + Sync {
     fn analyzer(&self) -> &'static str;
     fn extract(&self, path: &str, src: &str) -> LangFacts;
 
+    /// Grammar owned by this adapter; text-only adapters return None.
+    fn grammar(&self, _path: &str) -> Option<tree_sitter::Language> { None }
+
+    /// Extract from the coordinator's tree. Text-only adapters use source directly.
+    fn extract_tree(&self, path: &str, src: &str, _tree: &tree_sitter::Tree) -> LangFacts {
+        self.extract(path, src)
+    }
+
+
     // ---- TASK-011 semantics tables (§16.1) — data on the adapter, so rules
     // consult tables instead of hardcoding language knowledge (FR-3, global
     // rule 6). Defaults describe an unspecified hybrid language; each
@@ -382,6 +391,7 @@ pub fn extract_project(
             map.insert(local, next_id);
             next_id = SymbolId(next_id.0 + 1);
         }
+        for sym in &mut facts.symbols { sym.parent = sym.parent.map(|p| map.get(&p).copied().unwrap_or(p)); }
         rewrite(&mut facts, &map);
         symbols.append(&mut facts.symbols);
         all_facts.push(facts);
@@ -395,6 +405,34 @@ pub fn extract_project(
         per_file: all_facts,
         files: table,
     }
+}
+
+/// Assemble streamed local facts in path order, then resolve project references.
+/// Source buffers and syntax trees have already been released.
+pub fn assemble_facts(mut files: Vec<(LangFacts, Vec<u32>)>) -> ExtractedProject {
+    files.sort_by(|a, b| a.0.path.cmp(&b.0.path));
+    let mut table = FileTable::new();
+    let mut symbols = Vec::new();
+    let mut all_facts = Vec::new();
+    let mut next_id = SymbolId(0);
+    for (mut facts, lines) in files {
+        let fid = table.intern(facts.path.clone());
+        table.line_starts[fid.0 as usize] = lines;
+        let mut ids = BTreeMap::new();
+        for sym in &mut facts.symbols {
+            ids.insert(sym.id, next_id);
+            sym.id = next_id;
+            sym.loc.file = fid;
+            next_id.0 += 1;
+        }
+        for sym in &mut facts.symbols { sym.parent = sym.parent.map(|p| ids.get(&p).copied().unwrap_or(p)); }
+        rewrite(&mut facts, &ids);
+        symbols.append(&mut facts.symbols);
+        all_facts.push(facts);
+    }
+    let store = SymbolStore::build_with_files(symbols, table.clone());
+    resolution::resolve_project(&store, &mut all_facts);
+    ExtractedProject { store, per_file: all_facts, files: table }
 }
 
 pub struct ExtractedProject {
