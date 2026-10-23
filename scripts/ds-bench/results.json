@@ -1,0 +1,133 @@
+{
+  "env": {
+    "node": "v24.21.0",
+    "cpus": 2,
+    "platform": "linux 5.10.134-013.15.kangaroo.al8.x86_64",
+    "date": "2026-10-23T03:07:44.929Z"
+  },
+  "A": {
+    "files": 33,
+    "totalBytes": 3936178,
+    "maxFileBytes": 1268833,
+    "readAllParseMs": 19.8,
+    "slowest": [
+      {
+        "file": "overlap.json",
+        "bytes": 1268833,
+        "parseMs": 4.97
+      },
+      {
+        "file": "polyglot/polyglot.json",
+        "bytes": 536454,
+        "parseMs": 3.56
+      },
+      {
+        "file": "report.json",
+        "bytes": 510556,
+        "parseMs": 2.28
+      }
+    ],
+    "atomicRenameWrite": {
+      "rounds": 30,
+      "bytes": 1268833,
+      "totalMs": 106.6,
+      "perWriteMs": 3.55
+    },
+    "perRecordRewrite": {
+      "records": 200,
+      "totalMs": 159,
+      "perRecordMs": 0.795
+    }
+  },
+  "B": {
+    "dataset": {
+      "files": 5000,
+      "symbols": 60000,
+      "calls": 300000
+    },
+    "modes": [
+      {
+        "mode": "OFF (current)",
+        "bulkOneTxMs": 1534,
+        "batched30TxMs": 1245,
+        "fullScanAggMs": 111.2,
+        "pointSelect10kMs": 33,
+        "dbSizeMB": 21.7
+      },
+      {
+        "mode": "DELETE",
+        "bulkOneTxMs": 1557,
+        "batched30TxMs": 1358,
+        "fullScanAggMs": 110.4,
+        "pointSelect10kMs": 31,
+        "dbSizeMB": 21.7
+      },
+      {
+        "mode": "WAL",
+        "bulkOneTxMs": 1730,
+        "batched30TxMs": 1408,
+        "fullScanAggMs": 110.5,
+        "pointSelect10kMs": 11,
+        "dbSizeMB": 29.5
+      }
+    ]
+  },
+  "C": {
+    "probes": [
+      {
+        "probe": "C1",
+        "mode": "OFF (current)",
+        "writerBatches": 15,
+        "avgCommitMs": 5,
+        "readerOk": 471,
+        "readerBusy": 0,
+        "readerErr": 0,
+        "readerSawDirty": 0,
+        "readerMaxWaitMs": 0.8
+      },
+      {
+        "probe": "C1",
+        "mode": "DELETE",
+        "writerBatches": 16,
+        "avgCommitMs": 5,
+        "readerOk": 468,
+        "readerBusy": 1,
+        "readerErr": 0,
+        "readerSawDirty": 0,
+        "readerMaxWaitMs": 2.9
+      },
+      {
+        "probe": "C1",
+        "mode": "WAL",
+        "writerBatches": 16,
+        "avgCommitMs": 4.5,
+        "readerOk": 465,
+        "readerBusy": 0,
+        "readerErr": 0,
+        "readerSawDirty": 0,
+        "readerMaxWaitMs": 2.2
+      },
+      {
+        "probe": "C2",
+        "mode": "OFF (current)",
+        "writerBlockedByReader": true,
+        "outcome": "database is locked",
+        "writerMs": 0.1
+      },
+      {
+        "probe": "C2",
+        "mode": "DELETE",
+        "writerBlockedByReader": true,
+        "outcome": "database is locked",
+        "writerMs": 0.1
+      },
+      {
+        "probe": "C2",
+        "mode": "WAL",
+        "writerBlockedByReader": false,
+        "outcome": "committed",
+        "writerMs": 0.1
+      }
+    ]
+  }
+}
