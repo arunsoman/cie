@@ -901,7 +901,7 @@ Work Log:
 
 Status legend: [ ] pending · [~] in progress · [x] done (record commit hash) · [-] deferred
 
-### 1. DS-EVAL — Data-store evaluation: faster reads + lock-free writes [ ] NEXT
+### 1. DS-EVAL — Data-store evaluation: faster reads + lock-free writes [x] 61ffd9f
 User ask: "evaluate the data store which is the best for faster reads and lock-free writes, because cie-ingest uses various datastructures but the polyglot just puts everything onto a sql table."
 Evaluation frame (CIE's REAL access patterns, not synthetic ones):
 - Writes: single-writer CLI per run; "lock-free" means writers never block readers — crash safety mid-write + the web/API surfaces reading while a regeneration runs.
@@ -967,3 +967,19 @@ Work Log:
 
 Stage Summary:
 - Slice & dice confirmed half-built (drilldown-local only) and now tracked as item 9. DS-EVAL remains next; XFILTER suggested right after (or first if the user prefers UI-first).
+
+---
+Task ID: DS-EVAL (backlog item 1)
+Agent: main (Z.ai)
+Task: "evaluate the data store which is the best for faster reads and lock-free writes, because cie-ingest uses various datastructures but the polyglot just puts everything onto a sql table" — with the user's constraint that at most 3 storage types may be kept if it helps overall performance.
+
+Work Log:
+- Sandbox had been reset (no Rust toolchain, no target/) — installed rustup + rebuilt release in 5m33s to ground the eval with real CLI runs.
+- Census (file:line evidence in the note): Universe A = JSON files with atomic-rename writes (cie-store/src/lib.rs:12-21,115-125) + rkyv mmap snapshots (snapshot.rs, zero-copy, ≤10 µs warm-open gate) + vector JSON blob with in-memory HNSW rebuild (vector_store.rs) + per-feature JSON blobs; the TASK-024 KvStore layer (sled default, redb flag, MemKv, L0 DashMap cache) has ZERO production users — SledStore/RedbStore referenced only inside cie-store (kv.rs + two test files); sled pinned "0.34" (last release 2021, unmaintained). Universe B = one rusqlite DB at a tmp path, journal_mode=OFF + synchronous=OFF (schema.rs:225-227), deleted and rebuilt every run; web reads it via node:sqlite readOnly BUT ensureIndexes() writes indexes on the read path (polyglot-db.ts:37-52). Web surface = 33 static JSON artifacts, 3.94 MB measured.
+- Built and ran a persisted bench (scripts/ds-bench/storage-bench.mjs, results.json) on the two production families: A) JSON path — full parse 34.9 ms for all 33 artifacts; atomic-rename write 3.6 ms/write @1.27 MB; whole-file-rewrite-per-record measured O(n²) (the mark_tombstone pattern). B) SQLite with the exact files/symbols/calls DDL at 5k/60k/300k scale — WAL vs OFF: +13% bulk write, 2.9× faster point selects (11.4 ms vs 32.6 ms / 10k), scans equal. C) concurrency probes — C2 is decisive: with journal OFF (and DELETE) a writer COMMIT FAILS ("database is locked") while any reader holds a read tx; with WAL the writer commits (0.07 ms). JSON atomic-rename is structurally old-or-new for readers.
+- Real-repo grounding: cie ingest spring → rev 1 (13 files, 47 symbols) wall 44.2 ms, .cie = 247 KB JSON; cie polyglot → 553 KB DB, journal OFF, 8 of 13 files parsed (the known Lang-enum gap: Kotlin/SQL invisible); cie report reads the store (store-first confirmed).
+- Verdict written to docs/data-store-evaluation.md: keep exactly 3 storage types — (1) SQLite WAL + synchronous=NORMAL (adopt for Universe B; 2-pragma change), (2) rkyv mmap snapshots (unchanged), (3) JSON artifacts with atomic-rename discipline (fix the per-record rewrite); CUT sled (dead in prod + unmaintained), reject LMDB/RocksDB/DuckDB (no unmet requirement). "Lock-free writes" in a single-writer architecture = WAL + build-then-rename sequencing, not a new engine. Six-step migration sketch (2 pragmas → build-then-rename → indexes at build time killing ensureIndexes write-on-read → tombstones off the hot path → sled removal from default features → redb dormant behind its flag).
+- Committed the note + bench receipts (61ffd9f); worklog item 1 flipped [x].
+
+Stage Summary:
+- DS-EVAL complete with measured receipts: the system already owns the right primitives (atomic-rename JSON, rkyv mmap, rusqlite) — the win is configuration (WAL) + sequencing (build-then-rename), zero new engines, zero new dependencies. Point reads on the polyglot path 2.9× faster; crash safety restored; web read path made purely read-only. NEXT = item 9 (XFILTER) or item 2 (PERF-L1) per user's pick; item 6 (INCREMENTAL-ON) design is now unblocked by the storage verdict (WAL + content_hash reuse compose).
