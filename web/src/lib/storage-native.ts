@@ -1,6 +1,14 @@
 // Server-only in-process worker bridge. No HTTP sidecar or retrieval subprocess.
-import { Worker } from "node:worker_threads";
+import type { Worker } from "node:worker_threads";
 import path from "node:path";
+// Turbopack specifically pattern-matches a directly-imported `Worker`
+// identifier used in `new Worker(...)` to bundle it as a worker entrypoint,
+// and its output-file-tracing step panics trying to trace that for this
+// dynamic, runtime-resolved worker file (NftJsonAsset: cannot handle
+// filepath node:worker_threads). Loading the constructor off the namespace
+// import at runtime instead keeps it invisible to that static analysis.
+import * as nodeWorkerThreads from "node:worker_threads";
+const WorkerCtor = nodeWorkerThreads.Worker;
 export class StorageFailure extends Error {
   constructor(public code: string, message: string) { super(message); }
 }
@@ -9,7 +17,7 @@ type Bridge = { worker: Worker; pending: Map<number, Pending>; next: number };
 const globalStorage = globalThis as unknown as { __cieStorageBridge?: Bridge };
 function bridge(): Bridge {
   if (globalStorage.__cieStorageBridge) return globalStorage.__cieStorageBridge;
-  const worker = new Worker(path.resolve(process.cwd(), "scripts/storage-worker.cjs"));
+  const worker = Reflect.construct(WorkerCtor, [path.resolve(process.cwd(), "scripts/storage-worker.cjs")]) as Worker;
   worker.unref();
   const value: Bridge = { worker, pending: new Map(), next: 1 };
   const fail = (error: Error) => {
