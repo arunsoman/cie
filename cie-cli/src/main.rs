@@ -813,7 +813,9 @@ fn run(cli: Cli) -> i32 {
             };
             let path = path.canonicalize().unwrap_or(path);
             loop {
-                match cie_ingest::run_ingest(&path, &opts) {
+                match cie_ingest::run_ingest_with_progress(&path, &opts, &|key, state, detail| {
+                    if web_out.is_some() { ingestion_job::stage(key, state, detail); }
+                }) {
                     Ok(outcome) => {
                         if let Some(out) = web_out.as_ref() {
                             return match ingestion_job::export(&path,outcome,out) {Ok(())=>0,Err(e)=>{eprintln!("error: {e}");1}};

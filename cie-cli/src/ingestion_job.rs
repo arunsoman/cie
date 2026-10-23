@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-fn stage(name: &str, state: &str, detail: &str) {
+pub(crate) fn stage(name: &str, state: &str, detail: &str) {
     eprintln!(
         "CIE_STAGE {}",
         json!({"key":name,"state":state,"detail":detail})
@@ -40,18 +40,8 @@ pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()
         cie_viz::produce(&outcome.snapshot, &cie_viz::ProduceOptions::default())
             .map_err(|e| format!("{e:?}"))
     });
-    stage(
-        "concepts",
-        "done",
-        "Concept hierarchy ready, including FCA/Godin grouping.",
-    );
     let concepts = serde_json::to_value(&outcome.snapshot.concepts)?;
     let stack = serde_json::to_value(&outcome.snapshot.stack)?;
-    stage(
-        "stack",
-        if stack.is_null() { "skipped" } else { "done" },
-        "Framework stack captured during ingestion.",
-    );
     let deps = optional("deps", || {
         let table = cie_analysis::deps::scan_manifests(root);
         let imports = cie_ingest::stream::cached_imports(root).map_err(|e| e.to_string())?;
@@ -137,13 +127,14 @@ pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()
         .unwrap_or(Value::Null);
     let result = json!({"report":report,"viewspec":viewspec,"concepts":concepts,"stack":stack,
         "polyglotSpecs":polyglot,"deps":deps,"cochange":cochange,"overlap":overlap,"drift":drift,"runtime":runtime});
+    stage("publish", "running", "Writing the web artifact bundle…");
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
     let tmp = out.with_extension("tmp");
     std::fs::write(&tmp, serde_json::to_vec(&result)?)?;
     std::fs::rename(tmp, out)?;
-    stage("read", "done", "Repository artifacts published.");
+    stage("publish", "done", "Repository artifacts ready for the web app.");
     Ok(())
 }
 

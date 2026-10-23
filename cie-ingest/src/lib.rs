@@ -214,9 +214,20 @@ pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Resul
 
 /// Run the ingest/analysis pipeline for a project folder.
 pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<IngestOutcome> {
+    run_ingest_with_progress(project, opts, &|_, _, _| {})
+}
+
+/// Observe real phase boundaries without coupling ingestion to a transport or UI.
+pub fn run_ingest_with_progress(
+    project: &Path,
+    opts: &IngestOptions,
+    progress: &dyn Fn(&str, &str, &str),
+) -> std::io::Result<IngestOutcome> {
+    progress("read", "running", "Streaming source files through parsing and cached fact reuse…");
     let t0 = now_ns();
     let registry = default_registry();
     let stream = stream::StreamSession::capture_deferred(project, &registry, opts)?;
+    progress("read", "done", &stream.receipt.disclosure().unwrap_or_default());
     let store = Store::open(project)?;
     let walked = stream.walked.clone();
     let current = walked.files;
@@ -263,6 +274,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         // lens — its inputs didn't change.
         let prior_stack = if last > 0 { store.load_stack(last).ok().flatten() } else { None };
         let stack_snapshot = if !plan.stack_inputs_changed.is_empty() {
+            progress("stack", "running", "Refreshing framework evidence for the current revision…");
             let refreshed = cie_stack::stack_report_stage(project, None);
             if last > 0 {
                 store.save_stack(last, &refreshed)?;
@@ -285,6 +297,10 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
             stack: stack_snapshot,
             ..Default::default()
         };
+        progress("stack", "done", "Framework evidence ready for the current revision.");
+        for key in ["resolve", "concepts", "storage"] {
+            progress(key, "done", "Reused the current revision; no source changes require rebuilding.");
+        }
         return Ok(IngestOutcome {
             rev: last,
             plan,
@@ -309,7 +325,9 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         _ => None,
     };
 
+    progress("resolve", "running", "Assembling repository facts and resolving cross-file calls…");
     let extracted = stream.materialize()?;
+    progress("resolve", "done", "Repository graph assembled.");
     let source_receipt = stream.receipt.clone();
 
     // TASK-030: assemble the reuse plan — per-file (blake3(file),
@@ -524,7 +542,9 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let stack_budget_ms = opts
         .budget_ms
         .map(|total| std::cmp::max(total / 4, 1).min(20_000));
+    progress("stack", "running", "Detecting frameworks, routes and runtime structure…");
     let stack = cie_stack::stack_report_stage(project, stack_budget_ms);
+    progress("stack", "done", "Framework analysis complete.");
     // Persist BEFORE save_snapshot so a crash mid-ingest can never leave a
     // snapshot naming a stack artifact that isn't durably on disk.
     store.save_stack(rev, &stack)?;
@@ -569,6 +589,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         }
     }
 
+    progress("concepts", "running", "Analyzing behavior, security and tests; building FCA/Godin concept groups…");
     let analysis = cie_analysis::analyze_with_history(
         &extracted.store,
         &extracted.per_file,
@@ -579,6 +600,8 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         Some(project),
         Some(&stack),
     );
+
+    progress("concepts", "done", "Analysis and concept clustering complete.");
 
     // Persist label cache (LLM provenance recorded per PRD §63).
     store.save_labels(&label_cache)?;
@@ -721,6 +744,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &snapshot.concepts,
         &SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files.clone()),
     );
+    progress("storage", "running", "Storage module builds C4, state and workflow views, detects duplicate clusters and publishes the revision…");
     let _publication = stream.finish(project, rev, &extracted)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
@@ -729,6 +753,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     // aborted run's rev id is simply reused by the next successful ingest.
     store.save_index(&index)?;
     store.commit_rev(rev)?;
+    progress("storage", "done", "Revision and derived views persisted by the storage module.");
 
     // Issue #10 companion: when the purge actually removed symbols it also
     // RENUMBERED the id space inside `snapshot` (id == index must hold on the

@@ -691,8 +691,8 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
   const asking = status?.state === "awaiting_permission";
   const finished = status?.state === "done";
   const failed = status?.state === "failed";
-  const doneCount = status ? status.steps.filter((s) => s.state === "done").length : 0;
-  const pct = status ? (failed ? 100 : Math.round(((doneCount + (finished ? 1 : 0)) / (status.steps.length + 1)) * 100)) : 0;
+  const doneCount = status ? status.steps.filter((s) => (s.state === "done" || s.state === "skipped")).length : 0;
+  const pct = status ? (finished ? 100 : Math.round((doneCount / status.steps.length) * 100)) : 0;
 
   return (
     <div className="space-y-4">
@@ -843,11 +843,16 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
             <p className="text-xs text-stone-500">CIE is reading a read-only copy of branch {status.branch} — the folder on disk stays exactly as it is.</p>
           )}
 
+          <p className="text-xs text-stone-500" role="status">
+            {finished ? "Results ready" : failed ? "Processing stopped" : asking ? "Waiting for your choice" : "One ingestion pipeline"}
+            {` · ${doneCount} of ${status.steps.length} stages settled`}
+            {!finished && " · stage count, not estimated time"}
+          </p>
           {/* progress bar */}
           <div className="h-2.5 rounded-full bg-stone-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
             <div
               className={`h-full rounded-full transition-all duration-500 ${failed ? "bg-rose-500" : finished ? "bg-emerald-600" : "bg-emerald-500"}`}
-              style={{ width: `${Math.max(6, pct)}%` }}
+              style={{ width: `${pct}%` }}
             />
           </div>
 
@@ -860,6 +865,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
                   <p className={`text-sm leading-tight ${s.state === "pending" ? "text-stone-400" : "font-medium text-stone-900"}`}>
                     <span className="text-stone-400 mr-1.5">{i + 1}.</span>
                     {s.label}
+                    {s.state === "skipped" && <span className="text-stone-500 font-normal"> — skipped</span>}
                     {s.state === "running" && <span className="text-emerald-700 font-normal"> — working…</span>}
                     {s.ms !== undefined && s.state === "done" && <span className="text-stone-400 font-normal text-xs"> · {(s.ms / 1000).toFixed(1)}s</span>}
                   </p>

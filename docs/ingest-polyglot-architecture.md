@@ -169,3 +169,9 @@ a valid core report. No application code is executed to obtain runtime data.
 Existing standalone analysis commands remain for compatibility. They share the
 new `run_ingest` implementation rather than a separate legacy parser. Specialized
 framework-stack readers remain an explicit migration boundary, as noted above.
+
+## Web progress contract
+
+The web job launches one `ingest-polyglot --web-out` process. Its `CIE_STAGE` stderr events report actual phase boundaries: source streaming (including file/tree/cache counts), repository resolution, framework analysis, behavior/security/testing and FCA/Godin concept grouping, then storage publication with C4/state/workflow projections and duplicate clustering. Export events cover stored architecture views, the repository map, dependencies, co-change, overlap, documentation drift and final bundle publication. Cached revisions explicitly settle the reused phases.
+
+The UI counts completed or skipped stages rather than estimating elapsed-time completion. A failure marks the active phase and preserves partial progress. Storage remains an in-process module.

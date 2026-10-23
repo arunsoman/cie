@@ -46,7 +46,24 @@ fn unified_job_exports_views_and_preserves_the_legacy_alias() {
         artifacts["polyglotSpecs"]["kind"],
         "cie-polyglot-viewspec-bundle"
     );
-    assert!(String::from_utf8_lossy(&run.stderr).contains("CIE_STAGE"));
+    let events: Vec<serde_json::Value> = String::from_utf8_lossy(&run.stderr)
+        .lines().filter_map(|line| line.strip_prefix("CIE_STAGE "))
+        .map(|line| serde_json::from_str(line).unwrap()).collect();
+    let completed: Vec<&str> = events.iter().filter(|e| e["state"] == "done")
+        .filter_map(|e| e["key"].as_str()).collect();
+    assert_eq!(&completed[..5], &["read", "resolve", "stack", "concepts", "storage"]);
+    assert_eq!(completed.last(), Some(&"publish"));
+    // Cached runs must also settle every core phase rather than leaving the UI pending.
+    let warm = Command::new(env!("CARGO_BIN_EXE_cie"))
+        .args(["ingest-polyglot", root.to_str().unwrap(), "--web-out", output.to_str().unwrap()])
+        .output().unwrap();
+    assert!(warm.status.success());
+    let warm_events: Vec<serde_json::Value> = String::from_utf8_lossy(&warm.stderr)
+        .lines().filter_map(|line| line.strip_prefix("CIE_STAGE "))
+        .map(|line| serde_json::from_str(line).unwrap()).collect();
+    for key in ["read", "resolve", "stack", "concepts", "storage", "publish"] {
+        assert!(warm_events.iter().any(|e| e["key"] == key && e["state"] == "done"), "{key}");
+    }
     let alias = Command::new(env!("CARGO_BIN_EXE_cie"))
         .args(["ingest", root.to_str().unwrap(), "--json"])
         .output()

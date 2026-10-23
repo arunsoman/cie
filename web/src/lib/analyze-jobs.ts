@@ -19,7 +19,7 @@ import type { RepoScan } from "./language-profiles";
 
 // ---------- types ----------
 
-export type StepKey = "clone" | "inventory" | "read" | "map" | "concepts" | "deps" | "stack" | "polyglot" | "cochange" | "overlap" | "drift";
+export type StepKey = "clone" | "inventory" | "read" | "resolve" | "storage" | "publish" | "map" | "concepts" | "deps" | "stack" | "polyglot" | "cochange" | "overlap" | "drift";
 export type StepState = "pending" | "running" | "done" | "failed" | "skipped";
 export type JobState = "queued" | "running" | "awaiting_permission" | "done" | "failed";
 
@@ -27,6 +27,7 @@ export interface JobStep {
   key: StepKey;
   state: StepState;
   detail?: string; // short plain-words detail shown under the step
+  startedAt?: number; // internal phase clock
   ms?: number; // how long it took, when finished
 }
 
@@ -96,15 +97,18 @@ const MAX_JOBS = 12;
 export const STEP_ORDER: { key: StepKey; label: string; hint: string }[] = [
   { key: "clone", label: "Getting your code", hint: "Copying the newest version of your repo — nothing in it is changed." },
   { key: "inventory", label: "Taking inventory", hint: "Listing the languages and tools in your repo — and flagging anything CIE can't read yet." },
-  { key: "read", label: "Reading every file", hint: "CIE reads each file and takes notes on what it does. The busiest step." },
-  { key: "map", label: "Drawing the map", hint: "Sketching how all the parts of your code connect." },
-  { key: "concepts", label: "Listing what it does", hint: "Writing down what each part is responsible for." },
-  { key: "deps", label: "Listing the dependencies", hint: "Reading pom.xml, build.gradle, package.json, Cargo.toml and friends — names and versions as written." },
-  { key: "stack", label: "Understanding your frameworks", hint: "Reading the build files, Docker files and framework code classes directly — the engine names what runs and how every route flows, branches included." },
-  { key: "polyglot", label: "Naming components and flows", hint: "Naming the C4 containers and components, the state machines and the workflows the engine can actually evidence — each with the file and bytes that earned it, and nothing it cannot prove." },
+  { key: "read", label: "Streaming source files", hint: "Read each supported file once, parse it and reuse unchanged cached facts." },
+  { key: "resolve", label: "Connecting repository facts", hint: "Assemble symbols and resolve calls across files." },
+  { key: "stack", label: "Analyzing frameworks", hint: "Identify frameworks, routes and runtime structure." },
+  { key: "concepts", label: "Analyzing and grouping concepts", hint: "Analyze behavior, security and tests, then build FCA/Godin concept groups." },
+  { key: "storage", label: "Building views and storing the revision", hint: "The in-process storage module builds C4, state and workflow views, groups duplicates and persists the revision." },
+  { key: "polyglot", label: "Loading architecture views", hint: "Retrieve the stored polyglot views for the web app." },
+  { key: "map", label: "Drawing the map", hint: "Prepare the repository map from captured evidence." },
+  { key: "deps", label: "Listing dependencies", hint: "Combine package manifests with captured imports." },
   { key: "cochange", label: "Checking what changes together", hint: "Mining git history for files that tend to be edited in the same commit." },
   { key: "overlap", label: "Checking for overlap", hint: "Comparing every part's symbols against every other part — what's shared, what's not." },
   { key: "drift", label: "Checking docs against code", hint: "Reading your docs' own claims and verifying each one against what the code actually does." },
+  { key: "publish", label: "Preparing your results", hint: "Publish the complete artifact bundle for the web app." },
 ];
 
 const LOCAL_FIRST_STEP: { label: string; hint: string } = {
@@ -552,6 +556,10 @@ const UNSUPPORTED_PLAIN =
 function setStep(job: AnalyzeJob, key: StepKey, state: StepState, detail?: string, ms?: number) {
   const s = job.steps.find((x) => x.key === key);
   if (!s) return;
+  if (state === "running" && s.state !== "running") s.startedAt = Date.now();
+  if (["done", "skipped", "failed"].includes(state) && s.startedAt !== undefined) {
+    s.ms = Date.now() - s.startedAt;
+  }
   s.state = state;
   if (detail !== undefined) s.detail = detail;
   if (ms !== undefined) s.ms = ms;
@@ -802,9 +810,7 @@ async function runPipeline(job: AnalyzeJob) {
       },
     });
     if (ing.timedOut || ing.code !== 0) {
-      setStep(job, "read", "failed", engineErrorPlain(ing.timedOut ? "timeout" : "crash"));
-      job.state = "failed";
-      job.error = { plain: engineErrorPlain(ing.timedOut ? "timeout" : "crash"), technical: engineTechnical(bin, ing.stderr.slice(-2000)) };
+      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, ing.stderr.slice(-2000)));
       return;
     }
     let artifacts: NonNullable<AnalyzeJob["result"]>;

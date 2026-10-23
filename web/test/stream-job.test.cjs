@@ -38,10 +38,14 @@ test("a local web ingestion launches one coordinator and consumes its artifacts"
     assert.equal(engineJobs[0].args[0], "ingest-polyglot");
     assert.ok(engineJobs[0].args.includes("--web-out"));
     assert.equal(job.steps.find(s => s.key === "read").state, "done");
-    assert.equal(job.steps.find(s => s.key === "concepts").state, "done");
+    for (const key of ["resolve", "stack", "concepts", "storage", "publish"]) {
+      assert.equal(job.steps.find(s => s.key === key).state, "done", key);
+    }
+    assert.ok(job.steps.every(s => ["done", "skipped"].includes(s.state)), JSON.stringify(job.steps));
+    assert.ok(job.steps.find(s => s.key === "storage").ms >= 0);
   } finally {
     if (previous.bin === undefined) delete process.env.CIE_BIN; else process.env.CIE_BIN = previous.bin;
     if (previous.jobs === undefined) delete process.env.CIE_JOBS_ROOT; else process.env.CIE_JOBS_ROOT = previous.jobs;
-    await fs.rm(temp, { recursive: true, force: true });
+    await fs.rm(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
