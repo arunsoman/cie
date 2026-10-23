@@ -22,6 +22,7 @@ import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm
 import { rememberWorkspace } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, containerOfPath, type AtlasRef, type AtlasSelection } from "./atlas";
+import { nextChartFilter, type ChartFilter } from "./chart-filter";
 import { PERSONA_PRESETS, loadPersonaMemory, savePersonaMemory, type PersonaId } from "./atlas-presets";
 
 export type DataSource = "demo" | "custom" | null;
@@ -139,6 +140,16 @@ interface CieState {
   atlasSelection: AtlasSelection;
   atlasView: "containers" | "components" | "sequence" | "dataflow";
   atlasFactsOnly: boolean; // "Facts only" — dim/filter inferred elements everywhere
+
+  // XFILTER — the cross-chart filter (lib/chart-filter.ts). A click on any
+  // canned chart's bucket lands here; every sibling chart, the Fixes and
+  // Promises lists and the map re-render from it. ONE filter at a time:
+  // second click on the same bucket releases, a different bucket replaces
+  // (the atlasSelection precedent) — chart-filter.nextChartFilter owns the
+  // rule, the emitters just call setChartFilter.
+  chartFilter: ChartFilter | null;
+  setChartFilter: (f: ChartFilter | null) => void;
+  clearChartFilter: () => void;
 
   // source panel — click a chart element with a location, see the code
   sourceViewer: SourceViewerRequest | null;
@@ -265,6 +276,7 @@ export const useCie = create<CieState>((set, get) => ({
   atlasSelection: ATLAS_RESET,
   atlasView: "containers",
   atlasFactsOnly: false,
+  chartFilter: null,
   persona: "fresher" as PersonaId, // §14.2-6: first-run default = Fresher
   personaFactsOnlyTouched: false,
   personaDisclosure: null,
@@ -343,6 +355,7 @@ export const useCie = create<CieState>((set, get) => ({
         atlasSelection: ATLAS_RESET,
         atlasView: "containers",
         atlasFactsOnly: false,
+        chartFilter: null,
       });
       // This workspace is now the "last opened" one — the dashboard reopens
       // it on the next launch (workspace-memory, a nicety that never gates
@@ -392,6 +405,7 @@ export const useCie = create<CieState>((set, get) => ({
       atlasSelection: ATLAS_RESET,
       atlasView: "containers",
       atlasFactsOnly: false,
+      chartFilter: null,
     }),
 
   reset: () => {
@@ -507,6 +521,11 @@ export const useCie = create<CieState>((set, get) => ({
     }),
   resetAtlas: () => set({ atlasSelection: ATLAS_RESET }),
   setAtlasView: (v) => set({ atlasView: v }),
+
+  // XFILTER — a chart bucket click (toggle/replace rule lives in
+  // chart-filter.nextChartFilter) and the banner's clear affordance.
+  setChartFilter: (f) => set((s) => ({ chartFilter: nextChartFilter(s.chartFilter, f) })),
+  clearChartFilter: () => set({ chartFilter: null }),
   setAtlasFactsOnly: (b) => set({ atlasFactsOnly: b, personaFactsOnlyTouched: true }),
   markFactsOnlyTouched: () => set({ personaFactsOnlyTouched: true }),
   setPersona: (id) =>

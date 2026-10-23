@@ -30,22 +30,14 @@ import {
   elementKindPlain,
   DICTIONARY,
 } from "@/lib/plain-words";
+import { FileSearch, ShieldCheck, Map as MapIcon, Filter, RotateCcw, Wand2, AlertTriangle, BadgeCheck, HelpCircle, ChevronDown, BookOpen, FileCode2, ListChecks, Languages, HeartPulse, Gauge } from "lucide-react";
 import {
-  FileSearch,
-  ShieldCheck,
-  Map as MapIcon,
-  Wand2,
-  AlertTriangle,
-  BadgeCheck,
-  HelpCircle,
-  ChevronDown,
-  BookOpen,
-  FileCode2,
-  ListChecks,
-  Languages,
-  HeartPulse,
-  Gauge,
-} from "lucide-react";
+  findingMatches,
+  contractMatches,
+  filterApplies,
+  countText,
+  sliceMapSpec,
+} from "@/lib/chart-filter";
 
 // ---------- small shared pieces ----------
 
@@ -312,17 +304,98 @@ export function StartView() {
 // The bubble's details are a STAGE overlay (MapInfoCard), so they stay a
 // constant size while the map itself zooms. ----------
 
+/** A small shared banner for every XFILTER receiver: what's filtered, the
+ *  surviving count, and the clear affordance. The emitters live on the
+ *  Numbers page; this tells the receiver's own page who is visiting. */
+function ClearFilterButton() {
+  const { clearChartFilter } = useCie();
+  return (
+    <button
+      type="button"
+      onClick={clearChartFilter}
+      className="flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-[12.5px] font-medium text-stone-700 hover:bg-stone-100"
+    >
+      <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Clear filter
+    </button>
+  );
+}
+
+function FilterBanner({ label, surviving, total, noun }: { label: string; surviving: number; total: number; noun: string }) {
+  return (
+    <Card className="border-emerald-300 bg-emerald-50/70" data-testid="chart-filter-receiver">
+      <CardContent className="p-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-stone-700">
+        <Filter className="h-4 w-4 text-emerald-700 shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 leading-relaxed">
+          <span className="font-semibold">Filtered to {label}</span> — {countText(surviving, total)} of your {" "}
+          {noun} match, from the charts page. Everything below shows only the matches.
+        </p>
+        <ClearFilterButton />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function MapViewSection() {
-  const { viewspec, mapSelected: sel, setMapSelected: setSel } = useCie();
+  const { viewspec, mapSelected: sel, setMapSelected: setSel, chartFilter } = useCie();
   if (!viewspec) return null;
+
+  // XFILTER receiver: file and certainty filters re-slice the map's spec
+  // (parent chains kept, edges between kept ends, omissions disclosed in
+  // the gaps ledger). Other dimensions don't apply — the map is unchanged.
+  // The banner + empty state live OUTSIDE the camera (MapFilterCard, next
+  // to MapInfoCard) — inside the zoomable wrapper they would pan and scale
+  // with the map and the info card would cover their buttons.
+  const sliced = chartFilter ? sliceMapSpec(viewspec, chartFilter) : null;
+  if (sliced && !sliced.kept) {
+    return null; // the overlay card names the empty result
+  }
+  const spec = sliced ? sliced.spec : viewspec;
 
   return (
     <div className="p-4 sm:p-6 pb-16 w-full">
       <Card className="border-stone-200 shadow-sm bg-white w-full">
         <CardContent className="p-4 sm:p-6">
-          <MapView spec={viewspec} selected={sel} onSelect={setSel} />
+          <MapView spec={spec} selected={sel} onSelect={setSel} />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/** The map page's XFILTER overlay — fixed-size like MapInfoCard, top-left
+ *  so the info card keeps the top-right. Shows the filter banner with the
+ *  surviving count and the clear affordance, or the named empty state. */
+export function MapFilterCard() {
+  const { viewspec, chartFilter } = useCie();
+  const sliced = viewspec && chartFilter ? sliceMapSpec(viewspec, chartFilter) : null;
+  if (!sliced) return null;
+  return (
+    <div className="absolute top-3 left-3 z-30 max-w-[320px]" data-lens-ui>
+      {sliced.kept ? (
+        <Card className="border-emerald-300 shadow-md bg-white/95 backdrop-blur" data-testid="chart-filter-receiver">
+          <CardContent className="p-4 space-y-2 text-sm text-stone-700">
+            <p className="flex items-center gap-2 font-semibold leading-snug">
+              <Filter className="h-4 w-4 text-emerald-700 shrink-0" aria-hidden />
+              Filtered to {chartFilter!.label}
+            </p>
+            <p className="text-[12.5px] leading-relaxed text-stone-600">
+              {countText(sliced.kept, sliced.total)} {sliced.kept === 1 ? "map bubble" : "map bubbles"} match, from the
+              charts page. The other map bubbles are hidden until you clear it.
+            </p>
+            <ClearFilterButton />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-amber-200 shadow-md bg-amber-50/95 backdrop-blur" data-testid="chart-filter-receiver">
+          <CardContent className="p-4 space-y-2 text-sm">
+            <p className="font-semibold text-amber-900">No map bubbles match this filter</p>
+            <p className="text-[12.5px] leading-relaxed text-amber-800">
+              Nothing on the map is {chartFilter?.dimension === "file" ? "recorded in that file" : "shown at that certainty"}.
+            </p>
+            <ClearFilterButton />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -523,13 +596,18 @@ function FindingCard({ f, file }: { f: Finding; file: string }) {
 }
 
 export function FindingsView() {
-  const { report } = useCie();
+  const { report, chartFilter } = useCie();
   const sorted = useMemo(() => {
     if (!report) return [];
     const order = { Critical: 0, High: 1, Medium: 2, Low: 3 } as Record<string, number>;
     return [...report.findings].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
   }, [report]);
   if (!report) return null;
+
+  // XFILTER receiver: severity/kind/file filters from the charts page
+  // narrow this list, with the surviving count disclosed up top.
+  const affected = filterApplies(chartFilter, "findings");
+  const shown = affected ? sorted.filter((f) => findingMatches(report, f, chartFilter!)) : sorted;
 
   const groups: { key: string; title: string; desc: string }[] = [
     { key: "Critical", title: "Fix soon", desc: "These could let the wrong people in or lose data." },
@@ -554,8 +632,17 @@ export function FindingsView() {
 
   return (
     <div className="space-y-6">
+      {affected && <FilterBanner label={chartFilter!.label} surviving={shown.length} total={sorted.length} noun={shown.length === 1 ? "problem" : "problems"} />}
+      {affected && !shown.length && (
+        <Card className="border-amber-200 bg-amber-50/60">
+          <CardContent className="p-8 text-center">
+            <p className="font-semibold text-amber-900">No problems match this filter</p>
+            <p className="text-sm text-amber-800 mt-1">Nothing here is {chartFilter?.dimension === "file" ? "recorded in that file" : chartFilter?.dimension === "kind" ? "of that kind" : "of that urgency"}. Clear the filter to see every problem.</p>
+          </CardContent>
+        </Card>
+      )}
       {groups.map((g) => {
-        const items = sorted.filter((f) => f.severity === g.key);
+        const items = shown.filter((f) => f.severity === g.key);
         if (!items.length) return null;
         return (
           <section key={g.key} aria-label={g.title} className="space-y-3">
@@ -576,8 +663,14 @@ export function FindingsView() {
 // ---------- Tab: Promises (contracts) ----------
 
 export function PromisesView() {
-  const { report, openSourceViewer } = useCie();
+  const { report, openSourceViewer, chartFilter } = useCie();
   if (!report) return null;
+
+  // XFILTER receiver: authority/file filters from the charts page narrow
+  // this list, with the surviving count disclosed up top.
+  const affected = filterApplies(chartFilter, "contracts");
+  const shown = affected ? report.contracts.filter((c) => contractMatches(report, c, chartFilter!)) : report.contracts;
+
   return (
     <div className="space-y-4">
       <Card className="border-stone-200 bg-stone-50/60">
@@ -587,8 +680,17 @@ export function PromisesView() {
           tells you who has to keep them — so nothing important gets forgotten.
         </CardContent>
       </Card>
+      {affected && <FilterBanner label={chartFilter!.label} surviving={shown.length} total={report.contracts.length} noun={shown.length === 1 ? "promise" : "promises"} />}
+      {affected && !shown.length && (
+        <Card className="border-amber-200 bg-amber-50/60">
+          <CardContent className="p-8 text-center">
+            <p className="font-semibold text-amber-900">No promises match this filter</p>
+            <p className="text-sm text-amber-800 mt-1">Clear the filter to see every promise CIE found.</p>
+          </CardContent>
+        </Card>
+      )}
       <StateTransitionEvidence report={report} onOpen={id=>{const s=report.symbols.find(s=>s.id===id);if(s)openSourceViewer({file:report.files[s.loc.file],byteStart:s.loc.start,byteEnd:s.loc.end,elName:s.qual_name});}}/>
-      {report.contracts.map((c) => {
+      {shown.map((c) => {
         const a = authorityPlain(c.authority);
         const keepers = c.symbols.map((id) => report.symbols.find((s) => s.id === id)?.qual_name).filter(Boolean);
         return (

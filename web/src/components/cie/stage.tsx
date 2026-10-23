@@ -27,6 +27,7 @@ import {
   StartView,
   MapViewSection,
   MapInfoCard,
+  MapFilterCard,
   MindmapView,
   ConceptsView,
   FindingsView,
@@ -160,6 +161,10 @@ export function Stage() {
               <MapInfoCard />
             </div>
           )}
+
+          {/* XFILTER — the chart filter's banner / named empty state, also
+              fixed-size and outside the camera (the map itself re-slices) */}
+          {view === "map" && <MapFilterCard />}
         </div>
       ) : (
         <div key="doc-stage" className="flex-1 min-h-0 overflow-y-auto" data-view={view}>

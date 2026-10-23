@@ -14,6 +14,7 @@ import {
   type ChartElement,
 } from "@/lib/viz/chart-spec";
 import { sliceViewSpec } from "@/lib/viz/slice";
+import { filterApplies } from "@/lib/chart-filter";
 import { useCie } from "@/lib/cie-store";
 import { askAboutChartElement } from "@/lib/quality";
 
@@ -83,6 +84,7 @@ export function ChatChart({
     chatContext,
     addChip,
     openSourceViewer,
+    chartFilter,
   } = useCie();
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<RenderHandle | null>(null);
@@ -93,15 +95,45 @@ export function ChatChart({
     () => chartView(spec, report, concepts, viewspec),
     [spec, report, concepts, viewspec],
   );
+  // XFILTER receiver: the charts page's file/certainty filter re-slices this
+  // diagram through the same sliceViewSpec gate as the atlas scope — kept
+  // elements keep their parent chains, the hidden ledger names the rest.
+  // Elements only honestly carry a file and a displayMode, so those are the
+  // two dimensions that can apply here; everything else leaves diagrams
+  // untouched. An empty match is a NAMED refusal (never a blank panel).
+  const filterKeep: "none" | Set<string> | undefined = useMemo(() => {
+    if (!chartFilter || !filterApplies(chartFilter, "canvas")) return undefined;
+    const ids = new Set<string>();
+    for (const el of data.view.elements) {
+      const hit =
+        chartFilter.dimension === "file"
+          ? el.evidence?.file === chartFilter.value
+          : el.displayMode === chartFilter.value;
+      if (hit) ids.add(el.id);
+    }
+    if (!ids.size) return "none";
+    return ids.size < data.view.elements.length ? ids : undefined; // everything matches → no slice
+  }, [chartFilter, data.view]);
   const gated = useMemo(
     () =>
-      sliceViewSpec(
-        layout === "auto"
-          ? data.view
-          : { ...data.view, layoutHint: { strategy: layout } },
-        { factsOnly: onSelectElement ? atlasFactsOnly : false },
-      ),
-    [data.view, layout, atlasFactsOnly, !!onSelectElement],
+      filterKeep === "none"
+        ? {
+            spec: null,
+            violations: [
+              `chart filter “${chartFilter?.label}” matches nothing on this diagram — clear it (Numbers page) to draw the whole picture`,
+            ],
+            dropped: data.view.elements.length,
+          }
+        : sliceViewSpec(
+            layout === "auto"
+              ? data.view
+              : { ...data.view, layoutHint: { strategy: layout } },
+            {
+              factsOnly: onSelectElement ? atlasFactsOnly : false,
+              keepIds: filterKeep ?? undefined,
+            },
+          ),
+    [data.view, layout, atlasFactsOnly, !!onSelectElement, filterKeep, chartFilter],
   );
   const callback = useRef(onSelectElement);
   callback.current = onSelectElement;
@@ -181,7 +213,11 @@ export function ChatChart({
         owned = result.handle;
         handle.current = owned;
         setNote(
-          `${result.disclosure.headline} · layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views`,
+          `${result.disclosure.headline} · layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views${
+            filterKeep instanceof Set
+              ? ` · chart filter “${chartFilter?.label}”: ${filterKeep.size} of ${data.view.elements.length} elements kept`
+              : ""
+          }`,
         );
         off = conductor.attach(
           owned,
