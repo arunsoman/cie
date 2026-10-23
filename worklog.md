@@ -938,7 +938,32 @@ Acceptance: zero 404s in the demo workspace console; the three surfaces render r
 Leftover of UI-fixes-3: on small graphs every edge labeled "calls" is noise; collapse/drop the label when all edges are calls.
 Acceptance: small-graph flowchart shows labels only where they carry information; sequence lanes untouched.
 
+### 9. XFILTER — Cross-chart slice & dice (linked views) [ ] HIGH — user-reported
+User ask: "when I click on one chart the other charts also change — the rest of the filters show only the filtered version" (= cross-filtering / brush-and-link).
+Ground truth (verified this session):
+- The pattern EXISTS but only dashboard-local: menu-drilldown.tsx is the one place a chart click re-aggregates a sibling (pick a bucket on axis A → chart 2 re-aggregates, rows filter, file viewer opens — canned-drilldowns.ts header). Proven mechanics, confined scope.
+- The canned charts section (charts.tsx) has ZERO click handlers — severity/contract/language charts are static pictures; they emit no selection.
+- The global Selection Context exists (cie-store atlasSelection: one primary ref + scope, second-click-releases) and viz/slice.ts sliceViewSpec already re-slices a ViewSpec to kept ids + re-gates client-side with disclosed counts — consumed by chat-chart.tsx for canvas diagrams only.
+- The big canvas (camera-stage) routes clicks to chat chips (context), never to sibling-chart filters.
+Gap: no cross-chart filter layer — a selection in one chart re-renders no sibling chart.
+Design direction (root-cause at implementation time): every chart becomes filter-emitter AND filter-receiver. Add a chartFilter slot to cie-store (axis, value, origin chart, provenance) alongside atlasSelection; canned charts take the active filter as an input to their aggregation (the same re-aggregate logic canned-drilldowns already runs); ViewSpec-backed charts re-slice via sliceViewSpec + re-gate (named refusals, never blank panels). Decide stacking semantics up front (second click = intersect or replace; toggle-release is the precedent). Filtered charts disclose surviving counts ("filtered to X — 12 of 40") with a clear-filter affordance; empty results are NAMED.
+Acceptance: clicking a bar/slice/node in any chart re-renders every sibling chart + row lists filtered with disclosed counts; release restores; at least 3 chart kinds covered by a new suite; all existing suites green.
+Suggested slot: after DS-EVAL (or before PERF-L1 if the user prefers UI-first) — user's call.
+
 Tracking rule: when an item starts, flip its marker to [~] here AND in the todo list; when it lands, write the normal Task-ID entry above and tick [x] with the commit hash.
 
 Stage Summary:
 - Tracked 8-item backlog committed to the worklog and mirrored in the todo list; stale summary items corrected (UI-fixes-3 and Phase D already done). Next action = item 1 (DS-EVAL).
+
+---
+Task ID: PLAN-XFILTER (adds item 9 to PLAN-2026-10-23)
+Agent: main (Z.ai)
+Task: "another important thing which u missed is slice and dice operation i.e. when I click on one chart the other charts also change i.e. the rest of the filters will show only the filtered version" — confirm understanding, ground-truth current state, add to the tracked backlog.
+
+Work Log:
+- Confirmed the ask = cross-filtering / linked views (brush-and-link): a selection in one chart propagates as a filter so all sibling charts re-render showing only the filtered subset.
+- Ground-truthed the four relevant seams: (1) menu-drilldown.tsx already implements the pattern but dashboard-local — bucket click re-aggregates the sibling axis, filters rows, opens the file viewer; (2) charts.tsx canned charts have zero click handlers — static pictures, nothing emitted; (3) the global Selection Context (cie-store atlasSelection, second-click-releases) plus viz/slice.ts sliceViewSpec (client-side re-slice + re-gate, disclosed counts) exist and feed only chat-chart.tsx canvas diagrams; (4) camera-stage clicks go to chat chips, not sibling filters.
+- Conclusion: the mechanics are proven in one confined place; what is missing is the cross-chart filter layer on the main surfaces. Added as item 9 (XFILTER) to the PLAN-2026-10-23 backlog with design direction + acceptance criteria; todo list updated (high priority).
+
+Stage Summary:
+- Slice & dice confirmed half-built (drilldown-local only) and now tracked as item 9. DS-EVAL remains next; XFILTER suggested right after (or first if the user prefers UI-first).
