@@ -520,6 +520,7 @@ dependencies = [
  "cie-relations",
  "cie-semantic",
  "cie-stack",
+ "cie-storage",
  "cie-store",
  "cie-stories",
  "cie-viz",
@@ -686,6 +687,7 @@ dependencies = [
  "cie-relations",
  "cie-semantic",
  "cie-stack",
+ "cie-storage",
  "cie-store",
  "cie-summary",
  "rayon",
@@ -693,7 +695,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tree-sitter",
- "zstd",
 ]
 
 [[package]]
@@ -786,6 +787,30 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
+]
+
+[[package]]
+name = "cie-storage"
+version = "1.2.0"
+dependencies = [
+ "blake3",
+ "cie-adapter-python",
+ "cie-adapters",
+ "cie-concepts",
+ "cie-contract",
+ "cie-core",
+ "cie-incremental",
+ "cie-llm",
+ "cie-polyglot",
+ "cie-relations",
+ "cie-semantic",
+ "cie-stack",
+ "cie-store",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tree-sitter",
+ "zstd",
 ]
 
 [[package]]

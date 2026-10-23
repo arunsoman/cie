@@ -8,12 +8,12 @@ pub mod sample;
 pub mod history;
 pub mod pipeline;
 pub mod stream;
-pub mod stack_store;
-pub mod state_model_store;
-pub mod relations_store;
+pub use cie_storage::stack_store;
+pub use cie_storage::state_model_store;
+pub use cie_storage::relations_store;
 pub mod navigation;
-pub mod org_store;
-pub mod vector_store;
+pub use cie_storage::org_store;
+pub use cie_storage::vector_store;
 
 pub use stream::{FactsSource, SourceReceipt};
 
@@ -215,10 +215,9 @@ pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Resul
 /// Run the ingest/analysis pipeline for a project folder.
 pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<IngestOutcome> {
     let t0 = now_ns();
-    let store = Store::open(project)?;
-    let _lock = stream::ProjectLock::acquire(store.root())?;
     let registry = default_registry();
-    let mut stream = stream::StreamSession::capture_deferred(project, &registry, opts)?;
+    let stream = stream::StreamSession::capture_deferred(project, &registry, opts)?;
+    let store = Store::open(project)?;
     let walked = stream.walked.clone();
     let current = walked.files;
     let prev_index = store.load_index()?;
@@ -708,7 +707,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
     let relations = navigation::remap_relations(&relations, &extracted.store, &snapshot);
     store.save_relations(rev, &relations)?;
     let revision_files = navigation::snapshot_files(&snapshot, &extracted.store.files);
-    store.write_json(&store.root().join("revs").join(rev.to_string()).join("file-table.json"), &revision_files)?;
+    cie_storage::artifacts::put(&store,rev,cie_storage::artifacts::Artifact::FileTable,&revision_files)?;
     let unresolved_calls = navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
     navigation::save_unresolved(&store, rev, &unresolved_calls)?;
     org_store::save(&store, &org_store::OrgMember::new(&snapshot, &unresolved_calls))?;
@@ -722,7 +721,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         &snapshot.concepts,
         &SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files.clone()),
     );
-    stream.finish(project, rev, &extracted)?;
+    let _publication = stream.finish(project, rev, &extracted)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous

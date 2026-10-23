@@ -1,0 +1,30 @@
+[package]
+name = "cie-storage"
+description = "Typed repository storage API, physical persistence policy and revision transactions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+cie-core = { workspace = true }
+cie-store = { workspace = true }
+cie-semantic = { workspace = true }
+cie-adapters = { workspace = true }
+cie-polyglot = { workspace = true }
+cie-stack = { workspace = true }
+cie-contract = { workspace = true }
+cie-relations = { workspace = true }
+cie-incremental = { workspace = true }
+cie-concepts = { workspace = true }
+cie-llm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+zstd = { workspace = true }
+tree-sitter = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+
+[dev-dependencies]
+cie-adapter-python = { workspace = true }

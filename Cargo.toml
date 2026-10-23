@@ -33,6 +33,7 @@ members = [
     "cie-counterexample",
     "cie-fault",
     "cie-store",
+    "cie-storage",
     "cie-llm",
     "cie-docs",
     "cie-stack",
@@ -136,6 +137,7 @@ cie-counterexample = { path = "cie-counterexample" }
 cie-stack = { path = "cie-stack" }
 cie-fault = { path = "cie-fault" }
 cie-store = { path = "cie-store" }
+cie-storage = { path = "cie-storage" }
 cie-llm = { path = "cie-llm" }
 cie-docs = { path = "cie-docs" }
 cie-claims = { path = "cie-claims" }

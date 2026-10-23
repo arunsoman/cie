@@ -9,18 +9,11 @@ use cie_store::Store;
 use std::{collections::BTreeMap, io, path::Path};
 
 type Unresolved = BTreeMap<SymbolId, Vec<String>>;
-fn unresolved_path(store: &Store, rev: RevId) -> std::path::PathBuf {
-    store
-        .root()
-        .join("revs")
-        .join(rev.to_string())
-        .join("unresolved.json")
-}
 pub fn save_unresolved(store: &Store, rev: RevId, calls: &Unresolved) -> io::Result<()> {
-    store.write_json(&unresolved_path(store, rev), calls)
+    cie_storage::artifacts::put(store,rev,cie_storage::artifacts::Artifact::Unresolved,calls)
 }
 pub fn load_unresolved(store: &Store, rev: RevId) -> io::Result<Option<Unresolved>> {
-    store.read_json(&unresolved_path(store, rev))
+    cie_storage::artifacts::get(store,rev,cie_storage::artifacts::Artifact::Unresolved)
 }
 fn id_map(old: &SymbolStore, snap: &RevSnapshot) -> BTreeMap<SymbolId, SymbolId> {
     let targets: BTreeMap<_, _> = snap
@@ -177,12 +170,7 @@ pub fn load_files(
     snap: &RevSnapshot,
     project: &Path,
 ) -> io::Result<cie_core::types::FileTable> {
-    let path = store
-        .root()
-        .join("revs")
-        .join(snap.rev.to_string())
-        .join("file-table.json");
-    if let Some(files) = store.read_json::<cie_core::types::FileTable>(&path)? {
+    if let Some(files) = cie_storage::artifacts::get::<cie_core::types::FileTable>(store,snap.rev,cie_storage::artifacts::Artifact::FileTable)? {
         return Ok(files);
     }
     let index = store.load_index()?;

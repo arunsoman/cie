@@ -15,7 +15,7 @@ parity tests are retained for library callers. The web server still owns
 cloning/local branch snapshots, the language preview, consent, job polling,
 and result retention. After those steps it starts **one Rust process**.
 `cie-cli/src/ingestion_job.rs` coordinates web exports; `cie-ingest/src/stream.rs`
-owns file processing; existing analysis libraries retain their responsibilities.
+owns file processing through the in-process [storage API](storage-module-architecture.md); existing analysis libraries retain their responsibilities.
 
 ## Ingestion dependency graph
 
@@ -49,6 +49,10 @@ bounded source collection/parsers and is **not yet converted to the shared-tree
 interface**. Manifest, Docker/config, documentation and Git-history readers
 also perform their domain-specific input reads. Thus “read once/parse once”
 applies to the unified **file stream consumers**, not every reader in CIE.
+
+The stream now calls `cie-storage` for cache lookup, file submission, graph
+retrieval and publication. Storage is linked into the same process; SQL,
+compression and artifact paths are no longer implemented by ingestion.
 
 ## Per-file chain and memory lifetime
 

@@ -29,10 +29,12 @@ fn optional<T: serde::Serialize>(name: &str, f: impl FnOnce() -> Result<T, Strin
 pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()> {
     let outcome = cie_ingest::materialize(raw)?;
     let rev = outcome.rev;
-    let revdir = root.join(".cie/revs").join(rev.to_string());
+    let artifacts = cie_storage::artifacts::RevisionArtifacts::open(root)?;
     let polyglot = optional("polyglot", || {
-        let bytes = std::fs::read(revdir.join("polyglot.json")).map_err(|e| e.to_string())?;
-        serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())
+        artifacts
+            .get::<Value>(rev, cie_storage::artifacts::Artifact::Polyglot)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "no polyglot artifact for this revision".to_string())
     });
     let viewspec = optional("map", || {
         cie_viz::produce(&outcome.snapshot, &cie_viz::ProduceOptions::default())

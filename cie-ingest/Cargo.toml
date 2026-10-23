@@ -27,6 +27,7 @@ cie-adapter-shell = { workspace = true }
 cie-adapter-kotlin = { workspace = true }
 cie-adapter-lua = { workspace = true }
 cie-store = { workspace = true }
+cie-storage = { workspace = true }
 cie-incremental = { workspace = true }
 cie-docs = { workspace = true }
 cie-summary = { workspace = true }
@@ -43,7 +44,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 blake3 = { workspace = true }
-zstd = { workspace = true }
 
 tree-sitter = { workspace = true }
-rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+[dev-dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }

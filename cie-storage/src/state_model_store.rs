@@ -3,11 +3,8 @@ use cie_contract::obligations::StateModel;
 use cie_core::types::RevId;
 use cie_store::Store;
 
-/// Extension trait: per-revision stack artifact persistence over the
-/// generic store. Lives in cie-ingest (not cie-stack) because it is an
-/// ingest concern — cie-stack owns the EXTRACTION, this owns the
-/// PERSISTENCE, and the crate cycle stays broken (cie-stack depends on
-/// nothing engine-side).
+/// Typed storage API for a revision-bound domain artifact. Physical layout
+/// and serialization belong to the storage module, not ingestion.
 pub trait StateModelStoreExt {
     /// Persist the report for `rev` (`revs/<N>/state-model.json`), whole.
     fn save_state_model(&self, rev: RevId, report: &StateModel) -> std::io::Result<()>;

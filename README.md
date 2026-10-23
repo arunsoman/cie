@@ -51,6 +51,8 @@ cie report examples/bankapp --as-of-rev 1
 
 The current ingestion flow, memory boundaries, incremental behavior and clustering
 ownership are documented in [Ingest-polyglot architecture](docs/ingest-polyglot-architecture.md).
+The [storage module](docs/storage-module-architecture.md) is linked into the same
+process and owns persistence policy behind typed APIs.
 
 ## Architecture (PRD §6)
 
