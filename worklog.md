@@ -1041,3 +1041,16 @@ Work Log:
 
 Stage Summary:
 - XFILTER is live: one click on any of the six Numbers charts re-renders every sibling chart, the Fixes and Promises lists, the map, and any ViewSpec-backed canvas diagram from the filtered rows — counts disclosed everywhere ("36 of 79"), toggle-release like the atlas, empty results named, clear affordance on every receiver. The map stays a receiver on purpose (its clicks already own the chat-referent binding); the menu drilldown keeps its own two-axis semantics (named, not unified). Named leftovers: (a) the Atlas dashboard's four views have their own selection context and do NOT consume chartFilter — a deliberate seam for a future ask; (b) chart stacking (two dimensions at once) was rejected this round — the single-slot disclosure stays one line; revisit only on user demand. NEXT per backlog: item 3 (PERF-L2 store-first), item 6 (INCREMENTAL-ON, unblocked), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
+
+---
+Task ID: XFILTER-push
+Agent: main (Z.ai)
+Task: Push the completed XFILTER commit (5474c65) to origin/main with the user's fresh PAT, fetch-verify, record the receipt.
+
+Work Log:
+- Session resumed after a context break; git log was ground truth: XFILTER was already implemented and committed locally as 5474c65 (10 files, +1308/-202) with its worklog entry, but unpushed — origin/main sat at 1357dda.
+- User supplied a fresh PAT; pushed 5474c65 via the one-off token-URL protocol (git push https://<token>@github.com/arunsoman/cie.git main): 1357dda..5474c65 main -> main.
+- Fetch-verified through the token URL into refs/remotes/origin/main: local HEAD 5474c65 == origin/main 5474c65 (exact match). Token never written to .git/config (remote.origin.url remains the clean https URL).
+
+Stage Summary:
+- XFILTER (backlog item 9) is now ON ORIGIN: local == origin/main == 5474c65, working tree clean. Backlog state: items 1 (DS-EVAL), 2 (PERF-L1), 9 (XFILTER) done and pushed. NEXT: item 3 (PERF-L2 store-first), item 6 (INCREMENTAL-ON, unblocked), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
