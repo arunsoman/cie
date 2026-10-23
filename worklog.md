@@ -886,3 +886,59 @@ Work Log:
 Stage Summary:
 - All three reported defects fixed at the root: one navigation layer (the camera), real sequence lanes, the story's diagram drawn inside the Usecases section, and drawing asks that actually draw — resolved in the user's own words, refused only by name when nothing honest exists.
 - Named leftovers: (a) the polyglot demo bundle lacks stories/quality/runtime.json — those fetches 404 in console and the surfaces degrade honestly (a data-refresh ask if the user wants the demo complete); (b) the flow chart's "calls" edge label is repetitive on small graphs (presentation polish, not correctness); (c) relayout on a lifeline sequence declines layout swaps by design (the disclosure explains).
+
+---
+Task ID: PLAN-2026-10-23
+Agent: main (Z.ai)
+Task: "lets create a plan of todo activities and add them to the work log then we can track it too" — reconcile true outstanding state, write the tracked backlog, sync with the todo list.
+
+Work Log:
+- Reconciled the conversation summary against this worklog before planning: UI-fixes-3 (the 3 canvas/diagram defects) is ALREADY COMPLETE (dd72a91, pushed) and Phase D is COMPLETE (f993b32) — the carried summary was stale on both. The genuine outstanding work is: DS-EVAL (user's latest explicit ask), PERF L1–L3 (root-caused + graded solutions given, not implemented), BRIDGE (deferred by the user: "no not yet"), plus the named leftovers of UI-fixes-3.
+- Verified ground truth for the plan's wording: cie-store is a revisioned KV store with pluggable backends — JSON engine / sled (default) / redb (optional) (cie-store/Cargo.toml:23-29, description "Revisioned KV store (§15.1 namespaces) — JSON engine; sled/redb backends") plus per-crate structures (tables.rs, snapshot.rs/RevSnapshot, hnsw.rs, archive.rs) and cie-ingest's per-feature stores (org_store, relations_store, vector_store, stack_store, state_model_store, cochange, churn); cie-polyglot is one rusqlite (bundled SQLite) file whose CLI deletes + rebuilds it every run ("honest recomputation", cli main.rs ~1659-1661) with incremental reuse built (files.content_hash UNIQUE) but disabled.
+- Re-confirmed the serial stage order in web/src/lib/analyze-jobs.ts runPipeline (632-1075): ingest (783) → report (796) → fault (827) → viz (837) → concepts (852) → deps (868) → stack (893) → polyglot (924) → cochange (949) → overlap (974) → drift (1013), all awaited one-by-one.
+
+## Backlog / TODO Plan (tracked here — created 2026-10-23)
+
+Status legend: [ ] pending · [~] in progress · [x] done (record commit hash) · [-] deferred
+
+### 1. DS-EVAL — Data-store evaluation: faster reads + lock-free writes [ ] NEXT
+User ask: "evaluate the data store which is the best for faster reads and lock-free writes, because cie-ingest uses various datastructures but the polyglot just puts everything onto a sql table."
+Evaluation frame (CIE's REAL access patterns, not synthetic ones):
+- Writes: single-writer CLI per run; "lock-free" means writers never block readers — crash safety mid-write + the web/API surfaces reading while a regeneration runs.
+- Reads: read-many across passes and surfaces; mixed workload — point lookups (symbol by id, evidence by claim) AND full-table scans (viewspec, duplicates, concepts inputs).
+- Hard constraints: determinism (byte-identical parity harness must keep passing), single-file distributable artifact, Node API-route readability, zero added threads (perf rule).
+- Candidates to score: SQLite in WAL mode (polyglot's current), sled (ingest's current default — note upstream is unmaintained, a real risk factor), redb (already an optional backend — pure-Rust B-tree, MVCC), LMDB (mmap B-tree, MVCC lock-free readers), RocksDB (LSM), DuckDB (analytical scans), flat JSON/parquet artifacts (the JSON engine already in cie-store).
+Deliverable: a docs/ evaluation note + a micro-bench on real artifacts (symbol-store reads, viewspec scans, cold-open) + a recommendation + migration sketch (which universe moves first, what stays).
+Acceptance: every performance claim backed by a measured number on our artifacts or a citation; the recommendation maps explicitly to the two universes' actual workloads.
+
+### 2. PERF-L1 — Pipeline parallel fan-out [ ]
+runPipeline awaits 11 stages serially; the DAG allows: at t=0 (no ingest dependency) deps/stack/polyglot/cochange/drift; after ingest: report/viz/concepts/overlap (then store-first in item 3). Change = Promise.allSettled + concurrency cap ~3 (spawned processes, NOT threads — respects the perf rule), stage labels still stream in completion order.
+Acceptance: identical artifact set; wall time = max(paths) instead of sum; all web node suites + smokes green.
+
+### 3. PERF-L2 — Store-first for viz/concepts/overlap [ ]
+viz/concepts/overlap re-walk the repo today; report and stack already read the .cie store (cli main.rs:1415-1423 precedent). Extend the same pattern.
+Acceptance: full-repo reads ~6→3 per run; outputs byte-identical vs the walking path (parity check).
+
+### 4. PERF-L3 — `cie analyze --artifacts all` [ ] (optional, after L1/L2 prove out)
+One spawn replaces eleven; the web orchestrator delegates and maps UI stage labels to sub-phases.
+Acceptance: same artifacts from one command; web fallback ladder intact when the flag is unsupported.
+
+### 5. BRIDGE — facts-bridge `--facts-from polyglot` [-] DEFERRED ("no not yet")
+polyglot DB → Vec<LangFacts> + SymbolStore, downstream untouched; parity gate (cie-ingest/tests/determinism.rs byte-diff) before any default switch. Revisit AFTER DS-EVAL — the storage choice shapes the bridge's read path.
+
+### 6. INCREMENTAL-ON — polyglot incremental reuse [ ] (gated on DS-EVAL)
+files.content_hash UNIQUE mechanism exists but the CLI wipes the DB each run. Decide the reuse policy consistent with the DS-EVAL storage choice; keep an explicit --full flag for honest recomputation.
+Acceptance: warm rerun on unchanged repo does not re-parse; forced full run stays byte-identical to today's output.
+
+### 7. DEMO-BUNDLE — polyglot demo data refresh [ ]
+Leftover of UI-fixes-3: demo bundle lacks stories.json / quality.json / runtime.json → console 404s, surfaces degrade honestly. Regenerate the bundle on the current engine.
+Acceptance: zero 404s in the demo workspace console; the three surfaces render real data.
+
+### 8. VIZ-POLISH — "calls" edge label repetition [ ]
+Leftover of UI-fixes-3: on small graphs every edge labeled "calls" is noise; collapse/drop the label when all edges are calls.
+Acceptance: small-graph flowchart shows labels only where they carry information; sequence lanes untouched.
+
+Tracking rule: when an item starts, flip its marker to [~] here AND in the todo list; when it lands, write the normal Task-ID entry above and tick [x] with the commit hash.
+
+Stage Summary:
+- Tracked 8-item backlog committed to the worklog and mirrored in the todo list; stale summary items corrected (UI-fixes-3 and Phase D already done). Next action = item 1 (DS-EVAL).
