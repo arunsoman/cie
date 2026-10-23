@@ -1,7 +1,7 @@
 # CIE storage retrieval and ViewSpec API specification
 
 Status: Proposed; implementation contract, not a declaration of existing capabilities.
-Version: 1.2. Date: 2026-10-23.
+Version: 1.3. Date: 2026-10-23.
 Related: [Storage architecture](storage-module-architecture.md), [ingestion architecture](ingest-polyglot-architecture.md).
 
 ## 1. Objective and boundary
@@ -809,3 +809,162 @@ only after parity tests run against the new binding. Keep ingestion jobs, live
 filesystem browsing, branch selection, LLM conversation and workspace preferences
 outside storage. This preserves a small public API without moving unrelated UI
 responsibilities into the storage module.
+
+## 19. LLM-friendly retrieval contract
+
+### 19.1 Principle and deployment
+
+Make retrieval easy for a tool-calling model without putting an LLM inside storage.
+A thin application-owned tool adapter translates constrained JSON into the same
+`RevisionReader::retrieve` calls. It does not generate SQL, invent entity links,
+choose arbitrary functions or execute model-generated code. Tools run in the same
+host process through the library/native binding. Publishing them through an
+existing agent host is optional and introduces no storage service requirement.
+Natural-language interpretation remains in the calling assistant; the storage
+module remains deterministic and usable without any model.
+
+### 19.2 Two tools, one pinned context
+
+| Tool | Input | Result |
+|---|---|---|
+| `cie_describe` | Optional context handle and requested capability topics | Pinned repository/revision context, compact entity/field/relation/output catalog, limits and examples |
+| `cie_retrieve` | Context handle, bounded selection, requested outputs and response budget | Typed results, evidence references, coverage, continuation and diagnostics |
+
+The application selects and authorizes the repository before tool use. If no
+context is supplied, `cie_describe` opens the application-selected repository's
+latest complete revision and returns an opaque context. It cannot select an
+arbitrary filesystem path. Repeating it with an existing context never advances
+the revision. Context expiry is explicit; switching to a newer revision requires
+a new application-authorized context, not a silent retry.
+
+Describe defaults to a short catalog. Topic selection expands only needed schemas,
+for example `symbol.fields`, `concept.relationships`, `outputs.source`, or
+`views.c4`. A capability being supported is distinct from its evidence being
+available in the selected revision. Tool schemas are generated from the same
+versioned contracts as the Rust/TypeScript API, not manually maintained copies.
+
+### 19.3 Simple selection with an advanced escape hatch
+
+Expose a compact `select` shape for common questions; normalize it into the query
+algebra of §7. Model-facing fields and operators are allowlisted, schema-described
+and capability-checked. The advanced alternative is the existing typed query AST,
+not raw SQL or arbitrary expressions. `select`, `query`, and `continuation` are
+mutually exclusive request modes.
+
+```json
+{
+  "context": "ctx_42",
+  "select": {
+    "kind": "symbol",
+    "where": [{"field": "file.path", "op": "eq", "value": "payments/service.rs"}],
+    "concept": {"id": "concept_17", "membership": "include_descendants"}
+  },
+  "outputs": [
+    {"id": "rows", "entities": {"fields": ["id", "qualified_name", "location"], "page": {"limit": 20}}},
+    {"id": "proof", "evidence": {"scope": "matches_and_derivations", "page": {"limit": 20}}}
+  ],
+  "response": {"profile": "compact", "max_bytes": 12000}
+}
+```
+
+Compact IDs in this tool facade resolve only within its context to full repository,
+revision and entity references. They are opaque strings, never numeric offsets or
+names masquerading as identity. Resolve ambiguous names through an entity-selection
+request using name filters; return candidates with file, kind and qualified name.
+The model must select a candidate ID before requesting single-symbol details.
+A concept label is likewise not an authoritative identifier.
+
+Default queries are exact domain retrieval. Semantic search is advertised only if
+an explicit provider, embedding revision, score interpretation and captured index
+exist. Similarity results are labelled suggestions and cannot silently satisfy a
+recorded membership query.
+
+### 19.4 Compact evidence-first responses
+
+The adapter returns a compact envelope with context/revision, typed outputs,
+coverage, omissions, evidence dictionary, continuation and structured diagnostics.
+Use caller-selected fields, bounded arrays and dictionary references instead of
+repeating source text or long paths. Default entity page is 20; source text and
+whole artifacts require explicit requests. Defaults must never expose credentials
+or bypass application access checks.
+
+Every factual entity/relationship/measure retains an entity reference and relevant
+provenance/evidence references. Evidence entries identify revision, source hash,
+file and span where available; algorithm-derived aggregates instead reference the
+query, measure grain, coverage and contributors descriptor. Do not fabricate a
+source span for an aggregate or a provenance-only claim. Certainty, inference and
+unknown coverage remain explicit, even in compact mode.
+
+The model may cite short evidence IDs in its answer; the application resolves them
+to source links using this context. A missing evidence ID is invalid and must not
+produce a plausible-looking link. Evidence references remain bound to revision;
+continuation or context expiry cannot redirect them to latest source.
+
+`compact` and `full` are serialization profiles over the same facts. Compact mode
+may omit unrequested fields, but cannot strengthen a claim, hide unavailable data,
+or drop the disclosure that a result is incomplete. Its response reports requested
+and effective limits, returned item counts, and exact/unknown total semantics.
+
+### 19.5 Output and token budgets
+
+`max_bytes` is enforced against the serialized tool response and shares the storage
+request budget. A host may additionally specify `max_tokens` only with a named,
+available tokenizer; otherwise return `UnsupportedBudget` or require a byte limit.
+Never claim byte count is an exact token count. The schema advertises effective
+host/model limits and a reserved budget for coverage/error metadata.
+
+If content exceeds the budget, return bounded pages with continuation and explicit
+truncation. Required provenance/coverage must fit; otherwise return `BudgetExceeded`
+rather than an apparently complete answer. Large ViewSpec payloads may be returned
+as opaque result handles for the UI, with a compact description, coverage and
+entity/cell links for the model. Handles are application-owned, context-bound,
+expiring and subject to the same access checks; they are not arbitrary URLs.
+Evidence required to explain the result remains accessible through retrieval.
+
+### 19.6 Exploration and grounded answers
+
+Expected tool workflow:
+
+1. Describe available evidence and obtain a pinned context.
+2. Resolve names or ask the user to disambiguate when several entities match.
+3. Retrieve a small relevant set or aggregate; inspect omissions and coverage.
+4. Request source/evidence or drill through a cell only when needed.
+5. Request a View from those matches or a referenced cube for the UI.
+6. Answer with valid evidence references and disclose unavailable or partial facts.
+
+The adapter may include schema-generated next actions such as `next_page`,
+`fetch_evidence`, `drill_through`, or `render_view`. Actions are validated typed
+request fragments, not free-form executable instructions. A failed request includes
+a stable code, field path, permitted alternatives and whether retry is meaningful.
+Retries remain under host-controlled call, byte and execution budgets. Never
+silently broaden scope, switch revisions or rerun ingestion to manufacture an answer.
+
+### 19.7 Repository text is data
+
+Source, comments, documentation, symbol names and generated labels are untrusted
+content. Tool schemas and application instructions are separate from those fields.
+A comment telling the assistant to ignore instructions or call another tool is
+returned as source data with its provenance, not as a next action. The adapter is
+read-only and exposes no write, shell, network or arbitrary-path capabilities.
+Diagnostic raw dataset browsing is not included in the default model tool catalog;
+it requires an explicitly enabled application mode and bounded redaction policy.
+
+### 19.8 Acceptance criteria
+
+- Generate JSON tool schemas and examples from the contract registry; invalid
+  predicates fail before execution with a precise field error.
+- Test symbol-in-file/concept, concept intersection, file contribution, caller
+  traversal, duplicate detail, IR, source, impact, cubes and ViewSpecs through the
+  same adapter used by agents. Results must match direct library calls.
+- Verify compact/full result equivalence for selected fields and unchanged certainty,
+  revision, evidence validity, missing-data and coverage semantics.
+- Exercise ambiguous names, expired contexts, stale/foreign IDs, forged continuations,
+  unsupported capabilities, missing source and partial analysis.
+- Test byte/token limits, large diagram handles, bounded retries and cancellation.
+- Use adversarial repository comments/docs to verify content cannot change the
+  selected repository, tool permissions, query scope or execution mode.
+- Verify drill-through and diagram output share the answer's match set/revision;
+  no source reads, network inference or ingestion occurs during retrieval.
+
+This section specifies the model-facing adapter, not model accuracy guarantees.
+End-to-end answer quality requires evaluating the calling assistant separately.
