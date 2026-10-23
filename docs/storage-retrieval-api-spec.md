@@ -1,7 +1,7 @@
 # CIE storage retrieval and ViewSpec API specification
 
 Status: Proposed; implementation contract, not a declaration of existing capabilities.
-Version: 1.0. Date: 2026-10-23.
+Version: 1.1. Date: 2026-10-23.
 Related: [Storage architecture](storage-module-architecture.md), [ingestion architecture](ingest-polyglot-architecture.md).
 
 ## 1. Objective and boundary
@@ -50,6 +50,7 @@ target API; code fragments are interface sketches rather than compilable patches
 10. Explain why a view is empty, incomplete, unavailable or truncated.
 11. Continue paging or drill down while new ingestion publishes another revision.
 12. Discover supported entity types, relationships, artifacts and views before querying.
+13. Slice and dice the same evidence across dimensions, pivot measures, roll up hierarchies and drill through a cell to its source entities.
 
 ## 4. Public entry points
 
@@ -150,6 +151,7 @@ struct RetrievalRequest {
 }
 
 enum SetExpr {
+    CellContributors { descriptor: DrillThroughDescriptor },
     Select { kind: EntityKind, filter: Predicate },
     Union(Vec<SetExpr>),
     Intersect(Vec<SetExpr>),
@@ -213,6 +215,9 @@ enum OutputRequest {
     Evidence { scope: EvidenceScope, page: PageRequest },
     Aggregate { group_by: Vec<FieldId>, measures: Vec<Measure>, page: PageRequest },
     Artifact { kind: ArtifactKind },
+    Cube { request: CubeRequest },
+    Facets { request: FacetRequest },
+    CubeViewSpec { source_output: String, view: ChartKind, options: ChartOptions },
 }
 ```
 
@@ -440,3 +445,170 @@ Cross-repository federation, cross-revision identity reconciliation, natural-lan
 query interpretation, arbitrary user code execution, live-source retrieval,
 automatic LLM enrichment and new clustering algorithms. These require separate
 contracts; they must not appear as implicit behavior of retrieval.
+
+## 16. First-class slice-and-dice analytics
+
+Slice-and-dice is a required retrieval capability, not a visualization-only feature.
+The API must allow users to select, combine and rearrange dimensions while retaining
+the exact revision, logical entity population, coverage and evidence. No new
+ingestion is required when changing an analytical perspective.
+
+| Operation | Required behavior | Example |
+|---|---|---|
+| Slice | Fix one dimension to a value | Python symbols only |
+| Dice | Combine dimension predicates and value sets | Python/Java symbols in payments/auth with high-severity findings |
+| Group | Aggregate by one or more dimensions | Symbol count by component and language |
+| Pivot | Place dimension members on rows/columns with explicit measures | Components as rows, languages as columns |
+| Roll up | Move to a declared ancestor level | File → directory → component, where a mapping exists |
+| Drill down | Expand a selected group to a finer declared level | Concept → child concepts → member symbols |
+| Drill through | Retrieve entities contributing to a particular cell | Open symbols counted in a concept/language cell |
+| Facet | Return available dimension values and matching entity counts | Languages and concepts available after current filters |
+| Compare | Show measures for explicit selections within the same revision | Payment component versus authentication component |
+
+Cross-revision comparisons remain outside version 1. Neither a pivot nor a roll-up
+may infer a semantic hierarchy from labels or fabricate membership links.
+
+### 16.1 Analytical request contract
+
+```rust
+struct CubeRequest {
+    dimensions: Vec<DimensionSelection>,
+    measures: Vec<NamedMeasure>,
+    layout: CubeLayout,
+    cell_filter: Option<MeasurePredicate>,
+    order: Vec<CellSort>,
+    page: CellPageRequest,
+    totals: TotalsRequest,
+    missing: MissingMemberPolicy,
+    drill_through: DrillThroughPolicy,
+}
+struct DimensionSelection {
+    id: String,
+    dimension: DimensionRef,
+    level: Option<HierarchyLevel>,
+    membership: DimensionMembership,
+}
+enum DimensionRef {
+    Field(FieldId),
+    RelatedEntity { relation_path: Vec<RelationStep>, attribute: FieldId },
+    NumericBucket { field: FieldId, boundaries: Vec<FiniteNumber> },
+    TimeBucket { field: FieldId, interval: TimeInterval, timezone: String },
+}
+enum CubeLayout {
+    Cells,
+    Pivot { rows: Vec<String>, columns: Vec<String> },
+}
+enum DimensionMembership { RecordedOnly, IncludeAncestors }
+enum MissingMemberPolicy { Exclude, IncludeUnknown }
+```
+
+The outer query applies entity predicates before aggregation (slice/dice).
+`cell_filter` applies measure predicates after grouping, equivalent to HAVING.
+Layout changes the representation, not the underlying measure semantics. Dimension
+IDs referenced by a pivot must exist and each selected dimension must occur exactly
+once across rows and columns. A dimensionless request is a single aggregate cell.
+
+Capability discovery declares each dimension's type, supported entity populations,
+cardinality estimate, missing-value meaning, supported hierarchy levels, available
+measures and whether membership is single-valued or multi-valued. Concept, cluster,
+file, language, directory, component, dependency, finding severity and historical
+time are target dimensions only where captured evidence supports the requested
+population. For example, severity for symbols requires a declared relationship to
+findings; time requires captured historical facts. Unsupported dimensions return
+`UnsupportedQuery`, never an empty successful cube.
+
+Hierarchies are named and validated. Directory ancestry can derive from normalized
+stored paths; component membership requires recorded mapping. File-to-component
+is not necessarily single-valued. Concept ancestry can be a DAG, not a strict tree;
+roll-up deduplicates entities within each ancestor cell. `IncludeAncestors` exposes
+that behavior explicitly and preserves membership provenance.
+
+### 16.2 Counting, joins and totals
+
+Every cube declares its base population, such as symbols or findings. Relationship
+joins must not multiply the base population accidentally. The default count is
+`DistinctEntityCount` of that population. Counting findings, relationships or paths
+requires an explicit measure with its own declared grain.
+
+Multi-valued dimensions can place the same entity in multiple cells. Cell counts
+remain distinct within each cell; grand totals are recalculated over the matching
+population and must not be computed by summing overlapping cells. Responses declare
+whether measures are additive, non-additive or semi-additive across each dimension.
+Numeric sums and averages require an unambiguous value at their declared grain;
+an ambiguous join is rejected unless an explicit supported reduction is selected.
+
+`IncludeUnknown` creates a reserved, typed unknown member for missing captured
+values. It is distinct from an empty string, an unavailable dimension and a literal
+user label named “Unknown”. Unknown analysis coverage remains disclosed separately.
+
+Numeric bucket boundaries are finite, ordered and non-overlapping. Bins are
+lower-inclusive and upper-exclusive, with explicit underflow/overflow handling.
+Time buckets require a declared timezone and calendar interval; no silent host
+timezone is used. Non-finite numeric values are rejected.
+
+Subtotals and grand totals identify whether they cover all pre-HAVING matches,
+post-HAVING cells, or the displayed page. The default is all pre-HAVING matches;
+page totals, if requested, are separate. Top-K, paging and display suppression never
+silently redefine grand totals. Missing cells are absent in sparse results; a dense
+pivot may show zero only when absence is established under the declared coverage.
+
+### 16.3 Cube result and drill-through
+
+A cube result includes dimension/member dictionaries with stable revision-scoped
+keys, sparse cells, measure definitions and units, requested totals, coverage,
+continuation, effective limits and explicit truncation status. A pivot is a layout
+of those cells; storage does not allocate an unbounded dense matrix.
+
+Each cell may include an opaque drill-through descriptor bound to repository,
+revision, canonical query, dimension members, membership rules and measure grain.
+The reader accepts this descriptor through a `SetExpr::CellContributors` extension.
+It reconstructs the contributing entity set and supports the same entity, evidence,
+graph and ViewSpec outputs as any other query. Descriptors cannot inject SQL or
+bypass normal revision checks, budgets or cursor validation.
+
+The distinct contributors for a count cell must match its displayed count when
+fully retrieved under the same coverage. For sums/averages, drill-through returns
+contributing records and values at the measure grain, not an unrelated base-entity
+list. Derived comparisons expose the contributing selections separately.
+
+A chart ViewSpec can consume a named cube output through an explicit output
+reference. Output references form an acyclic dependency graph within the request;
+unknown references and cycles are validation errors. This ensures a chart and its
+table share computed cells rather than independently regrouping evidence. Chart
+providers must advertise cube support and preserve cell drill-through descriptors.
+Generic graph ViewSpecs do not automatically become chart providers.
+
+### 16.4 Facets and interactive changes
+
+A `Facets` output returns bounded dimension members and distinct-population counts
+for a selected set of dimensions. Default counts include all current query filters.
+Optional self-excluding facets require tagged dimension filters so storage can
+remove exactly that dimension's filter while retaining the others; unsupported or
+ambiguous self-exclusion is rejected. Facet values are paginated with stable keys.
+
+Changing a slice, dimension, hierarchy level or measure creates a new canonical
+request. Reuse cached intermediates when valid, but do not reuse a cursor from the
+previous request. Readers retain the pinned revision during interactive exploration.
+
+### 16.5 Analytical budgets and validation
+
+In addition to shared request limits, proposed defaults are 4 dimensions, 8 measures,
+1,000 returned cells and 100,000 evaluated groups; hard maximums are 8 dimensions,
+32 measures, 10,000 returned cells and 1,000,000 evaluated groups. Facet pages use
+entity page limits. All analytical work shares the request deadline and byte budget.
+Hard maximums are ceilings, not promises that a request will fit its time budget.
+
+Exceeding intermediate-group limits returns `BudgetExceeded`; the system must not
+return silently inaccurate aggregates from a partial scan. Explicit top-K limits
+returned cells, not the work required to establish exact top-K and totals. Budget
+failure in a chart's source cube makes that chart unavailable/failed according to
+the request's failure mode; it must not render an apparently complete chart.
+
+Required acceptance tests extend stages 3–6: multi-dimension filtering; identical
+measures before/after pivot; DAG roll-up deduplication; multi-concept double-count
+prevention; unknown members; timezone boundaries; numeric bucket boundaries;
+HAVING and top-K total scopes; exact cell drill-through; facet self-exclusion;
+chart/table cell parity; intermediate-cardinality rejection; and no source reads
+when changing slices. Performance fixtures include high-cardinality dimensions and
+many-to-many concept memberships. Machine-readable schemas must include cube,
+facet, cell-contributor and output-reference variants before client migration.
