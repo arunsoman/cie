@@ -14,11 +14,11 @@
 //! * content and text are content-addressed (`blake3`), so unchanged files
 //!   re-ingest as no-ops and `node_text` is shared across languages (§42).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::rc::Rc;
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 
 // ---------------------------------------------------------------------------
 // Language detection + grammar pinning (§13 step 1, §39)
@@ -236,6 +236,79 @@ pub fn open_db(path: &Path) -> Result<Connection, String> {
         .map_err(|e| e.to_string())?;
     create_schema(&conn)?;
     Ok(conn)
+}
+
+/// The store-path convention every consumer shares: FNV-1a 64 over the
+/// canonical root path, `$TMPDIR/cie-polyglot-<h:x>.db`. The CLI's Polyglot
+/// command builds and promotes at exactly this name (main.rs), the web
+/// reader re-derives it (polyglot-db.ts `fnv1a64Hex`), and the ingest
+/// bridge (BRIDGE, backlog item 5) resolves it by default — one convention,
+/// three consumers, one source of truth. Fails soft: an uncanonicalizable
+/// path falls back to the literal path (same as the CLI's
+/// `canonicalize().unwrap_or(path)`).
+pub fn default_db_path(root: &Path) -> std::path::PathBuf {
+    let canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in canon.to_string_lossy().as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    std::env::temp_dir().join(format!("cie-polyglot-{h:x}.db"))
+}
+
+/// One `file_source_cache` row: the blake3 `content_hash` the row was stored
+/// under, the zstd-compressed source bytes, and the file's exact byte size
+/// (the decompression bound — the cache is our own store, but the bound
+/// keeps a corrupt row from allocating arbitrarily).
+#[derive(Debug, Clone)]
+pub struct SourceBlob {
+    pub content_hash: Vec<u8>,
+    pub zstd_bytes: Vec<u8>,
+    pub size_bytes: usize,
+}
+
+/// Read the whole source cache, STRICTLY READ-ONLY. The bridge (cie-ingest)
+/// calls this on the promoted store; a mid-rebuild `.building` file is never
+/// at this path (build-then-rename, Command::Polyglot), so a successful open
+/// always sees a complete, cleanly-checkpointed DB. Read-only keeps the
+/// DS-EVAL discipline — the ingestion path may READ the polyglot universe,
+/// never write it. Paths are normalized to forward slashes to match the
+/// walk keys on every platform.
+pub fn read_source_cache(db: &Path) -> Result<BTreeMap<String, SourceBlob>, String> {
+    let conn = Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("{}: {e}", db.display()))?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT f.path, f.content_hash, f.size_bytes, c.zstd_bytes
+             FROM files f JOIN file_source_cache c ON c.file_id = f.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Vec<u8>>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, Vec<u8>>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = BTreeMap::new();
+    for row in rows {
+        let (path, content_hash, size_bytes, zstd_bytes) = row.map_err(|e| e.to_string())?;
+        if size_bytes < 0 {
+            continue;
+        }
+        out.insert(
+            path.replace('\\', "/"),
+            SourceBlob {
+                content_hash,
+                zstd_bytes,
+                size_bytes: size_bytes as usize,
+            },
+        );
+    }
+    Ok(out)
 }
 
 pub fn create_schema(conn: &Connection) -> Result<(), String> {

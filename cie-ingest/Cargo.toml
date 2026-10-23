@@ -38,7 +38,9 @@ cie-drift = { workspace = true }
 cie-stack = { workspace = true }
 cie-contract = { workspace = true }
 cie-relations = { workspace = true }
+cie-polyglot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 blake3 = { workspace = true }
+zstd = { workspace = true }

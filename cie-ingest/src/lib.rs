@@ -7,12 +7,15 @@ pub mod cochange;
 pub mod sample;
 pub mod history;
 pub mod pipeline;
+pub mod polyglot_sources;
 pub mod stack_store;
 pub mod state_model_store;
 pub mod relations_store;
 pub mod navigation;
 pub mod org_store;
 pub mod vector_store;
+
+pub use polyglot_sources::{FactsSource, SourceReceipt};
 
 pub use history::{
     archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
@@ -81,6 +84,13 @@ pub struct IngestOptions {
     pub llm: ProviderKind,
     pub llm_budget_usd: f64,
     pub include_coverage_gaps: bool,
+    /// BRIDGE (backlog item 5, un-deferred): where the parse input comes
+    /// from. The default is `FactsSource::Polyglot` — the polyglot store
+    /// (hash-verified `file_source_cache` rows) feeds the adapters, disk
+    /// fallback per file. `FactsSource::Own` restores the disk-only read
+    /// (the CLI's `--facts-from own`). Artifacts are byte-identical either
+    /// way — pinned by `tests/bridge_parity.rs`.
+    pub facts_from: FactsSource,
 }
 
 impl Default for IngestOptions {
@@ -92,6 +102,7 @@ impl Default for IngestOptions {
             llm: ProviderKind::Offline,
             llm_budget_usd: 1.0,
             include_coverage_gaps: true,
+            facts_from: FactsSource::Polyglot,
         }
     }
 }
@@ -106,6 +117,9 @@ pub struct IngestOutcome {
     pub test_map: cie_analysis::testing::TestMap,
     /// TASK-030: per-file summary reuse counters for this pass.
     pub summary_reuse: cie_analysis::behavior::SummaryReuseStats,
+    /// BRIDGE: how the parse inputs were sourced this pass (None: fast path
+    /// or `load_outcome` — no sources were read at all).
+    pub source_receipt: Option<SourceReceipt>,
 }
 
 /// Rebuild the call graph + test map from stored summaries.
@@ -203,10 +217,6 @@ pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Resul
     Ok(out)
 }
 
-fn read_file(root: &Path, rel: &str) -> std::io::Result<String> {
-    std::fs::read_to_string(root.join(rel))
-}
-
 /// Run the ingest/analysis pipeline for a project folder.
 pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<IngestOutcome> {
     let t0 = now_ns();
@@ -290,6 +300,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
                 tests_of: Default::default(),
             },
             summary_reuse: Default::default(),
+            source_receipt: None,
         });
     }
 
@@ -301,17 +312,16 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         _ => None,
     };
 
-    // Read + extract current files.
-    let mut files: Vec<(String, LangId, String)> = vec![];
-    for (rel, (hash, lang)) in &current {
-        let src = read_file(project, rel).unwrap_or_default();
-        // verify hash matches what we planned on (file changed mid-walk)
-        let actual = content_hash(src.as_bytes());
-        if actual != *hash {
-            continue;
-        }
-        files.push((rel.clone(), *lang, src));
-    }
+    // Read + extract current files. BRIDGE (backlog item 5, un-deferred):
+    // the polyglot store is the DEFAULT source of the parse input —
+    // hash-verified `file_source_cache` rows feed the adapters, disk
+    // fallback per file (`polyglot_sources::resolve_current_files`). The
+    // race check, walk order, and skip semantics are the inline loop this
+    // call replaced; only the bytes' provenance changes, and the bytes are
+    // proven identical (double hash-verification), so artifacts are
+    // byte-identical by construction — `tests/bridge_parity.rs` pins it.
+    let (files, source_receipt) =
+        polyglot_sources::resolve_current_files(project, &current, opts.facts_from);
 
     let registry = default_registry();
     let extracted = cie_adapters::extract_project(&files, &registry);
@@ -651,7 +661,10 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         concepts: analysis.concepts.clone(),
         coverage: analysis.coverage.clone(),
         evidence: analysis.evidence.clone(),
-        warnings: vec![],
+        warnings: source_receipt
+            .disclosure()
+            .into_iter()
+            .collect(),
         ingest_wall_ns: wall,
         incremental: false,
         summary_cache: plan30
@@ -751,6 +764,7 @@ pub fn run_ingest(project: &Path, opts: &IngestOptions) -> std::io::Result<Inges
         reverse_deps,
         test_map,
         summary_reuse: analysis.summary_reuse,
+        source_receipt: Some(source_receipt),
     })
 }
 
@@ -783,6 +797,7 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
         reverse_deps,
         test_map,
         summary_reuse: Default::default(),
+        source_receipt: None,
     })
 }
 

@@ -8,7 +8,7 @@ use cie_incremental::SnapshotStoreExt;
 pub use cie_ingest;
 
 use cie_core::types::SymbolId;
-use cie_ingest::{IngestOptions, IngestOutcome};
+use cie_ingest::{FactsSource, IngestOptions, IngestOutcome};
 use cie_llm::ProviderKind;
 use cie_semantic::LangId;
 use clap::{Parser as ClapParser, ValueEnum};
@@ -165,6 +165,12 @@ pub enum Command {
         llm_provider: LlmChoice,
         #[arg(long, default_value_t = 1.0)]
         llm_budget_usd: f64,
+        /// BRIDGE (backlog item 5): where the parse input comes from.
+        /// `polyglot` (default) feeds the adapters hash-verified sources
+        /// from the polyglot store, disk fallback per file; `own` is the
+        /// disk-only read. Artifacts are byte-identical either way.
+        #[arg(long, value_enum, default_value = "polyglot")]
+        facts_from: FactsFromChoice,
         #[arg(long)]
         json: bool,
     },
@@ -365,6 +371,22 @@ fn parse_budget_usd(s: &str) -> Result<f64, String> {
     Ok(value)
 }
 
+/// CLI spelling of `cie_ingest::FactsSource` (BRIDGE, backlog item 5).
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum FactsFromChoice {
+    Polyglot,
+    Own,
+}
+
+impl From<FactsFromChoice> for FactsSource {
+    fn from(c: FactsFromChoice) -> Self {
+        match c {
+            FactsFromChoice::Polyglot => FactsSource::Polyglot,
+            FactsFromChoice::Own => FactsSource::Own,
+        }
+    }
+}
+
 fn ingest_opts(
     langs: &Option<Vec<String>>,
     budget_ms: Option<u64>,
@@ -380,6 +402,7 @@ fn ingest_opts(
         llm: llm_provider.into(),
         llm_budget_usd,
         include_coverage_gaps: !no_coverage_gaps,
+        facts_from: FactsSource::Polyglot,
     }
 }
 
@@ -769,6 +792,7 @@ fn run(cli: Cli) -> i32 {
             llm,
             llm_provider,
             llm_budget_usd,
+            facts_from,
             json,
         } => {
             let opts = IngestOptions {
@@ -778,6 +802,7 @@ fn run(cli: Cli) -> i32 {
                 llm: llm_provider.into(),
                 llm_budget_usd,
                 include_coverage_gaps: true,
+                facts_from: facts_from.into(),
             };
             let path = path.canonicalize().unwrap_or(path);
             loop {
@@ -804,6 +829,24 @@ fn run(cli: Cli) -> i32 {
                                 plan.added.len(),
                                 plan.deleted.len()
                             );
+                            // BRIDGE receipt (backlog item 5): say where the
+                            // parse inputs came from — or that the store was
+                            // absent, so the default mode's fallback is named,
+                            // never silent.
+                            if let Some(rcpt) = &outcome.source_receipt {
+                                match (&rcpt.store_path, rcpt.from_store) {
+                                    (Some(db), n) => println!(
+                                        "facts-from polyglot: {n} of {} sources from the store ({}) — {} from disk",
+                                        n + rcpt.from_disk,
+                                        db.display(),
+                                        rcpt.from_disk
+                                    ),
+                                    (None, _) => println!(
+                                        "facts-from polyglot: no store for this path — all {} sources read from disk (run `cie polyglot <path>` to seed it)",
+                                        rcpt.from_disk
+                                    ),
+                                }
+                            }
                             if outcome.snapshot.incremental {
                                 println!(
                                     "no changes — rev {} stands (re-ingest wall {:.3}ms)",
@@ -904,6 +947,7 @@ fn run(cli: Cli) -> i32 {
                 llm: llm_provider.into(),
                 llm_budget_usd,
                 include_coverage_gaps: true,
+                facts_from: FactsSource::Polyglot,
             };
             let path = path.canonicalize().unwrap_or(path);
             match cie_ingest::run_ingest(&path, &opts).and_then(cie_ingest::materialize) {
