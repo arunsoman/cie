@@ -166,3 +166,7 @@ consumer migration. No new storage process is required for that migration.
 
 Tests cover shared ingestion behavior, bounded typed reads, invalid identities,
 rollback visibility, old-reader continuity, revision identity, and policy validation.
+
+## Proposed retrieval extension
+
+See the [storage retrieval and ViewSpec API specification](storage-retrieval-api-spec.md) for the proposed revision-pinned query and multi-output contract. This extension is specified, not yet implemented.
