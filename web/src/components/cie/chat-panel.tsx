@@ -34,6 +34,11 @@ import { buildTraceAnswer, tryAnswerMastery, type MasteryCtx } from "@/lib/maste
 import { MasteryCard } from "@/components/cie/mastery-cards";
 import type { CieImpact } from "@/lib/cie-types";
 import { providerLabel } from "@/lib/llm-config";
+// One persona across the system (RFC-0024 §14): the top-bar Atlas persona
+// also picks who answers in Ask CIE — the chat's system prompt, starters
+// and status line all follow it (chat-persona.ts is the honest core + the
+// five voices).
+import { CHAT_PERSONAS, DEFAULT_CHAT_PERSONA, sanitizePersonaId } from "@/lib/chat-persona";
 
 // Blast-radius / impact questions are the one chat path that calls the real
 // engine live, on demand (cie impact --symbol) — see the fast path below.
@@ -45,13 +50,7 @@ function cut8(items: string[]): string {
   return items.length > 4 ? `${shown}, +${items.length - 4} more` : shown;
 }
 
-const STARTERS = [
-  "What should I fix first?",
-  "Draw the C4 architecture",
-  "Show me a UML diagram of this project",
-  "Are there any problems with secrets or passwords?",
-  "Can I trust this report? What did CIE not check?",
-];
+const STARTERS = CHAT_PERSONAS[DEFAULT_CHAT_PERSONA].starters;
 
 // Tiny safe renderer for CIE's answers: **bold** → <strong>, lines that start
 // with "-" become bullet lists. No dangerouslySetInnerHTML, no other markdown.
@@ -102,9 +101,10 @@ export function ChatPanel() {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, openConceptOnCanvas, mapSelected, setMapSelected,
     deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot: liveSourceRoot,
-    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs,
+    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs, persona,
   } = useCie();
   const sourceRoot = useCie(s => s.storageRoot) ?? liveSourceRoot;
+  const voice = CHAT_PERSONAS[sanitizePersonaId(persona)];
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -367,6 +367,7 @@ export function ChatPanel() {
           // stage 5 — the system prompt holds the model to it).
           digest: scopedDigest?.scoped ?? digest,
           scope,
+          persona: voice.id, // the top-bar persona answers here too — the system prompt, starters and status line follow it
           llm: {
             provider: llm.provider,
             ollama: { baseUrl: llm.ollama.baseUrl.trim(), model: llm.ollama.model.trim() },
@@ -420,6 +421,9 @@ export function ChatPanel() {
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-stone-200 bg-white">
         <h2 className="text-sm font-bold text-stone-900 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-emerald-700" /> Ask CIE
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10.5px] font-medium text-stone-500" title="Set in the Atlas menu — changes who answers here">
+            {voice.voiceTag}
+          </span>
         </h2>
         {chat.length > 0 && (
           <button
@@ -442,12 +446,12 @@ export function ChatPanel() {
               <Compass className="h-6 w-6 text-emerald-700" />
             </div>
             <p className="font-semibold text-stone-900">Hi! I&apos;ve read your whole project.</p>
-            <p className="text-sm text-stone-500 mt-1 max-w-[240px]">
-              Ask me anything about it — in your own words. Charts I draw appear here, and any
-              chart can go big on the canvas.
+            <p className="text-sm text-stone-500 mt-1 max-w-[260px]">
+              {voice.tagline} Charts I draw appear here, and any chart can
+              go big on the canvas.
             </p>
-            <div className="mt-4 flex flex-col w-full max-w-[260px] gap-1.5">
-              {STARTERS.map((s) => (
+            <div className="mt-4 flex flex-col w-full max-w-[280px] gap-1.5">
+              {voice.starters.map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -586,7 +590,7 @@ export function ChatPanel() {
           <p className="text-[10.5px] text-stone-400 leading-snug flex items-center gap-1 min-w-0">
             <BrainCog className="h-3 w-3 shrink-0" />
             <span className="truncate">
-              Answered by <span className="font-medium text-stone-500">{providerLabel(llm)}</span> — from the loaded report only.
+              Answered by <span className="font-medium text-stone-500">{providerLabel(llm)}</span> · {voice.voiceTag} — from the loaded report only.
             </span>
           </p>
           <button

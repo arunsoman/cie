@@ -1131,3 +1131,20 @@ Work Log:
 
 Stage Summary:
 - RETRIEVAL-SPEC-GAPS is ON ORIGIN: local == origin/main == 21f8336, verified via token URL AND gh api. The spec-to-code gap list in docs/storage-retrieval-implementation.md is now reduced to: component/dependency dimension mappings, calendar time units + IANA timezones, provider projection caching, stored-impact artifacts, remaining renderer projection mappings. web/server.log remains an untracked stray runtime log, intentionally not committed.
+
+---
+Task ID: PERSONA-CHAT-VOICE
+Agent: main
+Task: Make the top-bar atlas persona answer in Ask CIE too — the system prompt, starters and status line now follow the chosen persona across the system.
+
+Work Log:
+- Found the seam: RFC-0024 §14 shipped five personas (fresher/reviewer/architect/auditor/consultant) that re-plan the ATLAS, while /api/chat hardcoded ONE "friendly explainer" prompt for everyone. Same persona, two experiences.
+- NEW web/src/lib/chat-persona.ts: five chat voices keyed by the SAME PersonaId; systemPrompt() moved out of route.ts into buildSystemPrompt(persona, digest, scoped). Honesty core (JSON answer contract, chart menu w/ engine+layout claims, chart rules, STRICT RULES) composed AFTER all persona fragments and slice-capped — a persona can append rules (numbering continues) but can never weaken the core. Scoped answering (stage 5) outranks the persona for all five.
+- route.ts: body.persona sanitized (unknown/missing → fresher silently; a persona is a preference, never a failure).
+- chat-panel.tsx: POST carries the persona; empty-state starters + tagline become persona-specific; header shows a persona tag chip; footer reads "Answered by … · Auditor voice".
+- Deliberately NOT persona-aware: the deterministic fast paths ("no AI involved, nothing invented" — stories/quality/polyglot/concept/draw-anything/impact); a voice would put words in canned evidence.
+- NEW docs/rfc-0025-persona-chat-voice.md; NEW web/test/chat-persona.test.cjs (8 tests: core-invariance for all five, composition order, 10 pairwise distinct prompts, caps, fallback byte-equality, fresher default regression, scoped-per-persona).
+- Note: analyze-jobs.ts carries an UNCOMMITTED fix by another agent (polyglot scratch-db cleanup); left untouched, excluded from this commit.
+
+Stage Summary:
+- One persona now governs Atlas + chat. Full web suite 99/99 green (91 existing + 8 new). Commit ready; pushed via gh per standing instruction (receipt below).
