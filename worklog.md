@@ -1054,3 +1054,16 @@ Work Log:
 
 Stage Summary:
 - XFILTER (backlog item 9) is now ON ORIGIN: local == origin/main == 5474c65, working tree clean. Backlog state: items 1 (DS-EVAL), 2 (PERF-L1), 9 (XFILTER) done and pushed. NEXT: item 3 (PERF-L2 store-first), item 6 (INCREMENTAL-ON, unblocked), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
+
+---
+Task ID: XFILTER-tour
+Agent: main (Z.ai)
+Task: Live browser tour of XFILTER behavior on the production standalone build (:3013), answering "what does it actually do" — plus a parallel ground-truth answer on cie-ingest vs cie-polyglot (Explore agent, research only).
+
+Work Log:
+- Build freshness verified before serving: "Filtered to" / "chart-filter-banner" present in .next/standalone chunks; started the standalone server on :3013 (killed the stale PERF-L1-era listener first pattern respected — this time pid-level kill of the renamed "next-server" process, since pkill -f "node server.js" misses the retitled process).
+- Tour on the real five-service harbor sample, screenshots in download/xfilter-tour/ (0-charts-clean, 1-deadcode-filtered, 2-fixes-filtered, 3-map-filtered, 4-map-cleared, 5-map-named-empty): clicked DeadCode → banner "Filtered to Code that never runs — 36 of 79 problems match, from What kinds of problems?" + sibling pills on urgency/kinds/files (36 of 79 each) + effects chart correctly unpilled (its dimension cannot constrain findings); severity chart re-aggregated to Good-to-know 36; file chart re-ranked (BerthController.java top). Fixes receiver: "Good to know (36)", exactly 36 rows, non-matching groups gone. Second click on the same bar released (banner detached, Fixes back to 79). File filter BerthController.java → map kept 10 of 75 bubbles (Project kept as parent closure; footer honesty note recomputed to "10 good guesses"); receiver discloses the TWO honest denominators (6 of 79 problems in rows vs 10 of 75 map bubbles). Clear from the map receiver restored all 75. Bonus: certainty donut legend "Proven" on the all-inference map → banner already says "0 of 75 map things match" and the map shows the amber named-empty card ("No map bubbles match this filter — Nothing on the map is shown at that certainty") instead of a fake empty canvas. Zero page errors throughout (agent-browser errors empty).
+- Technique note for future tours: recharts SVG paths have no .click() — dispatch MouseEvent('click',{bubbles:true}); donut sectors carry no data-value (HBars do) — donut targets are its real legend buttons (keyboard-parity affordance).
+
+Stage Summary:
+- XFILTER behavior confirmed live end-to-end beyond the committed smoke: emit → sibling re-aggregate with N-of-M pills → list receiver → toggle-release → file dimension reaches map with parent closure → receiver-side clear → named-empty honesty. No repo code changed; screenshots under download/xfilter-tour/. Research verdict on ingest↔polyglot (no data dependency either direction; ingest is the .cie-store producer, polyglot deliberately self-contained; BRIDGE is the only future link) recorded in the chat answer, nothing to change.
