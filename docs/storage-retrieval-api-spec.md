@@ -612,3 +612,7 @@ chart/table cell parity; intermediate-cardinality rejection; and no source reads
 when changing slices. Performance fixtures include high-cardinality dimensions and
 many-to-many concept memberships. Machine-readable schemas must include cube,
 facet, cell-contributor and output-reference variants before client migration.
+
+## 17. Current UI compatibility review
+
+The [source-based compatibility validation](storage-ui-compatibility-validation.md) identifies concrete contract gaps and required amendments before implementation sign-off. This specification is not yet a complete replacement for the existing UI data paths.
