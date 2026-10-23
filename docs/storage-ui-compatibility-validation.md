@@ -160,3 +160,7 @@ sign-off. Do not claim that “any typed output” establishes UI compatibility:
 existing payload, projection and interaction above needs an explicit adapter or a
 documented intentional UI change. This review identifies gaps; it does not yet
 implement those amendments or migrate the UI.
+
+## Follow-up: specification v1.2
+
+Section 18 of the retrieval specification now defines the adaptations requested by this review, using the same retrieval call plus a separate diagnostics method. The matrix above records the v1.1 baseline. Identified gaps are addressed at contract level; implementation, native binding and runtime parity remain pending.

@@ -1,7 +1,7 @@
 # CIE storage retrieval and ViewSpec API specification
 
 Status: Proposed; implementation contract, not a declaration of existing capabilities.
-Version: 1.1. Date: 2026-10-23.
+Version: 1.2. Date: 2026-10-23.
 Related: [Storage architecture](storage-module-architecture.md), [ingestion architecture](ingest-polyglot-architecture.md).
 
 ## 1. Objective and boundary
@@ -211,13 +211,12 @@ enum OutputRequest {
     Entities { fields: Vec<FieldId>, order: Vec<Sort>, page: PageRequest },
     Relationships { relations: Vec<RelationKind>, page: PageRequest },
     Graph { expansion: Traversal, limits: GraphLimits },
-    ViewSpec { view: ViewKind, options: ViewOptions, availability: AvailabilityPolicy },
+    View { source: ViewSource, kind: ViewKind, options: ViewOptions },
     Evidence { scope: EvidenceScope, page: PageRequest },
-    Aggregate { group_by: Vec<FieldId>, measures: Vec<Measure>, page: PageRequest },
-    Artifact { kind: ArtifactKind },
     Cube { request: CubeRequest },
     Facets { request: FacetRequest },
-    CubeViewSpec { source_output: String, view: ChartKind, options: ChartOptions },
+    Detail { kind: DetailKind, options: DetailOptions },
+    Artifact { kind: ArtifactKind },
 }
 ```
 
@@ -378,7 +377,7 @@ subconcepts, returned as records, evidence and a relationship ViewSpec.
   "outputs": [
     {"id": "symbols", "entities": {"fields": ["id", "qualified_name", "kind", "location"], "order": [{"field": "qualified_name", "direction": "asc"}], "page": {"limit": 100}}},
     {"id": "proof", "evidence": {"scope": "matches_and_derivations", "page": {"limit": 100}}},
-    {"id": "diagram", "viewspec": {"view": "relationships", "options": {"detail": "overview", "max_nodes": 100, "max_edges": 200}, "availability": "build_if_missing"}}
+    {"id": "diagram", "view": {"source": "matches", "kind": "relationships", "options": {"detail": "overview", "max_nodes": 100, "max_edges": 200, "availability": "build_if_missing"}}}
   ],
   "budget": {"max_response_bytes": 4194304, "timeout_ms": 2000},
   "failure_mode": "atomic"
@@ -615,4 +614,198 @@ facet, cell-contributor and output-reference variants before client migration.
 
 ## 17. Current UI compatibility review
 
-The [source-based compatibility validation](storage-ui-compatibility-validation.md) identifies concrete contract gaps and required amendments before implementation sign-off. This specification is not yet a complete replacement for the existing UI data paths.
+The [source-based compatibility validation](storage-ui-compatibility-validation.md) records the gaps found in v1.1. Section 18 specifies their adaptations in v1.2. Contract coverage is proposed; runtime parity and migration remain unverified.
+
+## 18. Simple API with adapters for existing UI requirements
+
+This section resolves the v1.1 review gaps at the specification level. Where earlier
+examples use `ViewSpec`, `CubeViewSpec` or `Aggregate` output variants, normalize them
+to `View` or `Cube` below; they are explanatory shorthand, not additional public
+methods or wire variants. Version 1 has not shipped, so no legacy aliases need be
+implemented. The JSON example uses the normalized `view` variant with `source: matches`,
+`kind: relationships` and availability inside its options.
+
+### 18.1 One retrieval call, typed outputs
+
+The normal public workflow remains:
+
+```rust
+let reader = storage.open_revision(RevisionSelector::Latest)?;
+let response = reader.retrieve(request)?;
+```
+
+No separate methods for every screen. Existing query algebra, budgets, revision
+rules and response envelope apply to all outputs. Specialized domain records are
+retrieved using `Detail`; complete compatibility documents use `Artifact`.
+
+```rust
+enum DetailKind { Source, FunctionIr, Impact }
+enum DetailOptions {
+    Source { range: SourceRange, context_lines: u16 },
+    FunctionIr { include_calls: bool },
+    Impact { availability: AvailabilityPolicy },
+}
+enum SourceRange { WholeFile, Bytes { start: u64, end: u64 }, Declaration }
+enum ViewSource { Matches, Output { id: String } }
+```
+
+The kind/options pair must match. Serialized requests use a discriminated detail
+union so invalid pairs cannot be constructed on the wire. Source and IR accept one
+selected file/symbol and one selected symbol respectively; impact accepts one
+resolved symbol. Multi-selection is rejected for these details in version 1.
+Convenience builders may create these requests, but do not introduce more wire
+operations. `WholeFile` remains byte-budget bounded and can return explicit
+truncation with a continuation; range requests must never silently change ranges.
+
+`ViewSource::Matches` uses the query matches. `Output` references a named compatible
+cube/graph/detail output in the same request; compatibility is capability-checked.
+Its provider options include `StoredOnly` or `BuildIfMissing` availability. A view
+output has a renderer family, schema version, validated payload and entity/cell
+links. Output references use the acyclic execution rules of §16.3.
+
+### 18.2 Required entity and field adapters
+
+| Kind | Required fields and semantics |
+|---|---|
+| Summary | Symbol/file references, descriptive text, effects, certainty and analysis provenance |
+| Contract | Subject symbol/file references, condition, written/inferred authority and evidence |
+| DuplicatePair | Both symbol references, similarity, tier, detection, epistemic status, optional counterargument and canonical symbol |
+| Finding | Kind, severity, source location, message and evidence |
+| Concept | Label, kind, recorded symbol memberships, hierarchy and recorded behavior/rules |
+| Symbol | Qualified name, kind, file, declaration span, language and source identity |
+
+These extend §5 and the field capability catalog. Summary/Contract relations include
+`Summarizes` and `Constrains`, with explicit file/symbol endpoint kinds.
+DuplicatePair endpoints are named roles `LeftSymbol`, `RightSymbol` and optional
+`CanonicalSymbol`; it is not interchangeable with a duplicate cluster. Register
+remaining existing fields through versioned schemas; no adapter may discard an
+existing UI field merely because it is not enumerated in this table.
+
+String comparisons include exact, prefix and substring with explicit case-sensitive
+or Unicode case-folded semantics. The compatibility symbol-search preset uses the
+current database search behavior, qualified-name length ascending and deterministic
+identity tie-breaking. Its case/Unicode behavior must be frozen from fixtures
+against the existing SQLite search rather than silently adopting a different
+case-folding rule. This named preset can use a registered ranking order without
+exposing SQL expressions.
+
+### 18.3 Specialized payload contracts
+
+| Detail | Payload | Availability and limits |
+|---|---|---|
+| Source | Captured file reference, content hash, encoding, requested/returned byte range, text, line-start map and truncation metadata | Retained captured blob only; missing blob is `SourceUnavailable`; shared byte limits |
+| FunctionIr | Symbol reference, ordered blocks, ordered instructions with operation/spans, CFG edges and outgoing calls including unresolved callee text | Stored IR only; per-output node/instruction/edge limits and explicit truncation |
+| Impact | Subject symbol, affected symbols, affected concepts, minimum test set, analysis provenance and coverage | Stored result or bounded existing algorithm over captured dependencies/test evidence |
+
+Source ranges are half-open UTF-8 byte ranges. Invalid/reversed/out-of-bounds ranges
+are rejected. Unaligned UTF-8 boundaries return `InvalidRequest` rather than damaged
+text. Context expansion reports the expanded returned range and preserves the
+requested range. Line-start offsets refer to the captured file. Ingestion must
+record whether source retention is enabled; no read-time fallback to live files.
+Live-source inspection remains a separate application action labelled as such.
+
+IR block order uses stored block index and instruction index; edges cannot reference
+omitted blocks without an explicit boundary reference. Do not fabricate missing
+operands or resolved targets. Impact must invoke the existing algorithm semantics,
+not rename a reachability result. It cannot run ingestion. Add `SourceUnavailable`
+to the structured error catalog.
+
+### 18.4 Compatibility artifact catalog and bootstrap
+
+Required artifact kinds: `Report`, `RepositoryMap`, `Concepts`, `Stack`,
+`Dependencies`, `Runtime`, `Stories`, `Quality`, `Overlap`, `Drift`, `CoChange`,
+`Fault`, and `ArchitectureBundle`. Each has a registered schema/version, availability
+and provenance. `Report` preserves summaries, findings, contracts, warnings,
+coverage/evidence diagnostics, state model and usecase projection. `Stack` preserves
+the complete TechStack schema including routes, injections and handler branches.
+`Runtime` preserves tool/run identity, units, CPU, spans, trials and coverage.
+Demo-only or uncollected artifacts remain explicitly unavailable.
+
+A `UiBootstrapV1` artifact composes these into the existing client bundle shape,
+including null optional artifacts and the stable file-array indices used by report
+locations. It declares required versus optional members and per-member status;
+its payload remains compatible while status metadata lives in the response envelope.
+Storage assembles this through registered adapters; it is not a new ingestion stage.
+Do not silently truncate a bootstrap document. If it cannot fit the response budget,
+return `BudgetExceeded` and require the paged client path. Application-owned labels,
+job IDs and local live-source permissions are attached by the web layer, not stored
+as repository facts.
+
+### 18.5 View families and filtering compatibility
+
+Register three concrete renderer families: legacy CieViewSpec, PolyglotViewSpec
+(and ArchitectureBundle), and viz-adapter ViewSpec. Capabilities name each actual
+schema/version and accepted input kinds. Preserve evidence links, display modes,
+footer counts, hidden/omission records, coverage, scope and layout hints. For the
+shared adapter schema, apply its existing gate and hash algorithms after projection.
+Never copy old hashes onto changed content.
+
+Chart providers advertise the existing menu kinds individually: hbar, donut, stat,
+table, UML, flow, tree, heatmap, sequence, C4 and mindmap. Cubes can supply statistical
+charts; structural diagrams require the corresponding captured relationships and
+provider. Missing support is explicit, not a generic graph substituted under the
+requested diagram name.
+
+Each filtered output reports `applied_filters`, `inapplicable_filters` and reasons.
+Normal typed queries reject invalid field/population combinations. A named
+`CurrentUiLinkedFilters` adapter preserves today's one-slot filter behavior across
+findings, summaries, contracts, elements and canvas: severity/kind target findings,
+effects target summaries, authority targets contracts, certainty targets elements
+and canvas, and file applies only to populations with recorded file association.
+Inapplicable filters leave that output unchanged and disclose the fact. The UI owns
+toggle/replacement state; the API is stateless. New multi-dimensional queries use
+normal explicit predicates and joins rather than changing this compatibility rule.
+
+### 18.6 Small, separate diagnostic namespace
+
+```rust
+impl RevisionReader {
+    pub fn diagnostics(&self, request: DiagnosticRequest)
+        -> StorageResult<DiagnosticResponse>;
+}
+enum DiagnosticRequest {
+    Datasets,
+    Rows { dataset: DatasetId, page: DiagnosticPageRequest },
+}
+```
+
+`Datasets` returns allowlisted IDs, versions, display groups, columns, row counts
+and availability. `Rows` returns bounded typed cells, column metadata, total and
+continuation. Binary values are summarized, long text explicitly shortened and
+sensitive fields redacted by policy. No arbitrary SQL, physical paths or user-chosen
+table names. Storage owns mappings from versioned dataset IDs to physical tables.
+An optional bounded offset page supports current admin navigation; caps are
+advertised. Domain clients use retrieval, not diagnostics. Unsupported dataset
+versions return an explicit error.
+
+### 18.7 In-process web integration
+
+Provide a Node native binding to the same Rust library. The binding exposes
+`openRevision`, `retrieve`, `diagnostics`, `capabilities` and `close`; handles are
+opaque and bound to repository/revision. Existing routes remain thin compatibility
+adapters initially. No retrieval subprocess, sidecar or HTTP storage service is
+introduced. Execute blocking storage calls on workers with deadline/cancellation
+propagation, not the Node event loop. Release revision leases when handles close;
+server policy bounds idle handle lifetime and returns explicit expiry errors.
+
+Public wire IDs are opaque strings; use explicit mappings for core versus polyglot
+symbol spaces and lossless serialization of revision IDs and counters exceeding
+JavaScript's safe-integer range. Published JSON schemas and generated TypeScript
+contracts define these encodings. Route authorization and filesystem permission
+checks remain the web application's responsibility; an opaque handle is not an
+access-control policy.
+
+### 18.8 Acceptance and migration
+
+The adaptations above close the identified specification gaps; they do not imply
+implemented parity. Extend stages 1–6 with fixtures from the compatibility review:
+bootstrap shape/indices, all artifact schemas, symbol ranking, IR, duplicate pairs,
+source-byte correctness, impact minimum tests, renderer gates, filter applicability,
+diagnostic redaction and native-binding cancellation/revision release.
+
+Initially keep existing route shapes and use adapters internally. Migrate screens
+to paged retrieval incrementally. Delete direct Node SQL and retrieval CLI paths
+only after parity tests run against the new binding. Keep ingestion jobs, live
+filesystem browsing, branch selection, LLM conversation and workspace preferences
+outside storage. This preserves a small public API without moving unrelated UI
+responsibilities into the storage module.
