@@ -1104,3 +1104,15 @@ Work Log:
 
 Stage Summary:
 - INCREMENTAL-ON is live as the DEFAULT: warm reruns of an unchanged tree serve the previous store in milliseconds (~150-1300× on this repo: 56.7s → 32-43ms; harbor 57ms → 3ms), changed trees re-parse exactly the changed subset (hash-verified per file), `--full` is one flag away and byte-identical to the pre-INCREMENTAL build, and every mode carries a receipt naming what was reused, re-parsed, dropped or degraded. The warm==full row-for-row gate turns "the store rebuilds honestly" into "the store IS honest reuse". NEXT per backlog: item 3 (PERF-L2 store-first reads), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
+
+---
+Task ID: INCREMENTAL-ON-push
+Agent: main (Z.ai)
+Task: Push the INCREMENTAL-ON commit (ee2d7b3, plus the reworded BRIDGE-debug chore 5e3661a) to origin/main with the user's PAT, fetch-verify, record the receipt.
+
+Work Log:
+- Pushed via the one-off token-URL protocol (git push https://<token>@github.com/arunsoman/cie.git main): d0b8613..ee2d7b3 main -> main — two commits up: 5e3661a (chore: honest reword of the UUID-message auto-commit carrying scripts/diff_parity.py) and ee2d7b3 (INCREMENTAL-ON implementation + acceptance gate + bake-off script + worklog).
+- Fetch-verified through the token URL into FETCH_HEAD: local HEAD ee2d7b3 == origin/main ee2d7b3 (exact match). Token never written to .git/config (remote.origin.url remains the clean https URL). Working tree clean.
+
+Stage Summary:
+- INCREMENTAL-ON (backlog item 6) is ON ORIGIN: local == origin/main == ee2d7b3. Backlog state: items 1 (DS-EVAL), 2 (PERF-L1), 5 (BRIDGE, as the source seam), 6 (INCREMENTAL-ON), 9 (XFILTER) done and pushed. NEXT: item 3 (PERF-L2 store-first), item 7 (DEMO-BUNDLE), item 8 (VIZ-POLISH) — user's pick.
