@@ -647,6 +647,10 @@ async function runPipeline(job: AnalyzeJob) {
   let repoDir = isLocal ? (job.localPath as string) : path.join(workDir, "repo");
   const vizOut = path.join(workDir, "viewspec.json");
   job.state = "running";
+  // Parallel-stage state, declared here so the finally block can settle the
+  // in-flight children before cleanup (the try block fills these in).
+  let aborted = false;
+  const inflight: Promise<void>[] = [];
 
   try {
     await fs.mkdir(workDir, { recursive: true });
@@ -777,18 +781,322 @@ async function runPipeline(job: AnalyzeJob) {
       setStep(job, "inventory", "done", `You said go on — ${skipped} stay honestly skipped.`, undefined);
     }
 
-    // 2. read = ingest (two-pass contract: repo-before-recompute) + report
+    // 2–8. the engine stages — run as a dependency DAG, not a serial sum.
+    //
+    // Ground truth from the engine's dispatch arms (cie-cli/src/main.rs):
+    //   - deps / cochange walk manifests / git history and touch nothing any
+    //     other stage reads → start immediately.
+    //   - polyglot parses with its own tree-sitter set into its own SQLite
+    //     store (no .cie interaction; produce_bundle carries no ingest
+    //     stats, so a concurrent ingest cannot perturb its bytes) → start
+    //     immediately.
+    //   - ingest writes the .cie store; report reads that snapshot back
+    //     (Store::open + load_snapshot, no internal ingest); fault rides
+    //     the report lane, gated on the report's state model. This is the
+    //     critical path — never queued behind the side lane.
+    //   - stack reads the .cie store when one exists (store-first,
+    //     compute-if-absent; never writes without --force). Started before
+    //     ingest it could answer from a PREVIOUS revision's artifact on a
+    //     changed, previously-analyzed local repo — so it waits for ingest
+    //     and stays exactly as fresh as the serial pipeline.
+    //   - viz / concepts / overlap / drift each call run_ingest internally:
+    //     after ingest that is the cheap fast path (re-hash + plan, no
+    //     re-parse — acceptance #10) plus a snapshot load; started earlier
+    //     they would each duplicate the full parse. They enqueue when
+    //     ingest completes.
+    //
+    // Concurrency: the side lane runs at most SIDE_CAP child processes at
+    // once (a promise semaphore — spawned processes, not threads), and the
+    // critical lane adds at most one more. Wall time tends to max(lanes)
+    // instead of the sum of eleven serial spawns. Stage labels update per
+    // key as each stage actually starts and finishes — the steps list shows
+    // several "working…" rows at once, always in STEP_ORDER.
+    const SIDE_CAP = 3;
+    let sideActive = 0;
+    const sideWaiters: (() => void)[] = [];
+    const sideSlot = async <T,>(fn: () => Promise<T>): Promise<T> => {
+      while (sideActive >= SIDE_CAP) await new Promise<void>((r) => sideWaiters.push(r));
+      sideActive++;
+      try {
+        return await fn();
+      } finally {
+        sideActive--;
+        sideWaiters.shift()?.();
+      }
+    };
+
+    // A fatal (read-lane) failure names the EXACT step — with stages running
+    // in parallel, "the first running step" could point at the wrong row.
+    const failAt = (key: StepKey, plain: string, technical: string) => {
+      aborted = true;
+      setStep(job, key, "failed", plain);
+      job.state = "failed";
+      job.error = { plain, technical };
+    };
+
+    // A side-lane stage: skipped entirely once the job aborted; engine
+    // failures inside the body are that stage's own business (every side
+    // stage is optional-by-design and its step says so honestly); an
+    // UNEXPECTED throw fails the job — the same contract the serial
+    // pipeline had via startJob's catch.
+    const sideTask = (key: StepKey, body: () => Promise<void>) => {
+      if (aborted) return;
+      inflight.push(
+        sideSlot(async () => {
+          if (aborted) return;
+          await body();
+        }).catch((err) => {
+          if (!aborted && job.state === "running") {
+            failAt(key, engineErrorPlain("crash"), `stage ${key} threw: ${String(err?.stack ?? err)}`);
+          }
+        })
+      );
+    };
+
+    let report: CieReport | null = null;
+    let viewspec: CieViewSpec | null = null;
+    let concepts: ConceptTree | null = null;
+    let deps: CieDeps | null = null;
+    let stack: TechStack | null = null;
+    let polyglotSpecs: PolyglotBundle | null = null;
+    let cochange: CieCochange | null = null;
+    let overlap: CieOverlap | null = null;
+    let drift: CieDrift | null = null;
+
+    // ---- side-lane stage bodies (engine failures are per-stage honest) ----
+
+    // 5. dependencies (pom.xml, build.gradle, package.json, Cargo.toml, …)
+    //    Names and versions as written — never resolved, never guessed.
+    const runDeps = async () => {
+      setStep(job, "deps", "running", "Reading the manifest files…");
+      const t4 = Date.now();
+      const dep = await run(bin, ["deps", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+      if (!dep.timedOut && dep.code === 0) {
+        try {
+          const parsed = JSON.parse(dep.stdout) as CieDeps;
+          if (parsed?.table) deps = parsed;
+        } catch {
+          deps = null;
+        }
+      }
+      setStep(
+        job,
+        "deps",
+        deps && deps.table.files_scanned > 0 ? "done" : "skipped",
+        deps && deps.table.files_scanned > 0
+          ? `${deps.table.files_scanned} manifest file(s) read — ${deps.table.deps.length} dependencies declared as written.`
+          : "No manifest files found — nothing to list.",
+        Date.now() - t4
+      );
+    };
+
+    // 6. co-change — real git history, files that tend to change together.
+    //    A shallow URL clone (--depth 1) has almost no history to mine; that
+    //    is recorded honestly via sample_commits, never hidden or faked.
+    const runCochange = async () => {
+      setStep(job, "cochange", "running", "Mining commit history…");
+      const t5 = Date.now();
+      const coch = await run(bin, ["cochange", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+      if (!coch.timedOut && coch.code === 0) {
+        try {
+          cochange = JSON.parse(coch.stdout) as CieCochange;
+        } catch {
+          cochange = null;
+        }
+      }
+      setStep(
+        job,
+        "cochange",
+        cochange ? "done" : "skipped",
+        cochange
+          ? cochange.sample_commits <= 1
+            ? `Only ${cochange.sample_commits} commit available here (a shallow clone, or a fresh repo) — not enough history to find real pairs.`
+            : `${cochange.sample_commits} commits mined, ${cochange.edges.length} co-change pair(s) found.`
+          : "Couldn't read git history — skipped.",
+        Date.now() - t5
+      );
+    };
+
+    // 5b. the polyglot layer (PRD v2.0) — C4 containers/components, state
+    //     machines, workflows and impact/duplicate views as gate-checked
+    //     ViewSpecs in one bundle document. The engine already refused any
+    //     spec the TS gate would reject, so what lands here renders as-is.
+    const runPolyglot = async () => {
+      setStep(job, "polyglot", "running", "Naming components and flows…");
+      const t_pg = Date.now();
+      // 120s used to be plenty; a dense monorepo's duplicate-detection pass
+      // alone (ingest + IR + all-pairs similarity over tens of millions of
+      // candidate pairs) can take longer than that by itself, before the
+      // bundle even starts naming views — so this step gets the same ceiling
+      // as `report`/`concepts` rather than its own tighter one.
+      const pg = await run(bin, ["polyglot", repoDir, "--viewspec", "all"], { timeoutMs: CIE_TIMEOUT_MS });
+      if (!pg.timedOut && pg.code === 0) {
+        try {
+          const parsed = JSON.parse(pg.stdout) as unknown;
+          if (isPolyglotBundle(parsed)) polyglotSpecs = parsed;
+        } catch {
+          polyglotSpecs = null;
+        }
+      }
+      setStep(
+        job,
+        "polyglot",
+        polyglotSpecs ? "done" : "skipped",
+        polyglotSpecs
+          ? polyglotDetail(polyglotSpecs)
+          : "No polyglot views for this project — what the engine can't evidence it doesn't draw.",
+        Date.now() - t_pg
+      );
+    };
+
+    // 3. viewspec (the map)
+    const runViz = async () => {
+      setStep(job, "map", "running", "Sketching the connections…");
+      const t2 = Date.now();
+      const viz = await run(bin, ["viz", repoDir, "--out", vizOut], { timeoutMs: CIE_TIMEOUT_MS });
+      if (!viz.timedOut && viz.code === 0) {
+        try {
+          viewspec = JSON.parse(await fs.readFile(vizOut, "utf8"));
+        } catch {
+          viewspec = null;
+        }
+      }
+      // A missing map is not fatal — the dashboard degrades gracefully.
+      setStep(job, "map", viewspec ? "done" : "failed", viewspec ? "Map ready." : "No map for this project — the other pages still work.", Date.now() - t2);
+    };
+
+    // 4. concepts (what it does)
+    const runConcepts = async () => {
+      setStep(job, "concepts", "running", "Writing down responsibilities…");
+      const t3 = Date.now();
+      const con = await run(bin, ["concepts", repoDir, "--format", "json"], { timeoutMs: CIE_TIMEOUT_MS });
+      if (!con.timedOut && con.code === 0) {
+        try {
+          concepts = JSON.parse(con.stdout);
+        } catch {
+          concepts = null;
+        }
+      }
+      setStep(job, "concepts", "done", concepts ? "List ready." : "Skipped — not every project has one.", Date.now() - t3);
+    };
+
+    // 5b. tech stack — the engine's `cie stack` pass reads manifests,
+    //     docker + framework code as written (rust engine, tree-sitter).
+    //     Optional by design: a missing/failing stack pass never blocks.
+    //     AFTER ingest, not at t0: store-first means a pre-ingest start
+    //     could answer from the previous revision's artifact.
+    const runStack = async () => {
+      setStep(job, "stack", "running", "Reading your framework's build files and code directly…");
+      const t_stack = Date.now();
+      const stk = await run(bin, ["stack", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
+      if (!stk.timedOut && stk.code === 0) {
+        try {
+          const parsed = JSON.parse(stk.stdout) as unknown;
+          if (isTechStack(parsed)) stack = parsed;
+        } catch {
+          stack = null;
+        }
+      }
+      setStep(
+        job,
+        "stack",
+        stack ? "done" : "skipped",
+        stack
+          ? stackDetail(stack)
+          : "No stack report came back — the journey's stack sections will say so honestly.",
+        Date.now() - t_stack
+      );
+    };
+
+    // 7. capability overlap — which named parts of the project share real
+    //    symbols (cie-concepts' FCA-built concept tree, compared pairwise).
+    const runOverlap = async () => {
+      setStep(job, "overlap", "running", "Comparing every part against every other part…");
+      const t6 = Date.now();
+      const ovl = await run(bin, ["overlap", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
+      if (!ovl.timedOut && ovl.code === 0) {
+        try {
+          overlap = JSON.parse(ovl.stdout) as CieOverlap;
+        } catch {
+          overlap = null;
+        }
+      }
+      setStep(
+        job,
+        "overlap",
+        overlap ? "done" : "skipped",
+        overlap
+          ? `${overlap.pairs.length} overlapping pair(s) found among the parts CIE could compare.`
+          : "Skipped — nothing comparable yet.",
+        Date.now() - t6
+      );
+    };
+
+    // 8. drift — real claim extraction from the project's own docs, verified
+    //    against the code (not the git-date proxy the demo page uses).
+    //    Capped doc set: a doc this large a project ships is unlikely to be
+    //    load-bearing prose, and a huge doc set would make ingest slow.
+    const runDrift = async () => {
+      setStep(job, "drift", "running", "Reading your docs…");
+      const t7 = Date.now();
+      let driftDetail = "No documentation files found — nothing to check.";
+      try {
+        const candidates = await findDocFiles(repoDir);
+        const docs: string[] = [];
+        for (const f of candidates) {
+          if (docs.length >= MAX_DOCS) break;
+          try {
+            const st = await fs.stat(f);
+            if (st.isFile() && st.size > 0 && st.size <= MAX_DOC_BYTES) docs.push(f);
+          } catch {
+            /* unreadable — skip */
+          }
+        }
+        if (docs.length) {
+          const drf = await run(bin, ["drift", ...docs, "--code", repoDir, "--format", "json"], { timeoutMs: CIE_TIMEOUT_MS });
+          if (!drf.timedOut && drf.code === 0) {
+            try {
+              drift = JSON.parse(drf.stdout) as CieDrift;
+            } catch {
+              drift = null;
+            }
+          }
+          driftDetail = drift
+            ? `${drift.docs.length} doc(s) read, ${drift.claims.length} claim(s) found and checked against the code.`
+            : "Couldn't check the docs — skipped.";
+        }
+      } catch {
+        drift = null;
+      }
+      setStep(job, "drift", drift ? "done" : "skipped", driftDetail, Date.now() - t7);
+    };
+
+    // ---- side lane, wave 1: nothing to wait for ----
+    sideTask("deps", runDeps);
+    sideTask("cochange", runCochange);
+    sideTask("polyglot", runPolyglot);
+
+    // ---- critical lane: the read step (ingest → report → fault) ----
     setStep(job, "read", "running", "CIE is reading each file and taking notes…");
     const t1 = Date.now();
     const ing = await run(bin, ["ingest", repoDir], { timeoutMs: CIE_TIMEOUT_MS });
     if (ing.timedOut || ing.code !== 0) {
-      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`));
-      return;
+      failAt("read", engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, `cie ingest exit ${ing.code}: ${(ing.stderr || ing.stdout).slice(0, 400)}`));
+      return; // the finally settles the in-flight side stages before cleanup
     }
     if (/files 0 \|/.test(ing.stdout)) {
-      markRunningStepFailed(job, UNSUPPORTED_PLAIN, engineTechnical(bin, `cie ingest found 0 supported files: ${ing.stdout.slice(0, 200)}`));
+      failAt("read", UNSUPPORTED_PLAIN, engineTechnical(bin, `cie ingest found 0 supported files: ${ing.stdout.slice(0, 200)}`));
       return;
     }
+
+    // Ingest is done: re-ingests now answer from the fast path — open the
+    // side lane's second wave (the store-dependent stages).
+    sideTask("map", runViz);
+    sideTask("concepts", runConcepts);
+    sideTask("overlap", runOverlap);
+    sideTask("drift", runDrift);
+    sideTask("stack", runStack);
+
     // The report is the one output that grows with repo size, so it is
     // delivered as a file (`--out`, issue #12) — no pipe byte cap can
     // truncate it. Older engines without the flag fall back to stdout.
@@ -800,19 +1108,19 @@ async function runPipeline(job: AnalyzeJob) {
     }
     if (rep.timedOut || rep.code !== 0) {
       const noSnapshot = (rep.stderr || "").includes("no snapshot");
-      markRunningStepFailed(
-        job,
+      failAt(
+        "read",
         noSnapshot ? UNSUPPORTED_PLAIN : engineErrorPlain(rep.timedOut ? "timeout" : "crash"),
         engineTechnical(bin, `cie report exit ${rep.code}: ${(rep.stderr || rep.stdout).slice(0, 400)}`)
       );
       return;
     }
-    let report: CieReport;
+    let reportParsed: CieReport;
     try {
-      report = JSON.parse(repFile ? await fs.readFile(reportOut, "utf8") : rep.stdout);
+      reportParsed = JSON.parse(repFile ? await fs.readFile(reportOut, "utf8") : rep.stdout);
     } catch {
-      markRunningStepFailed(
-        job,
+      failAt(
+        "read",
         engineErrorPlain("bad-output"),
         engineTechnical(
           bin,
@@ -823,209 +1131,19 @@ async function runPipeline(job: AnalyzeJob) {
       );
       return;
     }
-    if(report.state_model?.transitions.length) {
-      const fault=await run(bin,["fault",repoDir,"--json","--budget-ms","500"],{timeoutMs:CIE_TIMEOUT_MS});
-      if(!fault.timedOut && fault.code===0) {
-        try { const value=JSON.parse(fault.stdout); if(value.revision===report.rev && value.execution_performed===false && value.runtime_observed===false) report.fault_analysis=value; } catch { /* absent evidence is not a successful experiment */ }
+    report = reportParsed;
+    if (report.state_model?.transitions.length) {
+      const fault = await run(bin, ["fault", repoDir, "--json", "--budget-ms", "500"], { timeoutMs: CIE_TIMEOUT_MS });
+      if (!fault.timedOut && fault.code === 0) {
+        try { const value = JSON.parse(fault.stdout); if (value.revision === report.rev && value.execution_performed === false && value.runtime_observed === false) report.fault_analysis = value; } catch { /* absent evidence is not a successful experiment */ }
       }
     }
     setStep(job, "read", "done", `${report.symbols.length} named things found.`, Date.now() - t1);
 
-    // 3. viewspec (the map)
-    setStep(job, "map", "running", "Sketching the connections…");
-    const t2 = Date.now();
-    const viz = await run(bin, ["viz", repoDir, "--out", vizOut], { timeoutMs: CIE_TIMEOUT_MS });
-    let viewspec: CieViewSpec | null = null;
-    if (!viz.timedOut && viz.code === 0) {
-      try {
-        viewspec = JSON.parse(await fs.readFile(vizOut, "utf8"));
-      } catch {
-        viewspec = null;
-      }
-    }
-    // A missing map is not fatal — the dashboard degrades gracefully.
-    setStep(job, "map", viewspec ? "done" : "failed", viewspec ? "Map ready." : "No map for this project — the other pages still work.", Date.now() - t2);
-
-    // 4. concepts (what it does)
-    setStep(job, "concepts", "running", "Writing down responsibilities…");
-    const t3 = Date.now();
-    const con = await run(bin, ["concepts", repoDir, "--format", "json"], { timeoutMs: CIE_TIMEOUT_MS });
-    let concepts: ConceptTree | null = null;
-    if (!con.timedOut && con.code === 0) {
-      try {
-        concepts = JSON.parse(con.stdout);
-      } catch {
-        concepts = null;
-      }
-    }
-    setStep(job, "concepts", "done", concepts ? "List ready." : "Skipped — not every project has one.", Date.now() - t3);
-
-    // 5. dependencies (pom.xml, build.gradle, package.json, Cargo.toml, …)
-    //    Names and versions as written — never resolved, never guessed.
-    setStep(job, "deps", "running", "Reading the manifest files…");
-    const t4 = Date.now();
-    let deps: CieDeps | null = null;
-    const dep = await run(bin, ["deps", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
-    if (!dep.timedOut && dep.code === 0) {
-      try {
-        const parsed = JSON.parse(dep.stdout) as CieDeps;
-        if (parsed?.table) deps = parsed;
-      } catch {
-        deps = null;
-      }
-    }
-    setStep(
-      job,
-      "deps",
-      deps && deps.table.files_scanned > 0 ? "done" : "skipped",
-      deps && deps.table.files_scanned > 0
-        ? `${deps.table.files_scanned} manifest file(s) read — ${deps.table.deps.length} dependencies declared as written.`
-        : "No manifest files found — nothing to list.",
-      Date.now() - t4
-    );
-
-    // 5b. tech stack — the engine's `cie stack` pass reads manifests,
-    //     docker + framework code as written (rust engine, tree-sitter).
-    //     Optional by design: a missing/failing stack pass never blocks.
-    setStep(job, "stack", "running", "Reading your framework's build files and code directly…");
-    const t_stack = Date.now();
-    let stack: TechStack | null = null;
-    const stk = await run(bin, ["stack", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
-    if (!stk.timedOut && stk.code === 0) {
-      try {
-        const parsed = JSON.parse(stk.stdout) as unknown;
-        if (isTechStack(parsed)) stack = parsed;
-      } catch {
-        stack = null;
-      }
-    }
-    setStep(
-      job,
-      "stack",
-      stack ? "done" : "skipped",
-      stack
-        ? stackDetail(stack)
-        : "No stack report came back — the journey's stack sections will say so honestly.",
-      Date.now() - t_stack
-    );
-
-    // 5b. the polyglot layer (PRD v2.0) — C4 containers/components, state
-    //     machines, workflows and impact/duplicate views as gate-checked
-    //     ViewSpecs in one bundle document. The engine already refused any
-    //     spec the TS gate would reject, so what lands here renders as-is.
-    setStep(job, "polyglot", "running", "Naming components and flows…");
-    const t_pg = Date.now();
-    let polyglotSpecs: PolyglotBundle | null = null;
-    // 120s used to be plenty; a dense monorepo's duplicate-detection pass
-    // alone (ingest + IR + all-pairs similarity over tens of millions of
-    // candidate pairs) can take longer than that by itself, before the
-    // bundle even starts naming views — so this step gets the same ceiling
-    // as `report`/`concepts` rather than its own tighter one.
-    const pg = await run(bin, ["polyglot", repoDir, "--viewspec", "all"], { timeoutMs: CIE_TIMEOUT_MS });
-    if (!pg.timedOut && pg.code === 0) {
-      try {
-        const parsed = JSON.parse(pg.stdout) as unknown;
-        if (isPolyglotBundle(parsed)) polyglotSpecs = parsed;
-      } catch {
-        polyglotSpecs = null;
-      }
-    }
-    setStep(
-      job,
-      "polyglot",
-      polyglotSpecs ? "done" : "skipped",
-      polyglotSpecs
-        ? polyglotDetail(polyglotSpecs)
-        : "No polyglot views for this project — what the engine can't evidence it doesn't draw.",
-      Date.now() - t_pg
-    );
-
-    // 6. co-change — real git history, files that tend to change together.
-    //    A shallow URL clone (--depth 1) has almost no history to mine; that
-    //    is recorded honestly via sample_commits, never hidden or faked.
-    setStep(job, "cochange", "running", "Mining commit history…");
-    const t5 = Date.now();
-    let cochange: CieCochange | null = null;
-    const coch = await run(bin, ["cochange", repoDir, "--json"], { timeoutMs: Math.min(CIE_TIMEOUT_MS, 60_000) });
-    if (!coch.timedOut && coch.code === 0) {
-      try {
-        cochange = JSON.parse(coch.stdout) as CieCochange;
-      } catch {
-        cochange = null;
-      }
-    }
-    setStep(
-      job,
-      "cochange",
-      cochange ? "done" : "skipped",
-      cochange
-        ? cochange.sample_commits <= 1
-          ? `Only ${cochange.sample_commits} commit available here (a shallow clone, or a fresh repo) — not enough history to find real pairs.`
-          : `${cochange.sample_commits} commits mined, ${cochange.edges.length} co-change pair(s) found.`
-        : "Couldn't read git history — skipped.",
-      Date.now() - t5
-    );
-
-    // 7. capability overlap — which named parts of the project share real
-    //    symbols (cie-concepts' FCA-built concept tree, compared pairwise).
-    setStep(job, "overlap", "running", "Comparing every part against every other part…");
-    const t6 = Date.now();
-    let overlap: CieOverlap | null = null;
-    const ovl = await run(bin, ["overlap", repoDir, "--json"], { timeoutMs: CIE_TIMEOUT_MS });
-    if (!ovl.timedOut && ovl.code === 0) {
-      try {
-        overlap = JSON.parse(ovl.stdout) as CieOverlap;
-      } catch {
-        overlap = null;
-      }
-    }
-    setStep(
-      job,
-      "overlap",
-      overlap ? "done" : "skipped",
-      overlap
-        ? `${overlap.pairs.length} overlapping pair(s) found among the parts CIE could compare.`
-        : "Skipped — nothing comparable yet.",
-      Date.now() - t6
-    );
-
-    // 8. drift — real claim extraction from the project's own docs, verified
-    //    against the code (not the git-date proxy the demo page uses).
-    //    Capped doc set: a doc this large a project ships is unlikely to be
-    //    load-bearing prose, and a huge doc set would make ingest slow.
-    setStep(job, "drift", "running", "Reading your docs…");
-    const t7 = Date.now();
-    let drift: CieDrift | null = null;
-    let driftDetail = "No documentation files found — nothing to check.";
-    try {
-      const candidates = await findDocFiles(repoDir);
-      const docs: string[] = [];
-      for (const f of candidates) {
-        if (docs.length >= MAX_DOCS) break;
-        try {
-          const st = await fs.stat(f);
-          if (st.isFile() && st.size > 0 && st.size <= MAX_DOC_BYTES) docs.push(f);
-        } catch {
-          /* unreadable — skip */
-        }
-      }
-      if (docs.length) {
-        const drf = await run(bin, ["drift", ...docs, "--code", repoDir, "--format", "json"], { timeoutMs: CIE_TIMEOUT_MS });
-        if (!drf.timedOut && drf.code === 0) {
-          try {
-            drift = JSON.parse(drf.stdout) as CieDrift;
-          } catch {
-            drift = null;
-          }
-        }
-        driftDetail = drift
-          ? `${drift.docs.length} doc(s) read, ${drift.claims.length} claim(s) found and checked against the code.`
-          : "Couldn't check the docs — skipped.";
-      }
-    } catch {
-      drift = null;
-    }
-    setStep(job, "drift", drift ? "done" : "skipped", driftDetail, Date.now() - t7);
+    // Every stage has been either awaited (read lane) or pushed (side lane)
+    // — wait for the side lane, then assemble.
+    await Promise.all(inflight);
+    if (aborted) return; // a side stage threw unexpectedly; the job already failed
 
     // 9. runtime evidence — only if the project ships its own collector
     //    output (runtime-data/runtime.json). CIE never invents runtime data.
@@ -1040,28 +1158,35 @@ async function runPipeline(job: AnalyzeJob) {
       runtime = null; // no runtime evidence — the dashboard says so honestly
     }
 
-    job.result = {
-      report,
-      viewspec,
-      concepts,
-      deps,
-      stack,
-      polyglotSpecs,
-      runtime,
-      cochange,
-      overlap,
-      drift,
-      label: isLocal
-        ? `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from this computer${job.viaSnapshot ? " as a read-only copy" : ""})`
-        : `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from ${hostOf(job.url)})`,
-      scan: job.scan ?? null,
-      // In-place local jobs open their files in the source panel. Snapshot
-      // branch jobs can't — the temporary copy is gone once the analysis
-      // ends, and the panel says so honestly.
-      sourceRoot: isLocal && !job.viaSnapshot ? repoDir : null,
-    };
+    if (report) {
+      job.result = {
+        report,
+        viewspec,
+        concepts,
+        deps,
+        stack,
+        polyglotSpecs,
+        runtime,
+        cochange,
+        overlap,
+        drift,
+        label: isLocal
+          ? `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from this computer${job.viaSnapshot ? " as a read-only copy" : ""})`
+          : `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from ${hostOf(job.url)})`,
+        scan: job.scan ?? null,
+        // In-place local jobs open their files in the source panel. Snapshot
+        // branch jobs can't — the temporary copy is gone once the analysis
+        // ends, and the panel says so honestly.
+        sourceRoot: isLocal && !job.viaSnapshot ? repoDir : null,
+      };
+    }
     job.state = "done";
   } finally {
+    // Parallel side stages may still be in flight when the read lane failed
+    // (or threw) — let those children settle before wiping the scratch dir
+    // they write into. Every child carries its own timeout, so this always
+    // terminates; on the success path Promise.all already drained them.
+    await Promise.allSettled(inflight);
     // Don't keep clones or scratch files on disk — results live in memory
     // WITH one exception: the finished result itself is persisted once
     // (persistResultToDisk below) so "launch with the last opened
