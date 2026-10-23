@@ -283,17 +283,13 @@ export function ChatPanel() {
       return;
     }
 
-    // ---- fast path 2c: impact / blast-radius questions call the real
-    // engine live (cie impact --symbol) — the one answer this chat can't
-    // pre-compute, since it needs a specific symbol as a target. Only
-    // possible when the project's files are still on disk (sourceRoot);
-    // a cloned URL's checkout is deleted right after ingest. ----
+    // Impact uses the pinned storage revision, including retained URL archives.
     if (!scope && IMPACT_WORDS.test(question)) {
       const target = findSymbolInQuestion(report, question);
       if (target) {
         if (!sourceRoot) {
           respond({
-            content: `Impact analysis for \`${target.qual_name}\` needs this project's files still on disk, and they aren't — it was loaded from a cloned link (deleted right after CIE read it) or uploaded files (never saved to disk). Point CIE at a local folder on this computer to ask this.`,
+            content: `Impact analysis for \`${target.qual_name}\` needs retained storage for this revision. Reconnect the repository to make it available.`,
             instant: true,
           });
           return;

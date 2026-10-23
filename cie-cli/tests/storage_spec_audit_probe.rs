@@ -185,3 +185,142 @@ fn audit_cube_source_with_overlapping_concepts_must_not_be_donut() {
         "Unverified multi-valued categories accepted as a whole/parts donut: {result:?}"
     );
 }
+
+#[test]
+fn cancellation_preserves_the_reader_and_other_queries() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let token = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    assert_eq!(
+        r.retrieve_with_cancel(request(symbols(), vec![entities(10)]), token)
+            .unwrap_err()
+            .code,
+        "Cancelled"
+    );
+    assert!(
+        r.retrieve(request(symbols(), vec![entities(10)]))
+            .unwrap()
+            .matches
+            > 0
+    );
+}
+#[test]
+fn empty_incompatible_sets_are_rejected() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let query = json!({"intersect":[{"select":{"kind":"file","filter":{"ids":[]}}},{"select":{"kind":"symbol","filter":{"ids":[]}}}]});
+    assert_eq!(
+        r.retrieve(request(query, vec![entities(10)]))
+            .unwrap_err()
+            .code,
+        "InvalidRequest"
+    );
+}
+#[test]
+fn derived_projection_cache_obeys_query_and_availability() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let output = |availability: &str| json!({"id":"map","output":{"view":{"kind":"relationships","availability":availability}}});
+    assert!(r
+        .retrieve(request(symbols(), vec![output("stored_only")]))
+        .is_err());
+    r.retrieve(request(symbols(), vec![output("build_if_missing")]))
+        .unwrap();
+    let cached = r
+        .retrieve(request(symbols(), vec![output("stored_only")]))
+        .unwrap();
+    assert_eq!(cached.outputs[0].origin, "cache");
+}
+#[test]
+fn domain_entities_preserve_captured_relationships() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let db = cie_polyglot::schema::open_db(&f.0.join(".cie/revs/1/repository.sqlite")).unwrap();
+    db.execute_batch("PRAGMA foreign_keys=OFF; INSERT INTO state_machines(id,source_symbol_id,name,tier,epistemic,states,transitions) VALUES(999,1,'Audit','T1','Fact','[\"open\",\"closed\"]','[]');").unwrap();
+    drop(db);
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let result=r.retrieve(request(json!({"follow":{"input":{"select":{"kind":"state_machine","filter":{"field":{"field":"name","op":"eq","value":"Audit"}}}},"relation":"state_of","incoming":true}}),vec![entities(10)])).unwrap();
+    assert_eq!(result.matches, 2);
+}
+
+#[test]
+fn scoped_architecture_views_preserve_only_evidenced_matches() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n\ndef two():\n    return 2\n");
+    let snapshot: Value =
+        serde_json::from_slice(&std::fs::read(f.0.join(".cie/revs/1/snapshot.json")).unwrap())
+            .unwrap();
+    let nodes:Vec<Value>=snapshot["symbols"].as_array().unwrap().iter().filter(|s|s["kind"]=="Function").map(|s|json!({"id":s["name"],"label":s["name"],"displayMode":"Fact","evidence":{"file":"app.py","start":s["loc"]["start"],"end":s["loc"]["end"]}})).collect();
+    let bundle = f.0.join(".cie/revs/1/web-bundle.json");
+    let mut data: Value = serde_json::from_slice(&std::fs::read(&bundle).unwrap()).unwrap();
+    data["polyglotSpecs"] =
+        json!({"specs":{"c4":{"elements":nodes,"edges":[],"scope":{"artifact":"c4"}}}});
+    std::fs::write(bundle, serde_json::to_vec(&data).unwrap()).unwrap();
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let query = json!({"select":{"kind":"symbol","filter":{"field":{"field":"name","op":"eq","value":"one"}}}});
+    let result = r
+        .retrieve(request(
+            query,
+            vec![json!({"id":"view","output":{"view":{"kind":"c4"}}})],
+        ))
+        .unwrap();
+    let elements = result.outputs[0].data["specs"]["c4"]["elements"]
+        .as_array()
+        .unwrap();
+    assert_eq!(elements.len(), 1);
+    assert_eq!(elements[0]["label"], "one");
+}
+#[test]
+fn compact_discovery_and_tool_next_actions_are_executable() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n\ndef two():\n    return 2\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let discovery = tools::describe_with_options(
+        &r,
+        serde_json::from_value(json!({"profile":"compact","topics":["limits"]})).unwrap(),
+    )
+    .unwrap();
+    assert!(discovery.get("native_request_schema").is_none());
+    assert!(discovery["capabilities"].get("entities").is_none());
+    let result=tools::retrieve(&r,&json!({"select":{"kind":"symbol"},"outputs":[entities(1)],"response":{"profile":"compact","max_bytes":30000}}).to_string()).unwrap();
+    assert!(!result.evidence.is_empty());
+    assert!(!result.next_actions.is_empty());
+    let next = tools::retrieve(&r, &result.next_actions[0]["arguments"].to_string()).unwrap();
+    assert_ne!(
+        next.outputs[0].data["items"][0]["id"],
+        result.outputs[0].data["items"][0]["id"]
+    );
+}
+
+#[test]
+fn graph_expansion_labels_context_without_changing_matches() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let result = r
+        .retrieve(request(
+            symbols(),
+            vec![
+                json!({"id":"graph","output":{"graph":{"expansion":{"relations":["defined_in"]}}}}),
+            ],
+        ))
+        .unwrap();
+    assert_eq!(result.matches, 1);
+    assert_eq!(
+        result.outputs[0].data["scope"]["matched"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        result.outputs[0].data["scope"]["context"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+}

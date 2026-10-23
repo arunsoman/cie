@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // RFC-0024 stage 3 — the code viewer popup (ux-spec §2 single + §2.2
 // paired). Replaces jump-to-source as the FIRST response to a click that
@@ -68,7 +69,7 @@ function PopupColumn({
   useEffect(() => {
     let dead = false;
     if (sourceRoot) {
-      fetch("/api/fs/file", {
+      repositoryFetch("/api/fs/file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root: sourceRoot, path: loc.file, all: true }),
@@ -78,7 +79,7 @@ function PopupColumn({
           if (dead) return;
           if (d.content != null) {
             cacheSource(loc.file, d.content);
-            setLoaded({ content: d.content, from: `read from ${sourceRoot} on this computer` });
+            setLoaded({ content: d.content, from: `captured source from the loaded repository revision` });
           } else setFailed(d.error ?? "couldn't read that file");
         })
         .catch(() => !dead && setFailed("the connection to your project folder dropped"));

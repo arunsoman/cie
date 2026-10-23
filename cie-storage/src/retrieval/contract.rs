@@ -51,6 +51,34 @@ pub enum EntityKind {
     Finding,
     DuplicatePair,
     Cluster,
+    Route,
+    Framework,
+    Component,
+    Dependency,
+    StateMachine,
+    State,
+    Workflow,
+    Evidence,
+}
+impl EntityKind {
+    pub const ALL: &'static [Self] = &[
+        Self::File,
+        Self::Symbol,
+        Self::Concept,
+        Self::Summary,
+        Self::Contract,
+        Self::Finding,
+        Self::DuplicatePair,
+        Self::Cluster,
+        Self::Route,
+        Self::Framework,
+        Self::Component,
+        Self::Dependency,
+        Self::StateMachine,
+        Self::State,
+        Self::Workflow,
+        Self::Evidence,
+    ];
 }
 /// Typed entity reference. IDs embed the repository and revision; a reference
 /// from another revision is rejected wherever it is validated.
@@ -83,14 +111,33 @@ pub enum RelationKind {
     LeftSymbol,
     RightSymbol,
     CanonicalSymbol,
+    MemberOfComponent,
+    ChildComponentOf,
+    UsesDependency,
+    SourceSymbol,
+    StateOf,
+    HasEvidence,
 }
 impl RelationKind {
     /// Declared endpoint kinds. Incompatible endpoints are validation errors.
     pub fn allows(self, source: EntityKind, target: EntityKind) -> bool {
         use EntityKind::*;
+        if self == Self::HasEvidence {
+            return target == Evidence && source != Evidence;
+        }
         matches!(
             (self, source, target),
-            (RelationKind::DefinedIn, Symbol, File)
+            (RelationKind::MemberOfComponent, Symbol, Component)
+                | (RelationKind::ChildComponentOf, Component, Component)
+                | (RelationKind::UsesDependency, File, Dependency)
+                | (RelationKind::SourceSymbol, StateMachine | Workflow, Symbol)
+                | (RelationKind::StateOf, State, StateMachine)
+                | (
+                    RelationKind::DefinedIn,
+                    Route | Framework | Dependency | Component,
+                    File
+                )
+                | (RelationKind::DefinedIn, Symbol, File)
                 | (RelationKind::Calls, Symbol, Symbol)
                 | (RelationKind::MemberOfConcept, Symbol, Concept)
                 | (RelationKind::MemberOfConcept, File, Concept)
@@ -239,6 +286,8 @@ pub enum Output {
         page: PageRequest,
     },
     Graph {
+        #[serde(default)]
+        expansion: Option<GraphExpansion>,
         #[serde(default = "default_nodes")]
         max_nodes: usize,
         #[serde(default = "default_edges")]
@@ -520,6 +569,8 @@ pub enum TimeUnit {
     Minutes,
     Hours,
     Days,
+    Months,
+    Years,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -617,6 +668,21 @@ pub struct Response {
     pub matches: usize,
     pub coverage: Value,
     pub outputs: Vec<OutputResult>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub evidence: BTreeMap<String, Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub next_actions: Vec<Value>,
+    pub limits: Value,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GraphExpansion {
+    #[serde(default)]
+    pub relations: Vec<RelationKind>,
+    #[serde(default)]
+    pub incoming: bool,
+    #[serde(default = "one")]
+    pub max_depth: u8,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutputResult {
@@ -624,6 +690,8 @@ pub struct OutputResult {
     pub status: String,
     pub schema_version: u32,
     pub origin: String,
+    pub kind: String,
+    pub filter_application: String,
     pub data: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<StorageError>,

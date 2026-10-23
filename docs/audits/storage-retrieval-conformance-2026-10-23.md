@@ -168,3 +168,14 @@ a repaired implementation should make them pass.
 
 No production fixes are included in this audit. Existing tests and the conformance
 probes answer different questions; both results must be retained for sign-off.
+
+## Follow-up implementation status
+
+This document above preserves the original baseline audit. Its seven reproduced
+failures have since been fixed and installed in the regular integration suite at
+`cie-cli/tests/storage_spec_audit_probe.rs`. The current implementation also adds
+retained job archives, storage-backed UI charts/source, domain entities,
+calendar/IANA buckets, graph expansion, scoped projections/cache, request
+cancellation, compact model discovery/evidence/actions and deployment packaging.
+See `docs/storage-retrieval-implementation.md` for current scope and remaining
+limits; this historical audit is not a fresh full-spec sign-off.

@@ -29,6 +29,7 @@ pub struct RevisionReader {
     pub(crate) artifacts: Value,
     pub(crate) secret: String,
     pub(crate) policy: crate::StoragePolicy,
+    projections: std::cell::RefCell<BTreeMap<String, (Value, usize)>>,
 }
 impl Storage {
     pub fn open(root: &Path, policy: crate::StoragePolicy) -> Result<Self> {
@@ -223,6 +224,7 @@ impl Storage {
             artifacts,
             secret,
             policy: self.policy.clone(),
+            projections: Default::default(),
         })
     }
 }
@@ -230,9 +232,13 @@ pub(crate) struct Execution {
     deadline: Instant,
     max_visited: usize,
     visited: usize,
+    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl Execution {
     pub(crate) fn check(&mut self, n: usize) -> Result<()> {
+        if self.cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(StorageError::new("Cancelled", "Retrieval cancelled"));
+        }
         self.visited = self.visited.saturating_add(n);
         if Instant::now() > self.deadline || self.visited > self.max_visited {
             Err(StorageError::new(
@@ -249,9 +255,72 @@ impl RevisionReader {
         &self.revision
     }
     pub fn capabilities(&self) -> Value {
-        json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster"],"relationships":["defined_in","calls","member_of_concept","child_concept_of","member_of_cluster","summarizes","constrains","left_symbol","right_symbol","canonical_symbol"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":{"source":{"ranges":["declaration","whole_file","bytes"],"context_lines":true,"truncation_continuation":true},"function_ir":{"include_calls":true},"impact":{"availability":["build_if_missing"]}},"compare_ops":["eq","in","prefix","contains","prefix_fold","contains_fold","gt","ge","lt","le"],"quantifiers":["any","none","all"],"membership_scopes":["direct","include_descendants"],"dimensions":["file.path","language","entity_kind","kind","concept","cluster"],"hierarchies":{"file.path":{"levels":["file","directory"]}},"bucketing":{"numeric":{"boundary_rule":"lower_inclusive_upper_exclusive"},"time":{"timezones":"utc_or_fixed_offset_only","units":["seconds","minutes","hours","days"]}},"facets":{"self_exclusion":true},"cube_limits":{"dimensions":8,"measures":32,"evaluated_groups":1_000_000},"details_list":["source","function_ir","impact"],"artifact_kinds":["report","viewspec","concepts","stack","deps","runtime","stories","quality","overlap","drift","cochange","fault","polyglotSpecs","bootstrap"],"view_renderers":["viz-adapter","cie-polyglot","cie-cube"],"symbol_resolution":true,"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16_777_216,"cursor_ttl_seconds":CURSOR_TTL_SECS},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution","component_hierarchy","calendar_time_units"]})
+        json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster","route","framework","component","dependency","state_machine","state","workflow","evidence"],"relationships":["defined_in","calls","member_of_concept","child_concept_of","member_of_cluster","summarizes","constrains","left_symbol","right_symbol","canonical_symbol","member_of_component","child_component_of","uses_dependency","source_symbol","state_of","has_evidence"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":{"source":{"ranges":["declaration","whole_file","bytes"],"context_lines":true,"truncation_continuation":true},"function_ir":{"include_calls":true},"impact":{"availability":["build_if_missing"]}},"compare_ops":["eq","in","prefix","contains","prefix_fold","contains_fold","gt","ge","lt","le"],"quantifiers":["any","none","all"],"membership_scopes":["direct","include_descendants"],"dimensions":["file.path","language","entity_kind","kind","concept","cluster"],"hierarchies":{"file.path":{"levels":["file","directory"]}},"bucketing":{"numeric":{"boundary_rule":"lower_inclusive_upper_exclusive"},"time":{"timezones":"iana_or_fixed_offset","units":["seconds","minutes","hours","days","months","years"]}},"facets":{"self_exclusion":true},"cube_limits":{"dimensions":8,"measures":32,"evaluated_groups":1_000_000},"details_list":["source","function_ir","impact"],"artifact_kinds":["report","viewspec","concepts","stack","deps","runtime","stories","quality","overlap","drift","cochange","fault","polyglotSpecs","bootstrap"],"projection_providers":[{"id":"relationships","version":1,"scope":"matches","renderer":"viz-adapter"},{"id":"cube","version":1,"scope":"output","kinds":["table","hbar","heatmap","stat","donut"],"renderer":"cie-cube"},{"id":"architecture","version":1,"scope":"evidenced_matches","availability":["stored_only","build_if_missing"],"renderer":"cie-polyglot"}],"projection_cache":{"entries":32,"max_bytes":8388608,"max_entry_bytes":1048576,"version":1,"scope":"reader"},"view_renderers":["viz-adapter","cie-polyglot","cie-cube"],"symbol_resolution":true,"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16_777_216,"cursor_ttl_seconds":CURSOR_TTL_SECS},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution"]})
+    }
+    /// Bound compatibility and resolver SQL too; all public transports share
+    /// the same cancellation flag without taking the reader registry lock.
+    pub fn run_bounded<T>(
+        &self,
+        cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        action: impl FnOnce() -> Result<T>,
+    ) -> Result<T> {
+        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(StorageError::new("Cancelled", "Request cancelled"));
+        }
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let token = cancelled.clone();
+        self.conn.progress_handler(
+            1000,
+            Some(move || {
+                Instant::now() > deadline || token.load(std::sync::atomic::Ordering::Relaxed)
+            }),
+        );
+        struct Reset<'a>(&'a Connection);
+        impl Drop for Reset<'_> {
+            fn drop(&mut self) {
+                self.0.progress_handler(0, None::<fn() -> bool>);
+            }
+        }
+        let _reset = Reset(&self.conn);
+        let result = action();
+        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(StorageError::new("Cancelled", "Request cancelled"));
+        }
+        if Instant::now() > deadline {
+            return Err(StorageError::new(
+                "BudgetExceeded",
+                "Request deadline exceeded",
+            ));
+        }
+        result
     }
     pub fn retrieve(&self, request: Request) -> Result<Response> {
+        self.retrieve_with_cancel(request, Default::default())
+    }
+    pub fn retrieve_with_cancel(
+        &self,
+        request: Request,
+        cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<Response> {
+        let timeout = Duration::from_millis(request.budget.timeout_ms);
+        let started = Instant::now();
+        let result = self.retrieve_inner(request, cancelled.clone());
+        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(StorageError::new("Cancelled", "Retrieval cancelled"));
+        }
+        if result.is_err() && started.elapsed() >= timeout {
+            return Err(StorageError::new(
+                "BudgetExceeded",
+                "Retrieval deadline exceeded",
+            ));
+        }
+        result
+    }
+    fn retrieve_inner(
+        &self,
+        request: Request,
+        cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<Response> {
         if request.api_version != 1 || request.outputs.is_empty() || request.outputs.len() > 16 {
             return Err(StorageError::new(
                 "InvalidRequest",
@@ -280,24 +349,25 @@ impl RevisionReader {
             deadline: Instant::now() + Duration::from_millis(request.budget.timeout_ms),
             max_visited: request.budget.max_visited,
             visited: 0,
+            cancelled: cancelled.clone(),
         };
+        ex.check(0)?;
+        struct ResetProgress<'a>(&'a Connection);
+        impl Drop for ResetProgress<'_> {
+            fn drop(&mut self) {
+                self.0.progress_handler(0, None::<fn() -> bool>);
+            }
+        }
+        let _reset = ResetProgress(&self.conn);
         let deadline = ex.deadline;
-        self.conn
-            .progress_handler(1000, Some(move || Instant::now() > deadline));
-        // Duplicate data is only needed when referenced by the query or projection.
-        let plan = serde_json::to_string(&request)?;
-        let duplicates = [
-            "duplicate_pair",
-            "cluster",
-            "member_of_cluster",
-            "left_symbol",
-            "right_symbol",
-            "canonical_symbol",
-            "cell_contributors",
-        ]
-        .iter()
-        .any(|name| plan.contains(&format!("\"{name}\"")));
-        let dataset = self.dataset_with_duplicates(&mut ex, duplicates)?;
+        self.conn.progress_handler(
+            1000,
+            Some(move || {
+                Instant::now() > deadline || cancelled.load(std::sync::atomic::Ordering::Relaxed)
+            }),
+        );
+        let (duplicates, domains) = query::dataset_needs(&request)?;
+        let dataset = self.dataset_with_duplicates(&mut ex, duplicates, domains)?;
         let matches = self.evaluate(&request.query, &dataset, &mut ex, 0)?;
         let hash = blake3::hash(&serde_json::to_vec(&request.query)?)
             .to_hex()
@@ -350,15 +420,55 @@ impl RevisionReader {
         for index in order {
             let output = &request.outputs[index];
             ex.check(0)?;
-            let result = self.output(
-                &output.output,
-                &request.query,
-                &matches,
-                &dataset,
-                &hash,
-                &mut ex,
-                &prior,
-            );
+            let cache_key = if let Output::View { source, .. } = &output.output {
+                let mut definition = serde_json::to_value(&output.output)?;
+                definition["view"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("availability");
+                let dependency = if let ViewSource::Output(id) = source {
+                    prior.get(id)
+                } else {
+                    None
+                };
+                Some(blake3::hash(&serde_json::to_vec(&json!({"provider_version":1,"revision":self.revision,"query":hash,"definition":definition,"dependency":dependency}))?).to_hex().to_string())
+            } else {
+                None
+            };
+            let cached = cache_key.as_ref().and_then(|key| {
+                self.projections
+                    .borrow()
+                    .get(key)
+                    .map(|entry| entry.0.clone())
+            });
+            let from_cache = cached.is_some();
+            let result = if let Some(data) = cached {
+                Ok(data)
+            } else {
+                self.output(
+                    &output.output,
+                    &request.query,
+                    &matches,
+                    &dataset,
+                    &hash,
+                    &mut ex,
+                    &prior,
+                )
+            };
+            if let (Some(key), Ok(data)) = (cache_key, &result) {
+                let bytes = serde_json::to_vec(data)?.len();
+                if data["truncated"] != json!(true) && bytes <= 1024 * 1024 {
+                    let mut cache = self.projections.borrow_mut();
+                    cache.remove(&key);
+                    while cache.len() >= 32
+                        || cache.values().map(|entry| entry.1).sum::<usize>() + bytes
+                            > 8 * 1024 * 1024
+                    {
+                        cache.pop_first();
+                    }
+                    cache.insert(key, (data.clone(), bytes));
+                }
+            }
             let (status, data, error) = match result {
                 Ok(data) => {
                     let status = if data.get("truncated") == Some(&json!(true)) {
@@ -393,8 +503,26 @@ impl RevisionReader {
                     id: output.id.clone(),
                     status,
                     schema_version: 1,
-                    origin: if matches!(output.output, Output::Artifact { .. } | Output::Detail(_))
-                    {
+                    kind: serde_json::to_value(&output.output)?
+                        .as_object()
+                        .unwrap()
+                        .keys()
+                        .next()
+                        .unwrap()
+                        .clone(),
+                    filter_application: if matches!(output.output, Output::Artifact { .. }) {
+                        "inapplicable"
+                    } else {
+                        "applied"
+                    }
+                    .into(),
+                    origin: if from_cache {
+                        "cache"
+                    } else if matches!(
+                        output.output,
+                        Output::Artifact { .. }
+                            | Output::Detail(Detail::Source { .. } | Detail::FunctionIr { .. })
+                    ) {
                         "stored"
                     } else {
                         "derived"
@@ -413,6 +541,9 @@ impl RevisionReader {
             matches: matches.len(),
             coverage: self.snapshot["coverage"].clone(),
             outputs: results.into_values().collect(),
+            evidence: Default::default(),
+            next_actions: Vec::new(),
+            limits: json!({"timeout_ms":request.budget.timeout_ms,"max_visited":request.budget.max_visited,"max_response_bytes":request.budget.max_response_bytes}),
         };
         if serde_json::to_vec(&response)?.len() > request.budget.max_response_bytes {
             return Err(StorageError::new(

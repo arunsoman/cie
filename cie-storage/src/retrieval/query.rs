@@ -8,12 +8,13 @@ impl RevisionReader {
         format!("{}:{}:{kind}:{id}", &self.repository[..16], self.revision)
     }
     pub(crate) fn dataset(&self, ex: &mut Execution) -> Result<Dataset> {
-        self.dataset_with_duplicates(ex, true)
+        self.dataset_with_duplicates(ex, false, false)
     }
     pub(crate) fn dataset_with_duplicates(
         &self,
         ex: &mut Execution,
         duplicates: bool,
+        domains: bool,
     ) -> Result<Dataset> {
         let mut ds = Dataset {
             entities: BTreeMap::new(),
@@ -241,6 +242,200 @@ impl RevisionReader {
                 )?;
             }
         }
+        if domains {
+            // Project captured domain facts into the same identity/relationship space.
+            // SQL identifiers are fixed here, never supplied by callers.
+            for (kind, key, tag) in [
+                (EntityKind::Route, "routes", "route"),
+                (EntityKind::Framework, "frameworks", "framework"),
+            ] {
+                for (index, record) in self.snapshot["stack"][key]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .enumerate()
+                {
+                    let mut value = record.clone();
+                    let path = record["rel"].as_str().or_else(|| {
+                        record["evidence"]
+                            .as_str()
+                            .filter(|p| paths.contains_key(*p))
+                    });
+                    let id = self.id(tag, index);
+                    if let Some(path) = path {
+                        value["file"] = json!({"path":path});
+                        value["location"] = json!({"file":path,"line":record["line"]});
+                        if let Some(file) = paths.get(path) {
+                            ds.edges.push(Edge {
+                                source: id.clone(),
+                                target: file.clone(),
+                                relation: RelationKind::DefinedIn,
+                            });
+                        }
+                    }
+                    add(&mut ds, ex, kind, id, value)?;
+                }
+            }
+            for (index, record) in self.artifacts["deps"]["table"]["deps"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .enumerate()
+            {
+                let id = self.id("dependency", index);
+                add(
+                    &mut ds,
+                    ex,
+                    EntityKind::Dependency,
+                    id.clone(),
+                    record.clone(),
+                )?;
+                if let Some(file) = record["source"].as_str().and_then(|p| paths.get(p)) {
+                    ds.edges.push(Edge {
+                        source: id.clone(),
+                        target: file.clone(),
+                        relation: RelationKind::DefinedIn,
+                    });
+                }
+                for usage in self.artifacts["deps"]["usage"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|u| {
+                        u["name"] == record["name"] && u["ecosystem"] == record["ecosystem"]
+                    })
+                {
+                    for path in usage["imported_by"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                    {
+                        if let Some(file) = paths.get(path) {
+                            ds.edges.push(Edge {
+                                source: file.clone(),
+                                target: id.clone(),
+                                relation: RelationKind::UsesDependency,
+                            });
+                        }
+                    }
+                }
+            }
+            for (table, kind, tag, source_key) in [
+                ("concept_nodes", EntityKind::Component, "component", ""),
+                (
+                    "state_machines",
+                    EntityKind::StateMachine,
+                    "state_machine",
+                    "source_symbol_id",
+                ),
+                (
+                    "workflows",
+                    EntityKind::Workflow,
+                    "workflow",
+                    "entry_symbol_id",
+                ),
+            ] {
+                for mut row in self.rows(
+                    &format!("SELECT * FROM {table} ORDER BY id LIMIT ?1"),
+                    &[&limit],
+                )? {
+                    let n = row["id"].as_i64().unwrap();
+                    let id = self.id(tag, n);
+                    if let Some(symbol) = row[source_key].as_i64().and_then(|n| poly.get(&n)) {
+                        ds.edges.push(Edge {
+                            source: id.clone(),
+                            target: symbol.clone(),
+                            relation: RelationKind::SourceSymbol,
+                        });
+                    }
+                    if kind == EntityKind::StateMachine {
+                        for field in ["states", "transitions"] {
+                            if let Some(text) = row[field].as_str() {
+                                row[field] = serde_json::from_str(text).map_err(|_| {
+                                    StorageError::new(
+                                        "CorruptData",
+                                        "Invalid captured state-machine JSON",
+                                    )
+                                })?;
+                            }
+                        }
+                        for (index, state) in
+                            row["states"].as_array().into_iter().flatten().enumerate()
+                        {
+                            let state_id = self.id("state", format!("{n}:{index}"));
+                            add(
+                                &mut ds,
+                                ex,
+                                EntityKind::State,
+                                state_id.clone(),
+                                json!({"name":state,"machine":id,"epistemic":row["epistemic"]}),
+                            )?;
+                            ds.edges.push(Edge {
+                                source: state_id,
+                                target: id.clone(),
+                                relation: RelationKind::StateOf,
+                            });
+                        }
+                    }
+                    add(&mut ds, ex, kind, id, row)?;
+                }
+            }
+            for row in self.rows(
+                "SELECT * FROM concept_node_symbols ORDER BY concept_id,symbol_id LIMIT ?1",
+                &[&limit],
+            )? {
+                if let Some(symbol) = row["symbol_id"].as_i64().and_then(|n| poly.get(&n)) {
+                    ds.edges.push(Edge {
+                        source: symbol.clone(),
+                        target: self.id("component", row["concept_id"].as_i64().unwrap()),
+                        relation: RelationKind::MemberOfComponent,
+                    });
+                }
+            }
+            for row in self.rows(
+                "SELECT * FROM concept_edges ORDER BY parent_id,child_id LIMIT ?1",
+                &[&limit],
+            )? {
+                ds.edges.push(Edge {
+                    source: self.id("component", row["child_id"].as_i64().unwrap()),
+                    target: self.id("component", row["parent_id"].as_i64().unwrap()),
+                    relation: RelationKind::ChildComponentOf,
+                });
+            }
+            let evidence: Vec<_> = ds
+                .entities
+                .values()
+                .filter_map(|entity| {
+                    entity
+                        .fields
+                        .get("location")
+                        .filter(|v| !v.is_null())
+                        .map(|location| {
+                            (
+                                entity.id.clone(),
+                                location.clone(),
+                                entity.fields.get("epistemic").cloned(),
+                            )
+                        })
+                })
+                .collect();
+            for (index, (source, location, epistemic)) in evidence.into_iter().enumerate() {
+                let id = self.id("evidence", index);
+                add(
+                    &mut ds,
+                    ex,
+                    EntityKind::Evidence,
+                    id.clone(),
+                    json!({"entity":source,"location":location,"revision":self.revision,"epistemic":epistemic,"source_kind":"captured_revision"}),
+                )?;
+                ds.edges.push(Edge {
+                    source,
+                    target: id,
+                    relation: RelationKind::HasEvidence,
+                });
+            }
+        }
         ds.edges
             .retain(|e| ds.entities.contains_key(&e.source) && ds.entities.contains_key(&e.target));
         ex.check(ds.edges.len())?;
@@ -276,6 +471,16 @@ impl RevisionReader {
                 if qs.is_empty() {
                     return Err(StorageError::new("InvalidRequest", "Empty set expression"));
                 }
+                let expected = kinds_of(&qs[0], ds, depth + 1)?;
+                for operand in &qs[1..] {
+                    let actual = kinds_of(operand, ds, depth + 1)?;
+                    if !expected.is_empty() && !actual.is_empty() && expected != actual {
+                        return Err(StorageError::new(
+                            "InvalidRequest",
+                            "Set operands must have compatible entity kinds",
+                        ));
+                    }
+                }
                 let mut result = self.evaluate(&qs[0], ds, ex, depth + 1)?;
                 for operand in &qs[1..] {
                     let next = self.evaluate(operand, ds, ex, depth + 1)?;
@@ -289,6 +494,14 @@ impl RevisionReader {
                 Ok(result)
             }
             Query::Difference { left, right } => {
+                let a_kind = kinds_of(left, ds, depth + 1)?;
+                let b_kind = kinds_of(right, ds, depth + 1)?;
+                if !a_kind.is_empty() && !b_kind.is_empty() && a_kind != b_kind {
+                    return Err(StorageError::new(
+                        "InvalidRequest",
+                        "Set operands must have compatible entity kinds",
+                    ));
+                }
                 let a = self.evaluate(left, ds, ex, depth + 1)?;
                 let b = self.evaluate(right, ds, ex, depth + 1)?;
                 self.compatible_sets(&a, &b, ds)?;
@@ -434,7 +647,7 @@ impl RevisionReader {
                 if !ds
                     .entities
                     .values()
-                    .any(|e| field_value(e, field).is_some())
+                    .any(|e| e.kind == kind && field_value(e, field).is_some())
                 {
                     return Err(StorageError::new(
                         "UnsupportedQuery",
@@ -715,18 +928,13 @@ pub(crate) fn kinds_of(q: &Query, ds: &Dataset, depth: usize) -> Result<BTreeSet
                 kinds.extend(kinds_of(input, ds, depth + 1)?);
             }
             for source in kinds_of(input, ds, depth + 1)? {
-                for edge in &ds.edges {
-                    if edge.relation == *relation {
-                        let (from, to) = if *incoming {
-                            (&edge.target, &edge.source)
-                        } else {
-                            (&edge.source, &edge.target)
-                        };
-                        if ds.entities.get(from).map(|e| e.kind) == Some(source) {
-                            if let Some(e) = ds.entities.get(to) {
-                                kinds.insert(e.kind);
-                            }
-                        }
+                for target in EntityKind::ALL {
+                    if if *incoming {
+                        relation.allows(*target, source)
+                    } else {
+                        relation.allows(source, *target)
+                    } {
+                        kinds.insert(*target);
                     }
                 }
             }
@@ -744,22 +952,14 @@ pub(crate) fn relation_allows_direction(
     incoming: bool,
     ds: &Dataset,
 ) -> bool {
-    for edge in &ds.edges {
-        if edge.relation != relation {
-            continue;
-        }
-        let source = ds.entities.get(&edge.source).map(|e| e.kind);
-        let target = ds.entities.get(&edge.target).map(|e| e.kind);
-        let allowed = if incoming {
-            matches!((target, source), (Some(k), Some(_)) if k == from_kind)
+    let _ = ds;
+    EntityKind::ALL.iter().copied().any(|other| {
+        if incoming {
+            relation.allows(other, from_kind)
         } else {
-            matches!((source, target), (Some(k), Some(_)) if k == from_kind)
-        };
-        if allowed {
-            return true;
+            relation.allows(from_kind, other)
         }
-    }
-    false
+    })
 }
 
 /// Remove exactly the tagged dimension's own field filters from a top-level
@@ -847,6 +1047,7 @@ impl RevisionReader {
             deadline: Instant::now() + Duration::from_secs(30),
             max_visited: 1_000_000,
             visited: 0,
+            cancelled: Default::default(),
         };
         let ds = self.dataset(&mut ex)?;
         let file = match &lookup {
@@ -952,4 +1153,124 @@ impl RevisionReader {
             kind: e.fields.get("kind").and_then(Value::as_str).map(Into::into),
         }
     }
+}
+
+/// Inspect typed expressions, never user string values, to decide which
+/// optional fact families this retrieval can reach.
+pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
+    fn relation(r: RelationKind, needs: &mut (bool, bool)) {
+        needs.0 |= matches!(
+            r,
+            RelationKind::MemberOfCluster
+                | RelationKind::LeftSymbol
+                | RelationKind::RightSymbol
+                | RelationKind::CanonicalSymbol
+        );
+        needs.1 |= matches!(
+            r,
+            RelationKind::MemberOfComponent
+                | RelationKind::ChildComponentOf
+                | RelationKind::UsesDependency
+                | RelationKind::SourceSymbol
+                | RelationKind::StateOf
+                | RelationKind::HasEvidence
+        );
+    }
+    fn predicate(p: &Predicate, needs: &mut (bool, bool), depth: usize) -> Result<()> {
+        if depth > 32 {
+            return Err(StorageError::new(
+                "InvalidRequest",
+                "Predicate nesting exceeds policy",
+            ));
+        }
+        match p {
+            Predicate::And(ps) | Predicate::Or(ps) => {
+                for p in ps {
+                    predicate(p, needs, depth + 1)?;
+                }
+            }
+            Predicate::Not(p) => predicate(p, needs, depth + 1)?,
+            Predicate::Related {
+                relation: r,
+                target,
+                ..
+            } => {
+                relation(*r, needs);
+                query(target, needs, depth + 1)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    fn query(q: &Query, needs: &mut (bool, bool), depth: usize) -> Result<()> {
+        if depth > 32 {
+            return Err(StorageError::new(
+                "InvalidRequest",
+                "Query nesting exceeds policy",
+            ));
+        }
+        match q {
+            Query::Select { kind, filter } => {
+                needs.0 |= matches!(kind, EntityKind::DuplicatePair | EntityKind::Cluster);
+                needs.1 |= !matches!(
+                    kind,
+                    EntityKind::File
+                        | EntityKind::Symbol
+                        | EntityKind::Concept
+                        | EntityKind::Summary
+                        | EntityKind::Contract
+                        | EntityKind::Finding
+                        | EntityKind::DuplicatePair
+                        | EntityKind::Cluster
+                );
+                predicate(filter, needs, depth + 1)?;
+            }
+            Query::Union(qs) | Query::Intersect(qs) => {
+                for q in qs {
+                    query(q, needs, depth + 1)?;
+                }
+            }
+            Query::Difference { left, right } => {
+                query(left, needs, depth + 1)?;
+                query(right, needs, depth + 1)?;
+            }
+            Query::Follow {
+                input, relation: r, ..
+            } => {
+                relation(*r, needs);
+                query(input, needs, depth + 1)?;
+            }
+            Query::CellContributors { .. } => *needs = (true, true),
+        }
+        Ok(())
+    }
+    let mut needs = (false, false);
+    query(&request.query, &mut needs, 0)?;
+    for named in &request.outputs {
+        match &named.output {
+            Output::Cube(c) => {
+                for d in &c.dimensions {
+                    if let DimensionRef::RelatedEntity { relation_path, .. } = &d.dimension {
+                        for step in relation_path {
+                            relation(step.relation, &mut needs);
+                        }
+                    }
+                }
+            }
+            Output::Graph {
+                expansion: Some(expansion),
+                ..
+            } => {
+                if expansion.relations.is_empty() {
+                    needs = (true, true);
+                } else {
+                    for r in &expansion.relations {
+                        relation(*r, &mut needs);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(needs)
 }

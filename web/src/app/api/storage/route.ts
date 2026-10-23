@@ -13,6 +13,6 @@ export async function POST(req:NextRequest){
       return NextResponse.json(await storageCall({op:body.op,root:root.path,revision:body.revision,limit:body.limit,after:body.after}));
     }
     if(!['describe','retrieve','tool_retrieve','resolve','capabilities','close'].includes(String(body.op)) || typeof body.context!=='string')return NextResponse.json({error:'Unknown operation or missing context'},{status:400});
-    return NextResponse.json(await storageCall({op:body.op,context:body.context,request:body.request,lookup:body.lookup}));
+    return NextResponse.json(await storageCall({op:body.op,context:body.context,request:body.request,lookup:body.lookup},req.signal));
   }catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Storage request failed',code:error instanceof StorageFailure?error.code:'Io'},{status:error instanceof StorageFailure&&error.code==='CursorExpired'?410:400});}
 }

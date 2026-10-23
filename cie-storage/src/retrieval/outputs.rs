@@ -221,6 +221,7 @@ impl RevisionReader {
                 o,
             ),
             Output::Graph {
+                expansion,
                 max_nodes,
                 max_edges,
             } => {
@@ -230,7 +231,46 @@ impl RevisionReader {
                         "Graph limits exceed policy",
                     ));
                 }
-                let ids: Vec<_> = matches.iter().take(*max_nodes).cloned().collect();
+                let mut selected = matches.clone();
+                let mut context_truncated = false;
+                if let Some(expansion) = expansion {
+                    if expansion.max_depth == 0 || expansion.max_depth > 8 {
+                        return Err(StorageError::new(
+                            "InvalidRequest",
+                            "Graph expansion depth must be 1..8",
+                        ));
+                    }
+                    let mut frontier = matches.clone();
+                    for _ in 0..expansion.max_depth {
+                        let mut next = BTreeSet::new();
+                        for edge in &ds.edges {
+                            ex.check(1)?;
+                            if !expansion.relations.is_empty()
+                                && !expansion.relations.contains(&edge.relation)
+                            {
+                                continue;
+                            }
+                            let (from, to) = if expansion.incoming {
+                                (&edge.target, &edge.source)
+                            } else {
+                                (&edge.source, &edge.target)
+                            };
+                            if frontier.contains(from) && !selected.contains(to) {
+                                if selected.len() < *max_nodes {
+                                    selected.insert(to.clone());
+                                    next.insert(to.clone());
+                                } else {
+                                    context_truncated = true;
+                                }
+                            }
+                        }
+                        frontier = next;
+                        if frontier.is_empty() {
+                            break;
+                        }
+                    }
+                }
+                let ids: Vec<_> = selected.iter().take(*max_nodes).cloned().collect();
                 let ids_ref: BTreeSet<_> = ids.iter().cloned().collect();
                 let edges: Vec<_> = ds
                     .edges
@@ -238,7 +278,7 @@ impl RevisionReader {
                     .filter(|e| ids_ref.contains(&e.source) && ids_ref.contains(&e.target))
                     .collect();
                 Ok(
-                    json!({"nodes":ids.iter().map(|id|&ds.entities[id]).collect::<Vec<_>>(),"edges":edges.iter().take(*max_edges).collect::<Vec<_>>(),"truncated":ids_ref.len()<matches.len()||edges.len()>*max_edges}),
+                    json!({"nodes":ids.iter().map(|id|&ds.entities[id]).collect::<Vec<_>>(),"edges":edges.iter().take(*max_edges).collect::<Vec<_>>(),"truncated":ids_ref.len()<matches.len()||edges.len()>*max_edges||context_truncated,"scope":{"matched":ids_ref.intersection(matches).collect::<Vec<_>>(),"context":ids_ref.difference(matches).collect::<Vec<_>>(),"expansion":expansion}}),
                 )
             }
             Output::Evidence { page } => {
@@ -343,39 +383,158 @@ impl RevisionReader {
                     }
                     return self.relationship_view(matches, ds, *max_nodes, *max_edges);
                 }
-                let bundle = self.artifact(&ArtifactKind::ArchitectureBundle)?;
-                let specs = bundle["specs"].as_object().ok_or_else(|| {
-                    StorageError::new("ArtifactUnavailable", "Architecture bundle unavailable")
-                })?;
-                // Stored architecture views currently have repository scope; never silently broaden a selection.
-                if matches.len()
-                    != ds
-                        .entities
-                        .values()
-                        .filter(|e| e.kind == EntityKind::File)
-                        .count()
-                    || matches
-                        .iter()
-                        .any(|id| ds.entities[id].kind != EntityKind::File)
-                {
+                if *max_nodes == 0 || *max_nodes > 2000 || *max_edges > 10000 {
                     return Err(StorageError::new(
-                        "ProjectionUnavailable",
-                        "Stored architecture views require a whole-repository file selection",
+                        "InvalidRequest",
+                        "Projection limits exceed policy",
                     ));
                 }
-                let selected: serde_json::Map<String, Value> = specs
-                    .iter()
-                    .filter(|(k, _)| k.starts_with(kind))
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect();
+                let bundle = match self.artifact(&ArtifactKind::ArchitectureBundle) {
+                    Ok(bundle) => bundle,
+                    Err(_) if *availability == AvailabilityPolicy::BuildIfMissing => {
+                        cie_polyglot::viewspec::produce_bundle(&self.conn)
+                            .map_err(|e| StorageError::new("ProjectionUnavailable", e))?
+                    }
+                    Err(error) => return Err(error),
+                };
+                let specs = bundle["specs"].as_object().ok_or_else(|| {
+                    StorageError::new("ProjectionUnavailable", "Architecture bundle unavailable")
+                })?;
+                let whole_repository = !matches.is_empty()
+                    && matches.len()
+                        == ds
+                            .entities
+                            .values()
+                            .filter(|e| e.kind == EntityKind::File)
+                            .count()
+                    && matches
+                        .iter()
+                        .all(|id| ds.entities[id].kind == EntityKind::File);
+                if !whole_repository && *availability == AvailabilityPolicy::StoredOnly {
+                    return Err(StorageError::new(
+                        "ProjectionUnavailable",
+                        "Scoped projection is not cached; request build_if_missing",
+                    ));
+                }
+                let mut selected_entities = matches.clone();
+                for edge in &ds.edges {
+                    if matches.contains(&edge.target)
+                        && matches!(
+                            edge.relation,
+                            RelationKind::MemberOfConcept | RelationKind::MemberOfComponent
+                        )
+                    {
+                        selected_entities.insert(edge.source.clone());
+                    }
+                    if matches.contains(&edge.source) && edge.relation == RelationKind::SourceSymbol
+                    {
+                        selected_entities.insert(edge.target.clone());
+                    }
+                }
+                let relevant = |evidence: &Value| {
+                    whole_repository
+                        || selected_entities.iter().any(|id| {
+                            let entity = &ds.entities[id];
+                            if entity.kind == EntityKind::File {
+                                return entity.fields.get("path") == evidence.get("file");
+                            }
+                            let location = &entity
+                                .fields
+                                .get("location")
+                                .cloned()
+                                .unwrap_or(Value::Null);
+                            location["file"] == evidence["file"]
+                                && location["start"]
+                                    .as_u64()
+                                    .zip(location["end"].as_u64())
+                                    .zip(evidence["start"].as_u64().zip(evidence["end"].as_u64()))
+                                    .is_some_and(|((a, b), (c, d))| a <= d && c <= b)
+                        })
+                };
+                let mut selected = serde_json::Map::new();
+                let mut omitted = 0usize;
+                let mut truncated = false;
+                for (name, stored) in specs.iter().filter(|(name, _)| name.starts_with(kind)) {
+                    ex.check(1)?;
+                    let elements = stored["elements"].as_array().ok_or_else(|| {
+                        StorageError::new("CorruptData", "Stored projection elements missing")
+                    })?;
+                    let mut ids: BTreeSet<String> = elements
+                        .iter()
+                        .filter(|element| relevant(&element["evidence"]))
+                        .filter_map(|element| element["id"].as_str().map(str::to_owned))
+                        .collect();
+                    if ids.is_empty() {
+                        continue;
+                    }
+                    let matched = ids.clone();
+                    loop {
+                        let before = ids.len();
+                        for element in elements {
+                            if element["id"].as_str().is_some_and(|id| ids.contains(id)) {
+                                if let Some(parent) = element["parentId"].as_str() {
+                                    ids.insert(parent.into());
+                                }
+                            }
+                        }
+                        if ids.len() == before {
+                            break;
+                        }
+                        ex.check(elements.len())?;
+                    }
+                    let mut kept: Vec<_> = elements
+                        .iter()
+                        .filter(|element| element["id"].as_str().is_some_and(|id| ids.contains(id)))
+                        .take(*max_nodes)
+                        .cloned()
+                        .collect();
+                    let kept_ids: BTreeSet<_> = kept
+                        .iter()
+                        .filter_map(|e| e["id"].as_str().map(str::to_owned))
+                        .collect();
+                    for element in &mut kept {
+                        if element["parentId"]
+                            .as_str()
+                            .is_some_and(|id| !kept_ids.contains(id))
+                        {
+                            element.as_object_mut().unwrap().remove("parentId");
+                        }
+                    }
+                    let all_edges: Vec<_> = stored["edges"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter(|edge| {
+                            edge["source"]
+                                .as_str()
+                                .is_some_and(|id| kept_ids.contains(id))
+                                && edge["target"]
+                                    .as_str()
+                                    .is_some_and(|id| kept_ids.contains(id))
+                        })
+                        .cloned()
+                        .collect();
+                    truncated |= ids.len() > kept.len() || all_edges.len() > *max_edges;
+                    let dropped =
+                        elements.len() - kept.len() + all_edges.len().saturating_sub(*max_edges);
+                    omitted += dropped;
+                    let mut spec = stored.clone();
+                    spec["elements"] = json!(kept);
+                    spec["edges"] =
+                        json!(all_edges.into_iter().take(*max_edges).collect::<Vec<_>>());
+                    spec["scope"]["storage"] = json!({"revision":self.revision,"query_hash":hash,"matched":matched.intersection(&kept_ids).collect::<Vec<_>>(),"context":kept_ids.difference(&matched).collect::<Vec<_>>(),"omitted":dropped});
+                    cie_polyglot::viewspec::validate(&spec)
+                        .map_err(|error| StorageError::new("ProjectionUnavailable", error))?;
+                    selected.insert(name.clone(), spec);
+                }
                 if selected.is_empty() {
                     return Err(StorageError::new(
                         "ProjectionUnavailable",
-                        "No stored view of this kind",
+                        "No evidenced projection of this kind for the selection",
                     ));
                 }
                 Ok(
-                    json!({"renderer":"cie-polyglot","schema_version":1,"specs":selected,"coverage":self.snapshot["coverage"]}),
+                    json!({"renderer":"cie-polyglot","schema_version":1,"provider_version":1,"revision":self.revision,"specs":selected,"omitted":omitted,"truncated":truncated,"coverage":self.snapshot["coverage"]}),
                 )
             }
         }
@@ -786,91 +945,88 @@ fn unknown_member() -> Value {
     json!({"$unknown": true})
 }
 
-/// Hinnant civil-date algorithms for declared timezones only.
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
-    let y = y - if m <= 2 { 1 } else { 0 };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let doy = (153 * (m as i64 + if m > 2 { -3 } else { 9 }) + 2) / 5 + d as i64 - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = mp + if mp < 10 { 3 } else { -9 };
-    (y + if m <= 2 { 1 } else { 0 }, m as u32, d as u32)
-}
-fn format_stamp(epoch: i64, suffix: &str) -> String {
-    let local = epoch;
-    let days = local.div_euclid(86_400);
-    let secs = local.rem_euclid(86_400);
-    let (y, m, d) = civil_from_days(days);
-    format!(
-        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}{suffix}",
-        secs / 3600,
-        (secs % 3600) / 60,
-        secs % 60
-    )
-}
-/// Parse a restricted RFC 3339 subset or epoch number; returns epoch seconds in UTC.
+/// Timestamps are RFC 3339, calendar dates at UTC midnight, or epoch seconds.
 fn parse_timestamp(field: Value) -> Option<i64> {
-    if let Some(n) = field.as_f64() {
-        return Some(n as i64);
+    if let Some(n) = field.as_i64() {
+        return Some(n);
     }
-    let s = field.as_str()?;
-    let bytes = s.as_bytes();
-    if bytes.len() < 10 {
-        return None;
+    let text = field.as_str()?;
+    chrono::DateTime::parse_from_rfc3339(text)
+        .ok()
+        .map(|d| d.timestamp())
+        .or_else(|| {
+            chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d")
+                .ok()?
+                .and_hms_opt(0, 0, 0)
+                .map(|d| d.and_utc().timestamp())
+        })
+}
+fn time_bucket(epoch: i64, interval: &TimeInterval, timezone: &str) -> Result<String> {
+    if let Ok(tz) = timezone.parse::<chrono_tz::Tz>() {
+        bucket_in_zone(epoch, interval, tz)
+    } else {
+        let offset = parse_timezone(timezone)?;
+        let tz = chrono::FixedOffset::east_opt(offset as i32)
+            .ok_or_else(|| StorageError::new("InvalidRequest", "Invalid timezone offset"))?;
+        bucket_in_zone(epoch, interval, tz)
     }
-    let year: i64 = s.get(0..4)?.parse().ok()?;
-    if bytes[4] != b'-' || bytes[7] != b'-' {
-        return None;
-    }
-    let month: u32 = s.get(5..7)?.parse().ok()?;
-    let day: u32 = s.get(8..10)?.parse().ok()?;
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
-        return None;
-    }
-    let days = days_from_civil(year, month, day);
-    let (mut hour, mut minute, mut second) = (0i64, 0i64, 0i64);
-    let mut offset = 0i64;
-    if bytes.len() > 10 {
-        let t = &s[10..];
-        let t = t.strip_prefix(['T', 't', ' ']).unwrap_or(t);
-        let parts: Vec<&str> = t.splitn(2, ['Z', 'z', '+', '-']).collect();
-        let clock: Vec<&str> = parts[0]
-            .split('.')
-            .next()
-            .unwrap_or("")
-            .split(':')
-            .collect();
-        if clock.is_empty() {
-            return None;
+}
+fn bucket_in_zone<T: chrono::TimeZone>(
+    epoch: i64,
+    interval: &TimeInterval,
+    tz: T,
+) -> Result<String> {
+    use chrono::Datelike;
+    let invalid = || {
+        StorageError::new(
+            "InvalidRequest",
+            "Time bucket boundary is outside the calendar or nonexistent in this timezone",
+        )
+    };
+    let instant = chrono::DateTime::from_timestamp(epoch, 0).ok_or_else(invalid)?;
+    let local = instant.with_timezone(&tz).naive_local();
+    let boundary = match interval.unit {
+        TimeUnit::Months | TimeUnit::Years => {
+            let width = interval.count as i64
+                * if interval.unit == TimeUnit::Years {
+                    12
+                } else {
+                    1
+                };
+            let month =
+                (local.year() as i64 * 12 + local.month0() as i64).div_euclid(width) * width;
+            chrono::NaiveDate::from_ymd_opt(
+                month.div_euclid(12) as i32,
+                month.rem_euclid(12) as u32 + 1,
+                1,
+            )
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .ok_or_else(invalid)?
         }
-        hour = clock.first()?.parse().ok()?;
-        minute = clock.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
-        second = clock.get(2).and_then(|v| v.parse().ok()).unwrap_or(0);
-        if hour > 23 || minute > 59 || second > 60 {
-            return None;
+        unit => {
+            let seconds = match unit {
+                TimeUnit::Seconds => 1,
+                TimeUnit::Minutes => 60,
+                TimeUnit::Hours => 3600,
+                TimeUnit::Days => 86400,
+                _ => unreachable!(),
+            };
+            let span = seconds * interval.count as i64;
+            chrono::DateTime::from_timestamp(local.and_utc().timestamp().div_euclid(span) * span, 0)
+                .ok_or_else(invalid)?
+                .naive_utc()
         }
-        if t.contains('+') || t.contains('-') {
-            let sign = if t.contains('-') { -1 } else { 1 };
-            let idx = t.find(['+', '-'])?;
-            let off = &t[idx + 1..];
-            let oh: Vec<&str> = off.split(':').collect();
-            let h: i64 = oh.first()?.parse().ok()?;
-            let m: i64 = oh.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
-            offset = sign * (h * 3600 + m * 60);
-        }
-    }
-    Some(days * 86_400 + hour * 3600 + minute * 60 + second - offset)
+    };
+    let start = match tz.from_local_datetime(&boundary) {
+        chrono::LocalResult::Single(value) => value,
+        chrono::LocalResult::Ambiguous(a, b) => [a, b]
+            .into_iter()
+            .filter(|d| d.timestamp() <= epoch)
+            .max_by_key(|d| d.timestamp())
+            .ok_or_else(invalid)?,
+        chrono::LocalResult::None => return Err(invalid()),
+    };
+    Ok(start.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
 }
 fn parse_timezone(tz: &str) -> Result<i64> {
     if tz.eq_ignore_ascii_case("UTC") || tz == "Z" {
@@ -896,7 +1052,7 @@ fn parse_timezone(tz: &str) -> Result<i64> {
     }
     Err(StorageError::new(
         "UnsupportedQuery",
-        "Only declared UTC/fixed-offset timezones are supported; IANA names would not be silent-safe here",
+        "Expected an IANA timezone name, UTC, or a fixed offset",
     ))
 }
 
@@ -1278,6 +1434,8 @@ impl RevisionReader {
                     TimeUnit::Minutes => (60u64, "minute"),
                     TimeUnit::Hours => (3600u64, "hour"),
                     TimeUnit::Days => (86_400u64, "day"),
+                    TimeUnit::Months => (2_419_200u64, "month"),
+                    TimeUnit::Years => (31_536_000u64, "year"),
                 };
                 if interval.count == 0 {
                     return Err(StorageError::new(
@@ -1293,7 +1451,11 @@ impl RevisionReader {
                     ));
                 }
                 let _ = label;
-                parse_timezone(timezone).map(|_| ())
+                if timezone.parse::<chrono_tz::Tz>().is_ok() {
+                    Ok(())
+                } else {
+                    parse_timezone(timezone).map(|_| ())
+                }
             }
         }
     }
@@ -1341,6 +1503,33 @@ impl RevisionReader {
                         break;
                     }
                 }
+                if selection.membership == DimensionMembership::IncludeAncestors {
+                    let ancestry = match relation_path.last().map(|step| step.relation) {
+                        Some(RelationKind::MemberOfConcept | RelationKind::ChildConceptOf) => {
+                            Some(RelationKind::ChildConceptOf)
+                        }
+                        Some(RelationKind::MemberOfComponent | RelationKind::ChildComponentOf) => {
+                            Some(RelationKind::ChildComponentOf)
+                        }
+                        _ => None,
+                    };
+                    if let Some(ancestry) = ancestry {
+                        let mut closure: BTreeSet<_> = frontier.into_iter().collect();
+                        loop {
+                            let previous = closure.len();
+                            for edge in &ds.edges {
+                                ex.check(1)?;
+                                if edge.relation == ancestry && closure.contains(&edge.source) {
+                                    closure.insert(edge.target.clone());
+                                }
+                            }
+                            if closure.len() == previous {
+                                break;
+                            }
+                        }
+                        frontier = closure.into_iter().collect();
+                    }
+                }
                 let mut values = Vec::new();
                 for id in frontier {
                     if let Some(target) = ds.entities.get(&id) {
@@ -1365,25 +1554,7 @@ impl RevisionReader {
                 timezone,
             } => match field_value(e, field).and_then(parse_timestamp) {
                 Some(epoch) => {
-                    let offset = parse_timezone(timezone)?;
-                    let unit_secs = match interval.unit {
-                        TimeUnit::Seconds => 1i64,
-                        TimeUnit::Minutes => 60i64,
-                        TimeUnit::Hours => 3600i64,
-                        TimeUnit::Days => 86_400i64,
-                    };
-                    let span = unit_secs * interval.count as i64;
-                    let shifted = epoch + offset;
-                    let start_shifted = shifted.div_euclid(span) * span;
-                    let start_utc = start_shifted - offset;
-                    let suffix = if offset == 0 {
-                        "Z".to_string()
-                    } else {
-                        let sign = if offset < 0 { '-' } else { '+' };
-                        let abs = offset.abs();
-                        format!("{sign}{:02}:{:02}", abs / 3600, (abs % 3600) / 60)
-                    };
-                    vec![json!(format_stamp(start_utc, &suffix))]
+                    vec![json!(time_bucket(epoch, interval, timezone)?)]
                 }
                 None => Vec::new(),
             },
@@ -1691,5 +1862,42 @@ fn restricted_members(members: &Value, keep: &[String]) -> Value {
             Value::Object(out)
         }
         other => other.clone(),
+    }
+}
+
+#[cfg(test)]
+mod calendar_tests {
+    use super::*;
+    #[test]
+    fn calendar_months_and_dst_offsets_are_real_boundaries() {
+        let epoch = chrono::DateTime::parse_from_rfc3339("2024-03-31T21:00:00Z")
+            .unwrap()
+            .timestamp();
+        let bucket = time_bucket(
+            epoch,
+            &TimeInterval {
+                unit: TimeUnit::Months,
+                count: 1,
+            },
+            "Europe/Berlin",
+        )
+        .unwrap();
+        assert_eq!(bucket, "2024-03-01T00:00:00+01:00");
+        let interval = TimeInterval {
+            unit: TimeUnit::Hours,
+            count: 1,
+        };
+        for (instant, expected) in [
+            ("2024-11-03T05:30:00Z", "2024-11-03T01:00:00-04:00"),
+            ("2024-11-03T06:30:00Z", "2024-11-03T01:00:00-05:00"),
+        ] {
+            let epoch = chrono::DateTime::parse_from_rfc3339(instant)
+                .unwrap()
+                .timestamp();
+            assert_eq!(
+                time_bucket(epoch, &interval, "America/New_York").unwrap(),
+                expected
+            );
+        }
     }
 }

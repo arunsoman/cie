@@ -12,12 +12,57 @@ struct Context {
     touched: Instant,
 }
 static READERS: OnceLock<Mutex<BTreeMap<String, Context>>> = OnceLock::new();
+static CANCELLATIONS: OnceLock<
+    Mutex<BTreeMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
+> = OnceLock::new();
+#[napi]
+pub fn storage_cancel(id: String) -> bool {
+    let mut tokens = CANCELLATIONS.get_or_init(Default::default).lock().unwrap();
+    if tokens.len() >= 1024 {
+        tokens.retain(|_, token| std::sync::Arc::strong_count(token) > 1);
+    }
+    if let Some(token) = tokens.get(&id) {
+        token.store(true, std::sync::atomic::Ordering::Relaxed);
+        true
+    } else if tokens.len() < 1024 {
+        tokens.insert(
+            id,
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        );
+        true
+    } else {
+        false
+    }
+}
 static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 fn dispatch(input: &str) -> Result<Value> {
     if input.len() > 1024 * 1024 {
         return Err(StorageError::new("InvalidRequest", "Request exceeds 1 MiB"));
     }
     let v: Value = serde_json::from_str(input)?;
+    let cancellation_id = v["cancellation_id"].as_str().unwrap_or("").to_owned();
+    let token = {
+        let mut tokens = CANCELLATIONS.get_or_init(Default::default).lock().unwrap();
+        if tokens.len() >= 1024 && !tokens.contains_key(&cancellation_id) {
+            return Err(StorageError::new(
+                "BudgetExceeded",
+                "Too many pending requests",
+            ));
+        }
+        tokens.entry(cancellation_id.clone()).or_default().clone()
+    };
+    struct Cleanup(String);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            if let Ok(mut tokens) = CANCELLATIONS.get().unwrap().lock() {
+                tokens.remove(&self.0);
+            }
+        }
+    }
+    let _cleanup = Cleanup(cancellation_id);
+    if token.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(StorageError::new("Cancelled", "Request cancelled"));
+    }
     let mut readers = READERS
         .get_or_init(Default::default)
         .lock()
@@ -89,16 +134,23 @@ fn dispatch(input: &str) -> Result<Value> {
         .get_mut(id)
         .ok_or_else(|| StorageError::new("CursorExpired", "Revision context expired or closed"))?;
     context.touched = Instant::now();
-    match op {
-        "describe" => Ok(tools::describe(&context.reader)),
-        "retrieve" => {
-            Ok(serde_json::to_value(context.reader.retrieve(
-                serde_json::from_value(v["request"].clone())?,
-            )?)?)
-        }
-        "tool_retrieve" => Ok(serde_json::to_value(tools::retrieve(
+    context.reader.run_bounded(token.clone(), || match op {
+        "describe" => tools::describe_with_options(
+            &context.reader,
+            if v["request"].is_null() {
+                Default::default()
+            } else {
+                serde_json::from_value(v["request"].clone())?
+            },
+        ),
+        "retrieve" => Ok(serde_json::to_value(context.reader.retrieve_with_cancel(
+            serde_json::from_value(v["request"].clone())?,
+            token,
+        )?)?),
+        "tool_retrieve" => Ok(serde_json::to_value(tools::retrieve_with_cancel(
             &context.reader,
             &v["request"].to_string(),
+            token,
         )?)?),
         "resolve" => {
             Ok(serde_json::to_value(context.reader.resolve_symbol(
@@ -115,7 +167,7 @@ fn dispatch(input: &str) -> Result<Value> {
             v["offset"].as_u64().unwrap_or(0) as usize,
         ),
         _ => Err(StorageError::new("InvalidRequest", "Unknown operation")),
-    }
+    })
 }
 #[napi]
 pub fn storage_dispatch(input: String) -> String {

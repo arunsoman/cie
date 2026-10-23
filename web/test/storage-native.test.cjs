@@ -16,7 +16,10 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
   const call=request=>new Promise((resolve,reject)=>{const id=++seq;const listener=message=>{if(message.id!==id)return;worker.off('message',listener);message.response.ok?resolve(message.response.result):reject(Object.assign(new Error(message.response.error.message),message.response.error));};worker.on('message',listener);worker.postMessage({id,request});});
   try {
     const {context}=await call({op:'open',root});
-    const description=await call({op:'describe',context});assert.equal(description.tools[1].name,'cie_retrieve');assert.ok(description.tools[1].inputSchema.$defs);
+    const binding=require(path.resolve(__dirname,'../native/cie_storage_node.node'));
+    assert.equal(binding.storageCancel('audit-cancel'),true);
+    await assert.rejects(()=>call({op:'retrieve',context,cancellation_id:'audit-cancel',request:{query:{select:{kind:'file'}},outputs:[{id:'rows',output:{entities:{}}}]}}),e=>e.code==='Cancelled');
+    const description=await call({op:'describe',context,request:{profile:'full'}});assert.equal(description.tools[1].name,'cie_retrieve');assert.ok(description.tools[1].inputSchema.$defs);
     const symbols=await call({op:'compatibility',context,kind:'symbols',args:{query:'save',limit:30}});assert.equal(symbols.length,1);
     const ir=await call({op:'compatibility',context,kind:'function_ir',args:{symbolId:symbols[0].symbolId}});assert.ok(ir.blocks.length);
     const summary=await call({op:'compatibility',context,kind:'summary',args:{}});assert.ok(summary.ingest.symbols>=3);

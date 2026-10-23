@@ -352,7 +352,7 @@ export const useCie = create<CieState>((set, get) => ({
         // the stale root — surfacing wrong-project code or a confusing
         // read error (issue #6). Mirrors setCustom()'s reset.
         storageRoot: null,
-  sourceRoot: null,
+        sourceRoot: null,
         sourceCache: {},
         sourceViewer: null,
         pendingAsk: null,

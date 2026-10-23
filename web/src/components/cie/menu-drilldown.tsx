@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // The one-tap menu's interactive drilldown (menu-tab.tsx renders it when a
 // question is picked): instead of one static picture, each pre-canned
@@ -583,7 +584,7 @@ function DrillViewer({
     if (sourceCache[file] != null) return;
     let dead = false;
     if (sourceRoot) {
-      fetch("/api/fs/file", {
+      repositoryFetch("/api/fs/file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root: sourceRoot, path: file, all: true }),
@@ -593,7 +594,7 @@ function DrillViewer({
           if (dead) return;
           if (d.content != null) {
             cacheSource(file, d.content);
-            setState({ kind: "ready", content: d.content, from: `read from ${sourceRoot} on this computer` });
+            setState({ kind: "ready", content: d.content, from: `captured source from the loaded repository revision` });
           } else setState({ kind: "gone", reason: d.error ?? "This file couldn't be read from your project folder." });
         })
         .catch(() => !dead && setState({ kind: "gone", reason: "The connection to your project folder dropped. Please try again." }));

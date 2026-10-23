@@ -1,4 +1,5 @@
 "use client";
+import { repositoryFetch } from "@/lib/repository-fetch";
 
 // The source panel — "click a chart element → see the code it came from".
 //
@@ -107,7 +108,7 @@ export function SourcePanel() {
     };
 
     if (sourceRoot) {
-      fetch("/api/fs/file", {
+      repositoryFetch("/api/fs/file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root: sourceRoot, path: req.file, all: true }),
@@ -115,7 +116,7 @@ export function SourcePanel() {
         .then((r) => r.json().catch(() => ({})))
         .then((d: { content?: string; error?: string; totalLines?: number; truncated?: boolean }) => {
           if (dead) return;
-          if (d.content != null) finish(d.content, `read from ${sourceRoot} on this computer`, d.totalLines ?? null, d.truncated ?? false);
+          if (d.content != null) finish(d.content, `captured source from the loaded repository revision`, d.totalLines ?? null, d.truncated ?? false);
           else setState({ kind: "unavailable", reason: d.error ?? "We couldn't read that file from your project folder." });
         })
         .catch(() => {
