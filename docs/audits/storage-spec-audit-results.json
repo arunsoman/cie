@@ -1,0 +1,35 @@
+{
+  "audited_commit": "ed111ed19785ccb0abf014f3bebd80534bfc537c",
+  "spec_version": "1.3",
+  "date": "2026-10-23",
+  "verdict": "partially_implemented_not_ready_for_full_signoff",
+  "checks": {
+    "rust_workspace": {
+      "passed": 572,
+      "failed": 0,
+      "ignored": 11
+    },
+    "web_tests": {
+      "passed": 91,
+      "failed": 0
+    },
+    "typescript": "passed",
+    "native_build": "passed",
+    "independent_conformance_probes": {
+      "passed": 0,
+      "failed": 7,
+      "failures": [
+        "audit_forward_view_dependency_must_work",
+        "audit_failed_cube_must_not_produce_ready_chart",
+        "audit_non_cube_source_must_be_rejected",
+        "audit_unicode_casefold_must_match_sharp_s",
+        "audit_existing_fault_data_must_be_retrievable",
+        "audit_simple_file_query_must_not_load_all_duplicate_pairs",
+        "audit_cube_source_with_overlapping_concepts_must_not_be_donut"
+      ]
+    }
+  },
+  "production_code_changed": false,
+  "browser_rendering_tested": false,
+  "production_packaging_tested": false
+}
