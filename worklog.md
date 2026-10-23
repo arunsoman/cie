@@ -1148,3 +1148,17 @@ Work Log:
 
 Stage Summary:
 - One persona now governs Atlas + chat. Full web suite 99/99 green (91 existing + 8 new). Commit ready; pushed via gh per standing instruction (receipt below).
+
+---
+Task ID: PERSONA-CHAT-VOICE-push
+Agent: main
+Task: Push the persona-chat-voice commit; record the integration and receipt.
+
+Work Log:
+- Push attempt #1 was REJECTED (non-fast-forward): the parallel agent had pushed c93ac44 (audit, 7 reproduced retrieval failures) + 0366dcd (fixes + retained-storage web connection) onto origin/main while this stage was in flight. Their commit itself carried the analyze-jobs.ts scratch-db cleanup that had been sitting uncommitted in the tree.
+- Fetch-updated origin/main (token URL, gh-cli token), rebased with --autostash: single conflict in chat-panel.tsx — their `sourceRoot → liveSourceRoot + storageRoot preference` merged with this stage's `persona + voice` destructuring (both kept; composition is trivial).
+- ENOSPC during verification: /tmp (tmpfs) at 100% with 1703 orphaned cie-* test scratch directories — swept them (386M free now). Stale target/debug/cie_storage_node.node also rebuilt against the integrated tree before the native test went green (their commit changed the binding).
+- Verified on the INTEGRATED HEAD: 101/101 node tests (incl. 8 persona + their new native/storage-cube coverage), 579 cargo workspace tests.
+
+Stage Summary:
+- PERSONA-CHAT-VOICE is ON ORIGIN pushed on top of the audit fixes: origin/main == local == c5aa8e1 (0366dcd + c5aa8e1). One persona concept now governs Atlas + chat. NEXT known backlog: calendar time units + IANA timezones, provider projection caching, stored-impact artifacts (retrieval), or the user's pick.
