@@ -58,7 +58,8 @@ function PopupColumn({
   status?: string;
   certainty?: string;
 }) {
-  const { sourceRoot, cacheSource, demoKind } = useCie();
+  const { sourceRoot: liveSourceRoot, cacheSource, demoKind } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -202,7 +203,8 @@ export function CodePopup({ req, onClose, onOpenFull }: {
   onOpenFull: (loc: PopupLoc) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { sourceRoot } = useCie();
+  const { sourceRoot: liveSourceRoot } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
 
   // Esc closes; Enter opens the full source (primary column).
   useEffect(() => {

@@ -372,7 +372,7 @@ export function BlastRadiusPopover({
 }) {
   const report = useCie((s) => s.report);
   const cochange = useCie((s) => s.cochange);
-  const sourceRoot = useCie((s) => s.sourceRoot);
+  const sourceRoot = useCie((s) => s.storageRoot ?? s.sourceRoot);
   const updateMastery = useCie((s) => s.updateMastery);
 
   // memoised: resolveSymbolAt builds a fresh wrapper object each call, and

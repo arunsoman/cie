@@ -4,7 +4,7 @@ export function repositoryFetch(url: string, init: RequestInit): Promise<Respons
   if (typeof init.body === 'string') {
     const body = JSON.parse(init.body);
     const state = useCie.getState();
-    if (state.report && state.sourceRoot && (body.root === state.sourceRoot || body.sourceRoot === state.sourceRoot)) {
+    if (state.report && [state.sourceRoot, state.storageRoot].some(root => root && (body.root === root || body.sourceRoot === root))) {
       init = { ...init, body: JSON.stringify({ ...body, revision: String(state.report.rev) }) };
     }
   }

@@ -39,6 +39,15 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
     const revisions=await call({op:'revisions',root,limit:10});
     assert.equal(revisions.total,1);assert.equal(revisions.items[0].head,true);
     await assert.rejects(()=>call({op:'tool_retrieve',context,request:{query:{select:{kind:'symbol'}},select:{kind:'symbol'},outputs:[]}}),e=>e.code==='InvalidRequest');
+    const archive = root + '-retained';
+    await call({op:'retain',root,destination:archive});
+    try {
+      const retained = await call({op:'open',root:archive});
+      const facts = await call({op:'tool_retrieve',context:retained.context,request:{select:{kind:'symbol'},outputs:[{id:'rows',output:{entities:{page:{limit:20}}}}]}});
+      assert.equal(facts.repository, tool.repository, 'repository identity survives relocation');
+      assert.ok(facts.matches >= 3);
+      await call({op:'close',context:retained.context});
+    } finally { await fs.rm(archive,{recursive:true,force:true}); }
     await call({op:'close',context});await assert.rejects(()=>call({op:'describe',context}),e=>e.code==='CursorExpired');
   } finally {await worker.terminate();await fs.rm(root,{recursive:true,force:true,maxRetries:5});}
 });

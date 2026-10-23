@@ -318,7 +318,7 @@ impl RevisionReader {
                     let cube = prior.get(id).ok_or_else(|| {
                         StorageError::new(
                             "InvalidRequest",
-                            "View source must name an earlier successful output",
+                            "View dependency did not produce a successful cube",
                         )
                     })?;
                     if !["table", "hbar", "heatmap", "stat", "donut"].contains(&kind.as_str()) {
@@ -326,6 +326,9 @@ impl RevisionReader {
                             "UnsupportedOutput",
                             "Cube chart kind unavailable",
                         ));
+                    }
+                    if kind == "donut" && cube["partition_verified"] != json!(true) {
+                        return Err(StorageError::new("ProjectionUnavailable", "Donut requires a complete disjoint partition with nonnegative additive values"));
                     }
                     return Ok(
                         json!({"renderer":"cie-cube","schema_version":1,"kind":kind,"cells":cube,"revision":self.revision,"coverage":self.snapshot["coverage"]}),
@@ -502,6 +505,7 @@ impl RevisionReader {
                 .get("report")
                 .unwrap_or(&self.snapshot)
                 .clone(),
+            ArtifactKind::Fault => self.artifacts["report"]["fault_analysis"].clone(),
             ArtifactKind::Concepts => self.snapshot["concepts"].clone(),
             ArtifactKind::Stack => self.snapshot["stack"].clone(),
             ArtifactKind::UiBootstrapV1 => self.artifacts.clone(),
@@ -587,6 +591,12 @@ impl RevisionReader {
             ));
         }
         let source = zstd::bulk::decompress(&bytes, size).map_err(std::io::Error::other)?;
+        if source.len() != size || blake3::hash(&source).to_hex().as_str() != hash {
+            return Err(StorageError::new(
+                "CorruptData",
+                "Captured source integrity check failed",
+            ));
+        }
         let text = String::from_utf8(source)
             .map_err(|_| StorageError::new("CorruptData", "Captured source is not UTF-8"))?;
         let len = text.len() as u64;
@@ -608,7 +618,7 @@ impl RevisionReader {
                 } else {
                     0
                 };
-                if start >= len {
+                if start > len || (start == len && len != 0) {
                     return Err(StorageError::new(
                         "CursorInvalid",
                         "Source offset beyond file",
@@ -1186,6 +1196,27 @@ impl RevisionReader {
             result["page_totals"] = json!(self.measure_map(&measures, &page_ids, ds)?);
             result["page_total_scope"] = json!("displayed_page");
         }
+        // A parts-of-whole chart is valid only when every matched contributor
+        // belongs to exactly one displayed cell and the measure is a count.
+        let mut seen = BTreeSet::new();
+        let mut disjoint = true;
+        for ids in contributors.values() {
+            for id in ids.iter() {
+                if !seen.insert(id.clone()) {
+                    disjoint = false;
+                }
+            }
+        }
+        result["partition_verified"] = json!(
+            disjoint
+                && seen == *matches
+                && result["truncated"] != json!(true)
+                && result["items"]
+                    .as_array()
+                    .map_or(false, |items| items.len() == cells.len())
+                && measures.len() == 1
+                && matches!(measures[0].measure, Measure::Count)
+        );
         result["coverage"] = self.snapshot["coverage"].clone();
         Ok(result)
     }

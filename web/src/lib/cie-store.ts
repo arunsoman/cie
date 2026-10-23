@@ -153,6 +153,7 @@ interface CieState {
 
   // source panel — click a chart element with a location, see the code
   sourceViewer: SourceViewerRequest | null;
+  storageRoot: string | null;
   sourceRoot: string | null; // absolute root of a consented local-folder project (URL clones are deleted after analysis — null there, honestly)
   sourceCache: Record<string, string>; // fetched file contents, by repo-relative path
 
@@ -176,6 +177,7 @@ interface CieState {
       drift?: CieDrift | null;
       stack?: TechStack | null;
       polyglotSpecs?: PolyglotBundle | null;
+      storageRoot?: string | null;
       sourceRoot?: string | null;
     }
   ) => void;
@@ -271,6 +273,7 @@ export const useCie = create<CieState>((set, get) => ({
   chatOpen: true,
   pendingAsk: null,
   sourceViewer: null,
+  storageRoot: null,
   sourceRoot: null,
   sourceCache: {},
   atlasSelection: ATLAS_RESET,
@@ -348,7 +351,8 @@ export const useCie = create<CieState>((set, get) => ({
         // state too, or the panel would try to resolve demo files against
         // the stale root — surfacing wrong-project code or a confusing
         // read error (issue #6). Mirrors setCustom()'s reset.
-        sourceRoot: null,
+        storageRoot: null,
+  sourceRoot: null,
         sourceCache: {},
         sourceViewer: null,
         pendingAsk: null,
@@ -393,6 +397,7 @@ export const useCie = create<CieState>((set, get) => ({
       // URL clones are deleted after analysis and uploads never touched
       // disk — the source panel says so honestly for those.
       sourceRoot: extra?.sourceRoot ?? null,
+      storageRoot: extra?.storageRoot ?? extra?.sourceRoot ?? null,
       sourceCache: {},
       sourceViewer: null,
       // A new project starts on its own front page, not on an old chart.

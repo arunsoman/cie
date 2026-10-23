@@ -39,7 +39,8 @@ function StatTile({ label, value }: { label: string; value: number | string }) {
 }
 
 export function PolyglotAdminView() {
-  const { sourceRoot } = useCie();
+  const { sourceRoot: liveSourceRoot } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [summary, setSummary] = useState<PolyglotSummary | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);

@@ -56,3 +56,27 @@ dimension mappings, calendar time buckets (months), IANA timezone databases,
 provider projection caching, dedicated stored-impact artifacts and all existing
 specialized renderer projection mappings require additional work; unsupported
 operations still fail explicitly rather than being silently approximated.
+
+## Audit repair stage (2026-10-23)
+
+The seven previously failing audit cases are now regular CLI integration tests.
+Output dependencies execute topologically and preserve requested response order;
+missing/cyclic dependencies and non-cube chart sources are rejected. Failed
+outputs cannot supply chart data. Donuts require a complete disjoint count
+partition. Unicode folded matching uses full Unicode case folding. Fault data
+is read from the persisted report. Retrieval skips unrelated duplicate tables.
+
+URL and branch-snapshot jobs retain `.cie` independently of checkout cleanup.
+The storage module owns archive copying and preserves repository identity;
+the UI carries a separate `storageRoot`, including workspace restoration.
+Revision-pinned source panels use captured content with integrity verification.
+Reader publication-lock waits are bounded. Best-effort missing artifacts and
+projections return `unavailable`. The HTTP transport exposes resolve,
+capabilities and revision listing. Normal dev/build invokes the native build;
+standalone packaging copies the worker and addon explicitly.
+
+Numbers now includes a storage-backed chart explorer, grouping symbols by
+language, kind or file and retrieving contributor records. Storage cube
+projections are adapted to the existing chart renderer. Native integration
+covers archive relocation and identity preservation. This stage does not claim
+that the further contract coverage listed above is complete.

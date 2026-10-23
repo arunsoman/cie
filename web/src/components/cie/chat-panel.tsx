@@ -101,9 +101,10 @@ export function ChatPanel() {
   const {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
     llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, openConceptOnCanvas, mapSelected, setMapSelected,
-    deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot,
+    deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot: liveSourceRoot,
     pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs,
   } = useCie();
+  const sourceRoot = useCie(s => s.storageRoot) ?? liveSourceRoot;
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 

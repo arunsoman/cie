@@ -8,6 +8,13 @@ impl RevisionReader {
         format!("{}:{}:{kind}:{id}", &self.repository[..16], self.revision)
     }
     pub(crate) fn dataset(&self, ex: &mut Execution) -> Result<Dataset> {
+        self.dataset_with_duplicates(ex, true)
+    }
+    pub(crate) fn dataset_with_duplicates(
+        &self,
+        ex: &mut Execution,
+        duplicates: bool,
+    ) -> Result<Dataset> {
         let mut ds = Dataset {
             entities: BTreeMap::new(),
             edges: Vec::new(),
@@ -189,48 +196,50 @@ impl RevisionReader {
                 add(&mut ds, ex, EntityKind::Symbol, id, value)?;
             }
         }
-        for row in self.rows("SELECT * FROM duplicates ORDER BY id LIMIT ?1", &[&limit])? {
-            let id = self.id("duplicate_pair", row["id"].as_i64().unwrap());
-            for (field, relation) in [
-                ("symbol_a", RelationKind::LeftSymbol),
-                ("symbol_b", RelationKind::RightSymbol),
-                ("canonical_symbol_id", RelationKind::CanonicalSymbol),
-            ] {
-                if let Some(sid) = row[field].as_i64().and_then(|n| poly.get(&n)) {
+        if duplicates {
+            for row in self.rows("SELECT * FROM duplicates ORDER BY id LIMIT ?1", &[&limit])? {
+                let id = self.id("duplicate_pair", row["id"].as_i64().unwrap());
+                for (field, relation) in [
+                    ("symbol_a", RelationKind::LeftSymbol),
+                    ("symbol_b", RelationKind::RightSymbol),
+                    ("canonical_symbol_id", RelationKind::CanonicalSymbol),
+                ] {
+                    if let Some(sid) = row[field].as_i64().and_then(|n| poly.get(&n)) {
+                        ds.edges.push(Edge {
+                            source: id.clone(),
+                            target: sid.clone(),
+                            relation,
+                        });
+                    }
+                }
+                add(&mut ds, ex, EntityKind::DuplicatePair, id, row)?;
+            }
+            let mut clusters = BTreeSet::new();
+            for row in self.rows(
+                "SELECT * FROM duplicate_clusters ORDER BY cluster_id,symbol_id LIMIT ?1",
+                &[&limit],
+            )? {
+                ex.check(1)?;
+                let n = row["cluster_id"].as_i64().unwrap();
+                let id = self.id("cluster", n);
+                clusters.insert((n, id.clone()));
+                if let Some(sid) = row["symbol_id"].as_i64().and_then(|n| poly.get(&n)) {
                     ds.edges.push(Edge {
-                        source: id.clone(),
-                        target: sid.clone(),
-                        relation,
+                        source: sid.clone(),
+                        target: id,
+                        relation: RelationKind::MemberOfCluster,
                     });
                 }
             }
-            add(&mut ds, ex, EntityKind::DuplicatePair, id, row)?;
-        }
-        let mut clusters = BTreeSet::new();
-        for row in self.rows(
-            "SELECT * FROM duplicate_clusters ORDER BY cluster_id,symbol_id LIMIT ?1",
-            &[&limit],
-        )? {
-            ex.check(1)?;
-            let n = row["cluster_id"].as_i64().unwrap();
-            let id = self.id("cluster", n);
-            clusters.insert((n, id.clone()));
-            if let Some(sid) = row["symbol_id"].as_i64().and_then(|n| poly.get(&n)) {
-                ds.edges.push(Edge {
-                    source: sid.clone(),
-                    target: id,
-                    relation: RelationKind::MemberOfCluster,
-                });
+            for (n, id) in clusters {
+                add(
+                    &mut ds,
+                    ex,
+                    EntityKind::Cluster,
+                    id,
+                    json!({"cluster_id":n,"algorithm":"exact_duplicate_union_find","tier":"canonical"}),
+                )?;
             }
-        }
-        for (n, id) in clusters {
-            add(
-                &mut ds,
-                ex,
-                EntityKind::Cluster,
-                id,
-                json!({"cluster_id":n,"algorithm":"exact_duplicate_union_find","tier":"canonical"}),
-            )?;
         }
         ds.edges
             .retain(|e| ds.entities.contains_key(&e.source) && ds.entities.contains_key(&e.target));
@@ -639,7 +648,8 @@ fn add(
 
 /// Unicode case-folded comparison form for compatibility string presets.
 pub(crate) fn fold_text(s: &str) -> String {
-    s.chars().flat_map(|c| c.to_lowercase()).collect()
+    use unicode_casefold::UnicodeCaseFold;
+    s.case_fold().collect()
 }
 
 /// Normalized repository-relative path using '/'. Absolute paths, traversal

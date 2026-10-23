@@ -13,6 +13,7 @@
 // surviving count, and names its empty results. Clicking the same bucket
 // again releases it; clicking any other bucket replaces the filter.
 
+import { StorageCubeView } from "./storage-cube-view";
 import { useMemo } from "react";
 import {
   Bar,
@@ -309,6 +310,7 @@ export function NumbersView() {
 
   return (
     <div className="space-y-4">
+      <StorageCubeView />
       {chartFilter && bannerTotal != null && bannerSurviving != null ? (
         <Card className="border-emerald-300 bg-emerald-50/70" data-testid="chart-filter-banner">
           <CardContent className="p-4 sm:p-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-stone-700">

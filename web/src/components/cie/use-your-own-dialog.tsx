@@ -477,6 +477,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         label?: string;
         scan?: RepoScan | null;
         sourceRoot?: string | null;
+        storageRoot?: string | null;
         error?: string;
       };
       if (!res.ok || !isValidReport(data.report ?? null)) {
@@ -497,6 +498,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
         stack: data.stack && isTechStack(data.stack) ? data.stack : null,
         polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
         sourceRoot: data.sourceRoot ?? null,
+        storageRoot: data.storageRoot ?? data.sourceRoot ?? null,
       });
       setJobId(null);
       setStatus(null);

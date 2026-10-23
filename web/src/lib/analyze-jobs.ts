@@ -4,6 +4,7 @@
 // owns each ingestion; the client polls GET /api/analyze/status.
 // This module must never be imported from client code.
 
+import { storageCall } from "./storage-native";
 import { spawn } from "child_process";
 import { StringDecoder } from "string_decoder";
 import { promises as fs } from "fs";
@@ -77,6 +78,7 @@ export interface AnalyzeJob {
     // in place). URL clones are deleted after analysis; uploads never
     // touched disk. Null there, and the panel says so honestly.
     sourceRoot?: string | null;
+    storageRoot?: string | null;
   };
 }
 
@@ -653,7 +655,7 @@ async function runPipeline(job: AnalyzeJob) {
   // `git archive`, extracted into the scratch dir. The user's folder and its
   // .git are still never written to. repoDir ends up the snapshot; sourceRoot
   // stays null, and the UI says the source panel can't open a snapshot's files.
-  const workDir = path.join(JOBS_ROOT, job.id);
+  const workDir = path.join(JOBS_ROOT, job.id, "scratch");
   let repoDir = isLocal ? (job.localPath as string) : path.join(workDir, "repo");
   job.state = "running";
 
@@ -829,6 +831,11 @@ async function runPipeline(job: AnalyzeJob) {
       job.error = { plain: UNSUPPORTED_PLAIN, technical: "ingest-polyglot found no supported source files" };
       return;
     }
+    let storageRoot = repoDir;
+    if (!isLocal || job.viaSnapshot) {
+      storageRoot = path.join(JOBS_ROOT, job.id, "storage");
+      await storageCall({ op: "retain", root: repoDir, destination: storageRoot });
+    }
     job.result = {
       ...artifacts,
       label: isLocal
@@ -836,6 +843,7 @@ async function runPipeline(job: AnalyzeJob) {
         : `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from ${hostOf(job.url)})`,
       scan: job.scan ?? null,
       sourceRoot: isLocal && !job.viaSnapshot ? repoDir : null,
+      storageRoot,
     };
     job.state = "done";
   } finally {

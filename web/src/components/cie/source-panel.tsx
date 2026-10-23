@@ -67,7 +67,8 @@ export function loadDemoSources(kind: "banking" | "spring" | "polyglot"): Promis
 const WINDOW = 120; // lines of context shown around the target
 
 export function SourcePanel() {
-  const { sourceViewer, sourceRoot, source, demoKind, sourceCache, cacheSource, closeSourceViewer, setPendingAsk } = useCie();
+  const { sourceViewer, sourceRoot: liveSourceRoot, source, demoKind, sourceCache, cacheSource, closeSourceViewer, setPendingAsk } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [state, setState] = useState<
     | { kind: "loading" }
     | { kind: "ready"; content: string; from: string; line: number | null; truncated: boolean; totalLines: number | null }

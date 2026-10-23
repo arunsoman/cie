@@ -202,7 +202,8 @@ function ClusterCard({ root, cluster, index }: { root: string; cluster: Cluster;
 }
 
 export function DuplicateClustersView() {
-  const { sourceRoot } = useCie();
+  const { sourceRoot: liveSourceRoot } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [data, setData] = useState<ClustersResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

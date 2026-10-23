@@ -25,6 +25,17 @@ fn dispatch(input: &str) -> Result<Value> {
     readers.retain(|_, c| c.touched.elapsed() < Duration::from_secs(900));
     let op = v["op"].as_str().unwrap_or("");
     // Revision listing and resolution take no context handle.
+    if op == "retain" {
+        let root = v["root"]
+            .as_str()
+            .ok_or_else(|| StorageError::new("InvalidRequest", "Missing root"))?;
+        let destination = v["destination"]
+            .as_str()
+            .ok_or_else(|| StorageError::new("InvalidRequest", "Missing destination"))?;
+        Storage::open(std::path::Path::new(root), StoragePolicy::default())?
+            .retain_to(std::path::Path::new(destination))?;
+        return Ok(json!({"retained":true}));
+    }
     if op == "revisions" {
         let root = v["root"].as_str().ok_or_else(|| {
             StorageError::new("InvalidRequest", "Host must supply repository root")

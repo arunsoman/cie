@@ -72,6 +72,7 @@ export async function restoreJobResult(jobId: string): Promise<boolean> {
     label?: string;
     scan?: RepoScan | null;
     sourceRoot?: string | null;
+        storageRoot?: string | null;
     error?: string;
   } | null;
   if (!res.ok || !data || !isValidReport(data.report ?? null)) return false;
@@ -85,6 +86,7 @@ export async function restoreJobResult(jobId: string): Promise<boolean> {
     polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
     repoScan: data.scan ?? null,
     sourceRoot: data.sourceRoot ?? null,
+        storageRoot: data.storageRoot ?? data.sourceRoot ?? null,
   });
   return true;
 }

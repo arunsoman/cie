@@ -225,7 +225,7 @@ fn errors_budgets_and_missing_artifacts_are_explicit() {
     );
     req.best_effort = true;
     let result = r.retrieve(req).unwrap();
-    assert_eq!(result.outputs[1].status, "failed");
+    assert_eq!(result.outputs[1].status, "unavailable");
     assert_eq!(
         result.outputs[1].error.as_ref().unwrap().code,
         "ArtifactUnavailable"

@@ -10,6 +10,7 @@
 //    whole file when it is large.
 // Nothing is written, nothing is copied, nothing leaves this machine.
 
+import { withRevision, storageCall } from "@/lib/storage-native";
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
@@ -22,7 +23,7 @@ const MAX_WINDOW = 400; // lines per response
 const DEFAULT_WINDOW = 200; // when no target line was given
 
 export async function POST(req: NextRequest) {
-  let body: { root?: string; path?: string; start?: number; end?: number; all?: boolean };
+  let body: { root?: string; path?: string; start?: number; end?: number; all?: boolean; revision?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -44,6 +45,25 @@ export async function POST(req: NextRequest) {
   // containment: the resolved path must stay inside the consented root
   if (fileAbs !== rootAbs && !fileAbs.startsWith(rootAbs + path.sep)) {
     return NextResponse.json({ error: "That file is outside the project folder you connected." }, { status: 403 });
+  }
+
+  if (typeof body.revision === "string") {
+    try {
+      const result = await withRevision<{ outputs: Array<{ data: { text: string; truncated: boolean } }> }>(rootAbs,
+        context => storageCall({ op: "retrieve", context, request: {
+          query: { select: { kind: "file", filter: { field: { field: "path", op: "eq", value: rel } } } },
+          outputs: [{ id: "source", output: { detail: { source: { range: "whole_file" } } } }],
+          budget: { max_response_bytes: 4 * 1024 * 1024 },
+        } }), body.revision);
+      const source = result.outputs[0].data;
+      const lines = source.text.split("\n");
+      const start = body.all ? 1 : Math.max(1, Math.floor(body.start || 1));
+      const end = body.all ? lines.length : Math.min(lines.length, Math.max(start, Math.floor(body.end || start + DEFAULT_WINDOW - 1)), start + MAX_WINDOW - 1);
+      return NextResponse.json({ path: rel, start, end, totalLines: lines.length,
+        content: lines.slice(start - 1, end).join("\n"), truncated: source.truncated || end < lines.length, origin: "captured_revision", revision: body.revision });
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Captured source unavailable" }, { status: 404 });
+    }
   }
 
   let realRoot: string;

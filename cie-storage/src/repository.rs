@@ -331,7 +331,9 @@ impl RepositoryWriter {
         Ok(())
     }
     fn remove_file(&self, path: &str) -> io::Result<()> {
-        self.conn.execute("DELETE FROM captured_sources WHERE path=?1",[path]).map_err(err)?;
+        self.conn
+            .execute("DELETE FROM captured_sources WHERE path=?1", [path])
+            .map_err(err)?;
         self.conn
             .execute_batch(
                 "CREATE TEMP TABLE IF NOT EXISTS removed_symbols(id INTEGER PRIMARY KEY);
@@ -568,6 +570,31 @@ impl Drop for ScratchCleanup {
 /// Serialize writers for a project; the OS releases the lock after a crash.
 pub struct ProjectLock(std::fs::File);
 impl ProjectLock {
+    /// Bounded reader lease; a writer cannot stall retrieval indefinitely.
+    pub fn acquire_timeout(root: &Path, timeout: std::time::Duration) -> io::Result<Self> {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(root.join("ingest.lock"))?;
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            match file.try_lock() {
+                Ok(()) => return Ok(Self(file)),
+                Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10))
+                }
+                Err(std::fs::TryLockError::WouldBlock) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "Storage publication lease deadline exceeded",
+                    ))
+                }
+                Err(std::fs::TryLockError::Error(error)) => return Err(error),
+            }
+        }
+    }
     pub fn acquire(root: &Path) -> io::Result<Self> {
         let file = std::fs::OpenOptions::new()
             .create(true)

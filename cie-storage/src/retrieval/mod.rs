@@ -42,6 +42,59 @@ impl Storage {
         }
         Ok(Self { root, policy })
     }
+    /// Retain committed storage independently of a disposable source checkout.
+    /// The destination must be new; no source files or symlinks are copied.
+    pub fn retain_to(&self, destination: &Path) -> Result<()> {
+        let _lease = crate::repository::ProjectLock::acquire_timeout(
+            &self.root.join(".cie"),
+            self.policy.busy_timeout,
+        )?;
+        std::fs::create_dir(destination)?;
+        fn copy_tree(source: &Path, target: &Path) -> std::io::Result<()> {
+            std::fs::create_dir(target)?;
+            for entry in std::fs::read_dir(source)? {
+                let entry = entry?;
+                if entry.file_name() == "ingest.lock" {
+                    continue;
+                }
+                let kind = entry.file_type()?;
+                if kind.is_symlink() {
+                    return Err(std::io::Error::other("Storage archive contains a symlink"));
+                }
+                if kind.is_dir() {
+                    copy_tree(&entry.path(), &target.join(entry.file_name()))?;
+                } else if kind.is_file() {
+                    std::fs::copy(entry.path(), target.join(entry.file_name()))?;
+                }
+            }
+            Ok(())
+        }
+        let result = (|| -> Result<()> {
+            copy_tree(&self.root.join(".cie"), &destination.join(".cie"))?;
+            let identity = self.repository_identity()?;
+            std::fs::write(destination.join(".cie/repository-id"), identity)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_dir_all(destination);
+        }
+        result
+    }
+    fn repository_identity(&self) -> Result<String> {
+        match std::fs::read_to_string(self.root.join(".cie/repository-id")) {
+            Ok(id) if id.len() == 64 && id.bytes().all(|c| c.is_ascii_hexdigit()) => Ok(id),
+            Ok(_) => Err(StorageError::new(
+                "CorruptData",
+                "Invalid repository identity",
+            )),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Ok(blake3::hash(self.root.to_string_lossy().as_bytes())
+                    .to_hex()
+                    .to_string())
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
     pub fn revisions(&self) -> Result<Vec<String>> {
         Ok(self
             .revision_numbers()?
@@ -117,7 +170,10 @@ impl Storage {
     }
     pub fn open_revision(&self, selector: RevisionSelector) -> Result<RevisionReader> {
         // Publication lock spans DB, core snapshot, and committed head.
-        let _lock = crate::repository::ProjectLock::acquire(&self.root.join(".cie"))?;
+        let _lock = crate::repository::ProjectLock::acquire_timeout(
+            &self.root.join(".cie"),
+            self.policy.busy_timeout,
+        )?;
         let head = self.head_revision()?;
         let rev = match selector {
             RevisionSelector::Latest => head,
@@ -157,9 +213,7 @@ impl Storage {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => json!({}),
             Err(e) => return Err(e.into()),
         };
-        let repository = blake3::hash(self.root.to_string_lossy().as_bytes())
-            .to_hex()
-            .to_string();
+        let repository = self.repository_identity()?;
         let secret = format!("{}:{}:{:?}", repository, rev, Instant::now());
         Ok(RevisionReader {
             conn,
@@ -230,14 +284,71 @@ impl RevisionReader {
         let deadline = ex.deadline;
         self.conn
             .progress_handler(1000, Some(move || Instant::now() > deadline));
-        let dataset = self.dataset(&mut ex)?;
+        // Duplicate data is only needed when referenced by the query or projection.
+        let plan = serde_json::to_string(&request)?;
+        let duplicates = [
+            "duplicate_pair",
+            "cluster",
+            "member_of_cluster",
+            "left_symbol",
+            "right_symbol",
+            "canonical_symbol",
+            "cell_contributors",
+        ]
+        .iter()
+        .any(|name| plan.contains(&format!("\"{name}\"")));
+        let dataset = self.dataset_with_duplicates(&mut ex, duplicates)?;
         let matches = self.evaluate(&request.query, &dataset, &mut ex, 0)?;
         let hash = blake3::hash(&serde_json::to_vec(&request.query)?)
             .to_hex()
             .to_string();
+        // Resolve the dependency graph before executing any outputs. Response order
+        // remains the caller's order, independently of execution order.
+        fn visit(
+            index: usize,
+            outputs: &[NamedOutput],
+            marks: &mut [u8],
+            order: &mut Vec<usize>,
+        ) -> Result<()> {
+            if marks[index] == 2 {
+                return Ok(());
+            }
+            if marks[index] == 1 {
+                return Err(StorageError::new(
+                    "InvalidRequest",
+                    "Cyclic output dependency",
+                ));
+            }
+            marks[index] = 1;
+            if let Output::View {
+                source: ViewSource::Output(id),
+                ..
+            } = &outputs[index].output
+            {
+                let dependency = outputs.iter().position(|o| &o.id == id).ok_or_else(|| {
+                    StorageError::new("InvalidRequest", "Unknown output dependency")
+                })?;
+                if !matches!(outputs[dependency].output, Output::Cube(_)) {
+                    return Err(StorageError::new(
+                        "InvalidRequest",
+                        "Chart source must be a cube output",
+                    ));
+                }
+                visit(dependency, outputs, marks, order)?;
+            }
+            marks[index] = 2;
+            order.push(index);
+            Ok(())
+        }
+        let mut order = Vec::new();
+        let mut marks = vec![0; request.outputs.len()];
+        for index in 0..request.outputs.len() {
+            visit(index, &request.outputs, &mut marks, &mut order)?;
+        }
         let mut prior = BTreeMap::new();
-        let mut outputs = Vec::new();
-        for output in &request.outputs {
+        let mut results = BTreeMap::new();
+        for index in order {
+            let output = &request.outputs[index];
             ex.check(0)?;
             let result = self.output(
                 &output.output,
@@ -261,18 +372,38 @@ impl RevisionReader {
                     };
                     (status.to_string(), data, None)
                 }
-                Err(e) if request.best_effort => ("failed".into(), Value::Null, Some(e)),
+                Err(e) if request.best_effort => (
+                    if e.code == "ArtifactUnavailable" || e.code == "ProjectionUnavailable" {
+                        "unavailable"
+                    } else {
+                        "failed"
+                    }
+                    .into(),
+                    Value::Null,
+                    Some(e),
+                ),
                 Err(e) => return Err(e),
             };
-            prior.insert(output.id.clone(), data.clone());
-            outputs.push(OutputResult {
-                id: output.id.clone(),
-                status,
-                schema_version: 1,
-                origin: "stored_or_derived".into(),
-                data,
-                error,
-            });
+            if error.is_none() {
+                prior.insert(output.id.clone(), data.clone());
+            }
+            results.insert(
+                index,
+                OutputResult {
+                    id: output.id.clone(),
+                    status,
+                    schema_version: 1,
+                    origin: if matches!(output.output, Output::Artifact { .. } | Output::Detail(_))
+                    {
+                        "stored"
+                    } else {
+                        "derived"
+                    }
+                    .into(),
+                    data,
+                    error,
+                },
+            );
         }
         let response = Response {
             api_version: 1,
@@ -281,7 +412,7 @@ impl RevisionReader {
             query_hash: hash,
             matches: matches.len(),
             coverage: self.snapshot["coverage"].clone(),
-            outputs,
+            outputs: results.into_values().collect(),
         };
         if serde_json::to_vec(&response)?.len() > request.budget.max_response_bytes {
             return Err(StorageError::new(

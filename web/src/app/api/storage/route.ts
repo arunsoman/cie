@@ -7,12 +7,12 @@ export async function POST(req:NextRequest){
   let body:Record<string,unknown>;
   try {const text=await req.text();if(text.length>1024*1024)return NextResponse.json({error:'Request too large'},{status:413});body=JSON.parse(text);}catch{return NextResponse.json({error:'Invalid JSON'},{status:400});}
   try {
-    if(body.op==='open'){
+    if(body.op==='open' || body.op==='revisions'){
       const root=validateLocalPath(typeof body.root==='string'?body.root:'');
       if(!root.ok)return NextResponse.json({error:root.plain},{status:400});
-      return NextResponse.json(await storageCall({op:'open',root:root.path,revision:body.revision}));
+      return NextResponse.json(await storageCall({op:body.op,root:root.path,revision:body.revision,limit:body.limit,after:body.after}));
     }
-    if(!['describe','retrieve','tool_retrieve','close'].includes(String(body.op)) || typeof body.context!=='string')return NextResponse.json({error:'Unknown operation or missing context'},{status:400});
-    return NextResponse.json(await storageCall({op:body.op,context:body.context,request:body.request}));
+    if(!['describe','retrieve','tool_retrieve','resolve','capabilities','close'].includes(String(body.op)) || typeof body.context!=='string')return NextResponse.json({error:'Unknown operation or missing context'},{status:400});
+    return NextResponse.json(await storageCall({op:body.op,context:body.context,request:body.request,lookup:body.lookup}));
   }catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Storage request failed',code:error instanceof StorageFailure?error.code:'Io'},{status:error instanceof StorageFailure&&error.code==='CursorExpired'?410:400});}
 }

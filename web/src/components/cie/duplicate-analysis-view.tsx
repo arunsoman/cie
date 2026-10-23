@@ -121,7 +121,8 @@ function SnippetPane({ root, member, title }: { root: string; member: SymbolRef;
 }
 
 export function DuplicateAnalysisView() {
-  const { sourceRoot } = useCie();
+  const { sourceRoot: liveSourceRoot } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [tier, setTier] = useState<string>(ALL);
   const [detection, setDetection] = useState<string>(ALL);
   const [epistemic, setEpistemic] = useState<string>(ALL);

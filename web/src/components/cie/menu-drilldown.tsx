@@ -516,7 +516,8 @@ function DrillViewer({
   onAsk: (loc: DrillLoc | null, title: string, row: DrillRow | null) => void;
   onOpenFull: (loc: DrillLoc) => void;
 }) {
-  const { sourceRoot, source, demoKind, sourceCache, cacheSource } = useCie();
+  const { sourceRoot: liveSourceRoot, source, demoKind, sourceCache, cacheSource } = useCie();
+  const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
   const [state, setState] = useState<ViewerState>({ kind: "loading" });
   const [flipped, setFlipped] = useState(false);
   const [resolvedNote, setResolvedNote] = useState<string | null>(null);
