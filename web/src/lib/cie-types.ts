@@ -17,7 +17,14 @@ export interface SymbolInfo {
   annotations?: string[];
 }
 
+export interface StoredCallSite {
+  callee:string; receiver?:string; receiver_type?:string; declaration:string; dispatch:string; observation:string;
+  target_symbols?:number[]; span:{start:number;end:number}; occurrence:number; arguments?:number;
+  guard:string; source_order:number; statement_index:number; line:number;
+}
 export interface SummaryInfo {
+  call_sites?:StoredCallSite[];
+
   sym: number;
   inputs: string[];
   outputs: string[];
@@ -97,6 +104,8 @@ export interface FaultAnalysis {
   experiments: { property_violated: boolean; outcome: string | Record<string, unknown>; provenance: string[]; content_hash: string }[];
 }
 export interface CieReport {
+  /** View population; files retains the captured FileId index table. */
+  viewScope?:{files:string[];symbolIds:number[]};
   fault_analysis?: FaultAnalysis | null;
   state_model?: StateModelView | null;
   rev: number;
@@ -220,6 +229,7 @@ export interface ConceptRule {
 }
 
 export interface ConceptNode {
+  entry_symbol?: number | null;
   id: number;
   label: string;
   kind: string; // Domain | Container | Subdomain | Service | Module | Entity | Value | Aggregate | UseCase | Rule | Invariant (RFC-0019 adds the C4 tiers — additive, tolerate unknown kinds)

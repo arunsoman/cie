@@ -385,6 +385,7 @@ impl<'a> LowerCtx<'a> {
             .and_then(|c| c.utf8_text(self.src).ok())
             .map(|t| t.chars().take(120).collect::<String>());
         if let Some(c) = cond {
+            self.lower_expr(c, cur, ast_map);
             self.cfg.emit(cur, "Cmp", c, ast_map.id_of(c));
         }
         let then_bb = self.cfg.new_block("normal");
@@ -448,6 +449,7 @@ impl<'a> LowerCtx<'a> {
         let cond_bb = self.cfg.new_block("normal");
         self.cfg.edge(cur, cond_bb, "jump");
         if let Some(c) = cond {
+            self.lower_expr(c, cond_bb, ast_map);
             self.cfg.emit(cond_bb, "Cmp", c, ast_map.id_of(c));
         }
         let body_bb = self.cfg.new_block("normal");
@@ -469,11 +471,22 @@ impl<'a> LowerCtx<'a> {
     /// Iterative pre-order expression walk: structured ops where the IR
     /// gains meaning; every call node is recorded once.
     fn lower_expr(&mut self, node: tree_sitter::Node<'a>, block: usize, ast_map: &AstIdMap) {
-        let mut stack = vec![node];
-        while let Some(n) = stack.pop() {
+        let mut stack = vec![(node, false)];
+        while let Some((n, finish)) = stack.pop() {
             let k = n.kind();
-            if is_call_node(self.lang, k) {
+            if finish {
                 self.record_call(n, block, classify_call(n, &self.seed), ast_map);
+                continue;
+            }
+            if self.seed.lambda_kinds.contains(&k) {
+                self.cfg.emit(block, "Closure", n, ast_map.id_of(n));
+                continue; // closure creation does not execute its body
+            }
+            if is_call_node(self.lang, k) {
+                stack.push((n, true));
+                let mut cursor = n.walk();
+                let children: Vec<_> = n.named_children(&mut cursor).collect();
+                for child in children.into_iter().rev() { stack.push((child, false)); }
                 continue;
             }
             if self.seed.await_kinds.contains(&k) {
@@ -493,7 +506,7 @@ impl<'a> LowerCtx<'a> {
             let ch: Vec<tree_sitter::Node<'a>> = n.children(&mut c).collect();
             drop(c);
             for ch in ch.into_iter().rev() {
-                stack.push(ch);
+                stack.push((ch, false));
             }
         }
     }

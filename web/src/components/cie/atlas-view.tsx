@@ -21,6 +21,9 @@
 // dashboard at once.
 
 import { useMemo, useState } from "react";
+import { FunctionFlow } from "./function-flow";
+import { callSiteSequence } from "@/lib/behaviour-views";
+import { atlasPopulation } from "@/lib/atlas-scope";
 import { CrossServiceEvidence } from "./rfc0020-evidence";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,14 +69,24 @@ const PANELS = [
 type PanelId = (typeof PANELS)[number]["id"];
 
 export function AtlasView() {
-  const { report, quality, stack, concepts, atlasSelection, atlasFactsOnly, setAtlasSelection, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, persona, personaDisclosure, setPendingAsk, addChip, removeChip } = useCie();
+  const { storageRoot, sourceRoot, report: loadedReport, quality: loadedQuality, stack: loadedStack, concepts: loadedConcepts, atlasSelection, atlasFactsOnly, setAtlasSelection, selectFunction, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, persona, personaDisclosure, setPendingAsk, addChip, removeChip } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders
   // plan.rows in reading order instead of a hand-coded sequence.
   const plan = useMemo(() => planSheet(persona, { factsOnlyOverride: atlasFactsOnly }), [persona, atlasFactsOnly]);
   const [pickedFlow, setPickedFlow] = useState<{ entryId: number; label: string; scope: string | null } | null>(null);
+  const [messageLimit,setMessageLimit]=useState(60);
   const [expanded, setExpanded] = useState<PanelId | null>(null); // null = the whole grid
 
+  const population = useMemo(() => loadedReport ? atlasPopulation(loadedReport, loadedConcepts, loadedStack, atlasSelection) : null, [loadedReport, loadedConcepts, loadedStack, atlasSelection]);
+  const quality=useMemo(()=>{
+    if(!loadedQuality||!population||!atlasSelection.primary)return loadedQuality;
+    const has=(r:{file:string})=>population.files.has(r.file);
+    return {...loadedQuality,coverage_heatmap:{...loadedQuality.coverage_heatmap,files:loadedQuality.coverage_heatmap.files.filter(has)},complexity:{...loadedQuality.complexity,functions:loadedQuality.complexity.functions.filter(has)},churn:{...loadedQuality.churn,sample:{...loadedQuality.churn.sample,per_file:loadedQuality.churn.sample.per_file.filter(has)}},hotspots:{...loadedQuality.hotspots,rows:loadedQuality.hotspots.rows.filter(has)}};
+  },[loadedQuality,population,atlasSelection.primary]);
+  const report = population?.report ?? loadedReport;
+  const stack = population?.stack ?? loadedStack;
+  const concepts = population?.concepts ?? loadedConcepts;
   const primary = atlasSelection.primary;
   const containerRef = primary?.kind === "container" ? primary : null;
   const moduleRef = primary?.kind === "module" ? primary : null;
@@ -120,7 +133,7 @@ export function AtlasView() {
       ? rows.filter((r) => {
           const sym = symbolByQualName(report, r.title);
           const f = sym ? report.files[sym.loc.file] : r.file;
-          return f && containerOfPath(f) === scopeId;
+          return f && containerOfPath(f, stack?.apps) === scopeId;
         })
       : rows;
     return inContainer.slice(0, 3);
@@ -164,7 +177,7 @@ export function AtlasView() {
 
   const dataflowSpec = useMemo<ChatChartSpec | null>(() => {
     if (!report) return null;
-    return buildDataFlowSpec(report, scopeId);
+    return buildDataFlowSpec(report, scopeId, undefined, stack?.apps);
   }, [report, scopeId]);
 
   // ---- hierarchy: the concept tree itself. Centred on whatever's selected
@@ -182,11 +195,11 @@ export function AtlasView() {
   // build files / route annotations as written. ----
   const appEntryRows: MainSite[] = useMemo(() => {
     if (!stack) return [];
-    return stack.mains.filter((m) => !scopeId || containerOfPath(m.rel) === scopeId);
+    return stack.mains.filter((m) => !scopeId || containerOfPath(m.rel, stack?.apps) === scopeId);
   }, [stack, scopeId]);
   const svcEntryRows: RouteSite[] = useMemo(() => {
     if (!stack) return [];
-    return stack.routes.filter((r) => !scopeId || containerOfPath(r.rel) === scopeId);
+    return stack.routes.filter((r) => !scopeId || containerOfPath(r.rel, stack?.apps) === scopeId);
   }, [stack, scopeId]);
 
   // ---- flow: the chart that re-levels itself. Whatever the Selection
@@ -195,7 +208,7 @@ export function AtlasView() {
   // into a function → that function, step by step. ----
   const flowBuild = useMemo(() => {
     if (!report) return null;
-    return buildFlowSpec(report, atlasSelection);
+    return buildFlowSpec(report, atlasSelection, stack?.apps);
   }, [report, atlasSelection]);
 
   // ---- sequence: symbol-centred trace, or the top flow of the scope ----
@@ -227,12 +240,12 @@ export function AtlasView() {
     const res = traceFlow(report, Number(entryId));
     if (!res) return null;
     return { res, entryLabel: qual ?? autoFlow?.label ?? "", entryId: Number(entryId) };
-  }, [report, symbolRef, picked, autoFlow]);
+  }, [report, symbolRef, conceptEntryQual, picked, autoFlow]);
 
   const seqSpec = useMemo(() => {
     if (!seqTrace || !report) return null;
-    return buildSequenceSpec(`Sequence — ${seqTrace.entryLabel}()`, seqTrace.res.steps, new Set<number>());
-  }, [seqTrace, report]);
+    return callSiteSequence(report, seqTrace.entryId,messageLimit);
+  }, [seqTrace, report,messageLimit]);
 
   // ---- measured quality panels — scoped when a container is. The raw
   // dataset is checked first so a scope with no rows can say so honestly
@@ -241,10 +254,10 @@ export function AtlasView() {
   const hasCplx = !!quality?.complexity?.functions?.length;
   const hasChurn = !!quality?.churn?.sample?.per_file?.length;
   const hasHot = !!quality?.hotspots?.rows?.length;
-  const covSpec = useMemo(() => (hasCov ? buildCoverageHeatmapSpec(quality, scopeId) : null), [quality, scopeId, hasCov]);
-  const cplxSpec = useMemo(() => (hasCplx ? buildComplexitySpec(quality!, scopeId) : null), [quality, scopeId, hasCplx]);
-  const churnSpec = useMemo(() => (hasChurn ? buildPerFileChurnSpec(quality!, scopeId) : null), [quality, scopeId, hasChurn]);
-  const hotSpec = useMemo(() => (hasHot ? buildHotspotSpec(quality!, scopeId) : null), [quality, scopeId, hasHot]);
+  const covSpec = useMemo(() => (hasCov ? buildCoverageHeatmapSpec(quality, scopeId,loadedStack?.apps) : null), [quality, scopeId, hasCov]);
+  const cplxSpec = useMemo(() => (hasCplx ? buildComplexitySpec(quality!, scopeId,loadedStack?.apps) : null), [quality, scopeId, hasCplx]);
+  const churnSpec = useMemo(() => (hasChurn ? buildPerFileChurnSpec(quality!, scopeId,loadedStack?.apps) : null), [quality, scopeId, hasChurn]);
+  const hotSpec = useMemo(() => (hasHot ? buildHotspotSpec(quality!, scopeId,loadedStack?.apps) : null), [quality, scopeId, hasHot]);
 
   // ---- click routing: one handler per panel (each ChatChart gets its own),
   // all landing in the same Selection Context. The atlas OWNS diagram clicks
@@ -326,18 +339,14 @@ export function AtlasView() {
     }
     return; // the unresolved bucket is evidence, not a scope
   };
-  // Sequence and Flow are OUTPUTS of the Selection Context, never inputs to
-  // it: every other panel's click can re-scope them (via setAtlasSelection
-  // above), but a click inside Sequence or Flow itself only opens the code
-  // at that exact spot — it never re-levels or re-centres either chart. That
-  // keeps the redraw direction one-way: tables/Containers/Components/Data
-  // flow drive Sequence+Flow, not the other way round.
+  // A function selection synchronizes its source, CFG and static call sequence.
   const onSequenceClick = (sel: DiagramSelection) => {
     if (sel.kind !== "msg") return;
     if (!report) return;
     const qual = sel.id.replace(/\(\)$/, "");
-    const sym = symbolByQualName(report, qual);
-    openPopup(sel.loc ?? locOfSym(report, sym), qual, "call");
+    const sym = sel.symbolId!=null ? loadedReport?.symbols.find(s=>Number(s.id)===sel.symbolId) : symbolByQualName(report, qual);
+    if (sym) { selectFunction(Number(sym.id)); }
+    else openPopup(sel.loc, qual, "call");
   };
   const onHierarchyClick = (sel: DiagramSelection) => {
     if (sel.kind !== "node") return;
@@ -366,7 +375,8 @@ export function AtlasView() {
       return;
     }
     const sym = symbolByQualName(report, sel.id);
-    openPopup(sel.loc ?? (sym ? locOfSym(report, sym) : undefined), sel.label, "flow step");
+    if (sym) { selectFunction(Number(sym.id)); }
+    else openPopup(sel.loc, sel.label, "flow step");
   };
   // entry-point rows: always open the exact source line; when the engine's
   // own symbol index carries a matching function IN THE SAME FILE (never
@@ -387,14 +397,15 @@ export function AtlasView() {
     addChip({id:`route:${r.rel}:${r.line}`,label:r.method,kind:"route",revision:report?.rev??0,loc:{file:r.rel,line:r.line},files:[r.rel]});
     openSourceViewer({ file: r.rel, line: r.line });
     if (!report) return;
-    const sym = symbolByQualName(report, `${r.owner}.${r.method}`);
+    const matches = loadedReport?.symbols.filter(s => s.qual_name === `${r.owner}.${r.method}` && loadedReport.files[s.loc.file] === r.rel) ?? [];
+    const sym = matches.length === 1 ? matches[0] : undefined;
     if (sym && (report.files[sym.loc.file] ?? "") === r.rel) {
       const qual = sym.qual_name || sym.name;
       setAtlasSelection({ kind: "symbol", id: qual, label: sym.name, loc: { file: r.rel, byteStart: sym.loc.start, byteEnd: sym.loc.end } });
     }
   };
 
-  const crumbs = breadcrumbOf(atlasSelection);
+  const crumbs = breadcrumbOf(atlasSelection, loadedStack?.apps);
   const shown = (s: ChatChartSpec | null): ChatChartSpec | null => s; // gate/conductor owns Facts-only and its ledger
   const shownC4 = shown(c4Spec);
   const shownComp = shown(compSpec);
@@ -448,23 +459,27 @@ export function AtlasView() {
       return shownHierarchy ? <ChatChart spec={shownHierarchy} onSelectElement={onHierarchyClick} /> : (
         <HonestEmpty scope={scopeId} what="a concept tree (needs concepts.json)" />
       );
+    if (id === "flow" && symbolRef && loadedReport) {
+      const selected=loadedReport.symbols.filter(s=>s.qual_name===symbolRef.id&&(!symbolRef.loc?.file||loadedReport.files[s.loc.file]===symbolRef.loc.file));
+      if(selected.length===1)return <FunctionFlow root={storageRoot??sourceRoot} report={loadedReport} symbol={selected[0]}/>;
+    }
     if (id === "flow")
       return shownFlowChart ? <ChatChart spec={shownFlowChart} onSelectElement={onFlowClick} /> : (
         <HonestEmpty scope={scopeId} what="recorded calls and behaviour summaries to draw a flow from" />
       );
     return (
-      <SequencePanel
+      <><SequencePanel
         seqSpec={shownSeq}
         flows={flows}
         picked={picked}
         auto={autoFlow}
         scope={scopeId}
-        traceInfo={seqTrace ? { steps: seqTrace.res.steps.length, truncated: seqTrace.res.truncated, effects: seqTrace.res.effectsSeen } : null}
+        traceInfo={seqTrace ? { steps: shownSeq?.msgs?.length??0, truncated: shownSeq?.sequenceCoverage?.omitted??0, effects: seqTrace.res.effectsSeen } : null}
         onPick={(entryId, label) => setPickedFlow({ entryId, label, scope: scopeId })}
         onClearPick={() => setPickedFlow(null)}
         hasEntry={!!(symbolRef || picked || autoFlow)}
         onSelectElement={onSequenceClick}
-      />
+      />{(shownSeq?.sequenceCoverage?.omitted??0)>0 && messageLimit<500 && <Button onClick={()=>setMessageLimit(n=>Math.min(500,n*2))}>Show more calls</Button>}</>
     );
   };
 
@@ -490,7 +505,7 @@ export function AtlasView() {
           <span className="flex-1" />
           {scopeId && (
             <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800" data-testid="atlas-scope-note">
-              every other panel shows {scopeId} only
+              selected scope: {population?.label ?? scopeId}
             </span>
           )}
           {primary && (

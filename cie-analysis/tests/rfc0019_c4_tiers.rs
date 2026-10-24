@@ -309,7 +309,7 @@ fn with_stack_the_dag_carries_the_c4_tiers() {
     let uc = dag
         .nodes
         .iter()
-        .find(|n| n.kind == ConceptKind::UseCase)
+        .find(|n| n.kind == ConceptKind::Facet)
         .expect("the shared docker-managed intent forms a use case");
     assert_eq!(uc.intent, vec!["docker-managed".to_string()]);
 }

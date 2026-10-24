@@ -105,6 +105,8 @@ pub struct Entity {
 pub enum RelationKind {
     DefinedIn,
     Calls,
+    /// Source-declared targets, including candidate runtime dispatch.
+    DeclaredCalls,
     MemberOfConcept,
     ChildConceptOf,
     MemberOfCluster,
@@ -142,7 +144,7 @@ impl RelationKind {
                     File
                 )
                 | (RelationKind::DefinedIn, Symbol, File)
-                | (RelationKind::Calls, Symbol, Symbol)
+                | (RelationKind::Calls | RelationKind::DeclaredCalls, Symbol, Symbol)
                 | (RelationKind::MemberOfConcept, Symbol, Concept)
                 | (RelationKind::MemberOfConcept, File, Concept)
                 | (RelationKind::ChildConceptOf, Concept, Concept)

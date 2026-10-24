@@ -179,11 +179,11 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
   const nodes: { id: string; style: Record<string, unknown>; data: Record<string, unknown> }[] = [];
   for (const lane of lanes) {
     const x = laneX.get(lane)!;
-    const w = boxWidth(lane);
+    const w = Math.min(LANE_W - 16, boxWidth(lane));
     for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
       nodes.push({
         id: `lane:${lane}:${key}`,
-        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane, labelFontSize: 10.5, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lanes.filter(l=>l.split('/').pop()===lane.split('/').pop()).length===1 ? lane.split('/').pop() ?? lane : lane, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
         data: {},
       });
     }
@@ -216,7 +216,7 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
         lineWidth: e.displayMode === "Fact" ? 1.8 : 1.4,
         endArrow: true,
         labelText: p?.msg ?? e.label,
-        labelFontSize: 10.5,
+        labelFontSize: 12,
         labelAutoRotate: false,
         labelBackground: true,
         labelBackgroundFill: "#f7f8f4",
@@ -228,7 +228,7 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
   return new Graph({
     container,
     autoResize: true,
-    autoFit: "view",
+    autoFit: undefined,
     padding: 20,
     data: { nodes, edges },
     node: { type: "rect" },
@@ -281,7 +281,7 @@ function renderLifelineSequence(container: HTMLElement, spec: ViewSpec): Graph {
     for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
       nodes.push({
         id: `${lane.id}:${key}`,
-        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane.label, labelFontSize: 10.5, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane.label, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
         data: { label: lane.label },
       });
     }
@@ -311,7 +311,7 @@ function renderLifelineSequence(container: HTMLElement, spec: ViewSpec): Graph {
         lineWidth: e.displayMode === "Fact" ? 1.8 : 1.4,
         endArrow: true,
         labelText: label,
-        labelFontSize: 10.5,
+        labelFontSize: 12,
         labelAutoRotate: false,
         labelBackground: true,
         labelBackgroundFill: "#f7f8f4",
@@ -323,7 +323,7 @@ function renderLifelineSequence(container: HTMLElement, spec: ViewSpec): Graph {
   return new Graph({
     container,
     autoResize: true,
-    autoFit: "view",
+    autoFit: undefined,
     padding: 20,
     data: { nodes, edges },
     node: { type: "rect" },
@@ -379,7 +379,7 @@ async function renderSpecG6(
           lineWidth: e.displayMode === "Fact" ? 1.6 : 1.2,
           lineDash: DASH[e.displayMode],
           labelText: e.label,
-          labelFontSize: 10,
+          labelFontSize: 12,
           labelPlacement: "center" as const,
           labelWordWrap: true,
           labelWordWrapWidth: boxWidth(e.label) - 12,
@@ -412,7 +412,7 @@ async function renderSpecG6(
     graph = new Graph({
       container,
       autoResize: true,
-      autoFit: "view",
+      autoFit: undefined,
       padding: 24,
       data: { nodes, edges },
       node: { type: "rect" },
@@ -434,16 +434,19 @@ async function renderSpecG6(
     graph = new Graph({
       container,
       autoResize: true,
-      autoFit: "view",
       padding: 16,
       behaviors: G6_BEHAVIORS,
       ...(rest as Record<string, unknown>),
+      autoFit: undefined,
       data: cfg.data as never,
     });
   }
 
   try {
+    graph.updateNodeData(graph.getNodeData().map(n=>({id:n.id,style:{...n.style,labelFontSize:12}})));
+    graph.updateEdgeData(graph.getEdgeData().map(e=>({id:e.id,style:{...e.style,labelFontSize:12}})));
     await graph.render();
+    await readableViewport(graph);
   } catch (err) {
     graph.destroy();
     throw err;
@@ -465,13 +468,15 @@ async function renderSpecG6(
     ...graph.getNodeData().map((n) => n.id),
     ...graph.getEdgeData().map((e) => e.id),
   ]);
+  let disposed = false;
   const offHighlight = hub.subscribe((ids) => {
+    if(disposed)return;
     const states = Object.fromEntries(
       [...spec.elements, ...spec.edges]
         .filter((e) => knownIds.has(e.id))
         .map((e) => [e.id, ids.includes(e.id) ? ["selected"] : []]),
     );
-    void graph.setElementState(states, false);
+    void graph.setElementState(states, false).catch(error=>{if(!disposed)console.error(error);});
   });
 
   const handle: RenderHandle = {
@@ -495,6 +500,7 @@ async function renderSpecG6(
       );
     },
     async dispose() {
+      disposed = true;
       offHighlight();
       graph.off("node:click", onClick);
       graph.off("edge:click", onClick);
@@ -510,6 +516,20 @@ async function renderSpecG6(
   return handle;
 }
 
+async function readableViewport(graph:Graph) {
+  await graph.zoomTo(1,false);
+  const first=graph.getNodeData().find(n=>!String(n.id).includes('::') && !String(n.id).startsWith('lane:') && !String(n.id).endsWith(':bottom')) ?? graph.getNodeData()[0];
+  if(first?.id) await graph.focusElement(first.id,false);
+  else await graph.fitCenter(false);
+}
+export async function navigateDiagram(handle:RenderHandle,action:string) {
+  const graph=graphs.get(handle);if(!graph)return;
+  if(action==='overview'){await graph.fitView(undefined,false);return;}
+  if(action==='readable'){await readableViewport(graph);return;}
+  if(action==='in'||action==='out'){await graph.zoomTo(Math.max(1,Math.min(4,graph.getZoom()*(action==='in'?1.25:0.8))),false);return;}
+  const delta:Record<string,[number,number]>={left:[200,0],right:[-200,0],up:[0,160],down:[0,-160]};
+  if(delta[action])await graph.translateBy(delta[action],false);
+}
 const graphs = new WeakMap<RenderHandle, Graph>();
 const specs = new WeakMap<RenderHandle, ViewSpec>();
 async function elkPositions(spec: ViewSpec) {
@@ -580,6 +600,7 @@ export function g6HostRuntime(): HostRenderRuntime {
         );
       } else graph.setLayout({ type: outcome.actual, ...(hint.params ?? {}) });
       await graph.render();
+      await readableViewport(graph);
       handle.layout = outcome;
       handle.renderHash = recomputeRenderHash(next, "g6");
       specs.set(handle, next);

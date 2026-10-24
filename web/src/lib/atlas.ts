@@ -436,7 +436,7 @@ export function buildComponentSpec(
     }
   }
 
-  const files = report.files.filter(inContainer);
+  const files = (report.viewScope?.files ?? report.files).filter(inContainer);
   const symCount = new Map<string, number>();
   const firstSym = new Map<string, SymbolInfo>();
   const byModule = new Map<string, SymbolInfo[]>();
@@ -574,7 +574,7 @@ export function buildDataFlowSpec(report: CieReport, container: string | null, t
 
   // stores: .sql files in scope + summary-named stores that real code touches
   const storeHits = new Map<string, { readers: Set<string>; writers: Set<string> }>();
-  for (const f of report.files) {
+  for (const f of (report.viewScope?.files ?? report.files)) {
     if (f.endsWith(".sql")) storeHits.set(f, { readers: new Set(), writers: new Set() });
   }
   const namedStores = new Map<string, { readers: Set<string>; writers: Set<string> }>();

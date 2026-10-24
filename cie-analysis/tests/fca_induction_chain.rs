@@ -85,7 +85,7 @@ fn run_with(
 fn usecases(dag: &ConceptDag) -> Vec<&ConceptNode> {
     dag.nodes
         .iter()
-        .filter(|n| n.kind == ConceptKind::UseCase)
+        .filter(|n| n.kind == ConceptKind::Facet)
         .collect()
 }
 
@@ -195,7 +195,7 @@ fn the_chain_survives_rollup_at_its_own_confidence() {
         let ca = dag
             .nodes
             .iter()
-            .find(|n| n.kind == ConceptKind::UseCase && n.intent.len() == 1 && n.intent[0] == "a")
+            .find(|n| n.kind == ConceptKind::Facet && n.intent.len() == 1 && n.intent[0] == "a")
             .unwrap();
         (ca.id, ca.confidence, ca.symbols.len())
     };
@@ -203,7 +203,7 @@ fn the_chain_survives_rollup_at_its_own_confidence() {
         let cab = dag
             .nodes
             .iter()
-            .find(|n| n.kind == ConceptKind::UseCase && n.intent.len() == 2)
+            .find(|n| n.kind == ConceptKind::Facet && n.intent.len() == 2)
             .unwrap();
         cab.id
     };

@@ -22,17 +22,17 @@ import os from "os";
 // root (deleted below once the job ends), nothing else will ever ask for
 // that hash again, so the file would otherwise orphan forever and slowly
 // fill the temp filesystem (confirmed: 1000+ such orphans found on disk).
-async function cleanupPolyglotScratchDb(root: string): Promise<void> {
+async function cleanupPolyglotScratchDb(root: string, tempRoot: string): Promise<void> {
   let canon: string;
   try { canon = await fs.realpath(root); } catch { canon = path.resolve(root); }
-  let h = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  const mask = 0xffffffffffffffffn;
+  let h = BigInt("0xcbf29ce484222325");
+  const prime = BigInt("0x100000001b3");
+  const mask = BigInt("0xffffffffffffffff");
   for (const byte of Buffer.from(canon, "utf8")) {
     h = (h ^ BigInt(byte)) & mask;
     h = (h * prime) & mask;
   }
-  const base = path.join(os.tmpdir(), `cie-polyglot-${h.toString(16)}`);
+  const base = path.join(tempRoot, `cie-polyglot-${h.toString(16)}`);
   for (const ext of [".db", ".building"]) {
     for (const suffix of ["", "-wal", "-shm", "-journal"]) {
       await fs.rm(`${base}${ext}${suffix}`, { force: true }).catch(() => {});
@@ -889,7 +889,7 @@ async function runPipeline(job: AnalyzeJob) {
     // canonical path will never be asked for again, so its scratch db
     // would otherwise orphan forever. Must run BEFORE repoDir is deleted —
     // the hash has to match what the engine canonicalized while it existed.
-    if (!isLocal || job.viaSnapshot) await cleanupPolyglotScratchDb(repoDir);
+    if (!isLocal || job.viaSnapshot) await cleanupPolyglotScratchDb(repoDir, path.join(JOBS_ROOT, ".scratch-tmp"));
     // Local folders are never touched (read-only analysis in place; the
     // user's folder is never inside workDir).
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});

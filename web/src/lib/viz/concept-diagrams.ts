@@ -388,7 +388,7 @@ export function conceptToSequenceSpec(
       // the caption's promise, now actually kept: the BFS depth from the
       // entries rides the edge, so any lane layout orders without
       // re-deriving the call graph
-      fields: { depth: depth.get(e.from) ?? 0 },
+      fields: { depth: depth.get(e.from) ?? 0, targetSymbol:e.to, callSiteSymbol:e.from },
     };
   });
 

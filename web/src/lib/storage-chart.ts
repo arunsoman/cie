@@ -8,6 +8,8 @@ export interface CubeView {
     measures: Record<string, unknown>;
     items: Array<{ members: Record<string, unknown>; measures: Record<string, number | null>; contributors?: string }>;
     truncated?: boolean;
+    continuation?:string|null;
+    total?:number;
     partition_verified?: boolean;
   };
 }

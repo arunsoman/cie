@@ -17,6 +17,10 @@
 // picture; a projection-less artifact (analyzed before A5) says so and
 // still offers the diagrams, which need only (concept, report).
 
+import { FunctionFlow } from "./function-flow";
+import { ChatChart } from "./chat-chart";
+import { callSiteSequence } from "@/lib/behaviour-views";
+import { DiagramNavigation } from "./diagram-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SelectionConductor,
@@ -85,7 +89,7 @@ export function conceptDiagramFor(
   return {
     conceptId,
     kind,
-    title: kind === "flowchart" ? `Flowchart — ${label}` : `Sequence — ${label}`,
+    title: kind === "flowchart" ? `Call graph — ${label}` : `Sequence — ${label}`,
     hint:
       kind === "flowchart"
         ? `The usecase "${label}" as a call graph — nodes are its recorded members, edges the calls the engine resolved between them.`
@@ -151,6 +155,10 @@ export function ConceptDiagramCanvas({
     (id: string) => {
       const rec = byId.get(id);
       if (!rec || !rec.file) return;
+      const edge=diagram.view?.edges.find(e=>e.id===id);
+      const target=edge?.fields?.targetSymbol;
+      const fn=target!=null ? report?.symbols.find(s=>Number(s.id)===Number(target)) : report?.symbols.find(s=>['Function','Method','Test'].includes(s.kind)&&report.files[s.loc.file]===rec.file&&s.loc.start===rec.start&&s.loc.end===rec.end);
+      if(fn){useCie.getState().selectFunction(Number(fn.id));return;}
       addChip({
         id,
         label: rec.label,
@@ -177,6 +185,9 @@ export function ConceptDiagramCanvas({
       setFailure(true);
       setNote(`Gate declined: ${diagram.violations.join("; ")}`);
       return;
+    }
+    if (diagram.kind==='sequence' && !view.edges.length) {
+      setFailure(false);setNote('No evidenced interactions in this selection. Participant names alone do not establish a sequence.');return;
     }
     if (!view.elements.length) {
       setFailure(false);
@@ -250,7 +261,7 @@ export function ConceptDiagramCanvas({
     <div data-concept-diagram={diagram.kind}>
       <p className="text-sm font-semibold text-stone-900">{diagram.title}</p>
       <p className="text-xs text-stone-500">{diagram.hint}</p>
-      {view && !!view.elements.length && (
+      {view && !!view.elements.length && !(diagram.kind==='sequence'&&!view.edges.length) && (
         <div
           ref={host}
           className={`mt-2 w-full rounded-lg border border-stone-200 bg-white ${big ? "h-[640px]" : "h-[440px]"}`}
@@ -259,6 +270,7 @@ export function ConceptDiagramCanvas({
         />
       )}
       {(!view || !view.elements.length) && <div ref={host} />}
+      {!!view?.elements.length && <DiagramNavigation handle={handle} />}
       <p role={failure ? "alert" : undefined} className="text-[10px] text-stone-500 mt-1">
         {note}
       </p>
@@ -266,9 +278,9 @@ export function ConceptDiagramCanvas({
       {/* the epistemic footer — what this picture knows, and how sure it is */}
       {f && (
         <p className="text-[11px] text-stone-500 mt-1.5 inline-flex items-center gap-x-3 flex-wrap">
-          <span className="font-medium text-stone-600">How sure:</span>
+          <span className="font-medium text-stone-600">Source records:</span>
           <span>
-            {f.facts} {certaintyPlain("Fact").label.toLowerCase()}
+            {f.facts} recorded
           </span>
           <span aria-hidden>·</span>
           <span>
@@ -372,7 +384,7 @@ export function ConceptDiagramCanvas({
 /** A usecase diagram the chat (or the section) asked for — the big, quiet
  *  version on the stage canvas. */
 export function ConceptOnCanvas() {
-  const { canvasConcept, concepts, report, closeCanvasChart } = useCie();
+  const { canvasConcept, concepts, report, closeCanvasChart, storageRoot, sourceRoot } = useCie();
   const diagram = useMemo(
     () =>
       canvasConcept
@@ -381,11 +393,13 @@ export function ConceptOnCanvas() {
     [canvasConcept, concepts, report],
   );
   if (!canvasConcept || !diagram) return null;
+  const node=concepts?.nodes.find(n=>n.id===canvasConcept.conceptId);
+  const entry=node?.provenance==='api:declared-route-v1' ? report?.symbols.find(s=>Number(s.id)===node.entry_symbol) : undefined;
   return (
     <div className="p-4 sm:p-6 w-full max-w-5xl">
       <Card className="border-stone-200 shadow-sm w-full">
         <CardContent className="p-5 w-full">
-          <ConceptDiagramCanvas diagram={diagram} big />
+          {entry && report ? canvasConcept.kind==='flowchart' ? <FunctionFlow root={storageRoot??sourceRoot} report={report} symbol={entry}/> : <ChatChart spec={callSiteSequence(report,Number(entry.id))!}/> : <ConceptDiagramCanvas diagram={diagram} big />}
         </CardContent>
       </Card>
       <button
@@ -410,7 +424,7 @@ function chainWords(chain: { id: number; label: string; kind: string }[]): strin
 }
 
 export function UsecasesView() {
-  const { report, concepts, openConceptOnCanvas, openSourceViewer, source, demoKind, label } = useCie();
+  const { report, concepts, openConceptOnCanvas, openSourceViewer, selectFunction, storageRoot, sourceRoot, source, demoKind, label } = useCie();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // which diagram the section draws inline — the chart lives HERE first
   // (the section is the front door; the big canvas is one tap away, not
@@ -419,7 +433,7 @@ export function UsecasesView() {
 
   const projection = report?.usecase_view ?? null;
   const usecaseNodes = useMemo(
-    () => (concepts?.nodes ?? []).filter((n) => n.kind === "UseCase"),
+    () => (concepts?.nodes ?? []).filter((n) => n.kind === "UseCase" || n.kind === "Facet"),
     [concepts],
   );
 
@@ -441,7 +455,7 @@ export function UsecasesView() {
   // the effect below.
   const defaultId = useMemo(() => {
     const withChain = rows.find((r) => r.chain.length > 1);
-    return withChain?.id ?? rows[0]?.id ?? null;
+    return rows.find(r=>usecaseNodes.find(n=>n.id===r.id)?.provenance==="api:declared-route-v1")?.id ?? withChain?.id ?? rows[0]?.id ?? null;
   }, [rows]);
   useEffect(() => {
     if (selectedId != null && !rows.some((r) => r.id === selectedId)) setSelectedId(null);
@@ -497,6 +511,9 @@ export function UsecasesView() {
   }
 
   const current = rows.find((r) => r.id === currentId) ?? rows[0];
+  const isApi = conceptNode?.provenance === 'api:declared-route-v1';
+  const entry = isApi ? report.symbols.find(s=>Number(s.id)===Number(conceptNode?.entry_symbol)) : undefined;
+  const apiSequence=entry?callSiteSequence(report,Number(entry.id)):null;
 
   return (
     <div className="space-y-4" data-view="usecases">
@@ -516,7 +533,7 @@ export function UsecasesView() {
           <CardTitle className="text-base">Pick a story</CardTitle>
           <CardDescription>
             Each usecase is a group of functions the engine found doing one thing together —
-            membership comes from recorded evidence, never from a name guess.
+            API behaviours start at declared route handlers. Technical facets group shared recorded attributes; they are not validated business stories.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -554,7 +571,7 @@ export function UsecasesView() {
                     </Badge>
                   ))}
                   <span className="text-xs text-stone-400 self-center">
-                    confidence {record.confidence.toFixed(2)} · {record.provenance}
+                    {conceptNode?.kind==='Facet'?'Technical facet; business meaning unvalidated':'Source-declared API; downstream coverage may be incomplete'} · {record.provenance}
                     {record.coverage_complete ? "" : " · coverage incomplete — the extent may miss members the engine could not place"}
                   </span>
                 </div>
@@ -607,7 +624,7 @@ export function UsecasesView() {
                         : "text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    <Workflow className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> Flowchart
+                    <Workflow className="h-3.5 w-3.5 text-emerald-700" aria-hidden /> {isApi ? "Flowchart" : "Call graph"}
                   </button>
                   <button
                     type="button"
@@ -637,7 +654,7 @@ export function UsecasesView() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ConceptDiagramCanvas diagram={inline} />
+            {entry && diagramKind==='flowchart' ? <FunctionFlow root={storageRoot??sourceRoot} report={report} symbol={entry}/> : entry && apiSequence ? <ChatChart spec={apiSequence}/> : <ConceptDiagramCanvas diagram={inline} />}
           </CardContent>
         </Card>
       )}
@@ -661,14 +678,7 @@ export function UsecasesView() {
                 <li key={m.symbol}>
                   <button
                     type="button"
-                    onClick={() =>
-                      openSourceViewer({
-                        file: m.file,
-                        line: m.line,
-                        elName: m.name,
-                        chartTitle: `Usecase — ${record.label}`,
-                      })
-                    }
+                    onClick={() => selectFunction(Number(m.symbol))}
                     className="w-full text-left py-1.5 flex flex-wrap items-baseline gap-x-3 hover:bg-emerald-50/60 rounded px-1 -mx-1"
                   >
                     <span className="font-mono text-xs text-stone-800">{m.name}</span>

@@ -273,6 +273,7 @@ export function Topbar() {
               <DropdownMenuItem onClick={go("does")} className={view === "does" ? "bg-emerald-50" : ""}>What it does</DropdownMenuItem>
               <DropdownMenuItem onClick={go("fixes")} className={view === "fixes" ? "bg-emerald-50" : ""}>Things to look at</DropdownMenuItem>
               <DropdownMenuItem onClick={go("promises")} className={view === "promises" ? "bg-emerald-50" : ""}>Promises</DropdownMenuItem>
+              <DropdownMenuItem onClick={go("usecases")} className={view === "usecases" ? "bg-emerald-50" : ""}>API behaviours and facets</DropdownMenuItem>
               <DropdownMenuItem onClick={go("polyglot")} className={view === "polyglot" ? "bg-emerald-50" : ""}>Named diagrams</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Watching it run</DropdownMenuLabel>

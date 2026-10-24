@@ -49,6 +49,12 @@ test("G6 host supplies adapted nodes to canvas and suppresses selection feedback
     getEdgeData() {
       return this.data.edges;
     }
+    updateNodeData(nodes) {this.data.nodes=nodes;}
+    updateEdgeData(edges) {this.data.edges=edges;}
+    getZoom(){return this.zoom ?? 0.25;}
+    async zoomTo(value){this.zoom=value;}
+    async fitCenter(){}
+    async focusElement(){}
     async render() {}
     setLayout() {}
     async setElementState() {}
@@ -69,6 +75,8 @@ test("G6 host supplies adapted nodes to canvas and suppresses selection feedback
   const { renderViaNegotiator } = load(src("lib/viz/g6-engine.ts"));
   const result = await renderViaNegotiator({}, spec());
   assert.equal(cfg.data.nodes[0].id, "a");
+  assert.equal(graph.getZoom(),1);
+  assert.equal(graph.getNodeData()[0].style.labelFontSize,12);
   let calls = 0;
   result.handle.onSelection((ids) => {
     calls++;

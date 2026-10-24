@@ -43,6 +43,7 @@ export interface ChatChartDataPoint {
 // store (src/lib/draw-anything.ts), so every label traces back to indexed
 // data. The model may only pick the KIND and write the title/tell.
 export interface UmlNode {
+  symbolId?:number;
   id: string;
   title: string;
   kind: string; // domain | module | usecase | rule | invariant | function | step
@@ -106,6 +107,7 @@ export interface ChatChartSpec {
   tree?: TreeNode[]; // kind "tree" — built from concepts.json
   tiles?: HeatTile[]; // kind "heatmap" — per-file measured values
   participants?: string[]; // kind "sequence" — the lanes (files), in first-appearance order
+  sequenceCoverage?:{omitted:number;limit:number};
   msgs?: SequenceMsg[]; // kind "sequence" — the arrows (calls), with each step's state
   source?: string; // honesty note: which export the diagram was built from
   // RFC-0024 stage 3 (G1) — the disclosure ledger: every element grouped
@@ -155,6 +157,8 @@ export interface TraceStep {
 
 /** One arrow of a sequence diagram. */
 export interface SequenceMsg {
+  symbolId?:number;
+  callSiteLoc?:ElementLoc;
   from: string;
   to: string;
   label: string;

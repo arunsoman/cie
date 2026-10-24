@@ -139,6 +139,7 @@ impl SnapshotStoreExt for Store {
 
         // Concept nodes must not reference purged symbols.
         for node in &mut snap.concepts.nodes {
+            node.entry_symbol = node.entry_symbol.filter(|s| !dead.contains(s));
             node.symbols.retain(|s| !dead.contains(s));
             node.behaviors.retain(|b| !dead.contains(&b.summary));
         }
@@ -191,6 +192,10 @@ impl SnapshotStoreExt for Store {
                 sum.sym = n;
             }
             sum.callees = sum.callees.iter().filter_map(|c| remap(*c)).collect();
+            for call in &mut sum.call_sites {
+                call.target_symbols = call.target_symbols.iter().filter_map(|c| remap(*c)).collect();
+                if call.declaration == "resolved" && call.target_symbols.is_empty() { call.declaration = "unresolved".into(); call.dispatch = "unknown".into(); }
+            }
         }
         for f in &mut snap.findings {
             if let Some(n) = remap(f.symbol) {
@@ -210,6 +215,7 @@ impl SnapshotStoreExt for Store {
             if model.transitions.is_empty() {snap.state_model=None;}
         }
         for node in &mut snap.concepts.nodes {
+            node.entry_symbol = node.entry_symbol.and_then(remap);
             node.symbols = node.symbols.iter().filter_map(|s| remap(*s)).collect();
             for b in &mut node.behaviors {
                 if let Some(n) = remap(b.summary) {

@@ -6,10 +6,10 @@
 //! | Tier | Method | Confidence / displayMode |
 //! |---|---|---|
 //! | Canonical duplicate | `ir_hash` exact match | Fact (`ir-hash-match`, similarity 1.0) |
-//! | High similarity | `ir_vec` cosine ≥ 0.85 | Inference (`ir-vec`) |
-//! | Medium similarity | cosine 0.60–0.85 AND shape-hash match | Inference (`ir-shingle`) |
-//! | Low similarity | cosine 0.40–0.60 | Hypothesis with counter-argument (`ir-vec-cosine`) |
-//! | Below threshold | hidden | counted in gaps, never shown |
+//! | High fragment overlap | jscpd line coverage ≥ 0.85 | Inference (`token-clone`) |
+//! | Medium fragment overlap | coverage 0.60–0.85 | Inference (`token-clone`) |
+//! | Low fragment overlap | coverage below 0.60 | Inference (`token-clone`) |
+//! Candidate discovery is sparse; absence is not proof of uniqueness.
 //!
 //! Two exclusions precede every tier, both removing *containment geometry*,
 //! not duplicated behavior:
@@ -247,13 +247,13 @@ fn load_ir_meta(conn: &Connection) -> Result<BTreeMap<i64, (Vec<u8>, BTreeMap<St
 /// 12.6M rows of pure overhead for strings that never change).
 const COMBOS: [(&str, &str, &str, Option<&str>); 4] = [
     ("canonical", "ir-hash-match", "Fact", None),
-    ("high", "ir-vec", "Inference", None),
-    ("medium", "ir-shingle", "Inference", None),
+    ("high", "token-clone", "Inference", Some("jscpd token fragment overlap; semantic equivalence and IR-hash equality are not established")),
+    ("medium", "token-clone", "Inference", Some("jscpd token fragment overlap; semantic equivalence and IR-hash equality are not established")),
     (
         "low",
-        "ir-vec-cosine",
-        "Hypothesis",
-        Some("op-bag cosine only; control flow and data flow not compared — needs IR-level diff to confirm"),
+        "token-clone",
+        "Inference",
+        Some("jscpd token fragment overlap; control-flow and data-flow equivalence are not established"),
     ),
 ];
 const C_CANONICAL: u8 = 0;
@@ -470,8 +470,7 @@ impl Drop for FkGuard<'_> {
 /// `min_lines`/`min_tokens` floor and gets reported, or it doesn't exist.
 /// The old 0.85/0.60/0.40 tier cut points are kept, but now bucket on how
 /// much of the SMALLER symbol's own line count the matched fragment covers
-/// (a match covering ~all of the smaller symbol is a canonical whole-body
-/// duplicate; a partial match is a fragment duplicate). Because jscpd only
+/// (even whole-body token overlap remains inference unless stored IR hashes match). Because jscpd only
 /// ever reports matches that already cleared its own floor, there is no
 /// honest "hidden below floor" residual the way the old exhaustive cosine
 /// scan had — `hidden_gaps` is always 0 here.
@@ -516,6 +515,15 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     }
     if syms.len() < 2 {
         return Ok(report);
+    }
+
+    // Canonical claims require actual stored IR-hash equality, independently
+    // of a token detector's line coverage ratio.
+    let mut hashes: BTreeMap<i64, Vec<u8>> = BTreeMap::new();
+    {
+        let mut query = conn.prepare("SELECT symbol_id,ir_hash FROM ir_meta").map_err(|e|e.to_string())?;
+        let rows = query.query_map([], |r| Ok((r.get::<_,i64>(0)?,r.get::<_,Vec<u8>>(1)?))).map_err(|e|e.to_string())?;
+        for row in rows { let (id,hash)=row.map_err(|e|e.to_string())?;if hash.len()==32 {hashes.insert(id,hash);} }
     }
 
     // Decompress every file's cached source text once, keyed by file_id —
@@ -645,7 +653,7 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                 .unwrap_or(1)
                 .min(line_count.get(&b_id).copied().unwrap_or(1));
             let ratio = (matched_lines as f64 / shorter as f64).min(1.0);
-            let combo = if ratio >= 0.999 {
+            let combo = if hashes.get(&lo).zip(hashes.get(&hi)).map(|(a,b)|a==b).unwrap_or(false) {
                 report.canonical_hash += 1;
                 C_CANONICAL
             } else if ratio >= 0.85 {
@@ -658,7 +666,7 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
                 report.low += 1;
                 C_LOW
             };
-            feed_row(&mut full, &mut pending, &mut buf, lo, hi, ratio, combo)?;
+            feed_row(&mut full, &mut pending, &mut buf, lo, hi, if combo == C_CANONICAL { 1.0 } else { ratio }, combo)?;
         }
 
         if pending > 0 {
@@ -1231,6 +1239,20 @@ mod tests {
         assert_eq!(epi, "Fact");
         assert_eq!(det, "ir-hash-match");
         assert_eq!(sim, 1.0);
+    }
+
+    #[test]
+    fn token_overlap_with_unequal_ir_hashes_is_never_a_fact() {
+        let conn=setup();let mut stats=IngestStats::default();
+        let a="def charge(x):\n    if x > 1:\n        return audit(x)\n    return x\n";
+        let b=a.replace("charge", "charge2");
+        let f1=ingest_parsed_file(&conn,1,41,"a.py",Lang::Python,a,&mut stats).unwrap();
+        let f2=ingest_parsed_file(&conn,1,41,"b.py",Lang::Python,&b,&mut stats).unwrap();
+        cache_source_bytes(&conn,f1,a).unwrap();cache_source_bytes(&conn,f2,&b).unwrap();lower_all(&conn).unwrap();
+        conn.execute("UPDATE ir_meta SET ir_hash=?1 WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id=?2)",rusqlite::params![vec![7u8;32],f2]).unwrap();
+        let report=detect(&conn).unwrap();assert!(report.pairs>0);assert_eq!(report.canonical_hash,0);
+        let (kind,mode):(String,String)=conn.query_row("SELECT detection,epistemic FROM duplicates",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+        assert_eq!(kind,"token-clone");assert_eq!(mode,"Inference");
     }
 
     #[test]
