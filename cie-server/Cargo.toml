@@ -1,6 +1,6 @@
 [package]
 name = "cie-server"
-description = "Optional HTTP server (tokio-gated stub for v1.x observability endpoints)"
+description = "Read-only MCP stdio host over revision-pinned storage"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,11 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-cie-core = { workspace = true }
+cie-storage = { workspace = true }
+schemars = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, optional = true }
-
-[features]
-default = []
-runtime = ["dep:tokio"]

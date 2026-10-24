@@ -1,10 +1,10 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedSource, readFunctionIr, searchStoredSymbols, type SymbolRef as SymbolResult } from "@/lib/storage-ui";
 
 // Function IR viewer — pick a function by name, see its lowered CFG: blocks
 // in order, each with its instructions (opcode + source span — `operands`
 // isn't shown because the lowering pass never fills it in, see
-// src/lib/polyglot-db.ts), the control-flow edges between blocks, and the
+// src/lib/storage-ui.ts), the control-flow edges between blocks, and the
 // function's outgoing calls (name-resolved where resolvable). This is the
 // per-function complement to the raw ir_blocks/ir_instructions rows the
 // generic table browser shows — those have unresolved ids and no grouping.
@@ -15,43 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-interface SymbolResult {
-  symbolId: number;
-  qualName: string;
-  kind: string;
-  path: string;
-}
-interface FunctionIrInstruction {
-  instIndex: number;
-  op: string;
-  spanStart: number;
-  spanEnd: number;
-}
-interface FunctionIrBlock {
-  id: number;
-  blockIndex: number;
-  kind: string;
-  instructions: FunctionIrInstruction[];
-}
-interface FunctionIrEdge {
-  fromBlockIndex: number;
-  toBlockIndex: number;
-  kind: string;
-}
-interface FunctionIrCall {
-  calleeText: string | null;
-  calleeQualName: string | null;
-  resolution: string;
-  callKind: string;
-  stmtIndex: number;
-}
-interface FunctionIrResponse {
-  available: boolean;
-  symbol?: { symbolId: number; qualName: string; kind: string; path: string; startByte: number; endByte: number };
-  blocks?: FunctionIrBlock[];
-  edges?: FunctionIrEdge[];
-  calls?: FunctionIrCall[];
-}
+type FunctionIrResponse=Partial<Awaited<ReturnType<typeof readFunctionIr>>>&{available:boolean};
+type FunctionIrEdge=Awaited<ReturnType<typeof readFunctionIr>>['edges'][number];
 
 function SourcePane({ root, path, startByte, endByte }: { root: string; path: string; startByte: number; endByte: number }) {
   const [text, setText] = useState<string | null>(null);
@@ -63,14 +28,9 @@ function SourcePane({ root, path, startByte, endByte }: { root: string; path: st
     setText(null);
     (async () => {
       try {
-        const res = await repositoryFetch("/api/polyglot/snippet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ root, path, startByte, endByte }),
-        });
-        const d = await res.json().catch(() => ({}));
+        const d = await readCapturedSource(root, path, startByte, endByte);
         if (cancelled) return;
-        setText(typeof d.text === "string" ? d.text : d.error ?? "(no content)");
+        setText(d.text);
       } catch {
         if (!cancelled) setText("(failed to load)");
       } finally {
@@ -94,7 +54,7 @@ const BLOCK_KIND_TONE: Record<string, string> = {
   exit: "bg-rose-100 text-rose-800",
 };
 
-function FunctionIrPanel({ root, symbolId }: { root: string; symbolId: number }) {
+function FunctionIrPanel({ root, id }: { root: string; id: string }) {
   const [data, setData] = useState<FunctionIrResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const reqId = useRef(0);
@@ -104,18 +64,13 @@ function FunctionIrPanel({ root, symbolId }: { root: string; symbolId: number })
     setLoading(true);
     (async () => {
       try {
-        const res = await repositoryFetch("/api/polyglot/function-ir", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ root, symbolId }),
-        });
-        const d = await res.json();
+        const d = await readFunctionIr(root, id);
         if (mine === reqId.current) setData(d);
-      } finally {
+      } catch { if(mine===reqId.current)setData({available:false}); } finally {
         if (mine === reqId.current) setLoading(false);
       }
     })();
-  }, [root, symbolId]);
+  }, [root, id]);
 
   if (loading) {
     return (
@@ -227,6 +182,7 @@ export function FunctionIrView({ root }: { root: string }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SymbolResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError,setSearchError]=useState<string|null>(null);
   const [picked, setPicked] = useState<SymbolResult | null>(null);
   const reqId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,15 +191,12 @@ export function FunctionIrView({ root }: { root: string }) {
     (q: string) => {
       const mine = ++reqId.current;
       setSearching(true);
-      repositoryFetch("/api/polyglot/symbols", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root, query: q }),
-      })
-        .then((r) => r.json())
+      setSearchError(null);
+      searchStoredSymbols(root, q)
         .then((d) => {
-          if (mine === reqId.current) setResults(d.symbols ?? []);
+          if (mine === reqId.current) setResults(d);
         })
+        .catch(error=>{if(mine===reqId.current)setSearchError(error instanceof Error?error.message:"Storage unavailable");})
         .finally(() => {
           if (mine === reqId.current) setSearching(false);
         });
@@ -270,6 +223,7 @@ export function FunctionIrView({ root }: { root: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {searchError && <p role="alert" className="text-xs text-red-600">{searchError}</p>}
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-stone-400" aria-hidden />
           <Input
@@ -290,7 +244,7 @@ export function FunctionIrView({ root }: { root: string }) {
           <div className="border border-stone-200 rounded-md divide-y divide-stone-100 max-h-56 overflow-auto">
             {results.map((r) => (
               <button
-                key={r.symbolId}
+                key={r.id}
                 type="button"
                 className="w-full text-left px-2.5 py-1.5 hover:bg-stone-50 flex items-center gap-1.5"
                 onClick={() => {
@@ -311,7 +265,7 @@ export function FunctionIrView({ root }: { root: string }) {
           <p className="text-xs text-stone-400 px-1">No matching symbols.</p>
         )}
 
-        {picked && <FunctionIrPanel root={root} symbolId={picked.symbolId} />}
+        {picked && <FunctionIrPanel root={root} id={picked.id} />}
       </CardContent>
     </Card>
   );

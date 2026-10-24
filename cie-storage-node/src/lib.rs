@@ -198,9 +198,6 @@ fn dispatch(input: &str) -> Result<Value> {
             )?)?)
         }
         "capabilities" => Ok(context.reader.capabilities()),
-        "compatibility" => context
-            .reader
-            .ui_compatibility(v["kind"].as_str().unwrap_or(""), &v["args"]),
         "diagnostics" => context.reader.diagnostics(
             v["dataset"].as_str(),
             v["limit"].as_u64().unwrap_or(100) as usize,

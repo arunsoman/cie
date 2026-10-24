@@ -617,16 +617,10 @@ pub fn us_102() -> Result<(), String> {
 
 /// US-134: MCP refuses out-of-scope tools and envelopes with honesty.
 pub fn us_134() -> Result<(), String> {
-    use cie_server::mcp::{handle_message, McpBudget, ToolError, ToolExecutor};
-    struct X;
-    impl ToolExecutor for X {
-        fn execute(&self, _t: &str, _a: &BTreeMap<String, serde_json::Value>, _b: &McpBudget) -> Result<serde_json::Value, ToolError> {
-            Ok(serde_json::json!({}))
-        }
-    }
+    use cie_server::mcp::{handle_message, McpBudget};
     let resp = handle_message(
         r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"write_file","arguments":{}}}"#,
-        &X,
+        None,
         &McpBudget { ns: 1 },
     )
     .ok_or("no response")?;

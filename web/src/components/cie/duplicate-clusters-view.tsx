@@ -1,10 +1,10 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedSource, readDuplicateClusters, type SymbolRef as Member } from "@/lib/storage-ui";
 
 // Duplicate-code clusters from the cie-polyglot run — exact-IR-hash
 // families (tier='canonical', the one Fact-tier result; cosine tiers are
 // Inference/Hypothesis and, on real data, prone to false positives on
-// short simple methods — see src/lib/polyglot-db.ts). One representative
+// short simple methods — see src/lib/storage-ui.ts). One representative
 // "hub" symbol per family, every byte-identical-IR copy attached to it as
 // a node in a small star graph; click a node to pull up its actual source
 // next to the hub's, so similarity is judged by reading real code, not a
@@ -17,18 +17,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
-interface Member {
-  symbolId: number;
-  qualName: string;
-  kind: string;
-  path: string;
-  startByte: number;
-  endByte: number;
-}
 interface Cluster {
   hub: Member;
   members: Member[];
   totalMembers: number;
+  truncated?: boolean;
 }
 interface ClustersResponse {
   available: boolean;
@@ -36,6 +29,7 @@ interface ClustersResponse {
   totalFamilies?: number;
   totalSymbolsInvolved?: number;
   clusters?: Cluster[];
+  truncated?: boolean;
 }
 
 function SnippetPane({ root, member, title }: { root: string; member: Member; title: string }) {
@@ -48,19 +42,9 @@ function SnippetPane({ root, member, title }: { root: string; member: Member; ti
     setLoading(true);
     setText(null);
     try {
-      const res = await repositoryFetch("/api/polyglot/snippet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          root,
-          path: member.path,
-          startByte: member.startByte,
-          endByte: member.endByte,
-        }),
-      });
-      const d = await res.json().catch(() => ({}));
+      const d = await readCapturedSource(root, member.path, member.startByte, member.endByte);
       if (mine !== reqId.current) return;
-      setText(typeof d.text === "string" ? d.text : d.error ?? "(no content)");
+      setText(d.text);
     } catch {
       if (mine === reqId.current) setText("(failed to load)");
     } finally {
@@ -110,7 +94,7 @@ function ClusterGraph({ cluster, onPick }: { cluster: Cluster; onPick: (m: Membe
           },
         },
         ...cluster.members.map((m) => ({
-          id: String(m.symbolId),
+          id: String(m.id),
           style: {
             size: 30,
             labelText: m.qualName.length > 16 ? `${m.qualName.slice(0, 14)}…` : m.qualName,
@@ -124,9 +108,9 @@ function ClusterGraph({ cluster, onPick }: { cluster: Cluster; onPick: (m: Membe
         })),
       ];
       const edges = cluster.members.map((m) => ({
-        id: `e:${m.symbolId}`,
+        id: `e:${m.id}`,
         source: "hub",
-        target: String(m.symbolId),
+        target: String(m.id),
         style: { stroke: "#c9d1d9", lineWidth: 1, endArrow: false },
       }));
       graph = new Graph({
@@ -146,7 +130,7 @@ function ClusterGraph({ cluster, onPick }: { cluster: Cluster; onPick: (m: Membe
           onPick(cluster.hub);
           return;
         }
-        const m = cluster.members.find((mm) => String(mm.symbolId) === String(id));
+        const m = cluster.members.find((mm) => String(mm.id) === String(id));
         if (m) onPick(m);
       });
       await graph.render();
@@ -187,7 +171,7 @@ function ClusterCard({ root, cluster, index }: { root: string; cluster: Cluster;
         <ClusterGraph cluster={cluster} onPick={setPicked} />
         <div className="flex gap-3 flex-wrap">
           <SnippetPane root={root} member={cluster.hub} title="Hub (the pick)" />
-          {picked && picked.symbolId !== cluster.hub.symbolId && (
+          {picked && picked.id !== cluster.hub.id && (
             <SnippetPane root={root} member={picked} title="Attached duplicate" />
           )}
         </div>
@@ -214,12 +198,7 @@ export function DuplicateClustersView() {
     setLoading(true);
     setError(null);
     try {
-      const res = await repositoryFetch("/api/polyglot/duplicate-clusters", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root }),
-      });
-      const d = await res.json();
+      const d = await readDuplicateClusters(root);
       if (mine === reqId.current) setData(d);
     } catch {
       if (mine === reqId.current) setError("Couldn't load duplicate clusters.");
@@ -235,7 +214,7 @@ export function DuplicateClustersView() {
   if (!sourceRoot) {
     return (
       <p className="text-xs text-stone-500 px-1">
-        Load a local-folder project first — this view reads source files directly from disk.
+        Load a project first — this view reads the captured repository revision.
       </p>
     );
   }
@@ -250,7 +229,7 @@ export function DuplicateClustersView() {
   if (!data?.available) {
     return (
       <p className="text-xs text-stone-500 px-1">
-        No <code className="bg-stone-100 px-1 rounded">cie polyglot</code> store found for this project yet
+        No captured storage revision found for this project yet
         — run it against this folder first, then reload this page.
       </p>
     );
@@ -266,8 +245,9 @@ export function DuplicateClustersView() {
         {data.clusters.length} biggest, each anchored on one representative symbol (its &ldquo;hub&rdquo;) with every
         byte-identical-IR copy attached to it.
       </p>
+      {data.truncated && <p role="status" className="text-xs text-amber-700">This is a bounded view; some families or members are omitted.</p>}
       {data.clusters.map((c, i) => (
-        <ClusterCard key={c.hub.symbolId} root={sourceRoot} cluster={c} index={i} />
+        <ClusterCard key={c.hub.id} root={sourceRoot} cluster={c} index={i} />
       ))}
     </div>
   );

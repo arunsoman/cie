@@ -1,5 +1,5 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedFile } from "@/lib/storage-ui";
 
 // The one-tap menu's interactive drilldown (menu-tab.tsx renders it when a
 // question is picked): instead of one static picture, each pre-canned
@@ -498,7 +498,7 @@ const CODE_LANG: Record<string, string> = {
 /** The drill's embedded code viewer. Empty (with per-question guidance)
  *  until a selection gives it a location; windowed around the anchor line;
  *  every matching row's evidence line is marked; the focused line is ringed.
- *  Loading reuses the source panel's paths: consented folder → /api/fs/file,
+ *  Loading reuses the source panel's paths: consented folder → the captured-source storage API,
  *  demo → the bundled source bundle, uploads/clones → the honest reason. */
 function DrillViewer({
   loc,
@@ -584,12 +584,7 @@ function DrillViewer({
     if (sourceCache[file] != null) return;
     let dead = false;
     if (sourceRoot) {
-      repositoryFetch("/api/fs/file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root: sourceRoot, path: file, all: true }),
-      })
-        .then((r) => r.json().catch(() => ({})))
+      readCapturedFile(sourceRoot, file)
         .then((d: { content?: string; error?: string }) => {
           if (dead) return;
           if (d.content != null) {
@@ -597,7 +592,7 @@ function DrillViewer({
             setState({ kind: "ready", content: d.content, from: `captured source from the loaded repository revision` });
           } else setState({ kind: "gone", reason: d.error ?? "This file couldn't be read from your project folder." });
         })
-        .catch(() => !dead && setState({ kind: "gone", reason: "The connection to your project folder dropped. Please try again." }));
+        .catch(error => !dead && setState({ kind: "gone", reason: error instanceof Error?error.message:"Captured source unavailable." }));
     } else if (source === "demo") {
       void loadDemoSources(demoKind ?? "polyglot").then((files) => {
         if (dead) return;

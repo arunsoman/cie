@@ -10,10 +10,6 @@ import { StringDecoder } from "string_decoder";
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieDrift, CieOverlap } from "./cie-types";
-import type { TechStack } from "./stack-types";
-import { isTechStack } from "./stack-types";
-import { isPolyglotBundle, type PolyglotBundle } from "./polyglot-types";
 import { scanRepoLanguages } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
@@ -57,28 +53,11 @@ export interface AnalyzeJob {
   consent?: { resolve: (proceed: boolean) => void };
   error?: { plain: string; technical: string };
   result?: {
-    report: CieReport;
-    viewspec: CieViewSpec | null;
-    concepts: ConceptTree | null;
-    deps?: CieDeps | null;
-    runtime?: CieRuntime | null;
-    /** the tech-stack artifact from `cie stack` — null when not available */
-    stack?: TechStack | null;
-    cochange?: CieCochange | null;
-    overlap?: CieOverlap | null;
-    drift?: CieDrift | null;
-    label: string;
-    scan?: RepoScan | null;
-    /** PRD v2.0 polyglot bundle (`cie polyglot --viewspec all`) — C4,
-     *  state-machine, workflow and impact ViewSpecs, gate-checked on the
-     *  engine side; null when the layer produced nothing nameable. */
-    polyglotSpecs?: PolyglotBundle | null;
-    // The absolute root the source panel may read from — set ONLY for
-    // local-folder jobs (the folder the user themselves pointed at, read
-    // in place). URL clones are deleted after analysis; uploads never
-    // touched disk. Null there, and the panel says so honestly.
-    sourceRoot?: string | null;
-    storageRoot?: string | null;
+    revision:string;
+    label:string;
+    scan?:RepoScan|null;
+    sourceRoot?:string|null;
+    storageRoot:string;
   };
 }
 
@@ -815,12 +794,10 @@ async function runPipeline(job: AnalyzeJob) {
       markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, ing.stderr.slice(-2000)));
       return;
     }
-    let artifacts: NonNullable<AnalyzeJob["result"]>;
+    let artifacts: {report:{rev:number;files:string[];symbols:unknown[]}};
     try {
-      artifacts = JSON.parse(await fs.readFile(output, "utf8")) as NonNullable<AnalyzeJob["result"]>;
-      if (!artifacts.report || !Array.isArray(artifacts.report.symbols)) throw new Error("missing core report");
-      if (artifacts.polyglotSpecs && !isPolyglotBundle(artifacts.polyglotSpecs)) artifacts.polyglotSpecs = null;
-      if (artifacts.stack && !isTechStack(artifacts.stack)) artifacts.stack = null;
+      artifacts = JSON.parse(await fs.readFile(output, "utf8")) as typeof artifacts;
+      if (!artifacts.report || !Number.isSafeInteger(artifacts.report.rev) || artifacts.report.rev<1 || !Array.isArray(artifacts.report.files)) throw new Error("missing core report");
     } catch {
       markRunningStepFailed(job, engineErrorPlain("bad-output"), engineTechnical(bin, "ingest-polyglot produced an invalid artifact bundle"));
       return;
@@ -837,7 +814,7 @@ async function runPipeline(job: AnalyzeJob) {
       await storageCall({ op: "retain", root: repoDir, destination: storageRoot });
     }
     job.result = {
-      ...artifacts,
+      revision:String(artifacts.report.rev),
       label: isLocal
         ? `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from this computer${job.viaSnapshot ? " as a read-only copy" : ""})`
         : `Your project: ${job.repoName}${job.branch ? ` (${job.branch})` : ""} (from ${hostOf(job.url)})`,
@@ -903,8 +880,12 @@ export async function rehydratePersistedResult(id: string): Promise<AnalyzeJob |
   if (!/^[a-f0-9-]{8,64}$/i.test(id)) return null; // job ids are UUIDs — id-shaped paths only
   try {
     const raw = await fs.readFile(path.join(JOBS_ROOT, id, "result.json"), "utf8");
-    const result = JSON.parse(raw) as AnalyzeJob["result"];
-    if (!result || !result.report) return null;
+    const saved = JSON.parse(raw) as NonNullable<AnalyzeJob["result"]> & {report?:{rev?:number}};
+    const revision=saved.revision??(saved.report?.rev==null?undefined:String(saved.report.rev));
+    const storageRoot=saved.storageRoot??saved.sourceRoot;
+    if(!revision||!/^\d+$/.test(revision)||!storageRoot)return null;
+    // Older saved jobs are converted to references, never served as stale report copies.
+    const result:NonNullable<AnalyzeJob["result"]>={revision,storageRoot,sourceRoot:saved.sourceRoot??null,label:saved.label,scan:saved.scan};
     const stat = await fs.stat(path.join(JOBS_ROOT, id)).catch(() => null);
     const createdAt = stat?.mtimeMs ?? Date.now();
     if (Date.now() - createdAt > PERSISTED_RESULT_TTL_MS) {

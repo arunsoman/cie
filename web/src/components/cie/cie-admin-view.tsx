@@ -36,7 +36,7 @@ import {
   type AdminCategory,
 } from "@/lib/cie-admin";
 import { ConceptsMindMap } from "./concepts-mindmap";
-import { PolyglotAdminView } from "./polyglot-admin-view";
+import { StorageAdminView } from "./storage-admin-view";
 
 const CATEGORY_LABEL: Record<AdminCategory, string> = {
   code: "report.json — code",
@@ -340,7 +340,7 @@ export function CieAdminView() {
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pt-2">
             cie-polyglot run — SQLite scratch store (PRD v2.0)
           </h3>
-          <PolyglotAdminView />
+          <StorageAdminView />
         </div>
       )}
 

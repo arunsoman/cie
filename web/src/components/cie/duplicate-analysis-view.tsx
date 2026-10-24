@@ -1,5 +1,5 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedSource, readDuplicates, type SymbolRef } from "@/lib/storage-ui";
 
 // Duplicate Analysis — flat, filterable view over every row of the
 // `duplicates` table (all tiers, unlike DuplicateClustersView which is
@@ -21,16 +21,8 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
-interface SymbolRef {
-  symbolId: number;
-  qualName: string;
-  kind: string;
-  path: string;
-  startByte: number;
-  endByte: number;
-}
 interface DupRow {
-  id: number;
+  id: string;
   similarity: number;
   tier: string;
   detection: string;
@@ -86,19 +78,9 @@ function SnippetPane({ root, member, title }: { root: string; member: SymbolRef;
     setText(null);
     (async () => {
       try {
-        const res = await repositoryFetch("/api/polyglot/snippet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            root,
-            path: member.path,
-            startByte: member.startByte,
-            endByte: member.endByte,
-          }),
-        });
-        const d = await res.json().catch(() => ({}));
+        const d = await readCapturedSource(root, member.path, member.startByte, member.endByte);
         if (mine !== reqId.current) return;
-        setText(typeof d.text === "string" ? d.text : d.error ?? "(no content)");
+        setText(d.text);
       } catch {
         if (mine === reqId.current) setText("(failed to load)");
       } finally {
@@ -127,7 +109,7 @@ export function DuplicateAnalysisView() {
   const [detection, setDetection] = useState<string>(ALL);
   const [epistemic, setEpistemic] = useState<string>(ALL);
   const [page, setPage] = useState(0);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [data, setData] = useState<DupResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,18 +121,7 @@ export function DuplicateAnalysisView() {
       setLoading(true);
       setError(null);
       try {
-        const res = await repositoryFetch("/api/polyglot/duplicates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            root,
-            tier: tier === ALL ? undefined : tier,
-            detection: detection === ALL ? undefined : detection,
-            epistemic: epistemic === ALL ? undefined : epistemic,
-            page,
-          }),
-        });
-        const d = await res.json();
+        const d = await readDuplicates(root, { tier: tier === ALL ? undefined : tier, detection: detection === ALL ? undefined : detection, epistemic: epistemic === ALL ? undefined : epistemic, page });
         if (mine === reqId.current) setData(d);
       } catch {
         if (mine === reqId.current) setError("Couldn't load duplicates.");
@@ -174,7 +145,7 @@ export function DuplicateAnalysisView() {
     if (sourceRoot) void load(sourceRoot);
   }, [sourceRoot, load]);
 
-  const toggleExpanded = (id: number) => {
+  const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -186,7 +157,7 @@ export function DuplicateAnalysisView() {
   if (!sourceRoot) {
     return (
       <p className="text-xs text-stone-500 px-1">
-        Load a local-folder project first — this view reads the cie-polyglot store for that project.
+        Load a project first — this view reads the captured storage revision for that project.
       </p>
     );
   }
@@ -256,7 +227,7 @@ export function DuplicateAnalysisView() {
         {error && <p className="text-xs text-red-600 px-1">{error}</p>}
         {!loading && !error && !data?.available && (
           <p className="text-xs text-stone-500 px-1">
-            No <code className="bg-stone-100 px-1 rounded">cie polyglot</code> store found for this project yet —
+            No captured storage revision found for this project yet —
             run it against this folder first, then reload this page.
           </p>
         )}

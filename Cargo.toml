@@ -83,7 +83,6 @@ rkyv = "0.8"
 petgraph = "0.7"
 hnsw_rs = "0.3"
 differential-dataflow = "0.25"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net"] }
 # z3: the engine links system libz3 (4.13.x) through the hand-written C FFI
 # in cie-counterexample::smt behind the non-default `smt-z3` feature. The
 # `z3` Rust crate itself is intentionally NOT depended on: it needs

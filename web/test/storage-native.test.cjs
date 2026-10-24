@@ -20,12 +20,12 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
     assert.equal(binding.storageCancel('audit-cancel'),true);
     await assert.rejects(()=>call({op:'retrieve',context,cancellation_id:'audit-cancel',request:{query:{select:{kind:'file'}},outputs:[{id:'rows',output:{entities:{}}}]}}),e=>e.code==='Cancelled');
     const description=await call({op:'describe',context,request:{profile:'full'}});assert.equal(description.tools[1].name,'cie_retrieve');assert.ok(description.tools[1].inputSchema.$defs);
-    const symbols=await call({op:'compatibility',context,kind:'symbols',args:{query:'save',limit:30}});assert.equal(symbols.length,1);
-    const ir=await call({op:'compatibility',context,kind:'function_ir',args:{symbolId:symbols[0].symbolId}});assert.ok(ir.blocks.length);
-    const summary=await call({op:'compatibility',context,kind:'summary',args:{}});assert.ok(summary.ingest.symbols>=3);
-    const tables=await call({op:'compatibility',context,kind:'tables',args:{}});assert.ok(tables.some(t=>t.name==='symbols'));
-    const duplicates=await call({op:'compatibility',context,kind:'duplicates',args:{}});assert.ok(Array.isArray(duplicates.rows));
-    const clusters=await call({op:'compatibility',context,kind:'duplicate_clusters',args:{}});assert.equal(clusters.tierUsed,'canonical');
+    const searched=await call({op:'retrieve',context,request:{query:{select:{kind:'symbol',filter:{field:{field:'name',op:'eq',value:'save'}}}},outputs:[{id:'symbols',output:{entities:{}}}]}});
+    const symbol=searched.outputs[0].data.items[0];
+    const ir=await call({op:'retrieve',context,request:{query:{select:{kind:'symbol',filter:{ids:[symbol.id]}}},outputs:[{id:'ir',output:{detail:{function_ir:{}}}}]}});assert.ok(ir.outputs[0].data.blocks.length);
+    const inventory=await call({op:'diagnostics',context});assert.ok(inventory.datasets.find(dataset=>dataset.name==='symbols').count>=3);
+    const records=await call({op:'diagnostics',context,dataset:'symbols',limit:10});assert.ok(records.columns.includes('qual_name'));
+    await assert.rejects(()=>call({op:'compatibility',context,kind:'summary'}),e=>e.code==='InvalidRequest');
     const tool=await call({op:'tool_retrieve',context,request:{select:{kind:'symbol',predicates:[{field:{field:'name',op:'eq',value:'save'}}]},outputs:[{id:'rows',output:{entities:{fields:['qualified_name','location'],page:{limit:20}}}}]}});assert.equal(tool.matches,1);
     assert.equal(tool.outputs[0].data.type,'entities');assert.equal(tool.outputs[0].schema_version,2);
     const literal=await call({op:'tool_retrieve',context,request:{context,select:{kind:'symbol',where:[{field:'name',op:'eq',value:'save'}]},outputs:[{id:'rows',entities:{fields:['qualified_name','location'],page:{limit:1}}}],response:{profile:'compact',max_bytes:12000}}});assert.equal(literal.matches,1);
@@ -35,6 +35,28 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
     const repeatDescription=await call({op:'describe',request:{context:openedDescription.context,topics:['symbol.fields']}});assert.equal(repeatDescription.context,openedDescription.context);
     await call({op:'close',context:openedDescription.context});
     const plan=await call({op:'explain',context,request:{query:{select:{kind:'file',filter:{field:{field:'path',op:'eq',value:'app.py'}}}},outputs:[{id:'rows',output:{entities:{}}}]}});assert.equal(plan.strategy,'indexed_file_lookup');
+    // Exercise the actual browser selectors over this same native transport.
+    const originalFetch=global.fetch;
+    const state={storageRoot:root,sourceRoot:root,report:{rev:1}};
+    const store={getState:()=>state,subscribe:()=>()=>{}};
+    const load=require('./helpers/load-ts.cjs')({'./cie-store':{useCie:store}});
+    const ui=load(path.resolve(__dirname,'../src/lib/storage-ui.ts'));
+    global.fetch=async (url,init)=>{
+      assert.equal(url,'/api/storage');
+      try{return new Response(JSON.stringify(await call(JSON.parse(init.body))),{status:200});}
+      catch(error){return new Response(JSON.stringify({code:error.code,error:error.message}),{status:400});}
+    };
+    try {
+      const results=await ui.searchStoredSymbols(root,'save');assert.equal(results.length,1);assert.equal(typeof results[0].id,'string');
+      const lowered=await ui.readFunctionIr(root,results[0].id);assert.ok(lowered.blocks.length);assert.equal(lowered.symbol.id,results[0].id);
+      const snippet=await ui.readCapturedSource(root,'app.py',results[0].startByte,results[0].endByte);assert.ok(snippet.text.startsWith('def save'));
+      const duplicates=await ui.readDuplicates(root,{page:0});assert.ok(Array.isArray(duplicates.rows));
+      const families=await ui.readDuplicateClusters(root);assert.ok(Array.isArray(families.clusters));
+      const data=await ui.readStorageInventory(root);assert.ok(data.datasets.find(d=>d.name==='symbols').count>=3);
+      const rows=await ui.readStorageRows(root,'symbols',0);assert.ok(rows.columns.includes('qual_name'));
+      const impact=await ui.readStoredImpact(root,'app.save');assert.ok(impact.affected_symbols.includes('app.pay'));
+      await assert.rejects(()=>ui.searchStoredSymbols(root+'-other','save'),e=>e.code==='MixedRevisionReference');
+    } finally {await ui.storageFor(root).close();global.fetch=originalFetch;}
     const id=tool.outputs[0].data.items[0].id;
     await fs.unlink(path.join(root,'app.py'));
     const source=await call({op:'retrieve',context,request:{query:{select:{kind:'symbol',filter:{ids:[id]}}},outputs:[{id:'source',output:{detail:{source:{}}}}]}});assert.ok(source.outputs[0].data.text.startsWith('def save'));

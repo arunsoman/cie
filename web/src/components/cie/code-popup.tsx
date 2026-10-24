@@ -1,5 +1,5 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedFile } from "@/lib/storage-ui";
 
 // RFC-0024 stage 3 — the code viewer popup (ux-spec §2 single + §2.2
 // paired). Replaces jump-to-source as the FIRST response to a click that
@@ -69,12 +69,7 @@ function PopupColumn({
   useEffect(() => {
     let dead = false;
     if (sourceRoot) {
-      repositoryFetch("/api/fs/file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root: sourceRoot, path: loc.file, all: true }),
-      })
-        .then((r) => r.json().catch(() => ({})))
+      readCapturedFile(sourceRoot, loc.file)
         .then((d: { content?: string; error?: string }) => {
           if (dead) return;
           if (d.content != null) {
@@ -82,7 +77,7 @@ function PopupColumn({
             setLoaded({ content: d.content, from: `captured source from the loaded repository revision` });
           } else setFailed(d.error ?? "couldn't read that file");
         })
-        .catch(() => !dead && setFailed("the connection to your project folder dropped"));
+        .catch(error => !dead && setFailed(error instanceof Error?error.message:"Captured source unavailable"));
     } else if (source === "demo") {
       void loadDemoSources(demoKind ?? "polyglot").then((files) => {
         if (dead) return;
@@ -91,7 +86,7 @@ function PopupColumn({
         else setFailed("not part of the bundled sample sources");
       });
     } else {
-      setFailed("no source on disk for this project (uploads/URL clones) — the full panel path applies");
+      setFailed("No captured source is available for this imported workspace. Reconnect the repository to enable source retrieval.");
     }
     return () => {
       dead = true;

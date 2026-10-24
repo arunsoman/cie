@@ -1,5 +1,5 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readStoredImpact } from "@/lib/storage-ui";
 
 // "Ask CIE" — the chat that lives on the right side of the workspace.
 //
@@ -307,15 +307,9 @@ export function ChatPanel() {
         }
         setChatBusy(true);
         try {
-          const res = await repositoryFetch("/api/impact", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sourceRoot, symbol: target.qual_name }),
-
-          });
-          const data = (await res.json().catch(() => ({}))) as Partial<CieImpact> & { error?: string; technical?: string };
-          if (!res.ok || !data.symbol) {
-            respond({ content: data.error ?? "CIE couldn't work out the impact just now. Please try again.", error: true, technical: data.technical });
+          const data = await readStoredImpact(sourceRoot, target.qual_name);
+          if (!data.symbol) {
+            respond({ content: "CIE couldn't work out the impact just now. Please try again.", error: true, technical: undefined });
           } else {
             const impact = data as CieImpact;
             const rows: (string | number)[][] = [
@@ -392,7 +386,7 @@ export function ChatPanel() {
           role: "assistant",
           content: data.error ?? "CIE had trouble answering just now. Please try again.",
           error: true,
-          technical: data.technical,
+          technical: undefined,
           providerIssue: data.providerIssue,
         });
       } else {

@@ -1,6 +1,5 @@
 //! Revision-pinned retrieval. All physical access stays behind this module.
 mod artifact_payload;
-mod compatibility;
 mod contract;
 mod document;
 mod outputs;
@@ -281,7 +280,7 @@ impl RevisionReader {
         capabilities["available_inputs"] = json!({"captured_artifacts":self.artifacts.keys(),"captured_snapshot_fields":self.snapshot.keys()});
         capabilities
     }
-    /// Bound compatibility and resolver SQL too; all public transports share
+    /// Bound diagnostics and resolver SQL too; all public transports share
     /// the same cancellation flag without taking the reader registry lock.
     pub fn run_bounded<T>(
         &self,

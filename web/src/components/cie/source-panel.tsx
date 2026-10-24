@@ -1,5 +1,5 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readCapturedFile } from "@/lib/storage-ui";
 
 // The source panel — "click a chart element → see the code it came from".
 //
@@ -8,7 +8,7 @@ import { repositoryFetch } from "@/lib/repository-fetch";
 // files[] table); the charts used to drop it one line before rendering. Now
 // a tapped element with a location opens THIS panel:
 //   - demo project  → the source bundle shipped with it (public/data/sources.json)
-//   - local folder  → read in place via POST /api/fs/file — the folder the
+//   - local folder  → read in place via POST the captured-source storage API — the folder the
 //                     user themselves connected, read-only and bounded
 //   - uploaded JSON / URL clones → honest empty state (no source on disk)
 // Byte offsets are resolved to line numbers ONLY when real content is in
@@ -108,19 +108,14 @@ export function SourcePanel() {
     };
 
     if (sourceRoot) {
-      repositoryFetch("/api/fs/file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root: sourceRoot, path: req.file, all: true }),
-      })
-        .then((r) => r.json().catch(() => ({})))
+      readCapturedFile(sourceRoot, req.file)
         .then((d: { content?: string; error?: string; totalLines?: number; truncated?: boolean }) => {
           if (dead) return;
           if (d.content != null) finish(d.content, `captured source from the loaded repository revision`, d.totalLines ?? null, d.truncated ?? false);
           else setState({ kind: "unavailable", reason: d.error ?? "We couldn't read that file from your project folder." });
         })
-        .catch(() => {
-          if (!dead) setState({ kind: "unavailable", reason: "The connection to your project folder dropped. Please try again." });
+        .catch(error => {
+          if (!dead) setState({ kind: "unavailable", reason: error instanceof Error?error.message:"Captured source unavailable." });
         });
     } else if (source === "demo") {
       loadDemoSources(demoKind ?? "polyglot").then((files) => {

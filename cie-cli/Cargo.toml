@@ -24,6 +24,7 @@ cie-relations = { workspace = true }
 cie-adapters = { workspace = true }
 cie-store = { workspace = true }
 cie-storage = { workspace = true }
+cie-server = { workspace = true }
 cie-analysis = { workspace = true }
 cie-stack = { workspace = true }
 cie-contract = { workspace = true }

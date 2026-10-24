@@ -1884,16 +1884,27 @@ impl RevisionReader {
                         r.get(0)
                     })?;
             Ok(
-                json!({"dataset":table,"schema_version":1,"rows":rows,"total":count,"revision":self.revision}),
+                json!({"dataset":table,"schema_version":1,"columns":self.conn.prepare(&format!("SELECT * FROM \"{table}\" LIMIT 0"))?.column_names().iter().map(|s|s.to_string()).collect::<Vec<_>>(),"rows":rows,"total":count,"revision":self.revision}),
             )
         } else {
             let rows = self.rows(
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
                 &[],
             )?;
-            Ok(
-                json!({"datasets":rows.into_iter().filter(|r|r["name"].as_str().map(|s|TABLES.contains(&s)).unwrap_or(false)).collect::<Vec<_>>(),"revision":self.revision}),
-            )
+            let mut datasets = Vec::new();
+            for row in rows {
+                let name = row["name"].as_str().unwrap_or("");
+                if !TABLES.contains(&name) {
+                    continue;
+                }
+                let count: i64 = self.conn.query_row(
+                    &format!("SELECT count(*) FROM \"{name}\""),
+                    [],
+                    |row| row.get(0),
+                )?;
+                datasets.push(json!({"name":name,"count":count}));
+            }
+            Ok(json!({"datasets":datasets,"revision":self.revision}))
         }
     }
 }

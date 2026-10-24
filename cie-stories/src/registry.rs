@@ -367,11 +367,8 @@ pub const REGISTRY: &[Entry] = &[
         "Editor integrations not shipped."),
     entry!("US-133", Delivered, ["cie-semantic::graph", "cli:impact", "cie-ingest::IngestOutcome.reverse_deps"],
         "Definitions/references navigable from the semantic graph + reverse deps."),
-    entry!("US-134", Partial, ["cie-server::mcp"],
-        "Protocol seam only, honestly partial: JSON-RPC 2.0 message parsing and \
-         declared-scope refusal are real and deep-checked, but no production \
-         ToolExecutor is wired to the engine and there is no stdio transport \
-         loop — no agent can connect over this seam today."),
+    entry!("US-134", Delivered, ["cie-server::mcp", "cli:mcp", "cie-storage::retrieval"],
+        "Read-only stdio MCP serves generated cie_describe/cie_retrieve tools over pinned storage contexts, with bounded requests, cancellation, evidence and typed results."),
     // ---- Privacy, models and product control ------------------------------
     entry!("US-135", Delivered, ["cie-llm::offline", "cli:ingest --llm-provider"],
         "Offline-first default: no network needed for any core flow."),
@@ -459,9 +456,8 @@ mod tests {
     fn capability_refs_are_well_formed() {
         for e in REGISTRY {
             for cap in e.capabilities {
-                let ok = cap.starts_with("cie-")
-                    || cap.starts_with("cli:")
-                    || cap.starts_with("host:");
+                let ok =
+                    cap.starts_with("cie-") || cap.starts_with("cli:") || cap.starts_with("host:");
                 assert!(ok, "{}: bad capability ref '{}'", e.story, cap);
             }
         }

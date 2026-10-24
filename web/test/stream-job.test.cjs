@@ -30,8 +30,15 @@ test("a local web ingestion launches one coordinator and consumes its artifacts"
       await new Promise(resolve => setTimeout(resolve, 25));
     }
     assert.equal(job.state, "done", JSON.stringify(job.error));
-    assert.ok(job.result.report.symbols.length > 0);
-    assert.equal(job.result.polyglotSpecs.kind, "cie-polyglot-viewspec-bundle");
+    assert.equal(job.result.revision,"1");
+    assert.equal(job.result.report,undefined,"jobs retain references rather than a second copy of captured facts");
+    const binding=require(path.resolve(__dirname,'../native/cie_storage_node.node'));
+    const dispatch=request=>{const response=JSON.parse(binding.storageDispatch(JSON.stringify(request)));assert.equal(response.ok,true,JSON.stringify(response));return response.result;};
+    const {context}=dispatch({op:'open',root:job.result.storageRoot,revision:job.result.revision});
+    const captured=dispatch({op:'retrieve',context,request:{query:{select:{kind:'file'}},outputs:[{id:'bootstrap',output:{artifact:{kind:'ui_bootstrap_v1'}}}]}});
+    assert.ok(captured.outputs[0].data.document.report.symbols.length>0);
+    assert.equal(captured.outputs[0].data.document.polyglotSpecs.kind,'cie-polyglot-viewspec-bundle');
+    dispatch({op:'close',context});
     assert.equal(job.result.sourceRoot, repo);
     const engineJobs = spawns.filter(x => ["ingest-polyglot", "ingest", "polyglot", "concepts", "viz", "report", "deps", "cochange", "drift", "overlap"].includes(x.args[0]));
     assert.equal(engineJobs.length, 1, JSON.stringify(engineJobs));

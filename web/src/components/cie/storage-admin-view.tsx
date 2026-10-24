@@ -1,31 +1,16 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readStorageInventory, type StorageInventory } from "@/lib/storage-ui";
 
-// Everything the cie-polyglot run (PRD v2.0 — docs/prd-v2.0.md) recorded
-// for this project, read straight from the SQLite scratch store — never
-// from report.json/stack.json/useCie() (this is a separate engine with its
-// own fresh store per run, see src/lib/polyglot-db.ts).
-//
-// A quick-glance stat strip (/api/polyglot/summary) up top, then
-// PolyglotTableBrowser for every table the schema creates — not a curated
-// subset — grouped by module, each showing its row count (0 is a fact about
-// this codebase, e.g. no recognized manifest → 0 C4 containers, not a
-// missing feature) and expandable into its raw rows.
-//
-// Duplicate detection additionally gets two dedicated views below the
-// browser: duplicate-clusters-view (exact-match families as a graph,
-// canonical tier only) and duplicate-analysis-view (a flat, filterable,
-// name-resolved table across every tier) — richer than the raw `duplicates`
-// row dump the browser also offers.
+// Pinned storage diagnostics and typed evidence views for the selected workspace.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
-import { PolyglotTableBrowser } from "./polyglot-table-browser";
+import { StorageTableBrowser } from "./storage-table-browser";
 import { FunctionIrView } from "./function-ir-view";
 import { DuplicateClustersView } from "./duplicate-clusters-view";
 import { DuplicateAnalysisView } from "./duplicate-analysis-view";
-import type { PolyglotSummary } from "@/lib/polyglot-db";
+
 
 function StatTile({ label, value }: { label: string; value: number | string }) {
   return (
@@ -38,10 +23,14 @@ function StatTile({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-export function PolyglotAdminView() {
+export function StorageAdminView(){
+  const key=useCie(state=>`${state.storageRoot??state.sourceRoot}:${state.report?.rev}`);
+  return <StorageAdminPanel key={key}/>;
+}
+function StorageAdminPanel() {
   const { sourceRoot: liveSourceRoot } = useCie();
   const sourceRoot = useCie((s) => s.storageRoot) ?? liveSourceRoot;
-  const [summary, setSummary] = useState<PolyglotSummary | null>(null);
+  const [summary, setSummary] = useState<StorageInventory | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,17 +41,12 @@ export function PolyglotAdminView() {
     setLoading(true);
     setError(null);
     try {
-      const res = await repositoryFetch("/api/polyglot/summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root }),
-      });
-      const d = await res.json();
+      const d = await readStorageInventory(root);
       if (mine !== reqId.current) return;
-      setAvailable(!!d.available);
-      setSummary(d.summary ?? null);
+      setAvailable(true);
+      setSummary(d);
     } catch {
-      if (mine === reqId.current) setError("Couldn't load the polyglot run.");
+      if (mine === reqId.current) setError("Couldn't load captured storage.");
     } finally {
       if (mine === reqId.current) setLoading(false);
     }
@@ -75,14 +59,14 @@ export function PolyglotAdminView() {
   if (!sourceRoot) {
     return (
       <p className="text-xs text-stone-500 px-1">
-        Load a local-folder project first — the polyglot run is keyed by that folder&apos;s path.
+        Load a project first to inspect its captured storage revision.
       </p>
     );
   }
   if (loading) {
     return (
       <p className="text-xs text-stone-500 px-1 flex items-center gap-1.5">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading the polyglot run…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading captured storage…
       </p>
     );
   }
@@ -90,8 +74,7 @@ export function PolyglotAdminView() {
   if (!available || !summary) {
     return (
       <p className="text-xs text-stone-500 px-1">
-        No <code className="bg-stone-100 px-1 rounded">cie polyglot</code> store found for this project yet —
-        run <code className="bg-stone-100 px-1 rounded">cie polyglot {sourceRoot}</code>, then reload this page.
+        Captured storage is unavailable for this revision. Reconnect the repository to rebuild its captured facts.
       </p>
     );
   }
@@ -99,18 +82,18 @@ export function PolyglotAdminView() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <StatTile label="Files parsed" value={summary.ingest.files} />
-        <StatTile label="Symbols" value={summary.ingest.symbols} />
+        <StatTile label="Files parsed" value={summary.datasets.find(d=>d.name==="files")?.count ?? "unknown"} />
+        <StatTile label="Symbols" value={summary.datasets.find(d=>d.name==="symbols")?.count ?? "unknown"} />
         <StatTile
-          label="Calls (resolved/unresolved)"
-          value={`${summary.ir.callsResolved.toLocaleString()} / ${summary.ir.callsUnresolved.toLocaleString()}`}
+          label="Captured calls"
+          value={summary.datasets.find(d=>d.name==="calls")?.count ?? "unknown"}
         />
       </div>
       <p className="text-[11px] text-stone-500 px-1">
-        Store: <code className="text-[10px]">{summary.dbPath}</code>
+        Captured revision: <code className="text-[10px]">{summary.revision}</code>
       </p>
 
-      <PolyglotTableBrowser root={sourceRoot} />
+      <StorageTableBrowser root={sourceRoot} />
 
       <div className="pt-2">
         <FunctionIrView root={sourceRoot} />

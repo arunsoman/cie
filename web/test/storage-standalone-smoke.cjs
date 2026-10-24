@@ -32,8 +32,8 @@ const { spawn, spawnSync } = require('node:child_process');
     const facts=await post('/api/storage',{op:'tool_retrieve',request:{context:described.context,select:{kind:'file',where:[{field:'path',op:'eq',value:'app.py'}]},outputs:[{id:'rows',entities:{fields:['path','language'],page:{limit:1}}}]}});
     assert.equal(facts.outputs[0].schema_version,2);assert.equal(facts.outputs[0].data.type,'entities');assert.equal(facts.outputs[0].data.items[0].fields.path,'app.py');
     await fs.unlink(path.join(root,'app.py'));
-    const source=await post('/api/fs/file',{root,path:'app.py',revision:String(facts.revision),all:true});
-    assert.ok(source.content.startsWith('def smoke'));assert.equal(source.origin,'captured_revision');
+    const sourceResponse=await post('/api/storage',{op:'retrieve',context:described.context,request:{query:{select:{kind:'file',filter:{field:{field:'path',op:'eq',value:'app.py'}}}},outputs:[{id:'source',output:{detail:{source:{range:'whole_file'}}}}]}});
+    assert.ok(sourceResponse.outputs[0].data.text.startsWith('def smoke'));assert.equal(sourceResponse.outputs[0].data.type,'source');
     await post('/api/storage',{op:'close',context:described.context});
     console.log('Packaged production server: HTTP discovery, context-bound typed retrieval, and captured source after deletion passed.');
   } finally {

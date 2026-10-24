@@ -1,12 +1,7 @@
 "use client";
-import { repositoryFetch } from "@/lib/repository-fetch";
+import { readStorageRows, readStorageInventory } from "@/lib/storage-ui";
 
-// A browser over every table cie-polyglot's schema creates (see
-// POLYGLOT_TABLES in src/lib/polyglot-db.ts) — not just the curated summary
-// PolyglotAdminView used to show. Grouped by the module that owns each
-// table; each table shows its row count up front (0 is a fact about this
-// codebase — e.g. no recognized manifest file means 0 C4 containers — not a
-// missing feature) and expands into a paginated raw-row view on demand.
+// Paginated, redacted diagnostics through the pinned storage context.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
@@ -26,10 +21,6 @@ interface TableInfo {
   note: string;
   count: number | null;
 }
-interface InventoryResponse {
-  available: boolean;
-  tables?: TableInfo[];
-}
 interface RowsResponse {
   available: boolean;
   columns?: string[];
@@ -39,6 +30,7 @@ interface RowsResponse {
   pageSize?: number;
 }
 
+const datasetGroup=(name:string)=>/^(ir_|calls)/.test(name)?"IR":/^(concept_|c4_)/.test(name)?"C4 / Concepts":/^duplicate/.test(name)?"Duplicates":/^workflow/.test(name)?"Workflows":/^state_/.test(name)?"State machines":/^framework/.test(name)?"Frameworks":"Ingest & AST";
 const GROUP_ORDER = [
   "Ingest & AST",
   "IR",
@@ -60,13 +52,10 @@ function TableRowBrowser({ root, table }: { root: string; table: string }) {
     const mine = ++reqId.current;
     setLoading(true);
     try {
-      const res = await repositoryFetch("/api/polyglot/table-rows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root, table, page }),
-      });
-      const d = await res.json();
+      const d = await readStorageRows(root, table, page);
       if (mine === reqId.current) setData(d);
+    } catch {
+      if (mine === reqId.current) setData({available:false});
     } finally {
       if (mine === reqId.current) setLoading(false);
     }
@@ -149,7 +138,7 @@ function TableEntry({ root, info }: { root: string; info: TableInfo }) {
   );
 }
 
-export function PolyglotTableBrowser({ root }: { root: string }) {
+export function StorageTableBrowser({ root }: { root: string }) {
   const [tables, setTables] = useState<TableInfo[] | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,12 +150,8 @@ export function PolyglotTableBrowser({ root }: { root: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await repositoryFetch("/api/polyglot/tables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root: r }),
-      });
-      const d = (await res.json()) as InventoryResponse;
+      const inventory = await readStorageInventory(r);
+      const d={available:true,tables:inventory.datasets.map(dataset=>({...dataset,group:datasetGroup(dataset.name),note:"Stored diagnostic records; sensitive values are redacted."}))};
       if (mine !== reqId.current) return;
       setAvailable(!!d.available);
       setTables(d.tables ?? null);

@@ -16,7 +16,7 @@
 //   rows share one file — opens that file in the viewer. Nothing is invented.
 //
 // Reused infra (deliberately not rewritten): the file loading + "Ask CIE"
-// plumbing of the source panel (loadDemoSources, sourceCache, /api/fs/file),
+// plumbing of the source panel (loadDemoSources, sourceCache, the captured-source storage API),
 // askAboutChartElement/snippetAround (quality.ts), the plain-words
 // translators, and ChatChart's interactive canvas for diagram-backed
 // questions (UML, call flow, concept tree, heat maps).
