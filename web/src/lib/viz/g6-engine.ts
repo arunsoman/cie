@@ -179,11 +179,11 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
   const nodes: { id: string; style: Record<string, unknown>; data: Record<string, unknown> }[] = [];
   for (const lane of lanes) {
     const x = laneX.get(lane)!;
-    const w = boxWidth(lane);
+    const w = Math.min(LANE_W - 16, boxWidth(lane));
     for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
       nodes.push({
         id: `lane:${lane}:${key}`,
-        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lane, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lanes.filter(l=>l.split('/').pop()===lane.split('/').pop()).length===1 ? lane.split('/').pop() ?? lane : lane, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
         data: {},
       });
     }
