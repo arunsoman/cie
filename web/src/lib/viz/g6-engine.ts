@@ -452,11 +452,16 @@ async function renderSpecG6(
     throw err;
   }
 
+  const interactions=new Set<(event:{id:string;type:'click'|'doubleClick';detail:number})=>void>();
   const onClick = (e: IElementEvent) => {
     const id = e.target?.id;
     if (id == null) return;
     setSelected([String(id)], "user");
+    const detail=Number((e as unknown as {detail?:number}).detail??1);
+    interactions.forEach(cb=>cb({id:String(id),type:'click',detail}));
   };
+  const onDoubleClick=(e:IElementEvent)=>{if(e.target?.id!=null)interactions.forEach(cb=>cb({id:String(e.target.id),type:'doubleClick',detail:2}));};
+  graph.on('node:dblclick',onDoubleClick);graph.on('edge:dblclick',onDoubleClick);
   graph.on("node:click", onClick);
   graph.on("edge:click", onClick);
   // Custom strategies (sequence-lanes, tree) don't render every id in
@@ -488,6 +493,7 @@ async function renderSpecG6(
         // "dagre substituted" story for a diagram that never saw dagre
         { requested: (spec.layoutHint as { strategy?: string } | undefined)?.strategy, actual: "sequence-lanes", fidelity: "Exact" }
       : g6LayoutOutcome(spec),
+    onInteraction(cb){interactions.add(cb);return()=>{interactions.delete(cb);};},
     onSelection(cb) {
       return hub.subscribe(cb);
     },
@@ -502,6 +508,7 @@ async function renderSpecG6(
     async dispose() {
       disposed = true;
       offHighlight();
+      interactions.clear();graph.off('node:dblclick',onDoubleClick);graph.off('edge:dblclick',onDoubleClick);
       graph.off("node:click", onClick);
       graph.off("edge:click", onClick);
       graph.destroy();

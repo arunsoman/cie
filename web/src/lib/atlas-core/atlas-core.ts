@@ -1,17 +1,22 @@
+import {mapPopulation,itemPopulation,type EntityKind} from './atlas-populations';
+import {standardAtlasRegistry,type AtlasRegistry} from './atlas-registry';
+import {applyEvidencePolicy} from './atlas-policy';
 import type {AtlasPin,AtlasQuery,AtlasStorage,AtlasViewDefinition,AtlasState,AtlasCommand,AtlasViewState,AtlasItemRef} from './atlas-types';
 import {assertItem,initialSelection,samePin,selectionQuery,toggle,setOperation,validateQuery} from './atlas-selection';
 import {assertDefinition,assertView} from './atlas-conformance';
 export * from './atlas-types';
 /** One instance per repository revision. Persona switches never recreate it. */
-export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:AtlasStorage;views:AtlasViewDefinition[];persona:string}) {
+export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:AtlasStorage;views:AtlasViewDefinition[];persona:string;registry?:AtlasRegistry;universe?:EntityKind}) {
   validateQuery(options.base);
+  const registry=options.registry??standardAtlasRegistry(options.views);
+  const universe=options.universe??('select' in options.base?options.base.select.kind as EntityKind:'symbol');
   const definitions=new Map<string,AtlasViewDefinition>();
   for(const definition of options.views){assertDefinition(definition);if(definitions.has(definition.id))throw new Error('Duplicate Atlas view');definitions.set(definition.id,definition);}
   // Own every item and state snapshot: callers cannot mutate identity or selection indirectly.
   const copy=<T,>(value:T):T=>JSON.parse(JSON.stringify(value));
   const freeze=<T,>(value:T):T=>{if(value&&typeof value==='object'){Object.values(value).forEach(freeze);Object.freeze(value);}return value;};
   const base=freeze(copy(options.base));
-  let state:AtlasState=freeze({pin:copy(options.pin),persona:options.persona,version:0,selection:initialSelection(),views:{},evidence:{status:'closed'}});
+  let state:AtlasState=freeze({pin:copy(options.pin),persona:options.persona,version:0,policy:{factsOnly:false},selection:initialSelection(),views:{},evidence:{status:'closed'}});
   const listeners=new Set<()=>void>(),pages=new Map<string,(string|null)[]>();
   let disposed=false,controller:AbortController|undefined,evidenceController:AbortController|undefined;
   let epoch=0,evidenceEpoch=0;
@@ -26,18 +31,23 @@ export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:At
     publish({...state,views});
     // Each binding uses ONE storage request for all its projections. UI commits
     // the entire result batch together so counts/tables cannot mix query versions.
-    const query=selectionQuery(base,state.selection);
-    const batches=await Promise.all((['selection','repository'] as const).map(async binding=>{
-      const defs=[...definitions.values()].filter(v=>v.binding===binding);if(!defs.length)return [];
-      const boundQuery=binding==='repository'?base:query;
+    let query:AtlasQuery;
+    try{query=selectionQuery(base,state.selection,item=>itemPopulation(item,universe));}
+    catch(error){publish({...state,views:Object.fromEntries(Object.entries(views).map(([id,v])=>[id,{...v,status:'error',error:String(error)}]))});return;}
+    const groups=new Map<string,AtlasViewDefinition[]>();
+    for(const definition of definitions.values()){const key=JSON.stringify([definition.binding,definition.targetKind??universe]);const group=groups.get(key)??[];group.push(definition);groups.set(key,group);}
+    const batches=await Promise.all([...groups.values()].map(async defs=>{
+      const binding=defs[0].binding;
       try{
+        const boundQuery=mapPopulation(binding==='repository'?base:query,universe,defs[0].targetKind??universe);
         const outputs=defs.flatMap(d=>d.outputs(pages.get(d.id)?.slice(-1)[0]??null).map(o=>({id:`${d.id}__${o.id}`,output:o.output})));
         const result=await options.storage.retrieve(boundQuery,outputs,signal);
         if(!samePin(state.pin,{repository:result.repository,revision:result.revision}))throw new Error('Storage returned a mixed repository/revision');
         return defs.map(d=>{
           try{
             const local={...result,outputs:result.outputs.filter(o=>o.id.startsWith(`${d.id}__`)).map(o=>({...o,id:o.id.slice(d.id.length+2)}))};
-            const spec=d.project(local,{pin:state.pin,query:boundQuery,version});assertView(spec,state.pin);
+            const raw=d.project(local,{pin:state.pin,query:boundQuery,version});assertView(raw,state.pin);registry.renderer(raw);
+            const spec=applyEvidencePolicy({...raw,coverage:raw.coverage??result.coverage},state.policy);
             return [d.id,{binding,status:'ready',version,page:pages.get(d.id)?.length?pages.get(d.id)!.length-1:0,spec}] as [string,AtlasViewState];
           }catch(e){return [d.id,{...views[d.id],status:'error',error:String(e)}] as [string,AtlasViewState];}
         });
@@ -55,6 +65,11 @@ export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:At
     publish({...state,evidence:{status:'loading',item}});
     try{const source=await options.storage.source(evidence,signal);
       if(source.revision!==state.pin.revision)throw new Error('Captured source belongs to another revision');
+      if(source.repository&&source.repository!==state.pin.repository)throw new Error('Captured source belongs to another repository');
+      if(source.path!==evidence.file)throw new Error('Captured source file does not match requested evidence');
+      if(evidence.contentHash&&source.content_hash!==evidence.contentHash)throw new Error('Captured source hash mismatch');
+      if(!source.returned||!Number.isSafeInteger(source.returned.start)||!Number.isSafeInteger(source.returned.end)||source.returned.start<0||source.returned.end<source.returned.start)throw new Error('Invalid captured source range');
+      if(evidence.startByte!=null&&(source.returned.start>evidence.startByte||(!source.truncated&&source.returned.end<evidence.endByte!)))throw new Error('Captured source does not cover requested evidence');
       if(!signal.aborted&&!disposed&&requestEpoch===evidenceEpoch)publish({...state,evidence:{status:'ready',item,source}});
     }catch(e){if(!signal.aborted&&!disposed&&requestEpoch===evidenceEpoch)publish({...state,evidence:{status:'unavailable',item,error:String(e)}});}
   }
@@ -69,6 +84,8 @@ export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:At
         case 'openEvidence':assertItem(command.item,state.pin);void openEvidence(copy(command.item),command.index);return;
         case 'closeEvidence':evidenceController?.abort();++evidenceEpoch;publish({...state,evidence:{status:'closed'}});return;
         case 'persona':publish({...state,persona:command.persona});return;
+        case 'focus':publish({...state,focusedItemId:command.itemId});return;
+        case 'policy':if(state.policy.locked&&command.factsOnly!==state.policy.factsOnly)throw new Error('Persona evidence policy is locked');publish({...state,policy:{...state.policy,factsOnly:command.factsOnly},version:state.version+1});void refresh();return;
         case 'mode':publish({...state,selection:{...state.selection,mode:command.operation}});return;
         case 'refresh':void refresh();return;
         case 'page':{
@@ -89,6 +106,10 @@ export function createAtlasCore(options:{pin:AtlasPin;base:AtlasQuery;storage:At
       else if(command.type==='clear')selection={...selection,contributions:[]};
       else if(command.type==='operation')selection=setOperation(selection,command.itemId,command.operation);
       publish({...state,version:state.version+1,selection});void refresh(true);
+    },
+    configureViews(ids:string[],policy=state.policy){
+      const next=registry.viewsFor(ids);definitions.clear();next.forEach(v=>definitions.set(v.id,v));
+      publish({...state,policy,version:state.version+1});void refresh(true);
     },
     exportSession:()=>copy({schemaVersion:1 as const,pin:state.pin,persona:state.persona,selection:state.selection}),
     restoreSession(session:{schemaVersion:number;pin:AtlasPin;persona:string;selection:AtlasState['selection']}){

@@ -14,7 +14,7 @@ function entityItem(e:Entity,c:ProjectionContext):AtlasDatum {
   const label=String(e.fields.qualified_name??e.fields.name??e.id),loc=evidence(e);
   const file=loc[0]?.file;
   const detailRef=file?{id:`file:${file}`,pin:c.pin,label:file,group:'file.path',operand:{select:{kind:'symbol',filter:{field:{field:'file.path',op:'eq',value:file}}}} as AtlasQuery,evidence:[{file}]}:undefined;
-  return {key:e.id,label,detail:file??String(e.fields.kind??''),detailRef,role:'member',ref:{id:e.id,pin:c.pin,label,group:'symbol',operand:ids([e.id]),evidence:loc}};
+  return {key:e.id,label,detail:file??String(e.fields.kind??''),detailRef,role:'member',authority:'Fact',ref:{id:e.id,pin:c.pin,label,group:'symbol',operand:ids([e.id]),evidence:loc}};
 }
 export const symbolTable:AtlasViewDefinition={
   id:'symbols',binding:'selection',
@@ -30,7 +30,7 @@ export function metricBars(id:string,field:string,title:string,binding:'selectio
         const label=cell.members.group==null?'Unknown':String(cell.members.group);
         const ref:AtlasItemRef={id:field==='file.path'?`file:${label}`:`bucket:${field}:${JSON.stringify(cell.members.group)}`,label,pin:c.pin,group:field,
           operand:{cell_contributors:{descriptor:cell.contributors}},evidence:field==='file.path'&&cell.members.group!=null?[{file:label}]:[]};
-        return {key:ref.id,label,value:cell.measures.count,role:'member' as const,ref};
+        return {key:ref.id,label,value:cell.measures.count,role:'member' as const,authority:'Fact' as const,ref};
       });
       return {kind:'bars',title,items,total:p.total,continuation:p.continuation,gaps:p.truncated?['Additional groups are available on the next page.']:[]};
     },
@@ -49,7 +49,7 @@ export const callGraph:AtlasViewDefinition={
       links:graph.edges.filter((e,index,all)=>e.relation==='declared_calls'&&all.findIndex(x=>x.source===e.source&&x.target===e.target&&x.relation===e.relation)===index).map(e=>{
         const a=items.find(n=>n.key===e.source)!,b=items.find(n=>n.key===e.target)!;
         const key=`edge:${e.source}:${e.relation}:${e.target}`;
-        return {key,from:e.source,to:e.target,label:'Declared call',ref:{id:key,label:`${a.label} → ${b.label}`,pin:c.pin,group:'relationship',operand:ids([e.source,e.target]),evidence:[...a.ref.evidence,...b.ref.evidence].filter((v,i,all)=>all.findIndex(w=>JSON.stringify(w)===JSON.stringify(v))===i)}};
+        return {key,from:e.source,to:e.target,label:'Declared call',authority:'Inference',ref:{id:key,label:`${a.label} → ${b.label}`,pin:c.pin,group:'relationship',operand:ids([e.source,e.target]),evidence:[...a.ref.evidence,...b.ref.evidence].filter((v,i,all)=>all.findIndex(w=>JSON.stringify(w)===JSON.stringify(v))===i)}};
       }),total:r.matches,continuation:null,gaps:[...(graph.truncated?['Graph limited to 24 nodes / 60 edges.']:[]),...(membership.truncated?['Membership page limited; additional displayed nodes are conservatively labelled context.']:[])]};
   },
 };

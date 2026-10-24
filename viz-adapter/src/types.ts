@@ -247,6 +247,8 @@ export interface RenderHandle {
   semanticHash: string;
   renderHash: string;
   layout: LayoutOutcome;
+  /** Physical gestures are independent of selection equality; repeated clicks must toggle. */
+  onInteraction?(cb:(event:{id:string;type:'click'|'doubleClick';detail:number})=>void):()=>void;
   onSelection(cb: SelectionListener): () => void;
   setSelected(ids: string[], origin: SelectionOrigin): void;
   dispose(): Promise<void>;

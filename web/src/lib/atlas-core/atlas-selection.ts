@@ -5,6 +5,8 @@ export function assertItem(item: AtlasItemRef,pin: AtlasPin) {
   if(!item.id || !item.label || !item.group || !item.operand || !Array.isArray(item.evidence))throw new Error('Atlas data items require identity, selection operand and evidence availability');
   validateQuery(item.operand);
   for(const e of item.evidence){
+    if(e.pin&&!samePin(e.pin,pin))throw new Error('Evidence requires its own revision reader');
+    if(e.line!=null&&(!Number.isSafeInteger(e.line)||e.line<1))throw new Error('Invalid evidence line');
     if(!e.file || e.file.startsWith('/') || e.file.split(/[\\/]/).includes('..'))throw new Error('Invalid evidence path');
     if(e.startByte!=null && (!Number.isSafeInteger(e.startByte)||e.startByte<0||!Number.isSafeInteger(e.endByte)||e.endByte!<=e.startByte))throw new Error('Invalid evidence span');
   }
@@ -27,12 +29,12 @@ export function toggle(selection: AtlasSelection,item: AtlasItemRef): AtlasSelec
 }
 const combine=(kind:'union'|'intersect',queries:AtlasQuery[]):AtlasQuery=>queries.length===1?queries[0]:kind==='union'?{union:queries}:{intersect:queries};
 /** OR in a group, AND between groups; explicit intersection/exclusion override grouping. */
-export function selectionQuery(base: AtlasQuery,selection: AtlasSelection): AtlasQuery {
+export function selectionQuery(base: AtlasQuery,selection: AtlasSelection,normalize:(item:AtlasItemRef)=>AtlasQuery=item=>item.operand): AtlasQuery {
   const groups=new Map<string,AtlasQuery[]>(), intersections:AtlasQuery[]=[],excluded:AtlasQuery[]=[];
   for(const c of selection.contributions){
-    if(c.operation==='exclude'){excluded.push(c.item.operand);continue;}
-    if(c.operation==='intersection'){intersections.push(c.item.operand);continue;}
-    const group=groups.get(c.item.group)??[];group.push(c.item.operand);groups.set(c.item.group,group);
+    if(c.operation==='exclude'){excluded.push(normalize(c.item));continue;}
+    if(c.operation==='intersection'){intersections.push(normalize(c.item));continue;}
+    const group=groups.get(c.item.group)??[];group.push(normalize(c.item));groups.set(c.item.group,group);
   }
   const constraints=[...groups.values()].map(q=>combine('union',q)).concat(intersections);
   const positive=constraints.length?combine('intersect',[base,...constraints]):base;

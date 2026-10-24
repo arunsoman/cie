@@ -1,6 +1,6 @@
 'use client';
 import type {ReactNode} from 'react';
-import {useId} from 'react';
+import {AtlasCanvas} from './atlas-canvas';
 import {useAtlas,useAtlasState} from './atlas-provider';
 import type {AtlasItemRef,AtlasOperation} from '@/lib/atlas-core/atlas-types';
 function Item({item,children}:{item:AtlasItemRef;children:ReactNode}){
@@ -21,7 +21,7 @@ export function AtlasSelectionBar(){const {core}=useAtlas(),state=useAtlasState(
   {!state.selection.contributions.length&&<p className="text-xs text-stone-500">Whole captured repository. No active constraints.</p>}
 </section>;}
 export function AtlasRegisteredView({id}:{id:string}){
-  const {core,interaction}=useAtlas(),state=useAtlasState(),view=state.views[id],marker=useId().replace(/:/g,'');
+  const {core,interaction}=useAtlas(),state=useAtlasState(),view=state.views[id];
   if(!view)return <p role="status">Preparing {id}…</p>;
   const spec=view.spec;
   return <section aria-label={spec?.title??id} className="rounded-xl border p-3 min-w-0 space-y-2" aria-busy={view.status==='loading'}>
@@ -35,13 +35,8 @@ export function AtlasRegisteredView({id}:{id:string}){
       {spec.kind==='table'&&<div className="max-h-[520px] overflow-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Symbol</th><th className="text-left">File</th></tr></thead><tbody>{spec.items.map(i=><tr key={i.key}><td><Item item={i.ref}>{i.label}</Item></td><td className="break-all">{i.detailRef?<Item item={i.detailRef}>{i.detail}</Item>:i.detail}</td></tr>)}</tbody></table></div>}
       {spec.kind==='bars'&&<ul className="space-y-1">{spec.items.map(i=><li key={i.key}><Item item={i.ref}><span className="text-xs break-all">{i.label} · {i.value}</span><span aria-hidden="true" className="block h-3 bg-emerald-600 rounded" style={{width:`${Math.max(1,100*(i.value??0)/Math.max(1,...spec.items.map(x=>x.value??0)))}%`}}/></Item></li>)}</ul>}
       {spec.kind==='graph'&&<>
-        <div className="overflow-auto max-h-[520px] border rounded" aria-label="Call graph viewport"><svg role="img" aria-label="Declared call graph" width={900} height={Math.max(200,spec.items.length*65)}>
-          <defs><marker id={marker} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs>
-          {(spec.links??[]).map((l,n)=>{const a=spec.items.findIndex(i=>i.key===l.from),b=spec.items.findIndex(i=>i.key===l.to);return <path key={l.key} role="button" tabIndex={view.status==='ready'?0:-1} aria-label={l.ref.label} aria-pressed={state.selection.contributions.some(c=>c.item.id===l.ref.id)}
-            onClick={e=>{if(view.status==='ready')interaction.click(l.ref,e.detail);}} onDoubleClick={()=>{if(view.status==='ready')interaction.doubleClick(l.ref);}}
-            onKeyDown={e=>{if(view.status!=='ready')return;if(e.key==='Enter'){e.preventDefault();interaction.open(l.ref);}else if(e.key===' '){e.preventDefault();core.dispatch({type:'toggle',item:l.ref});}}} d={`M 440 ${a*65+25} C ${500+(n%5)*65} ${a*65+25}, ${500+(n%5)*65} ${b*65+25}, 440 ${b*65+25}`} fill="none" stroke="#64748b" strokeDasharray="5 3" markerEnd={`url(#${marker})`}/>;})}
-          {spec.items.map((i,n)=><foreignObject key={i.key} x={8} y={n*65+3} width={430} height={60}><Item item={i.ref}><span className="text-xs">{i.label}{i.role==='context'?' · context':''}</span></Item></foreignObject>)}
-        </svg></div>
+        <AtlasCanvas spec={spec} disabled={view.status!=='ready'}/>
+        <ul aria-label="Selectable graph nodes">{spec.items.map(i=><li key={i.key}><Item item={i.ref}>{i.label}{i.role==='context'?' · context':''}</Item></li>)}</ul>
         <p className="text-xs">Dashed arrows are declared targets; runtime dispatch is unobserved. Graph endpoints may be supporting context.</p>
         <ul aria-label="Selectable call relationships">{spec.links?.map(l=><li key={l.key}><Item item={l.ref}>{l.ref.label}</Item></li>)}</ul>
       </>}

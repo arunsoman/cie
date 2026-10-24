@@ -10,7 +10,7 @@ export function atlasStorage(root:string,revision:string):AtlasStorage {
       const query:AtlasQuery={select:{kind:'file',filter:{field:{field:'path',op:'eq',value:evidence.file}}}};
       const result=await client.retrieve({query,outputs:[{id:'source',output:{detail:{source:{range}}}}]},signal);
       if(!result.matches)throw new Error('No captured source in this revision');
-      return output<CapturedEvidence>(result,'source','source');
+      return {...output<CapturedEvidence>(result,'source','source'),repository:result.repository};
     },
     close:()=>client.close(),
   };
