@@ -1,0 +1,202 @@
+{
+  "schema": "cie.qa.behaviour-baseline/1",
+  "title": "SMPP behavioural baseline — six source-oracle expectations",
+  "baseline": {
+    "cie_commit": "5267564",
+    "qa_date": "2026-10-24",
+    "subject": "SMPP SMS gateway source root — one physical source tree with BOTH a pom.xml (Maven) and a build.gradle (Gradle) manifest",
+    "oracle_basis": "Every claim below was derived from an independent read of the SMPP source itself (declarations, receivers, annotations, program points). No claim is derived from a CIE artifact; CIE artifacts are the object under test, never the oracle.",
+    "expected_result": {
+      "pass": 0,
+      "fail": 6,
+      "invalid": 0,
+      "meaning": "All six expectations are checkable against the real capture and all six fail: these are reproduced defects, not repaired ones. Stage 0 exit gate — fixtures fail for the diagnosed reasons, with no application-specific allowlist fixes anywhere in the harness."
+    }
+  },
+  "bundle_contract": {
+    "accepted_shapes": [
+      "A single JSON file containing one RevSnapshot-shaped object (has 'rev', 'files', 'symbols', 'summaries').",
+      "A single JSON file wrapping one snapshot under 'snapshots' (exactly one entry).",
+      "A directory of JSON artifact files; the snapshot-shaped file is used, and 'stack'/'concepts' may be merged from sibling artifact files when the snapshot itself lacks them."
+    ],
+    "object_under_test": "The captured legacy bundle (the revision snapshot artifact CIE 5267564 actually persisted for the SMPP root) — read-only. The harness never writes, never re-ingests, never relabels.",
+    "status_vocabulary": {
+      "pass": "The bundle carries the oracle-required records and their values satisfy the claim.",
+      "fail": "The required evidence IS present and demonstrably violates the claim (defect reproduced).",
+      "invalid": "The bundle lacks the evidence needed to evaluate the claim (absent symbol, absent artifact, empty record set). Absence is never a pass."
+    },
+    "exit_codes": {
+      "0": "Observed counts equal the fixture's expected_result (baseline reproduced, or oracle satisfied when the fixture's expectation is updated after later stages).",
+      "1": "Observed counts differ from expected_result — behaviour drifted against the contract; investigate before proceeding.",
+      "2": "Harness/usage error (missing files, unreadable JSON, fixture schema mismatch)."
+    }
+  },
+  "anchors": {
+    "submit_sms": "SmsController.submitSms",
+    "submission_service": "SubmissionService.submit",
+    "manifest_builds": ["maven", "gradle"],
+    "db_effect_spellings": ["db_read", "db_write"],
+    "lexical_hint_spellings": ["find", "findOne", "find_one", "query", "select", "execute", "save", "get", "cursor"],
+    "auth_tag": "auth",
+    "authz_annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
+    "authz_callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
+    "fca_intent_translations": ["authorization"]
+  },
+  "expectations": [
+    {
+      "id": "BB1-identity-one-app",
+      "layer": "identity",
+      "title": "One SMPP source root, two manifest evidence records, ONE application identity",
+      "claim": "The SMPP root declares both pom.xml (Maven) and build.gradle (Gradle) over the same physical source tree. The captured bundle must therefore record one application identity whose evidence list carries BOTH manifest records, with explicit source-root membership. Recording two applications — one per manifest — splits one physical system into two identities and fails this oracle.",
+      "source_evidence": [
+        "pom.xml and build.gradle sit at the same repository root and compile the same src/ tree.",
+        "Every Java source file under that root is reachable through either build; nothing in the tree is owned by one build alone.",
+        "The design contract separates ApplicationId from ManifestId/DeploymentId: manifests are evidence, not identity."
+      ],
+      "counterexample": "Legacy cie-stack emits one AppSite per detected manifest ('one entry per detected APPLICATION (service module)'), so the capture records two apps — build 'maven' and build 'gradle' — over the same dir, and every downstream C4/component view presents one system as two.",
+      "check": {
+        "kind": "app_identity_evidence_split",
+        "params": {
+          "manifest_builds": ["maven", "gradle"],
+          "same_root_rule": "apps whose 'dir' values are equal (root manifests share dir '') and whose 'build' values differ are one application split by manifest"
+        }
+      },
+      "scope_limitations": [
+        "Does not claim which build tool is primary or canonical; both are evidence.",
+        "Does not cover genuine multi-module reactor layouts where sibling modules are truly distinct applications — those have distinct dirs and stay out of scope.",
+        "Stage 0 does not require the ApplicationId/ManifestId/DeploymentId triple to exist yet; it requires the capture not to assert two applications over one root."
+      ],
+      "expected": "fail"
+    },
+    {
+      "id": "BB2-dispatch-qualified-resolution",
+      "layer": "dispatch",
+      "title": "submitSms → submissionService.submit is a solid DECLARATION fact with a QUALIFIED runtime dispatch",
+      "claim": "In SmsController.submitSms the receiver submissionService is declared as SubmissionService and the method declaration submit exists. The captured bundle must be able to express three independent resolution fields for this call: declaration (known declaration(s) / ambiguous / unresolved-with-reason), dispatch (exact / candidate set / open-world / reflective / external), and observation (unobserved / linked runtime observations). A Spring-proxied receiver makes the concrete runtime implementation a candidate, not a certainty — the declaration link can be solid while the dispatch edge stays qualified. A bundle whose call records only support a two-state resolved/unresolved model cannot state this and fails the oracle.",
+      "source_evidence": [
+        "SmsController declares the field with the SubmissionService type (constructor/field injection), so the receiver's declared type is source-visible.",
+        "SubmissionService.submit has a source declaration — the declaration fact is real, not guessed.",
+        "Spring dependency injection + proxying (transactions, async) mean the object executing at runtime is the injected bean, not necessarily the class the declaration lives in — statically that is a candidate set, never a guaranteed path."
+      ],
+      "counterexample": "Legacy Callee::{Resolved, Builtin, Unresolved} is two-state: a Resolved(SymbolId) edge is stored with no dispatch qualification, so downstream consumers read a guaranteed controller→impl path where the source only proves a declared-type navigation fact.",
+      "check": {
+        "kind": "call_resolution_dimensions",
+        "params": {
+          "anchor": "SmsController.submitSms",
+          "required_fields": ["declaration", "dispatch", "observation"],
+          "dispatch_values_acceptable": ["exact", "candidate", "candidate_set", "open_world", "unknown", "reflective", "external"]
+        }
+      },
+      "scope_limitations": [
+        "Does not claim the concrete proxy/implementing class is statically knowable — it is not, and the oracle requires the record to say so rather than guess.",
+        "Does not require runtime traces or observation data at stage 0; 'unobserved' is an acceptable observation value.",
+        "Expanding a candidate edge as a guaranteed path, or propagating may-effects into must-effects, is out of scope here — BB6 and the effect expectations cover those dimensions."
+      ],
+      "expected": "fail"
+    },
+    {
+      "id": "BB3-effects-receiver-provenance",
+      "layer": "effects",
+      "title": "Effect claims carry receiver/library provenance; data.find is not a DB read",
+      "claim": "Every db_read/db_write effect claim in the bundle must carry receiver/library identity and a resolution basis (local declaration binding → imported/type-resolved API identity → framework effect adapter → unresolved/hint). Classifying a call as a database operation from its method spelling alone is a defect: an in-memory search such as data.find(...) on a String/byte[] receiver is a memory operation, and assigning DbRead to it produces a false positive that pollutes effect counts, security surfaces and concept traits.",
+      "source_evidence": [
+        "The SMPP root contains data.find-style in-memory searches on String/byte[] receivers whose spelling matches the legacy DB list.",
+        "The legacy classifier cie-adapters::effects::classify_builtin matches the LAST SEGMENT of the callee text — 'find' maps to DbQuery → EffectKind::DbRead — with no receiver provenance consulted, exactly the diagnosed root cause.",
+        "Real DB access in this root flows through named database API types whose identity is resolvable before any spelling heuristic is consulted."
+      ],
+      "counterexample": "A summary whose only DB-shaped evidence is a lexical .find call ends up with effects containing 'db_read' and the 'query' tag, and no field anywhere in the bundle records which receiver/library the classification came from.",
+      "check": {
+        "kind": "effect_provenance",
+        "params": {
+          "effect_spellings": ["db_read", "db_write"],
+          "required_basis_fields": ["receiver", "resolution_basis"],
+          "lexical_hint_spellings": ["find", "findOne", "find_one", "query", "select", "execute", "save", "get", "cursor"]
+        }
+      },
+      "scope_limitations": [
+        "Does not require SQL statement parsing or write/read classification from statement semantics at stage 0 — dynamic SQL may remain unknown/may-write.",
+        "A name-only match may survive as an explicitly typed hint; the oracle requires the hint to be separable from facts, not banned.",
+        "Excluding lexical hints can reduce apparent effect coverage; that loss must be recorded honestly rather than compensated with false positives."
+      ],
+      "expected": "fail"
+    },
+    {
+      "id": "BB4-auth-lexical-hint-not-fact",
+      "layer": "semantic-claims",
+      "title": "verify_-named status verification is not an authorization fact",
+      "claim": "An 'auth' behavior tag derived purely from the function NAME (is_auth_name matches 'verify_') is a lexical hint. The captured bundle must keep lexical hints, technical traits and validated semantic claims in different typed fields, and every authorization claim must carry non-lexical validation evidence: an authorization annotation (@PreAuthorize/@Secured/@RolesAllowed/...), an authorization-library callee identity, or a policy reference. When FCA consumes a bare 'auth' tag and emits an 'authorization' trait / 'Authorize X' usecase label, the lexical hint has been silently promoted into a normative security claim — that promotion is the defect this oracle reproduces.",
+      "source_evidence": [
+        "The SMPP root contains verify_-named functions that perform status/consistency verification (e.g. verifying a submitted record's state), with no authorization annotation and no authorization-library call in their bodies.",
+        "Legacy cie-analysis::behavior::is_auth_name matches the substring 'verify_', stamping tags {'auth'} onto such summaries.",
+        "Legacy cie-analysis::fca translates trait 'auth' to intent 'authorization', and cie-analysis::hierarchy renders usecase labels 'Authorize <name>' from the same tag — the promotion chain is complete in the shipped code."
+      ],
+      "counterexample": "verify_all: tag 'auth', FCA intent 'authorization', usecase label 'Authorize verify all' — zero authorization evidence anywhere in the bundle; an auditor reading the artifact would locate an authorization check that does not exist.",
+      "check": {
+        "kind": "auth_evidence",
+        "params": {
+          "tag": "auth",
+          "annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
+          "callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
+          "fca_intent_translations": ["authorization"]
+        }
+      },
+      "scope_limitations": [
+        "Does not claim verify_-named functions are safe, authorized, or insecure — the oracle requires a GAP to be stated, never proof of absence of authorization.",
+        "A function that genuinely performs authorization may still pass if its record carries non-lexical evidence; the spelling alone satisfies nothing.",
+        "Does not require the security-obligation model (requirements vs observations vs inferred obligations) to exist at stage 0; it requires the bundle not to assert a validated authorization claim without evidence."
+      ],
+      "expected": "fail"
+    },
+    {
+      "id": "BB5-callsite-occurrence-identity",
+      "layer": "facts-to-store",
+      "title": "Repeated calls are distinct call sites with per-occurrence identity",
+      "claim": "Every invocation in submitSms — including repeated invocations of the same callee (persistence + retry, per-branch saves) — is a distinct call site carrying its own source span, occurrence identity, arguments/arity, guard and enclosing block. A bundle that stores callees as symbol lists keyed by (caller, callee text) cannot distinguish the second occurrence from the first, cannot attach per-occurrence guards or arguments, and joins several repeated call sites into one edge — that join is the diagnosed RepositoryWriter::commit defect and it fails this oracle.",
+      "source_evidence": [
+        "submitSms invokes the same persistence/validation entry points at more than one program point (main path and retry/validation branches), each occurrence under its own guard.",
+        "Legacy summaries record callees as Vec<SymbolId> pushed per occurrence at best, with no span, no occurrence id, no arguments, no guard; reverse_deps collapses them through a BTreeSet.",
+        "Legacy CallSite rows join by caller span plus callee text, so updating one occurrence touches all of them."
+      ],
+      "counterexample": "Two sequential guarded calls to the same repository method survive in the bundle as (at best) one entry repeated without identity — no consumer can reconstruct which occurrence carried which guard or argument.",
+      "check": {
+        "kind": "call_site_occurrence_identity",
+        "params": {
+          "anchor": "SmsController.submitSms",
+          "required_occurrence_fields": ["span", "occurrence", "arguments", "guard"]
+        }
+      },
+      "scope_limitations": [
+        "Does not require full CFG semantics (typed edges, predicates) at stage 0 — per-occurrence identity and spans are the minimum record.",
+        "Does not require the calls/ir_blocks/ir_instructions/ir_edges polyglot tables to be validated yet; that validation is the CFG stage's gate.",
+        "Loop- and recursion-explicitness is covered by BB6's order/repetition dimension, not here."
+      ],
+      "expected": "fail"
+    },
+    {
+      "id": "BB6-diagram-source-order",
+      "layer": "diagrams",
+      "title": "Diagram derivations are reconstructible from stored source order, repeats and explicit no-interaction records",
+      "claim": "The bundle must store enough for a sequence provider to reconstruct source evaluation order without re-parsing: call records carry a source order (statement index / byte span ordering), repeated invocations survive as separate records, loops/recursion are expressible as explicit structures, and 'no evidenced interactions' is a typed record with its reason. Deriving message chronology from a BFS over a visited-symbol set, ordering children by symbol id, silently dropping repeats, or rendering empty lifelines as if they explained a process all fail this oracle — the 9/22 no-message panels are the standing negative fixture.",
+      "source_evidence": [
+        "Legacy mastery.ts traceFlow walks a BFS with a visited-symbol set ('if (visited.has(c)) continue') and sorts children by summary-availability then symbol id — repeated calls collapse and id order masquerades as chronology.",
+        "Legacy concept-diagrams.ts renders the call graph of an extent as a 'flowchart' (conceptToFlowchartSpec) and orders sequence messages by depthFromEntries BFS — call-graph-as-flowchart and BFS-as-chronology are both present in shipped code.",
+        "The SMPP source's submit path has ordered, repeating, branching interactions whose evaluation order is visible in the source but not reconstructible from the legacy bundle."
+      ],
+      "counterexample": "A sequence panel for a submit flow shows one message where the source has two sequential invocations, ordered by symbol id rather than source order; a flow panel titled flowchart is a call graph with no branch/loop semantics.",
+      "check": {
+        "kind": "source_order_records",
+        "params": {
+          "required_order_fields": ["source_order", "statement_index"],
+          "require_repeat_expression": true,
+          "require_no_interaction_record": true
+        }
+      },
+      "scope_limitations": [
+        "Stage 0 checks data sufficiency in the captured bundle, not the renderer: the UI-level fixes (shared viewport, readability floor) are later stages.",
+        "A call graph remains a legitimate named provider; the oracle forbids it being presented as a flowchart, not its existence.",
+        "Static sequence providers may disclose static semantics; runtime sequences are a separately named provider and out of scope here."
+      ],
+      "expected": "fail"
+    }
+  ]
+}
