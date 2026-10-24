@@ -1243,3 +1243,16 @@ Work Log (implementation + verification):
 
 Stage Summary:
 - THE ORACLE IS GREEN: the six behavioural-baseline defects are fixed in the production engine and a fresh smpp-mls capture satisfies all six expectations at 6 pass / 0 fail / 0 invalid — with named evidence, no allowlists, and the legacy shapes still provably failing (self-test 1). Stage 0's exit gate has flipped to Stage 1's entry state: the Stage 1 gate (six fixtures pass on a NEW ingestion) is ALREADY MET by this change set; next per the design doc: stage 2 semantic producers, stage 3 storage projections (MatchSet/SelectionSpec), stage 4 diagram/navigation rewrites onto the new records, plus the pre-existing duplicates test debt (jscpd owner). INCREMENTAL-ON unaffected (cie-polyglot derivation untouched); the capture stays uncommitted (gitignored tool-results/, reproducible via the documented commands).
+
+---
+Task ID: QA-BEHAVIOUR-BASELINE-GREEN-push
+Agent: main (Z.ai)
+Task: Push the oracle-green change set to origin/main with the user's PAT; fetch-verify; record the receipt.
+
+Work Log:
+- Amended one stray artifact out of the commit (scripts/__pycache__ pyc from py_compile) and added __pycache__/ to .gitignore; final commit a3b4ac4, 51 files, +1974/-219.
+- Pushed via the one-off token-URL protocol: 6b4a59f..a3b4ac4 main -> main. Token never written to .git/config (remote.origin.url verified as the clean https URL after the push).
+- Fetch-verified through the token URL: local HEAD a3b4ac4 == FETCH_HEAD == origin/main (exact match).
+
+Stage Summary:
+- QA-BEHAVIOUR-BASELINE-GREEN is ON ORIGIN: local == origin/main == a3b4ac4. The six SMPP behavioural expectations pass 6/0/0 on a fresh real capture; the defect baseline (0/6/0) is reproducible from the rev-1 fixture in history. Suite state: cargo 457 passed + 8 pre-existing jscpd duplicates failures (parallel-agent debt, proven on clean baseline); web 113/113. NEXT per the design doc: stage 2 semantic producers, stage 3 storage projections, stage 4 diagram/navigation rewrites onto the new records; the duplicates test debt belongs to the jscpd owner.
