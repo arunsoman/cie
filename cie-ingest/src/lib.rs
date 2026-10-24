@@ -839,12 +839,36 @@ pub fn run_drift_from_outcome(
     project: &Path, docs: &[(String,String)], raw: IngestOutcome,
     verify_deadline_ns: Option<Ns>, inject_timeout: bool,
 ) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
+    run_drift_inner(project, docs, raw, verify_deadline_ns, inject_timeout, None)
+}
+
+/// Bound the entire optional documentation pipeline, not only verification.
+/// Expiry never creates a completed cache entry or a clean drift result.
+pub fn run_drift_from_outcome_with_budget(
+    project: &Path, docs: &[(String, String)], raw: IngestOutcome,
+    budget: std::time::Duration,
+) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
+    let deadline = std::time::Instant::now() + budget;
+    let verify_deadline = now_ns().saturating_add(budget.as_nanos().min(u64::MAX as u128) as u64);
+    run_drift_inner(project, docs, raw, Some(verify_deadline), false, Some(deadline))
+}
+fn run_drift_inner(
+    project: &Path, docs: &[(String, String)], raw: IngestOutcome,
+    verify_deadline_ns: Option<Ns>, inject_timeout: bool,
+    deadline: Option<std::time::Instant>,
+) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
+    use cie_drift::pipeline::check_deadline;
+    check_deadline(deadline)?;
     // TASK-071: cheap ingestion formats — normalize rst/adoc/html to plain
     // prose before hashing and claim extraction (markdown/text pass through).
     let normalized_docs: Vec<(String, String)> = docs
         .iter()
-        .map(|(name, content)| (name.clone(), cie_docs::normalize_doc(name, content)))
-        .collect();
+        .map(|(name, content)| {
+            check_deadline(deadline)?;
+            Ok((name.clone(), cie_docs::normalize_doc(name, content)))
+        })
+        .collect::<std::io::Result<_>>()?;
+    check_deadline(deadline)?;
     let docs: &[(String, String)] = &normalized_docs;
 
     // TASK-076 / acc #24: identical code + identical docs ⇒ reuse the
@@ -856,41 +880,52 @@ pub fn run_drift_from_outcome(
     let cache_key_str = drift_cache_key(&drift_store, docs)?;
     if !inject_timeout {
         if let Some(cached) = drift_store.load_drift_cache_entry(&cache_key_str)? {
-            if cached.rev == raw.rev {
+            if cached.rev == raw.rev && cached.complete {
                 // Cache hit: skip materialize — the caller gets the report;
                 // the un-materialized outcome carries rev/project only.
+                check_deadline(deadline)?;
                 return Ok((cached, raw));
             }
         }
     }
 
+    check_deadline(deadline)?;
     let outcome = materialize(raw)?;
+    check_deadline(deadline)?;
     let now = now_ns();
 
     let mut claims = vec![];
     for (name, content) in docs {
-        claims.extend(cie_drift::pipeline::extract_claims(name, content, now));
+        let extracted = cie_drift::pipeline::extract_claims_until(name, content, now, deadline)?;
+        for mut claim in extracted {
+            claim.id = claims.len() as u32;
+            claims.push(claim);
+        }
     }
 
-    cie_drift::pipeline::bind_history(project, &mut claims);
+    check_deadline(deadline)?;
+    cie_drift::pipeline::bind_history_until(project, &mut claims, deadline);
+    check_deadline(deadline)?;
 
     // TASK-073: persist claims with (doc, span, kind, modality) provenance;
     // identical (doc, text) claims dedup onto one entry across runs.
     {
         let mut claim_store = drift_store.load_claim_store()?;
         for c in &claims {
+            check_deadline(deadline)?;
             claim_store.insert(c.clone());
         }
         drift_store.save_claim_store(&claim_store)?;
     }
-    let mappings = cie_drift::pipeline::map_claims(&claims, &outcome.store, &{
+    let mappings = cie_drift::pipeline::map_claims_until(&claims, &outcome.store, &{
         let mut m = BTreeMap::new();
         for s in &outcome.snapshot.summaries {
             m.insert(s.sym, s.clone());
         }
         m
-    });
-    let verifications = cie_drift::pipeline::verify_claims(
+    }, deadline)?;
+    check_deadline(deadline)?;
+    let verifications = cie_drift::pipeline::verify_claims_until(
         &claims,
         &mappings,
         &outcome.store,
@@ -907,22 +942,26 @@ pub fn run_drift_from_outcome(
             deadline_ns: verify_deadline_ns,
             inject_timeout,
         },
-    );
-    let report = cie_drift::pipeline::build_report(
+        deadline,
+    )?;
+    check_deadline(deadline)?;
+    let complete = !verifications.iter().any(|v| v.reason.as_deref() == Some("verification_timeout"));
+    let report = cie_drift::pipeline::build_report_until(
         outcome.rev,
         &docs.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>(),
         claims,
         mappings,
         verifications,
         &outcome.store,
-        true,
+        complete,
         now,
-    );
+        deadline,
+    )?;
     let store = Store::open(project)?;
     store.save_drift(&report)?;
 
     // Persist the cache entry for the next identical re-run (acc #24).
-    if !inject_timeout {
+    if !inject_timeout && report.complete {
         store.save_drift_cache_entry(&cache_key_str, &report)?;
     }
     Ok((report, outcome))
@@ -944,7 +983,8 @@ fn drift_cache_key(store: &Store, docs: &[(String, String)]) -> std::io::Result<
         docs_bytes.extend_from_slice(content.as_bytes());
     }
     let docs_hash = content_hash(&docs_bytes);
-    let mut key_bytes = b"rfc0020-history-v1".to_vec();
+    // Claim IDs are now unique across documents; do not reuse old colliding IDs.
+    let mut key_bytes = b"rfc0020-history-v2-doc-ids".to_vec();
     key_bytes.extend_from_slice(&code_hash);
     key_bytes.extend_from_slice(&docs_hash);
     Ok(cie_core::types::hash_hex(&content_hash(&key_bytes)))

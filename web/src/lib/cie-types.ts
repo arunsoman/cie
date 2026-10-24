@@ -333,6 +333,7 @@ export interface DriftReverseEntry {
 }
 
 export interface CieDrift {
+  incomplete_reason?: string;
   rev: number;
   docs: string[];
   claims: DriftClaim[];

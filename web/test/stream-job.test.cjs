@@ -56,3 +56,63 @@ test("a local web ingestion launches one coordinator and consumes its artifacts"
     await fs.rm(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
+
+test("optional docs timeout still retains a URL job and serves an incomplete storage bootstrap", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "cie-docs-retain-"));
+  const fixture = path.join(temp, "fixture");
+  await fs.mkdir(fixture);
+  await fs.writeFile(path.join(fixture, "app.py"), "def pay(amount):\n    return amount + 1\n");
+  await fs.writeFile(path.join(fixture, "README.md"), "The pay function must validate the amount.\n");
+  const previous = { bin:process.env.CIE_BIN, jobs:process.env.CIE_JOBS_ROOT };
+  process.env.CIE_BIN = path.resolve(__dirname,"../../target/debug/cie");
+  process.env.CIE_JOBS_ROOT = path.join(temp,"jobs");
+  const load = require('./helpers/load-ts.cjs')({child_process:{...childProcess,spawn(command,args,options){
+    if(command==='git'&&args[0]==='clone') {
+      // Substitute only the network clone. Ingestion, timeout stage events,
+      // retention and storage retrieval all execute the real implementation.
+      return childProcess.spawn(process.execPath,['-e',"require('fs').cpSync(process.argv[1],process.argv[2],{recursive:true})",fixture,args.at(-1)],options);
+    }
+    if(args[0]==='ingest-polyglot')args=[...args,'--docs-budget-ms','0'];
+    return childProcess.spawn(command,args,options);
+  }}});
+  try {
+    const jobs=load(path.resolve(__dirname,'../src/lib/analyze-jobs.ts'));
+    const job=await jobs.startJob({source:'url',url:'https://example.invalid/demo',repoName:'demo'});
+    const deadline=Date.now()+30000;
+    while(!['done','failed'].includes(job.state)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
+    assert.equal(job.state,'done',JSON.stringify(job.error));
+    assert.equal(job.steps.find(s=>s.key==='drift').state,'skipped');
+    assert.match(job.steps.find(s=>s.key==='drift').detail,/incomplete/);
+    assert.equal(job.steps.find(s=>s.key==='publish').state,'done');
+    assert.equal(job.result.sourceRoot,null);
+    assert.equal(job.result.storageRoot,path.join(temp,'jobs',job.id,'storage'));
+    const scratch=path.join(temp,'jobs',job.id,'scratch');
+    for(let i=0;i<100 && await fs.access(scratch).then(()=>true,()=>false);i++)await new Promise(resolve=>setTimeout(resolve,10));
+    await assert.rejects(fs.access(scratch));
+    const native=load(path.resolve(__dirname,'../src/lib/storage-native.ts'));
+    const response=await native.withRevision(job.result.storageRoot,context=>native.storageCall({op:'retrieve',context,request:{query:{select:{kind:'file'}},outputs:[{id:'bootstrap',output:{artifact:{kind:'ui_bootstrap_v1'}}}]}}),job.result.revision);
+    const data=response.outputs[0].data.document;
+    assert.ok(data.report.symbols.length>0);
+    assert.equal(data.drift.complete,false);
+    assert.equal(data.drift.incomplete_reason,'documentation_budget_exceeded');
+    const saved=path.join(temp,'jobs',job.id,'result.json');
+    for(let i=0;i<100 && !await fs.access(saved).then(()=>true,()=>false);i++)await new Promise(resolve=>setTimeout(resolve,10));
+    const route=load(path.resolve(__dirname,'../src/app/api/analyze/result/route.ts'));
+    const request={nextUrl:new URL('http://localhost/api/analyze/result?job='+job.id)};
+    const first=await route.GET(request);
+    assert.equal(first.status,200);
+    assert.equal((await first.json()).drift.complete,false);
+    jobs.jobs.delete(job.id);
+    const restored=await route.GET(request);
+    assert.equal(restored.status,200,'saved storage reference remains usable after job-map loss');
+    assert.equal((await restored.json()).drift.incomplete_reason,'documentation_budget_exceeded');
+  } finally {
+    if(previous.bin===undefined)delete process.env.CIE_BIN;else process.env.CIE_BIN=previous.bin;
+    if(previous.jobs===undefined)delete process.env.CIE_JOBS_ROOT;else process.env.CIE_JOBS_ROOT=previous.jobs;
+    if(globalThis.__cieStorageBridge) {
+      await globalThis.__cieStorageBridge.worker.terminate();
+      delete globalThis.__cieStorageBridge;
+    }
+    await fs.rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:50});
+  }
+});

@@ -42,3 +42,13 @@ The `cie-polyglot` and `cie-store` crates remain active ingestion and physical s
 ## Verification
 
 Coverage includes real native browser selectors, pinned pagination and context closure, schema validation, reference-only job results, stdio MCP retrieval across revisions, captured source after source deletion, cancellation, invalid requests and legacy-tool refusal. The standalone smoke test retrieves captured source through `/api/storage` after deleting the original source file.
+
+## Optional documentation checks and timeout recovery
+
+`cie ingest-polyglot <root> --web-out <bundle>` gives documentation checking a separate 30-second cooperative budget. `--docs-budget-ms 0..300000` overrides it; zero explicitly skips checking. Discovery, normalization, extraction, history attribution, symbol mapping, verification and reconciliation share that budget. Mapping precomputes symbol token sets once. History's existing five-second cap is also bounded by the remaining documentation budget.
+
+If the documentation budget expires, the CLI marks the drift stage `skipped` and publishes the captured code and derived views. A stored drift artifact carries `complete:false` and `incomplete_reason:"documentation_budget_exceeded"`; ordinary documentation read/check failures use `documentation_check_failed`. Empty findings in these artifacts mean unchecked, not clean. The Trust view discloses incomplete checking, and the reason survives native retrieval and workspace reloads. Incomplete results are never cached as successful checks. A later full-budget run can check the same captured code normally.
+
+The web process watchdog remains four minutes **per stage**, renewed only on the first running event for each named stage. Earlier stages cannot spend the documentation or publication window. Repeated logs or repeated stage events do not renew it. A genuinely hung stage, core ingestion error, or storage publication failure still fails the job. The documentation budget is cooperative; it is not an OS-level hard guarantee for an individual blocked filesystem syscall. The process watchdog is the final hard stop.
+
+For URL and branch-snapshot jobs, completed ingestion with incomplete documentation still runs storage retention before scratch cleanup, so its revision remains retrievable. There is no background checker left running after a cooperative timeout.

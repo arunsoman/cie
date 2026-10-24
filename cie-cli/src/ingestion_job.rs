@@ -26,7 +26,7 @@ fn optional<T: serde::Serialize>(name: &str, f: impl FnOnce() -> Result<T, Strin
     }
 }
 
-pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()> {
+pub fn export(root: &Path, raw: IngestOutcome, out: &Path, docs_budget_ms: u64) -> std::io::Result<()> {
     let outcome = cie_ingest::materialize(raw)?;
     let rev = outcome.rev;
     let artifacts = cie_storage::artifacts::RevisionArtifacts::open(root)?;
@@ -97,25 +97,41 @@ pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()
     if let Some(fault) = fault {
         report["fault_analysis"] = serde_json::to_value(fault)?;
     }
-    let docs = documents(root)?;
-    let drift = if docs.is_empty() {
-        stage("drift", "skipped", "No bounded documentation inputs found.");
-        Value::Null
-    } else {
-        stage(
-            "drift",
-            "running",
-            "Checking documentation against captured facts…",
-        );
-        match cie_ingest::run_drift_from_outcome(root, &docs, outcome, None, false) {
-            Ok((drift, _)) => {
-                stage("drift", "done", "Documentation checked.");
-                serde_json::to_value(drift)?
-            }
-            Err(e) => {
-                stage("drift", "skipped", &e.to_string());
-                Value::Null
-            }
+    // Optional analysis has its own end-to-end budget. A timeout or read error
+    // is coverage information, not a reason to discard the captured revision.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(docs_budget_ms);
+    stage("drift", "running", "Checking documentation against captured facts…");
+    let mut doc_names = Vec::new();
+    let checked = (|| -> std::io::Result<Value> {
+        let docs = documents(root, deadline)?;
+        doc_names = docs.iter().map(|(name, _)| name.clone()).collect();
+        if docs.is_empty() {
+            stage("drift", "skipped", "No bounded documentation inputs found.");
+            return Ok(Value::Null);
+        }
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let (drift, _) = cie_ingest::run_drift_from_outcome_with_budget(root, &docs, outcome, remaining)?;
+        stage("drift", "done", "Documentation checked.");
+        Ok(serde_json::to_value(drift)?)
+    })();
+    let drift = match checked {
+        Ok(drift) => drift,
+        Err(error) => {
+            let timed_out = error.kind() == std::io::ErrorKind::TimedOut;
+            let reason = if timed_out { "documentation_budget_exceeded" } else { "documentation_check_failed" };
+            let detail = if timed_out {
+                format!("Documentation check exceeded its {docs_budget_ms} ms budget. Coverage is incomplete; publishing the ingested code and views.")
+            } else {
+                format!("Documentation check unavailable: {error}. Coverage is incomplete; publishing the ingested code and views.")
+            };
+            stage("drift", "skipped", &detail);
+            // Empty means unchecked, never zero defects: complete=false plus a
+            // stable reason survives storage retrieval and workspace reloads.
+            let incomplete = json!({"rev":rev,"docs":doc_names,"claims":[],"mappings":[],
+                "verifications":[],"reverse_drift":[],"aggregate":{},"complete":false,
+                "generated_ns":cie_core::types::now_ns(),"incomplete_reason":reason});
+            artifacts.put(rev, cie_storage::artifacts::Artifact::Drift, &incomplete)?;
+            incomplete
         }
     };
     let runtime = root.join("runtime-data/runtime.json");
@@ -139,14 +155,22 @@ pub fn export(root: &Path, raw: IngestOutcome, out: &Path) -> std::io::Result<()
     Ok(())
 }
 
-fn documents(root: &Path) -> std::io::Result<Vec<(String, String)>> {
+fn documents(root: &Path, deadline: std::time::Instant) -> std::io::Result<Vec<(String, String)>> {
+    let check = || {
+        if std::time::Instant::now() >= deadline {
+            Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Documentation discovery budget exceeded"))
+        } else { Ok(()) }
+    };
+    check()?;
     let mut paths = Vec::new();
     let mut dirs = vec![(root.to_path_buf(), 0)];
     while let Some((dir, depth)) = dirs.pop() {
+        check()?;
         if depth > 14 {
             continue;
         }
         for entry in std::fs::read_dir(dir)? {
+            check()?;
             let entry = entry?;
             let ty = entry.file_type()?;
             if ty.is_symlink() {
@@ -168,13 +192,12 @@ fn documents(root: &Path) -> std::io::Result<Vec<(String, String)>> {
         }
     }
     paths.sort_by_key(|p| (p.components().count(), p.clone()));
-    Ok(paths
-        .into_iter()
-        .take(20)
-        .filter_map(|p| {
-            std::fs::read_to_string(&p)
-                .ok()
-                .map(|s| (p.to_string_lossy().to_string(), s))
-        })
-        .collect())
+    check()?;
+    let mut docs = Vec::new();
+    for path in paths.into_iter().take(20) {
+        check()?;
+        docs.push((path.to_string_lossy().to_string(), std::fs::read_to_string(path)?));
+    }
+    check()?;
+    Ok(docs)
 }

@@ -182,6 +182,10 @@ pub enum Command {
         /// Export every web artifact from one coordinated job.
         #[arg(long, conflicts_with = "watch")]
         web_out: Option<PathBuf>,
+        /// Total optional documentation-check budget, including mapping and history.
+        /// Zero skips checking but still publishes an explicitly incomplete result.
+        #[arg(long, default_value_t = 30_000, value_parser = clap::value_parser!(u64).range(0..=300_000))]
+        docs_budget_ms: u64,
         #[arg(long)]
         json: bool,
     },
@@ -838,7 +842,7 @@ fn run(cli: Cli) -> i32 {
             llm_provider,
             llm_budget_usd,
             facts_from,
-            web_out,
+            web_out, docs_budget_ms,
             json,
         } => {
             let opts = IngestOptions {
@@ -857,7 +861,7 @@ fn run(cli: Cli) -> i32 {
                 }) {
                     Ok(outcome) => {
                         if let Some(out) = web_out.as_ref() {
-                            return match ingestion_job::export(&path,outcome,out) {Ok(())=>0,Err(e)=>{eprintln!("error: {e}");1}};
+                            return match ingestion_job::export(&path,outcome,out,docs_budget_ms) {Ok(())=>0,Err(e)=>{eprintln!("error: {e}");1}};
                         }
                         if json {
                             let outcome = match cie_ingest::materialize(outcome) {

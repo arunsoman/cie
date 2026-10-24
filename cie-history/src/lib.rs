@@ -439,8 +439,13 @@ mod tests {
 /// RFC-0020: at most 64 cited lines and 5 seconds; never a full-tree blame.
 /// Omitted/dirty/shallow/unavailable sites remain unbound. No network access.
 pub fn cited_history(root: &Path, sites: &[(String, u64)]) -> HistoryFacts {
+    cited_history_until(root, sites, None)
+}
+/// Respect the caller's overall documentation budget as well as the history cap.
+pub fn cited_history_until(root: &Path, sites: &[(String, u64)], deadline: Option<std::time::Instant>) -> HistoryFacts {
     use std::time::{Duration, Instant};
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let cap = Instant::now() + Duration::from_secs(5);
+    let deadline = deadline.map_or(cap, |d| d.min(cap));
     let mut h = HistoryFacts::default();
     if bounded_git(root, &["rev-parse", "--is-shallow-repository"], deadline)
         .as_deref()

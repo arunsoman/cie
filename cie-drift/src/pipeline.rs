@@ -13,18 +13,31 @@ use cie_semantic::facts::SymbolStore;
 use cie_summary::EffectKind;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Cooperative deadline shared by extraction, history, mapping and reporting.
+/// Returns an error instead of publishing a partial check as a clean result.
+pub fn check_deadline(deadline: Option<std::time::Instant>) -> std::io::Result<()> {
+    if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+        Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Documentation check budget exceeded"))
+    } else { Ok(()) }
+}
+
 // ---------------------------------------------------------------- claims
 
 /// Extract claims from a Markdown/plain-text document (FR-32).
 /// Rule-based extractor: `rule:regex-v1`. Works with LLM disabled
 /// (acceptance #25 requires >= 60% recall without LLM).
 pub fn extract_claims(doc_name: &str, text: &str, now: Ns) -> Vec<Claim> {
+    extract_claims_until(doc_name, text, now, None).expect("unlimited extraction")
+}
+pub fn extract_claims_until(doc_name: &str, text: &str, now: Ns, deadline: Option<std::time::Instant>) -> std::io::Result<Vec<Claim>> {
+    check_deadline(deadline)?;
     let mut claims = vec![];
     let mut id: ClaimId = 0;
     let mut section = String::new();
     let mut char_off: u64 = 0;
 
     for (ln, raw_line) in text.lines().enumerate() {
+        check_deadline(deadline)?;
         let line = raw_line.trim_end();
         let trimmed = line.trim();
         if trimmed.starts_with('#') {
@@ -72,7 +85,7 @@ pub fn extract_claims(doc_name: &str, text: &str, now: Ns) -> Vec<Claim> {
         }
         char_off += line.len() as u64 + 1;
     }
-    claims
+    Ok(claims)
 }
 
 fn classify_claim(text: &str) -> Option<(ClaimKind, Modality, f32)> {
@@ -196,9 +209,18 @@ pub fn map_claims(
     store: &SymbolStore,
     summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>,
 ) -> Vec<ClaimMapping> {
+    map_claims_until(claims, store, summaries, None).expect("unlimited mapping")
+}
+pub fn map_claims_until(
+    claims: &[Claim], store: &SymbolStore,
+    summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>,
+    deadline: Option<std::time::Instant>,
+) -> std::io::Result<Vec<ClaimMapping>> {
+    check_deadline(deadline)?;
     // Precompute symbol token sets.
-    let mut symbol_tokens: Vec<(SymbolId, Vec<String>, Vec<String>)> = vec![];
+    let mut symbol_tokens: Vec<(SymbolId, BTreeSet<String>, BTreeSet<String>)> = vec![];
     for sym in &store.symbols {
+        check_deadline(deadline)?;
         if !sym.is_function_like() {
             continue;
         }
@@ -214,11 +236,12 @@ pub fn map_claims(
         }
         name_tokens.retain(|t| !STOPWORDS.contains(&t.as_str()));
         content_tokens.retain(|t| !STOPWORDS.contains(&t.as_str()));
-        symbol_tokens.push((sym.id, name_tokens, content_tokens));
+        symbol_tokens.push((sym.id, name_tokens.into_iter().collect(), content_tokens.into_iter().collect()));
     }
 
     let mut mappings = vec![];
     for claim in claims {
+        check_deadline(deadline)?;
         let tokens: Vec<String> = tokenize(&claim.text)
             .into_iter()
             .filter(|t| !STOPWORDS.contains(&t.as_str()) && t.len() > 2)
@@ -226,10 +249,9 @@ pub fn map_claims(
         let tokens: BTreeSet<String> = tokens.into_iter().collect();
         let mut scored: Vec<(SymbolId, f32)> = vec![];
         for (id, name_tokens, content_tokens) in &symbol_tokens {
-            let name_set: BTreeSet<String> = name_tokens.iter().cloned().collect();
-            let content_set: BTreeSet<String> = content_tokens.iter().cloned().collect();
-            let name_hits = tokens.intersection(&name_set).count() as f32;
-            let content_hits = tokens.intersection(&content_set).count() as f32;
+            check_deadline(deadline)?;
+            let name_hits = tokens.intersection(name_tokens).count() as f32;
+            let content_hits = tokens.intersection(content_tokens).count() as f32;
             if name_hits == 0.0 && content_hits == 0.0 {
                 continue;
             }
@@ -249,7 +271,7 @@ pub fn map_claims(
             });
         }
     }
-    mappings
+    Ok(mappings)
 }
 
 // ---------------------------------------------------------------- verify
@@ -269,10 +291,21 @@ pub fn verify_claims(
     findings: &[cie_contract::findings::Finding],
     cfg: &VerifyConfig,
 ) -> Vec<ClaimVerification> {
+    verify_claims_until(claims, mappings, store, per_file, summaries, findings, cfg, None).expect("unlimited verification")
+}
+pub fn verify_claims_until(
+    claims: &[Claim], mappings: &[ClaimMapping], store: &SymbolStore,
+    per_file: &[cie_semantic::facts::LangFacts],
+    summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>,
+    findings: &[cie_contract::findings::Finding], cfg: &VerifyConfig,
+    deadline: Option<std::time::Instant>,
+) -> std::io::Result<Vec<ClaimVerification>> {
+    check_deadline(deadline)?;
     let mut out = vec![];
     let search_space = store.function_ids().len();
 
     for claim in claims {
+        check_deadline(deadline)?;
         let start = cie_core::types::now_ns();
         let timed_out = match cfg.deadline_ns {
             Some(dl) => cie_core::types::now_ns() > dl,
@@ -596,7 +629,8 @@ pub fn verify_claims(
             compute_ns: (cie_core::types::now_ns() - start) as i64,
         });
     }
-    out
+    check_deadline(deadline)?;
+    Ok(out)
 }
 
 // ---------------------------------------------------------------- report
@@ -609,19 +643,30 @@ pub fn build_report(
     docs: &[String],
     claims: Vec<Claim>,
     mappings: Vec<ClaimMapping>,
-    mut verifications: Vec<ClaimVerification>,
+    verifications: Vec<ClaimVerification>,
     store: &SymbolStore,
     complete: bool,
     now: Ns,
 ) -> DriftReport {
+    build_report_until(rev, docs, claims, mappings, verifications, store, complete, now, None).expect("unlimited reporting")
+}
+pub fn build_report_until(
+    rev: RevId, docs: &[String], claims: Vec<Claim>, mappings: Vec<ClaimMapping>,
+    mut verifications: Vec<ClaimVerification>, store: &SymbolStore, complete: bool, now: Ns,
+    deadline: Option<std::time::Instant>,
+) -> std::io::Result<DriftReport> {
+    check_deadline(deadline)?;
     // Multi-doc reconciliation: same normalized text in different docs with
     // different statuses -> Contradicting citing both docs.
     let mut by_text: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (i, c) in claims.iter().enumerate() {
+        check_deadline(deadline)?;
         let norm = conflict_key(&c.text);
         by_text.entry(norm).or_default().push(i);
     }
+    let verification_indices: BTreeMap<ClaimId, usize> = verifications.iter().enumerate().map(|(i, v)| (v.claim, i)).collect();
     for idxs in by_text.values() {
+        check_deadline(deadline)?;
         if idxs.len() < 2 {
             continue;
         }
@@ -632,16 +677,15 @@ pub fn build_report(
         let statuses: BTreeSet<DriftStatus> = idxs
             .iter()
             .filter_map(|i| {
-                verifications
-                    .iter()
-                    .find(|v| v.claim == claims[*i].id)
-                    .map(|v| v.status)
+                verification_indices.get(&claims[*i].id).map(|i| verifications[*i].status)
             })
             .collect();
         if statuses.len() > 1 {
             for i in idxs {
+                check_deadline(deadline)?;
                 let cid = claims[*i].id;
-                if let Some(v) = verifications.iter_mut().find(|v| v.claim == cid) {
+                if let Some(index) = verification_indices.get(&cid) {
+                    let v = &mut verifications[*index];
                     v.status = DriftStatus::Contradicting;
                     v.evidence.push(format!(
                         "multi-document conflict: same claim in {} with statuses {:?}",
@@ -660,6 +704,7 @@ pub fn build_report(
         .collect();
     let mut reverse_drift = vec![];
     for sym in &store.symbols {
+        check_deadline(deadline)?;
         if !sym.is_function_like() || sym.is_test() || sym.name.starts_with("__") {
             continue;
         }
@@ -696,7 +741,8 @@ pub fn build_report(
         generated_ns: now,
     };
     report.recount();
-    report
+    check_deadline(deadline)?;
+    Ok(report)
 }
 
 /// FR-38 reconciliation key: modality- and number-insensitive core tokens,
@@ -737,8 +783,12 @@ fn summaries_entrypoint(id: SymbolId, store: &SymbolStore) -> bool {
 /// Bind document claims only when the extracted line still contains their text.
 /// Normalization can change line numbers; such sites remain unbound.
 pub fn bind_history(root: &std::path::Path, claims: &mut [Claim]) {
+    bind_history_until(root, claims, None);
+}
+pub fn bind_history_until(root: &std::path::Path, claims: &mut [Claim], deadline: Option<std::time::Instant>) {
     let Ok(base)=root.canonicalize() else {return};
     let sites: Vec<Option<(String,u64)>>=claims.iter().map(|c| {
+        if check_deadline(deadline).is_err() { return None; }
         let path=root.join(&c.doc).canonicalize().or_else(|_|std::path::Path::new(&c.doc).canonicalize()).ok()?;
         let relative=path.strip_prefix(&base).ok()?.to_str()?.replace('\\',"/");
         let text=std::fs::read_to_string(&path).ok()?;
@@ -746,11 +796,30 @@ pub fn bind_history(root: &std::path::Path, claims: &mut [Claim]) {
         Some((relative,c.loc.line as u64))
     }).collect();
     let requested:Vec<_>=sites.iter().flatten().cloned().collect();
-    let history=cie_history::cited_history(root,&requested);
+    let history=cie_history::cited_history_until(root,&requested,deadline);
     for (claim,site) in claims.iter_mut().zip(sites) {
         claim.introduced=site.and_then(|(path,line)| {
             let chain=cie_history::archaeology_chain(&history,&path,line);
             (!chain.is_empty()).then_some(chain)
         });
+    }
+}
+
+#[cfg(test)]
+mod deadline_tests {
+    use super::*;
+    #[test]
+    fn a_live_mapping_budget_expires_without_a_partial_success() {
+        let text = "Payments must validate the transaction amount before writing.\n".repeat(5_000);
+        let claims = extract_claims("README.md", &text, 0);
+        assert_eq!(claims.len(), 5_000);
+        let deadline = Some(std::time::Instant::now() + std::time::Duration::from_millis(1));
+        assert_eq!(map_claims_until(&claims, &SymbolStore::default(), &BTreeMap::new(), deadline).unwrap_err().kind(), std::io::ErrorKind::TimedOut);
+    }
+    #[test]
+    fn expired_deadlines_stop_extraction_and_mapping() {
+        let expired = Some(std::time::Instant::now());
+        assert_eq!(extract_claims_until("README.md", "Payments must validate inputs.", 0, expired).unwrap_err().kind(), std::io::ErrorKind::TimedOut);
+        assert_eq!(map_claims_until(&[], &SymbolStore::default(), &BTreeMap::new(), expired).unwrap_err().kind(), std::io::ErrorKind::TimedOut);
     }
 }

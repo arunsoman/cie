@@ -205,6 +205,8 @@ pub struct DriftDocument {
     pub aggregate: BTreeMap<String, Value>,
     pub complete: bool,
     pub generated_ns: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub incomplete_reason: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArchitectureBundleDocument {

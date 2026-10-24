@@ -16,6 +16,7 @@ pub enum Artifact {
     StreamReceipt,
     StageStatus,
     Fault,
+    Drift,
 }
 impl Artifact {
     fn file_name(self) -> &'static str {
@@ -30,6 +31,7 @@ impl Artifact {
             Self::StreamReceipt => "stream.json",
             Self::StageStatus => "stages.json",
             Self::Fault => "fault.json",
+            Self::Drift => "drift.json",
         }
     }
 }

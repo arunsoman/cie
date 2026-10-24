@@ -71,6 +71,7 @@ export interface AnalyzeJob {
 // started, hidden behind the generic "something went wrong" banner).
 const JOBS_ROOT = process.env.CIE_JOBS_ROOT?.trim() || path.join(process.cwd(), ".cie-jobs");
 const CLONE_TIMEOUT_MS = 120_000;
+// Per-stage watchdog. Optional docs have a separate cooperative Rust budget.
 const CIE_TIMEOUT_MS = 240_000;
 const JOB_TTL_MS = 45 * 60_000;
 const MAX_JOBS = 12;
@@ -200,7 +201,7 @@ async function runGit(dir: string | null, args: string[], timeoutMs: number, max
   return run("git", dir ? ["-C", dir, ...args] : args, { timeoutMs, maxStdout });
 }
 
-export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number; onStderr?: (text: string) => void }): Promise<RunResult> {
+export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number; onStderr?: (text: string, renewStageBudget: () => void) => void }): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -212,10 +213,17 @@ export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs
     let timedOut = false;
     let stdoutTruncated = false;
     const cap = opts.maxStdout ?? 256 * 1024 * 1024;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, opts.timeoutMs);
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const renewStageBudget = () => {
+      if (settled || timedOut) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGKILL");
+      }, opts.timeoutMs);
+    };
+    renewStageBudget();
     // StringDecoder, not Buffer.toString(): a multi-byte UTF-8 character
     // split across pipe chunks must never be corrupted mid-JSON — chunk
     // boundaries are a property of the pipe, not of the text.
@@ -230,14 +238,16 @@ export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs
     });
     child.stderr.on("data", (d: Buffer) => {
       const text = stderrDecoder.write(d);
-      opts.onStderr?.(text);
+      opts.onStderr?.(text, renewStageBudget);
       if (stderr.length < 64 * 1024) stderr += text;
     });
     child.on("error", (err) => {
+      settled = true;
       clearTimeout(timer);
       resolve({ code: -1, stdout, stderr: `${stderr}\n${err.message}`, timedOut, stdoutTruncated });
     });
     child.on("close", (code) => {
+      settled = true;
       clearTimeout(timer);
       stdout += stdoutDecoder.end();
       stderr += stderrDecoder.end();
@@ -522,7 +532,7 @@ function cloneErrorPlain(stderr: string, timedOut: boolean, branch?: string): st
 // and points at the technical details instead of guessing at a cause.
 function engineErrorPlain(kind: "bin-missing" | "timeout" | "crash" | "bad-output"): string {
   if (kind === "bin-missing") return "The CIE engine isn't installed on this server yet — that's on us, not you.";
-  if (kind === "timeout") return "This project took too long to check. Try a smaller repo for now.";
+  if (kind === "timeout") return "This analysis stage exceeded its time limit. The check stopped; try again or inspect the technical details.";
   if (kind === "bad-output")
     return "The CIE engine finished but produced output we couldn't understand — that's on us, not your project. Nothing needs fixing on your side; the technical details below show what went wrong.";
   return "The CIE engine hit an unexpected error while reading this project — that's on us, not you. It isn't about the languages in your repo (the inventory step already checked those). You can try again; the technical details below show exactly what happened.";
@@ -772,9 +782,10 @@ async function runPipeline(job: AnalyzeJob) {
     setStep(job, "read", "running", "Streaming files through the shared ingestion pipeline…");
     const output = path.join(workDir, "artifacts.json");
     let progressBuffer = "";
+    const seenStages = new Set<StepKey>();
     const ing = await run(bin, ["ingest-polyglot", repoDir, "--web-out", output], {
       timeoutMs: CIE_TIMEOUT_MS,
-      onStderr: (text) => {
+      onStderr: (text, renewStageBudget) => {
         progressBuffer += text;
         const lines = progressBuffer.split("\n");
         progressBuffer = lines.pop() ?? "";
@@ -784,6 +795,11 @@ async function runPipeline(job: AnalyzeJob) {
           try {
             const event = JSON.parse(line.slice(10)) as { key: StepKey; state: StepState; detail?: string };
             if (STEP_ORDER.some((s) => s.key === event.key) && ["running", "done", "skipped", "failed"].includes(event.state)) {
+              // Repeated chatter cannot keep a hung process alive.
+              if (event.state === "running" && !seenStages.has(event.key)) {
+                seenStages.add(event.key);
+                renewStageBudget();
+              }
               setStep(job, event.key, event.state, event.detail);
             }
           } catch { /* diagnostic text is not a stage event */ }
