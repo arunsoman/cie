@@ -82,7 +82,7 @@ impl RevisionReader {
         match &mut normalized {
             Output::Entities { page, .. }
             | Output::Relationships { page }
-            | Output::Evidence { page }
+            | Output::Evidence { page, .. }
             | Output::Facets { page, .. } => page.continuation = None,
             Output::Cube(c) => c.page.continuation = None,
             _ => {}
@@ -281,7 +281,7 @@ impl RevisionReader {
                     json!({"nodes":ids.iter().map(|id|&ds.entities[id]).collect::<Vec<_>>(),"edges":edges.iter().take(*max_edges).collect::<Vec<_>>(),"truncated":ids_ref.len()<matches.len()||edges.len()>*max_edges||context_truncated,"scope":{"matched":ids_ref.intersection(matches).collect::<Vec<_>>(),"context":ids_ref.difference(matches).collect::<Vec<_>>(),"expansion":expansion}}),
                 )
             }
-            Output::Evidence { page } => {
+            Output::Evidence { page, .. } => {
                 let rows=matches.iter().map(|id|{let e=&ds.entities[id];json!({"id":format!("evidence:{id}"),"entity":id,"revision":self.revision,"location":e.fields.get("location").or_else(||e.fields.get("loc")),"provenance":e.fields.get("provenance"),"source_kind":"captured_revision","coverage":self.snapshot["coverage"]})}).collect();
                 self.page(rows, page, hash, o)
             }
@@ -343,11 +343,50 @@ impl RevisionReader {
             }
             Output::View {
                 kind,
+                level,
                 source,
                 availability,
                 max_nodes,
                 max_edges,
             } => {
+                if matches!(source, ViewSource::Matches)
+                    && !super::providers::VIEW_KINDS.contains(&kind.as_str())
+                {
+                    return Err(StorageError::new(
+                        "UnsupportedOutput",
+                        "Unknown view provider",
+                    ));
+                }
+                if level.is_some() && kind != "c4" {
+                    return Err(StorageError::new(
+                        "InvalidRequest",
+                        "A C4 level applies only to a C4 view",
+                    ));
+                }
+                if matches.is_empty() && matches!(source, ViewSource::Matches) {
+                    if ![
+                        "relationships",
+                        "repository_map",
+                        "concept_hierarchy",
+                        "duplicate_clusters",
+                        "cochange",
+                        "dependencies",
+                        "impact",
+                        "c4",
+                        "state-machine",
+                        "workflow",
+                    ]
+                    .contains(&kind.as_str())
+                    {
+                        return Err(StorageError::new(
+                            "UnsupportedOutput",
+                            "Unknown view provider",
+                        ));
+                    }
+                    return Ok(
+                        json!({"renderer":"cie-empty","schema_version":1,"kind":kind,"revision":self.revision,"scope":{"matched":[],"context":[]},"coverage":self.snapshot["coverage"],"truncated":false}),
+                    );
+                }
                 if let ViewSource::Output(id) = source {
                     if *availability == AvailabilityPolicy::StoredOnly {
                         return Err(StorageError::new(
@@ -389,6 +428,23 @@ impl RevisionReader {
                         "Projection limits exceed policy",
                     ));
                 }
+                if [
+                    "repository_map",
+                    "concept_hierarchy",
+                    "duplicate_clusters",
+                    "cochange",
+                    "dependencies",
+                ]
+                .contains(&kind.as_str())
+                {
+                    if *availability == AvailabilityPolicy::StoredOnly {
+                        return Err(StorageError::new(
+                            "ProjectionUnavailable",
+                            "No compatible cached projection; request build_if_missing",
+                        ));
+                    }
+                    return self.domain_view(kind, matches, ds, *max_nodes, *max_edges, hash, ex);
+                }
                 let bundle = match self.artifact(&ArtifactKind::ArchitectureBundle) {
                     Ok(bundle) => bundle,
                     Err(_) if *availability == AvailabilityPolicy::BuildIfMissing => {
@@ -410,7 +466,9 @@ impl RevisionReader {
                     && matches
                         .iter()
                         .all(|id| ds.entities[id].kind == EntityKind::File);
-                if !whole_repository && *availability == AvailabilityPolicy::StoredOnly {
+                if (!whole_repository || level.is_some())
+                    && *availability == AvailabilityPolicy::StoredOnly
+                {
                     return Err(StorageError::new(
                         "ProjectionUnavailable",
                         "Scoped projection is not cached; request build_if_missing",
@@ -453,6 +511,8 @@ impl RevisionReader {
                 };
                 let mut selected = serde_json::Map::new();
                 let mut omitted = 0usize;
+                let mut entity_refs = serde_json::Map::new();
+                let mut drill_down = serde_json::Map::new();
                 let mut truncated = false;
                 for (name, stored) in specs.iter().filter(|(name, _)| name.starts_with(kind)) {
                     ex.check(1)?;
@@ -462,6 +522,14 @@ impl RevisionReader {
                     let mut ids: BTreeSet<String> = elements
                         .iter()
                         .filter(|element| relevant(&element["evidence"]))
+                        .filter(|element| match level {
+                            None | Some(C4Level::Component) => true,
+                            Some(C4Level::Context) => element["elementKind"] == "domain",
+                            Some(C4Level::Container) => {
+                                element["elementKind"] == "domain"
+                                    || element["elementKind"] == "container"
+                            }
+                        })
                         .filter_map(|element| element["id"].as_str().map(str::to_owned))
                         .collect();
                     if ids.is_empty() {
@@ -525,6 +593,46 @@ impl RevisionReader {
                     spec["scope"]["storage"] = json!({"revision":self.revision,"query_hash":hash,"matched":matched.intersection(&kept_ids).collect::<Vec<_>>(),"context":kept_ids.difference(&matched).collect::<Vec<_>>(),"omitted":dropped});
                     cie_polyglot::viewspec::validate(&spec)
                         .map_err(|error| StorageError::new("ProjectionUnavailable", error))?;
+                    for element in spec["elements"].as_array().into_iter().flatten() {
+                        let rendered_id = element["id"].as_str().unwrap_or("");
+                        let evidence = &element["evidence"];
+                        let refs: Vec<_> = ds
+                            .entities
+                            .values()
+                            .filter(|entity| {
+                                if entity.kind == EntityKind::File {
+                                    return entity.fields.get("path") == evidence.get("file");
+                                }
+                                let Some(location) = entity.fields.get("location") else {
+                                    return false;
+                                };
+                                location["file"] == evidence["file"]
+                                    && location["start"]
+                                        .as_u64()
+                                        .zip(location["end"].as_u64())
+                                        .zip(
+                                            evidence["start"]
+                                                .as_u64()
+                                                .zip(evidence["end"].as_u64()),
+                                        )
+                                        .is_some_and(|((a, b), (c, d))| a < d && c < b)
+                            })
+                            .take(100)
+                            .map(|entity| EntityRef {
+                                repository: self.repository.clone(),
+                                revision: self.revision.clone(),
+                                kind: entity.kind,
+                                id: entity.id.clone(),
+                            })
+                            .collect();
+                        let key = format!("{name}/{rendered_id}");
+                        let ids: Vec<_> = refs.iter().map(|r| r.id.clone()).collect();
+                        entity_refs.insert(key.clone(), json!(refs));
+                        drill_down.insert(
+                            key,
+                            json!(self.encode_expiring(json!({"type":"cell","ids":ids}))?),
+                        );
+                    }
                     selected.insert(name.clone(), spec);
                 }
                 if selected.is_empty() {
@@ -534,12 +642,12 @@ impl RevisionReader {
                     ));
                 }
                 Ok(
-                    json!({"renderer":"cie-polyglot","schema_version":1,"provider_version":1,"revision":self.revision,"specs":selected,"omitted":omitted,"truncated":truncated,"coverage":self.snapshot["coverage"]}),
+                    json!({"renderer":"cie-polyglot","schema_version":1,"provider_version":1,"revision":self.revision,"specs":selected,"entity_refs":entity_refs,"drill_down":drill_down,"omitted":omitted,"truncated":truncated,"coverage":self.snapshot["coverage"]}),
                 )
             }
         }
     }
-    fn relationship_view(
+    pub(crate) fn relationship_view(
         &self,
         matches: &BTreeSet<String>,
         ds: &Dataset,
@@ -553,15 +661,31 @@ impl RevisionReader {
                 "View limits exceed renderer policy",
             ));
         }
-        let snapshot: cie_incremental::snapshot::RevSnapshot =
-            serde_json::from_value(self.snapshot.clone())?;
-        let mut spec = produce(&snapshot, &ProduceOptions::default())
-            .map_err(|e| StorageError::new("ProjectionUnavailable", format!("{e:?}")))?;
-        spec.elements.clear();
-        spec.edges.clear();
-        spec.hidden.clear();
-        spec.gaps.clear();
-        spec.groups = None;
+        let coverage: cie_core::evidence::Coverage =
+            serde_json::from_value(self.snapshot["coverage"].clone())?;
+        let mut spec = ViewSpec {
+            elements: Vec::new(),
+            edges: Vec::new(),
+            hidden: Vec::new(),
+            gaps: Vec::new(),
+            groups: None,
+            footer: EpistemicFooter::empty(),
+            scope: ScopeAttestation {
+                revision: self
+                    .revision
+                    .parse()
+                    .map_err(|_| StorageError::new("CorruptData", "Invalid revision identity"))?,
+                environments: Vec::new(),
+                coverage: ScopeCoverage {
+                    analyzed: coverage.complete,
+                    ratio: Some(coverage.symbol_ratio()),
+                },
+            },
+            layout_hint: None,
+            preferences: None,
+            semantic_hash: String::new(),
+            render_hash: String::new(),
+        };
         for id in matches {
             let e = &ds.entities[id];
             let mut location = e.fields.get("location").cloned();
@@ -662,12 +786,12 @@ impl RevisionReader {
             ArtifactKind::Report => self
                 .artifacts
                 .get("report")
-                .unwrap_or(&self.snapshot)
-                .clone(),
+                .cloned()
+                .unwrap_or_else(|| self.snapshot.to_value()),
             ArtifactKind::Fault => self.artifacts["report"]["fault_analysis"].clone(),
             ArtifactKind::Concepts => self.snapshot["concepts"].clone(),
             ArtifactKind::Stack => self.snapshot["stack"].clone(),
-            ArtifactKind::UiBootstrapV1 => self.artifacts.clone(),
+            ArtifactKind::UiBootstrapV1 => self.artifacts.to_value(),
             _ => self
                 .artifacts
                 .get(kind.key())
@@ -1648,7 +1772,7 @@ impl RevisionReader {
             ));
         }
         let snapshot: cie_incremental::snapshot::RevSnapshot =
-            serde_json::from_value(self.snapshot.clone())
+            serde_json::from_value(self.snapshot.to_value())
                 .map_err(|e| StorageError::new("CorruptData", e.to_string()))?;
         let n = entity
             .fields

@@ -27,6 +27,14 @@ test('native storage serves revision-pinned UI payloads, model tools and capture
     const duplicates=await call({op:'compatibility',context,kind:'duplicates',args:{}});assert.ok(Array.isArray(duplicates.rows));
     const clusters=await call({op:'compatibility',context,kind:'duplicate_clusters',args:{}});assert.equal(clusters.tierUsed,'canonical');
     const tool=await call({op:'tool_retrieve',context,request:{select:{kind:'symbol',predicates:[{field:{field:'name',op:'eq',value:'save'}}]},outputs:[{id:'rows',output:{entities:{fields:['qualified_name','location'],page:{limit:20}}}}]}});assert.equal(tool.matches,1);
+    assert.equal(tool.outputs[0].data.type,'entities');assert.equal(tool.outputs[0].schema_version,2);
+    const literal=await call({op:'tool_retrieve',context,request:{context,select:{kind:'symbol',where:[{field:'name',op:'eq',value:'save'}]},outputs:[{id:'rows',entities:{fields:['qualified_name','location'],page:{limit:1}}}],response:{profile:'compact',max_bytes:12000}}});assert.equal(literal.matches,1);
+    await assert.rejects(()=>call({op:'tool_retrieve',context,request:{context:'ctx_wrong',select:{kind:'file'},outputs:[]}}),e=>e.code==='MixedRevisionReference');
+    const openedDescription=await call({op:'describe',root,request:{topics:['symbol.fields','outputs.source','views.c4']}});
+    assert.ok(openedDescription.context);assert.ok(openedDescription.schemas['outputs.source']);
+    const repeatDescription=await call({op:'describe',request:{context:openedDescription.context,topics:['symbol.fields']}});assert.equal(repeatDescription.context,openedDescription.context);
+    await call({op:'close',context:openedDescription.context});
+    const plan=await call({op:'explain',context,request:{query:{select:{kind:'file',filter:{field:{field:'path',op:'eq',value:'app.py'}}}},outputs:[{id:'rows',output:{entities:{}}}]}});assert.equal(plan.strategy,'indexed_file_lookup');
     const id=tool.outputs[0].data.items[0].id;
     await fs.unlink(path.join(root,'app.py'));
     const source=await call({op:'retrieve',context,request:{query:{select:{kind:'symbol',filter:{ids:[id]}}},outputs:[{id:'source',output:{detail:{source:{}}}}]}});assert.ok(source.outputs[0].data.text.startsWith('def save'));

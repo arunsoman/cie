@@ -1,7 +1,14 @@
 //! Revision-pinned retrieval. All physical access stays behind this module.
+mod artifact_payload;
 mod compatibility;
 mod contract;
+mod document;
 mod outputs;
+mod payload;
+pub use artifact_payload::*;
+mod plan;
+mod providers;
+pub use payload::*;
 mod query;
 pub mod tools;
 pub use contract::*;
@@ -25,8 +32,8 @@ pub struct RevisionReader {
     pub(crate) conn: Connection,
     pub(crate) repository: String,
     pub(crate) revision: String,
-    pub(crate) snapshot: Value,
-    pub(crate) artifacts: Value,
+    pub(crate) snapshot: document::PinnedDocument,
+    pub(crate) artifacts: document::PinnedDocument,
     pub(crate) secret: String,
     pub(crate) policy: crate::StoragePolicy,
     projections: std::cell::RefCell<BTreeMap<String, (Value, usize)>>,
@@ -202,7 +209,7 @@ impl Storage {
         let conn = Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         self.policy.configure(&conn)?;
         conn.execute_batch("BEGIN; SELECT count(*) FROM files;")?;
-        let snapshot: Value = serde_json::from_slice(&std::fs::read(dir.join("snapshot.json"))?)?;
+        let snapshot = document::PinnedDocument::parse(&std::fs::read(dir.join("snapshot.json"))?)?;
         if snapshot["rev"].as_u64() != Some(rev) {
             return Err(StorageError::new(
                 "CorruptData",
@@ -210,8 +217,8 @@ impl Storage {
             ));
         }
         let artifacts = match std::fs::read(dir.join("web-bundle.json")) {
-            Ok(bytes) => serde_json::from_slice(&bytes)?,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => json!({}),
+            Ok(bytes) => document::PinnedDocument::parse(&bytes)?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Default::default(),
             Err(e) => return Err(e.into()),
         };
         let repository = self.repository_identity()?;
@@ -255,7 +262,24 @@ impl RevisionReader {
         &self.revision
     }
     pub fn capabilities(&self) -> Value {
-        json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster","route","framework","component","dependency","state_machine","state","workflow","evidence"],"relationships":["defined_in","calls","member_of_concept","child_concept_of","member_of_cluster","summarizes","constrains","left_symbol","right_symbol","canonical_symbol","member_of_component","child_component_of","uses_dependency","source_symbol","state_of","has_evidence"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":{"source":{"ranges":["declaration","whole_file","bytes"],"context_lines":true,"truncation_continuation":true},"function_ir":{"include_calls":true},"impact":{"availability":["build_if_missing"]}},"compare_ops":["eq","in","prefix","contains","prefix_fold","contains_fold","gt","ge","lt","le"],"quantifiers":["any","none","all"],"membership_scopes":["direct","include_descendants"],"dimensions":["file.path","language","entity_kind","kind","concept","cluster"],"hierarchies":{"file.path":{"levels":["file","directory"]}},"bucketing":{"numeric":{"boundary_rule":"lower_inclusive_upper_exclusive"},"time":{"timezones":"iana_or_fixed_offset","units":["seconds","minutes","hours","days","months","years"]}},"facets":{"self_exclusion":true},"cube_limits":{"dimensions":8,"measures":32,"evaluated_groups":1_000_000},"details_list":["source","function_ir","impact"],"artifact_kinds":["report","viewspec","concepts","stack","deps","runtime","stories","quality","overlap","drift","cochange","fault","polyglotSpecs","bootstrap"],"projection_providers":[{"id":"relationships","version":1,"scope":"matches","renderer":"viz-adapter"},{"id":"cube","version":1,"scope":"output","kinds":["table","hbar","heatmap","stat","donut"],"renderer":"cie-cube"},{"id":"architecture","version":1,"scope":"evidenced_matches","availability":["stored_only","build_if_missing"],"renderer":"cie-polyglot"}],"projection_cache":{"entries":32,"max_bytes":8388608,"max_entry_bytes":1048576,"version":1,"scope":"reader"},"view_renderers":["viz-adapter","cie-polyglot","cie-cube"],"symbol_resolution":true,"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16_777_216,"cursor_ttl_seconds":CURSOR_TTL_SECS},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution"]})
+        let mut capabilities = json!({"api_version":1,"repository":self.repository,"revision":self.revision,"entities":["file","symbol","concept","summary","contract","finding","duplicate_pair","cluster","route","framework","component","dependency","state_machine","state","workflow","evidence"],"relationships":["defined_in","calls","member_of_concept","child_concept_of","member_of_cluster","summarizes","constrains","left_symbol","right_symbol","canonical_symbol","member_of_component","child_component_of","uses_dependency","source_symbol","state_of","has_evidence","co_changed"],"outputs":["entities","relationships","graph","evidence","cube","facets","detail","artifact","view"],"details":{"source":{"ranges":["declaration","whole_file","bytes"],"context_lines":true,"truncation_continuation":true},"function_ir":{"include_calls":true},"impact":{"availability":["build_if_missing"]}},"compare_ops":["eq","in","prefix","contains","prefix_fold","contains_fold","gt","ge","lt","le"],"quantifiers":["any","none","all"],"membership_scopes":["direct","include_descendants"],"dimensions":["file.path","language","entity_kind","kind","concept","cluster"],"hierarchies":{"file.path":{"levels":["file","directory"]}},"bucketing":{"numeric":{"boundary_rule":"lower_inclusive_upper_exclusive"},"time":{"timezones":"iana_or_fixed_offset","units":["seconds","minutes","hours","days","months","years"]}},"facets":{"self_exclusion":true},"cube_limits":{"dimensions":8,"measures":32,"evaluated_groups":1_000_000},"details_list":["source","function_ir","impact"],"artifact_kinds":["report","viewspec","concepts","stack","deps","runtime","stories","quality","overlap","drift","cochange","fault","polyglotSpecs","bootstrap"],"projection_providers":[{"id":"relationships","version":1,"scope":"matches","renderer":"viz-adapter"},{"id":"cube","version":1,"scope":"output","kinds":["table","hbar","heatmap","stat","donut"],"renderer":"cie-cube"},{"id":"architecture","version":1,"scope":"evidenced_matches","availability":["stored_only","build_if_missing"],"renderer":"cie-polyglot"}],"projection_cache":{"entries":32,"max_bytes":8388608,"max_entry_bytes":1048576,"version":1,"scope":"reader"},"view_renderers":["viz-adapter","cie-polyglot","cie-cube"],"symbol_resolution":true,"limits":{"page":self.policy.max_page_size,"outputs":16,"depth":8,"bytes":16_777_216,"cursor_ttl_seconds":CURSOR_TTL_SECS},"coverage":self.snapshot["coverage"],"source":"captured_only","unsupported_features":["cross_revision_queries","approximate_aggregates","natural_language_execution"]});
+        capabilities["artifact_kinds"] = json!(ArtifactKind::ALL);
+        capabilities["output_schema_version"] = json!(2);
+        capabilities["projection_providers"] = json!([
+            {"id":"relationships","version":1,"renderer":"viz-adapter","scope":"matches"},
+            {"id":"cube","version":1,"renderer":"cie-cube","scope":"output"},
+            {"id":"repository_map","version":1,"renderer":"viz-adapter","scope":"matches"},
+            {"id":"concept_hierarchy","version":1,"renderer":"viz-adapter","scope":"matches"},
+            {"id":"duplicate_clusters","version":1,"renderer":"viz-adapter","scope":"matches"},
+            {"id":"cochange","version":1,"renderer":"viz-adapter","scope":"matches","required_inputs":["cochange"]},
+            {"id":"dependencies","version":1,"renderer":"viz-adapter","scope":"matches","required_inputs":["deps"]},
+            {"id":"c4","version":1,"renderer":"cie-polyglot","scope":"evidenced_matches","levels":["context","container","component"]},
+            {"id":"state-machine","version":1,"renderer":"cie-polyglot","scope":"evidenced_matches"},
+            {"id":"workflow","version":1,"renderer":"cie-polyglot","scope":"evidenced_matches"},
+            {"id":"impact","version":1,"renderer":"cie-polyglot","scope":"evidenced_matches"}
+        ]);
+        capabilities["available_inputs"] = json!({"captured_artifacts":self.artifacts.keys(),"captured_snapshot_fields":self.snapshot.keys()});
+        capabilities
     }
     /// Bound compatibility and resolver SQL too; all public transports share
     /// the same cancellation flag without taking the reader registry lock.
@@ -305,6 +329,8 @@ impl RevisionReader {
         let timeout = Duration::from_millis(request.budget.timeout_ms);
         let started = Instant::now();
         let result = self.retrieve_inner(request, cancelled.clone());
+        self.snapshot.check()?;
+        self.artifacts.check()?;
         if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(StorageError::new("Cancelled", "Retrieval cancelled"));
         }
@@ -367,7 +393,11 @@ impl RevisionReader {
             }),
         );
         let (duplicates, domains) = query::dataset_needs(&request)?;
-        let dataset = self.dataset_with_duplicates(&mut ex, duplicates, domains)?;
+        let dataset = if let Some(dataset) = self.file_plan(&request, &mut ex)? {
+            dataset
+        } else {
+            self.dataset_with_duplicates(&mut ex, duplicates, domains)?
+        };
         let matches = self.evaluate(&request.query, &dataset, &mut ex, 0)?;
         let hash = blake3::hash(&serde_json::to_vec(&request.query)?)
             .to_hex()
@@ -431,7 +461,7 @@ impl RevisionReader {
                 } else {
                     None
                 };
-                Some(blake3::hash(&serde_json::to_vec(&json!({"provider_version":1,"revision":self.revision,"query":hash,"definition":definition,"dependency":dependency}))?).to_hex().to_string())
+                Some(blake3::hash(&serde_json::to_vec(&json!({"provider_version":1,"schema_version":2,"repository":self.repository,"revision":self.revision,"query":hash,"definition":definition,"dependency":dependency}))?).to_hex().to_string())
             } else {
                 None
             };
@@ -455,6 +485,10 @@ impl RevisionReader {
                     &prior,
                 )
             };
+            let result = result.and_then(|value| {
+                OutputData::from_output(&output.output, value.clone())?;
+                Ok(value)
+            });
             if let (Some(key), Ok(data)) = (cache_key, &result) {
                 let bytes = serde_json::to_vec(data)?.len();
                 if data["truncated"] != json!(true) && bytes <= 1024 * 1024 {
@@ -502,7 +536,7 @@ impl RevisionReader {
                 OutputResult {
                     id: output.id.clone(),
                     status,
-                    schema_version: 1,
+                    schema_version: 2,
                     kind: serde_json::to_value(&output.output)?
                         .as_object()
                         .unwrap()
@@ -528,7 +562,11 @@ impl RevisionReader {
                         "derived"
                     }
                     .into(),
-                    data,
+                    data: if error.is_none() {
+                        Some(OutputData::from_output(&output.output, data)?)
+                    } else {
+                        None
+                    },
                     error,
                 },
             );

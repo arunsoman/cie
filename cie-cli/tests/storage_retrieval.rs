@@ -75,16 +75,22 @@ fn pinned_revisions_source_paging_and_forged_cursor() {
         )
         .unwrap()
     );
-    let cursor = result.outputs[0].data["continuation"].as_str().unwrap();
+    let cursor = result.outputs[0].json()["continuation"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let second=reader.retrieve(request(symbols(),vec![json!({"id":"rows","output":{"entities":{"page":{"limit":1,"continuation":cursor}}}})])).unwrap();
     assert_ne!(
-        result.outputs[0].data["items"][0]["id"],
-        second.outputs[0].data["items"][0]["id"]
+        result.outputs[0].json()["items"][0]["id"],
+        second.outputs[0].json()["items"][0]["id"]
     );
     let mut forged = cursor.to_string();
     forged.push('x');
     assert_eq!(reader.retrieve(request(symbols(),vec![json!({"id":"rows","output":{"entities":{"page":{"limit":1,"continuation":forged}}}})])).unwrap_err().code,"CursorInvalid");
-    let id = result.outputs[0].data["items"][0]["id"].as_str().unwrap();
+    let id = result.outputs[0].json()["items"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let select = json!({"select":{"kind":"symbol","filter":{"ids":[id]}}});
     let source = reader
         .retrieve(request(
@@ -95,11 +101,11 @@ fn pinned_revisions_source_paging_and_forged_cursor() {
             ],
         ))
         .unwrap();
-    assert!(source.outputs[0].data["text"]
+    assert!(source.outputs[0].json()["text"]
         .as_str()
         .unwrap()
         .starts_with("def "));
-    assert!(source.outputs[1].data["blocks"].as_array().unwrap().len() > 0);
+    assert!(source.outputs[1].json()["blocks"].as_array().unwrap().len() > 0);
     f.ingest("def changed():\n    return 99\n");
     std::fs::remove_file(f.0.join("app.py")).unwrap();
     assert_eq!(
@@ -147,7 +153,8 @@ fn concept_sets_cubes_drill_through_and_views() {
         ))
         .unwrap();
     assert!(concepts.matches > 0);
-    let concept = concepts.outputs[0].data["items"]
+    let concepts_json = concepts.outputs[0].json();
+    let concept = concepts_json["items"]
         .as_array()
         .unwrap()
         .iter()
@@ -159,7 +166,7 @@ fn concept_sets_cubes_drill_through_and_views() {
     let query = json!({"intersect":[symbols(),membership.clone()]});
     let result=r.retrieve(request(query.clone(),vec![entities(100),json!({"id":"cube","output":{"cube":{"dimensions":[{"id":"file","dimension":{"field":"file.path"}},{"id":"lang","dimension":{"field":"language"}}],"layout":{"pivot":{"rows":["file"],"columns":["lang"]}}}}}),json!({"id":"view","output":{"view":{"kind":"table","source":{"output":"cube"}}}})])).unwrap();
     assert!(result.matches > 0);
-    let cube = &result.outputs[1].data;
+    let cube = &result.outputs[1].json();
     assert_eq!(cube["grand_totals"]["count"], result.matches);
     let cell = &cube["items"][0];
     let drill = r
@@ -185,9 +192,9 @@ fn concept_sets_cubes_drill_through_and_views() {
             vec![json!({"id":"v","output":{"view":{"kind":"relationships"}}})],
         ))
         .unwrap();
-    assert!(graph.outputs[0].data["spec"]["elements"].is_array());
+    assert!(graph.outputs[0].json()["spec"]["elements"].is_array());
     let all = r.retrieve(request(symbols(), vec![entities(100)])).unwrap();
-    let pay = all.outputs[0].data["items"]
+    let pay = all.outputs[0].json()["items"]
         .as_array()
         .unwrap()
         .iter()
@@ -201,7 +208,7 @@ fn concept_sets_cubes_drill_through_and_views() {
         ))
         .unwrap();
     assert!(
-        impact.outputs[0].data["affected_symbols"]
+        impact.outputs[0].json()["affected_symbols"]
             .as_array()
             .unwrap()
             .len()
@@ -273,18 +280,23 @@ fn symbol_resolution_name_position_ambiguity_and_non_ascii_bytes() {
     let second = source.rfind("def save").unwrap() as u64;
     let names: Vec<String> = [first + 2, second + 2]
         .into_iter()
-        .map(|offset| match r
-            .resolve_symbol(SymbolLookup::AtPosition {
-                file: file.clone(),
-                byte_offset: offset,
-            })
-            .unwrap()
-        {
-            SymbolResolution::Found(entity) => entity.id,
-            other => panic!("expected resolution at byte {offset}, got {other:?}"),
+        .map(|offset| {
+            match r
+                .resolve_symbol(SymbolLookup::AtPosition {
+                    file: file.clone(),
+                    byte_offset: offset,
+                })
+                .unwrap()
+            {
+                SymbolResolution::Found(entity) => entity.id,
+                other => panic!("expected resolution at byte {offset}, got {other:?}"),
+            }
         })
         .collect();
-    assert_ne!(names[0], names[1], "distinct declarations resolve distinctly");
+    assert_ne!(
+        names[0], names[1],
+        "distinct declarations resolve distinctly"
+    );
     // Absolute paths and traversal are rejected before any lookup.
     for bad in ["/etc/passwd", "../escape.py", "a/../b.py", ""] {
         assert_eq!(
@@ -305,18 +317,14 @@ fn quantifiers_min_depth_and_relation_endpoint_validation() {
     f.ingest("def a():\n    return b()\ndef b():\n    return c()\ndef c():\n    return b()\ndef both():\n    x = b()\n    y = c()\n    return x\ndef d():\n    return 1\n");
     let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
     let all_symbols = json!({"select":{"kind":"symbol","filter":{"field":{"field":"kind","op":"eq","value":"Function"}}}});
-    let named = |name: &str| {
-        json!({"select":{"kind":"symbol","filter":{"field":{"field":"name","op":"eq","value":name}}}})
-    };
+    let named = |name: &str| json!({"select":{"kind":"symbol","filter":{"field":{"field":"name","op":"eq","value":name}}}});
     let result = r
-        .retrieve(
-            request(
-                all_symbols.clone(),
-                vec![json!({"id":"rel","output":{"relationships":{"page":{"limit":50}}}})],
-            ),
-        )
+        .retrieve(request(
+            all_symbols.clone(),
+            vec![json!({"id":"rel","output":{"relationships":{"page":{"limit":50}}}})],
+        ))
         .unwrap();
-    let calls: usize = result.outputs[0].data["total"].as_u64().unwrap() as usize;
+    let calls: usize = result.outputs[0].json()["total"].as_u64().unwrap() as usize;
     assert!(calls >= 4, "call edges captured: {calls}");
     // `Any`: at least one related entity in the target set.
     let any = r
@@ -376,7 +384,10 @@ fn quantifiers_min_depth_and_relation_endpoint_validation() {
             ),
         )
         .unwrap();
-    assert_eq!(cyclic.matches, 2, "b and c, returned once despite the cycle");
+    assert_eq!(
+        cyclic.matches, 2,
+        "b and c, returned once despite the cycle"
+    );
     // Incompatible relation endpoints are validation errors, never silent.
     let bad = r
         .retrieve(
@@ -421,7 +432,7 @@ fn cube_buckets_having_order_pivot_totals_and_facets() {
             ),
         )
         .unwrap();
-    let data = &result.outputs[0].data;
+    let data = &result.outputs[0].json();
     // Lower-inclusive, upper-exclusive buckets: the file exactly at the
     // boundary belongs to the >= bucket.
     let labels: Vec<String> = data["items"]
@@ -436,30 +447,31 @@ fn cube_buckets_having_order_pivot_totals_and_facets() {
     assert_eq!(data["total_scope"], "all_matches_before_having");
     // HAVING removes every cell while grand totals still cover all matches.
     let filtered = r
-        .retrieve(
-            request(
-                files.clone(),
-                vec![json!({"id":"cube","output":{"cube":{
+        .retrieve(request(
+            files.clone(),
+            vec![json!({"id":"cube","output":{"cube":{
                     "dimensions":[{"id":"size","dimension":{"field":"size_bytes"}}],
                     "measures":[{"id":"n","measure":"count"}],
                     "cell_filter":{"measure":{"id":"n","op":"gt","value":100.0}}}}})],
-            ),
-        )
+        ))
         .unwrap();
-    assert_eq!(filtered.outputs[0].data["total"], 0);
-    assert_eq!(filtered.outputs[0].data["grand_totals"]["n"], result.matches);
+    assert_eq!(filtered.outputs[0].json()["total"], 0);
+    assert_eq!(
+        filtered.outputs[0].json()["grand_totals"]["n"],
+        result.matches
+    );
     // Drill-through can be disabled to save response bytes.
     let bare = r
-        .retrieve(
-            request(
-                files,
-                vec![json!({"id":"cube","output":{"cube":{
+        .retrieve(request(
+            files,
+            vec![json!({"id":"cube","output":{"cube":{
                     "dimensions":[{"id":"size","dimension":{"field":"size_bytes"}}],
                     "drill_through":"disabled"}}})],
-            ),
-        )
+        ))
         .unwrap();
-    assert!(bare.outputs[0].data["items"][0].get("contributors").is_none());
+    assert!(bare.outputs[0].json()["items"][0]
+        .get("contributors")
+        .is_none());
     // Unknown members are typed and distinct from null or a user label.
     let symbols = json!({"select":{"kind":"symbol","filter":{"field":{"field":"kind","op":"eq","value":"Function"}}}});
     // No duplicate families exist, so the cluster dimension has no captured
@@ -476,7 +488,10 @@ fn cube_buckets_having_order_pivot_totals_and_facets() {
             ),
         )
         .unwrap();
-    let cells = with_unknown.outputs[0].data["items"].as_array().unwrap();
+    let cells = with_unknown.outputs[0].json()["items"]
+        .as_array()
+        .unwrap()
+        .clone();
     let unknown_cells: Vec<_> = cells
         .iter()
         .filter(|c| c["members"]["cl"].get("$unknown").is_some())
@@ -504,20 +519,18 @@ fn cube_buckets_having_order_pivot_totals_and_facets() {
             ),
         )
         .unwrap();
-    let p = &pivot.outputs[0].data["pivot"];
+    let p = &pivot.outputs[0].json()["pivot"];
     assert!(!p["rows"].as_array().unwrap().is_empty());
-    for cell in pivot.outputs[0].data["items"].as_array().unwrap() {
+    for cell in pivot.outputs[0].json()["items"].as_array().unwrap() {
         assert!(cell.get("row_key").is_some() && cell.get("column_key").is_some());
     }
     // Unsupported dimensions fail loudly instead of producing an empty cube.
     let err = r
-        .retrieve(
-            request(
-                symbols,
-                vec![json!({"id":"cube","output":{"cube":{
+        .retrieve(request(
+            symbols,
+            vec![json!({"id":"cube","output":{"cube":{
                     "dimensions":[{"id":"nope","dimension":{"field":"no_such_field"}}]}}})],
-            ),
-        )
+        ))
         .unwrap_err();
     assert_eq!(err.code, "UnsupportedQuery");
     // Facet self-exclusion removes exactly the tagged dimension's filter.
@@ -532,15 +545,14 @@ fn cube_buckets_having_order_pivot_totals_and_facets() {
             ),
         )
         .unwrap();
-    let rows = facet.outputs[0].data["items"].as_array().unwrap();
+    let rows = facet.outputs[0].json()["items"].as_array().unwrap().clone();
     assert!(
-        rows.iter()
-            .any(|row| row["self_excluded"] == json!(true)
-                && row["dimension"] == "file.path"
-                && row["member"] == "app.py"
-                && row["count"].as_u64().unwrap() >= 1),
+        rows.iter().any(|row| row["self_excluded"] == json!(true)
+            && row["dimension"] == "file.path"
+            && row["member"] == "app.py"
+            && row["count"].as_u64().unwrap() >= 1),
         "{}",
-        serde_json::to_string(&facet.outputs[0].data).unwrap()
+        serde_json::to_string(&facet.outputs[0].json()).unwrap()
     );
 }
 
@@ -583,7 +595,7 @@ fn revisions_list_source_ranges_context_and_stored_only_views() {
         .retrieve(request(symbols.clone(), vec![entities(50)]))
         .unwrap()
         .outputs[0]
-        .data["items"][0]["id"]
+        .json()["items"][0]["id"]
         .clone();
     // Byte ranges are half-open and echoed; context expansion preserves the
     // requested range while reporting the expanded returned range.
@@ -593,10 +605,13 @@ fn revisions_list_source_ranges_context_and_stored_only_views() {
             vec![json!({"id":"s","output":{"detail":{"source":{"range":{"bytes":{"start":8,"end":20}},"context_lines":1}}}})],
         ))
         .unwrap();
-    let data = &src.outputs[0].data;
+    let data = &src.outputs[0].json();
     assert_eq!(data["requested"]["start"], 8);
     assert_eq!(data["requested"]["end"], 20);
-    assert_eq!(data["returned"]["end"], 26, "context extends to the line end");
+    assert_eq!(
+        data["returned"]["end"], 26,
+        "context extends to the line end"
+    );
     // The café character occupies two bytes: a range cutting inside it is
     // unaligned UTF-8 and rejected rather than returning damaged text.
     let u = "text = \"café\"\n";
@@ -616,6 +631,6 @@ fn revisions_list_source_ranges_context_and_stored_only_views() {
             vec![json!({"id":"s","output":{"detail":{"source":{"range":"whole_file","context_lines":0}}}})],
         ))
         .unwrap();
-    assert_eq!(wf.outputs[0].data["requested"]["whole_file"], json!(true));
-    assert!(wf.outputs[0].data["content_hash"].as_str().is_some());
+    assert_eq!(wf.outputs[0].json()["requested"]["whole_file"], json!(true));
+    assert!(wf.outputs[0].json()["content_hash"].as_str().is_some());
 }

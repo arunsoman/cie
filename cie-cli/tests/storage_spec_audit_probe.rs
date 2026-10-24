@@ -128,7 +128,7 @@ fn audit_existing_fault_data_must_be_retrievable() {
     f.ingest("def one():\n    return 1\n");
     let bundle = f.0.join(".cie/revs/1/web-bundle.json");
     let mut data: Value = serde_json::from_slice(&std::fs::read(&bundle).unwrap()).unwrap();
-    data["report"]["fault_analysis"] = json!({"audit_marker":"stored_fault"});
+    data["report"]["fault_analysis"] = json!({"revision":1,"status":"unknown","unknown_reason":"fixture","property":null,"lineage":{"edges":[]},"experiments":[],"execution_performed":false,"runtime_observed":false,"notes":["stored_fault"]});
     std::fs::write(bundle, serde_json::to_vec(&data).unwrap()).unwrap();
     let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
     let result = r.retrieve(request(
@@ -267,9 +267,8 @@ fn scoped_architecture_views_preserve_only_evidenced_matches() {
             vec![json!({"id":"view","output":{"view":{"kind":"c4"}}})],
         ))
         .unwrap();
-    let elements = result.outputs[0].data["specs"]["c4"]["elements"]
-        .as_array()
-        .unwrap();
+    let result_json = result.outputs[0].json();
+    let elements = result_json["specs"]["c4"]["elements"].as_array().unwrap();
     assert_eq!(elements.len(), 1);
     assert_eq!(elements[0]["label"], "one");
 }
@@ -290,8 +289,8 @@ fn compact_discovery_and_tool_next_actions_are_executable() {
     assert!(!result.next_actions.is_empty());
     let next = tools::retrieve(&r, &result.next_actions[0]["arguments"].to_string()).unwrap();
     assert_ne!(
-        next.outputs[0].data["items"][0]["id"],
-        result.outputs[0].data["items"][0]["id"]
+        next.outputs[0].json()["items"][0]["id"],
+        result.outputs[0].json()["items"][0]["id"]
     );
 }
 
@@ -310,17 +309,191 @@ fn graph_expansion_labels_context_without_changing_matches() {
         .unwrap();
     assert_eq!(result.matches, 1);
     assert_eq!(
-        result.outputs[0].data["scope"]["matched"]
+        result.outputs[0].json()["scope"]["matched"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
     assert_eq!(
-        result.outputs[0].data["scope"]["context"]
+        result.outputs[0].json()["scope"]["context"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
+}
+
+#[test]
+fn all_named_views_return_empty_for_zero_matches_in_both_availability_modes() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    for kind in [
+        "relationships",
+        "repository_map",
+        "concept_hierarchy",
+        "duplicate_clusters",
+        "dependencies",
+        "cochange",
+        "c4",
+        "state-machine",
+        "workflow",
+        "impact",
+    ] {
+        for availability in ["stored_only", "build_if_missing"] {
+            let result=r.retrieve(request(json!({"select":{"kind":"symbol","filter":{"field":{"field":"name","op":"eq","value":"not_present"}}}}),vec![json!({"id":"view","output":{"view":{"kind":kind,"availability":availability}}})])).unwrap();
+            assert_eq!(result.outputs[0].status, "empty", "{kind}/{availability}");
+            assert!(matches!(
+                result.outputs[0].data,
+                Some(OutputData::View(ViewData::Empty { .. }))
+            ));
+        }
+    }
+}
+#[test]
+fn indexed_file_lookup_does_not_decode_symbol_facts() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let snapshot = f.0.join(".cie/revs/1/snapshot.json");
+    let mut data: Value = serde_json::from_slice(&std::fs::read(&snapshot).unwrap()).unwrap();
+    let symbol = data["symbols"][0].clone();
+    data["symbols"] = json!(std::iter::repeat(symbol).take(100_001).collect::<Vec<_>>());
+    std::fs::write(snapshot, serde_json::to_vec(&data).unwrap()).unwrap();
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    r.capabilities();
+    let mut req = request(
+        json!({"select":{"kind":"file","filter":{"field":{"field":"path","op":"eq","value":"app.py"}}}}),
+        vec![entities(1)],
+    );
+    req.budget.max_visited = 10;
+    let result = r.retrieve(req.clone()).unwrap();
+    assert_eq!(result.matches, 1);
+    let plan = r.explain(&req);
+    assert_eq!(plan["strategy"], "indexed_file_lookup");
+    assert!(!plan["decoded_snapshot_fields"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("symbols")));
+    assert!(!plan["decoded_snapshot_fields"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("summaries")));
+}
+#[test]
+fn spec_tool_request_and_focused_topics_work_verbatim() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let literal = json!({"context":"ctx_fixture","select":{"kind":"symbol","where":[{"field":"file.path","op":"eq","value":"app.py"}]},"outputs":[{"id":"rows","entities":{"fields":["id","qualified_name","location"],"page":{"limit":20}}},{"id":"proof","evidence":{"scope":"matches_and_derivations","page":{"limit":20}}}],"response":{"profile":"compact","max_bytes":12000}});
+    let result = tools::retrieve(&r, &literal.to_string()).unwrap();
+    assert!(result.matches > 0);
+    assert!(!result.evidence.is_empty());
+    for topic in [
+        "symbol.fields",
+        "concept.relationships",
+        "outputs.source",
+        "views.c4",
+    ] {
+        let result = tools::describe_with_options(
+            &r,
+            serde_json::from_value(json!({"topics":[topic]})).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            result["schemas"].get(topic).is_some() || result["capabilities"].get(topic).is_some()
+        );
+    }
+    let invalid =
+        serde_json::from_value::<OutputData>(json!({"type":"source","text":"incomplete"}));
+    assert!(invalid.is_err());
+    let unknown = serde_json::from_value::<OutputData>(json!({"type":"anything","arbitrary":42}));
+    assert!(unknown.is_err());
+}
+
+#[test]
+fn missing_named_providers_project_real_scoped_facts_and_drill_back() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n\ndef two():\n    return 1\n");
+    std::fs::write(f.0.join("other.py"), "def other():\n    return 3\n").unwrap();
+    f.ingest_tree();
+    let before = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let missing_history=before.retrieve(request(json!({"select":{"kind":"file","filter":{"field":{"field":"path","op":"eq","value":"app.py"}}}}),vec![json!({"id":"history","output":{"view":{"kind":"cochange"}}})]));
+    assert_eq!(missing_history.unwrap_err().code, "ArtifactUnavailable");
+    drop(before);
+    let bundle = f.0.join(".cie/revs/2/web-bundle.json");
+    let mut data: Value = serde_json::from_slice(&std::fs::read(&bundle).unwrap()).unwrap();
+    data["cochange"] = json!({"sample_commits":2,"counted_commits":2,"excluded_bulk":0,"rename_events":0,"edges":[{"a":"app.py","b":"other.py","support":2,"cross_directory":false,"supporting_commits":["abc","def"]}],"note":"captured fixture"});
+    data["deps"] = json!({"table":{"deps":[{"name":"fixture-package","ecosystem":"pypi","version_req":"1","source":"app.py","scope":"runtime","licence":null}],"files_scanned":1,"unparsed":[]},"usage":[{"name":"fixture-package","ecosystem":"pypi","imported_by":["app.py"],"resolved":true,"note":"captured import"}],"what_if":null});
+    std::fs::write(bundle, serde_json::to_vec(&data).unwrap()).unwrap();
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    let query = json!({"select":{"kind":"file","filter":{"field":{"field":"path","op":"eq","value":"app.py"}}}});
+    for kind in [
+        "repository_map",
+        "concept_hierarchy",
+        "duplicate_clusters",
+        "dependencies",
+        "cochange",
+    ] {
+        let result = r
+            .retrieve(request(
+                query.clone(),
+                vec![json!({"id":"view","output":{"view":{"kind":kind}}})],
+            ))
+            .unwrap();
+        let payload = result.outputs[0].json();
+        assert_eq!(payload["provider"], kind);
+        assert!(
+            !payload["spec"]["elements"].as_array().unwrap().is_empty(),
+            "{kind}: {payload}"
+        );
+        let spec: cie_viz::ViewSpec = serde_json::from_value(payload["spec"].clone()).unwrap();
+        cie_viz::gate::validate(&spec).unwrap();
+        let descriptor = payload["drill_down"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap();
+        let facts = r
+            .retrieve(request(
+                json!({"cell_contributors":{"descriptor":descriptor}}),
+                vec![entities(10)],
+            ))
+            .unwrap();
+        assert!(facts.matches > 0);
+        let cached=r.retrieve(request(query.clone(),vec![json!({"id":"view","output":{"view":{"kind":kind,"availability":"stored_only"}}})])).unwrap();
+        assert_eq!(cached.outputs[0].origin, "cache");
+    }
+}
+
+#[test]
+fn named_c4_levels_have_distinct_scoped_cache_entries_and_entity_links() {
+    let f = Fixture::new();
+    f.ingest("def one():\n    return 1\n");
+    let bundle = f.0.join(".cie/revs/1/web-bundle.json");
+    let mut data: Value = serde_json::from_slice(&std::fs::read(&bundle).unwrap()).unwrap();
+    let elements:Vec<_>=["domain","container","component"].iter().map(|kind|json!({"id":kind,"elementKind":kind,"label":kind,"displayMode":"Fact","evidence":{"file":"app.py","start":0,"end":1}})).collect();
+    data["polyglotSpecs"] =
+        json!({"specs":{"c4":{"elements":elements,"edges":[],"scope":{"artifact":"c4"}}}});
+    std::fs::write(bundle, serde_json::to_vec(&data).unwrap()).unwrap();
+    let r = f.storage().open_revision(RevisionSelector::Latest).unwrap();
+    for (level, count) in [("context", 1), ("container", 2), ("component", 3)] {
+        let result = r
+            .retrieve(request(
+                symbols(),
+                vec![json!({"id":"view","output":{"view":{"kind":"c4","level":level}}})],
+            ))
+            .unwrap();
+        let value = result.outputs[0].json();
+        assert_eq!(
+            value["specs"]["c4"]["elements"].as_array().unwrap().len(),
+            count
+        );
+        assert_eq!(value["entity_refs"].as_object().unwrap().len(), count);
+        let cached=r.retrieve(request(symbols(),vec![json!({"id":"view","output":{"view":{"kind":"c4","level":level,"availability":"stored_only"}}})])).unwrap();
+        assert_eq!(cached.outputs[0].origin, "cache");
+    }
+    let missing=r.retrieve(request(json!({"select":{"kind":"file","filter":{"field":{"field":"path","op":"eq","value":"missing.py"}}}}),vec![entities(1)])).unwrap();
+    assert_eq!(missing.outputs[0].status, "empty");
 }

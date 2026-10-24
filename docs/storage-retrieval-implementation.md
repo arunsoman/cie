@@ -50,25 +50,32 @@ overloaded names and non-ASCII byte offsets, source ranges and context lines,
 unreachable stored-only views and missing-artifact behavior. The native test
 exercises the real worker, addon, model facade, resolution and revision listing.
 
-## Further contract coverage
+## Contract completion
 
-The specification remains the target contract. Optional tokenizer-specific token
-budgets and opaque result handles are not enabled; byte budgets and inline
-payloads remain the supported transport. Unknown token budgets return
-`UnsupportedBudget`. Dedicated persisted impact artifacts are unavailable;
-`build_if_missing` computes impact from captured facts. Specialized diagrams
-are restricted to evidenced architecture providers (C4, state machines,
-workflows, duplicate impact), relationship views and cube charts; arbitrary
-sequence/map projections are not inferred from unsupported input.
+The five gaps identified in the October 24 review are implemented. See
+[the completion verification](audits/storage-retrieval-conformance-2026-10-24.md)
+for the requirement-to-code/test mapping.
 
-The reader still opens the core snapshot as JSON and evaluates most predicates
-in memory. Optional duplicate/domain tables are loaded from typed query
-requirements, but this is not a general index-pushdown query planner. Projection
-caches are reader-local (32 entries, 8 MiB total, 1 MiB per entry), not persistent
-across reader expiry or process restart. Retained URL/snapshot jobs use the
-existing seven-day job cleanup policy; local history pruning is not automatic.
+Output payload schema version 2 is a closed Rust/JSON-Schema union. It adds the
+`data.type` discriminator while preserving record/chart/source fields. Artifact
+results carry `artifact_kind`, `schema_version` and a typed `document`; consumers
+must handle the declared artifact kind and version. Existing UI compatibility
+adapters keep their earlier wire formats.
 
-## Audit repair stage (2026-10-23)
+Only the explicitly optional tokenizer-specific budgets and opaque large-result
+handles are not enabled. Byte budgets and inline payloads remain supported;
+unknown tokenizer budgets return `UnsupportedBudget`. Stored-only requests
+correctly return unavailable when the selected revision has no compatible stored
+artifact or complete cached projection.
+
+Exact file/source lookups use a prepared indexed path lookup without decoding
+symbol, summary or concept fields. Other expressions retain bounded, exact fact
+evaluation; broader optimizer strategies are performance choices rather than
+additional public API modes. Reader-local projection caches remain bounded at
+32 entries / 8 MiB total / 1 MiB per entry and are revision-bound. Retained URL
+jobs follow the existing seven-day cleanup policy.
+
+## Audit repair stage (2026-10-23, historical)
 
 The seven previously failing audit cases are now regular CLI integration tests.
 Output dependencies execute topologically and preserve requested response order;
@@ -92,7 +99,7 @@ projections are adapted to the existing chart renderer. Native integration
 covers archive relocation and identity preservation. This stage does not claim
 that the further contract coverage listed above is complete.
 
-## Extended implementation stage (2026-10-23)
+## Extended implementation stage (2026-10-23, historical)
 
 - Added queryable route, framework, component, dependency, state-machine, state,
   workflow and evidence entities, plus typed relationships to captured facts.
@@ -125,7 +132,7 @@ traversal, cached availability, scoped architecture filtering, executable model
 continuations and graph context. Calendar unit tests cover month boundaries and
 both occurrences of a repeated daylight-saving hour.
 
-### Validation notes
+### Historical validation notes
 
 - The native addon builds, the 14 storage audit acceptance tests pass, and the
   web suite passes 103 tests after rebasing the parallel persona/chat changes. The web TypeScript check passes separately.
@@ -137,3 +144,28 @@ both occurrences of a repeated daylight-saving hour.
   downloading Geist/Geist Mono from Google Fonts in this environment. Standalone
   asset packaging is tested for both flat and nested Next output layouts; a
   complete production/browser run is not claimed.
+
+## October 24 completion
+
+- Added named repository-map, concept-hierarchy, duplicate-cluster, dependency
+  and co-change providers. They use captured facts, preserve inference/evidence,
+  apply selection scope, enforce limits, expose entity references and signed
+  drill-through handles, and pass the existing ViewSpec gate.
+- C4 accepts named context/container/component levels with distinct cache keys.
+- Every supported provider returns a typed empty view for zero matches, under
+  both availability modes, without requiring irrelevant artifacts.
+- Captured JSON is pinned as raw fields and decoded on demand. Opening a reader
+  and performing a file lookup no longer constructs the repository symbol graph.
+  A fixture with 100,001 symbol entries verifies this under a ten-visit budget.
+- The LLM facade accepts the specification's `where`, concept `membership`,
+  flattened named outputs, evidence scope, optional context and continuation-only
+  requests. Legacy `predicates`, `scope` and wrapped outputs remain accepted.
+- Focused discovery supports `symbol.fields`, `concept.relationships`,
+  `outputs.source`, `views.c4` and corresponding declared families. Schemas are
+  generated from the same Rust DTOs. Host-authorized describe can open a context;
+  repeating describe with a context does not advance it. Mismatched handles fail.
+- Named artifact roots validate existing exported documents; malformed roots and
+  unknown output variants are rejected. Schema-version metadata is explicit.
+- Production uses packaged local Geist fonts. Builds no longer require a Google
+  Fonts connection, and a standalone HTTP smoke test exercises the packaged
+  native worker and captured-source retrieval after original source deletion.

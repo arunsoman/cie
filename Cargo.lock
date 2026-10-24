@@ -931,6 +931,7 @@ dependencies = [
  "cie-relations",
  "cie-semantic",
  "cie-summary",
+ "schemars",
  "serde",
  "serde_json",
  "sha2",

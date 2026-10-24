@@ -69,6 +69,18 @@ fn dispatch(input: &str) -> Result<Value> {
         .map_err(|_| StorageError::new("Io", "Reader registry poisoned"))?;
     readers.retain(|_, c| c.touched.elapsed() < Duration::from_secs(900));
     let op = v["op"].as_str().unwrap_or("");
+    let requested_context = v["request"]["context"].as_str();
+    let effective_context = v["context"].as_str().or(requested_context);
+    if v["context"]
+        .as_str()
+        .zip(requested_context)
+        .is_some_and(|(a, b)| a != b)
+    {
+        return Err(StorageError::new(
+            "MixedRevisionReference",
+            "Context handles do not match",
+        ));
+    }
     // Revision listing and resolution take no context handle.
     if op == "retain" {
         let root = v["root"]
@@ -92,7 +104,7 @@ fn dispatch(input: &str) -> Result<Value> {
                 .list_revisions(RevisionListRequest { limit, after })?,
         )?);
     }
-    if op == "open" {
+    if op == "open" || (op == "describe" && effective_context.is_none()) {
         if readers.len() >= 32 {
             return Err(StorageError::new(
                 "BudgetExceeded",
@@ -122,27 +134,52 @@ fn dispatch(input: &str) -> Result<Value> {
                 touched: Instant::now(),
             },
         );
+        if op == "describe" {
+            let mut description = tools::describe_with_options(
+                &readers[&id].reader,
+                if v["request"].is_null() {
+                    Default::default()
+                } else {
+                    serde_json::from_value(v["request"].clone())?
+                },
+            )?;
+            description["context"] = json!(id);
+            return Ok(description);
+        }
         return Ok(json!({"context":id,"capabilities":capabilities}));
     }
-    let id = v["context"]
-        .as_str()
-        .ok_or_else(|| StorageError::new("InvalidRequest", "Missing context"))?;
+    let id =
+        effective_context.ok_or_else(|| StorageError::new("InvalidRequest", "Missing context"))?;
     if op == "close" {
         return Ok(json!({"closed":readers.remove(id).is_some()}));
+    }
+    if op == "tool_retrieve" {
+        if let Some(requested) = v["request"]["context"].as_str() {
+            if requested != id {
+                return Err(StorageError::new(
+                    "MixedRevisionReference",
+                    "Tool context does not match the authorized reader",
+                ));
+            }
+        }
     }
     let context = readers
         .get_mut(id)
         .ok_or_else(|| StorageError::new("CursorExpired", "Revision context expired or closed"))?;
     context.touched = Instant::now();
     context.reader.run_bounded(token.clone(), || match op {
-        "describe" => tools::describe_with_options(
-            &context.reader,
-            if v["request"].is_null() {
-                Default::default()
-            } else {
-                serde_json::from_value(v["request"].clone())?
-            },
-        ),
+        "describe" => {
+            let mut description = tools::describe_with_options(
+                &context.reader,
+                if v["request"].is_null() {
+                    Default::default()
+                } else {
+                    serde_json::from_value(v["request"].clone())?
+                },
+            )?;
+            description["context"] = json!(id);
+            Ok(description)
+        }
         "retrieve" => Ok(serde_json::to_value(context.reader.retrieve_with_cancel(
             serde_json::from_value(v["request"].clone())?,
             token,
@@ -152,6 +189,9 @@ fn dispatch(input: &str) -> Result<Value> {
             &v["request"].to_string(),
             token,
         )?)?),
+        "explain" => Ok(context
+            .reader
+            .explain(&serde_json::from_value(v["request"].clone())?)),
         "resolve" => {
             Ok(serde_json::to_value(context.reader.resolve_symbol(
                 serde_json::from_value(v["lookup"].clone())?,

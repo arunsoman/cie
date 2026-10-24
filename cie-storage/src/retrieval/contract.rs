@@ -95,6 +95,8 @@ pub struct Entity {
     pub id: String,
     pub kind: EntityKind,
     pub fields: BTreeMap<String, Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
 }
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord,
@@ -117,6 +119,7 @@ pub enum RelationKind {
     SourceSymbol,
     StateOf,
     HasEvidence,
+    CoChanged,
 }
 impl RelationKind {
     /// Declared endpoint kinds. Incompatible endpoints are validation errors.
@@ -127,7 +130,8 @@ impl RelationKind {
         }
         matches!(
             (self, source, target),
-            (RelationKind::MemberOfComponent, Symbol, Component)
+            (RelationKind::CoChanged, File, File)
+                | (RelationKind::MemberOfComponent, Symbol, Component)
                 | (RelationKind::ChildComponentOf, Component, Component)
                 | (RelationKind::UsesDependency, File, Dependency)
                 | (RelationKind::SourceSymbol, StateMachine | Workflow, Symbol)
@@ -295,6 +299,8 @@ pub enum Output {
     },
     Evidence {
         #[serde(default)]
+        scope: EvidenceScope,
+        #[serde(default)]
         page: PageRequest,
     },
     Cube(CubeRequest),
@@ -312,6 +318,8 @@ pub enum Output {
     },
     View {
         kind: String,
+        #[serde(default)]
+        level: Option<C4Level>,
         #[serde(default)]
         source: ViewSource,
         #[serde(default)]
@@ -397,21 +405,42 @@ pub enum SourceRange {
 #[serde(rename_all = "snake_case")]
 pub enum ArtifactKind {
     Report,
+    #[serde(alias = "viewspec")]
     RepositoryMap,
     Concepts,
     Stack,
+    #[serde(alias = "deps")]
     Dependencies,
     Runtime,
     Stories,
     Quality,
     Overlap,
     Drift,
+    #[serde(alias = "cochange")]
     CoChange,
     Fault,
+    #[serde(alias = "polyglotSpecs")]
     ArchitectureBundle,
+    #[serde(alias = "bootstrap")]
     UiBootstrapV1,
 }
 impl ArtifactKind {
+    pub const ALL: &'static [Self] = &[
+        Self::Report,
+        Self::RepositoryMap,
+        Self::Concepts,
+        Self::Stack,
+        Self::Dependencies,
+        Self::Runtime,
+        Self::Stories,
+        Self::Quality,
+        Self::Overlap,
+        Self::Drift,
+        Self::CoChange,
+        Self::Fault,
+        Self::ArchitectureBundle,
+        Self::UiBootstrapV1,
+    ];
     pub fn key(&self) -> &'static str {
         match self {
             Self::Report => "report",
@@ -692,7 +721,7 @@ pub struct OutputResult {
     pub origin: String,
     pub kind: String,
     pub filter_application: String,
-    pub data: Value,
+    pub data: Option<super::payload::OutputData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<StorageError>,
 }
@@ -751,4 +780,20 @@ pub struct SymbolCandidate {
     pub file: String,
     pub qualified_name: String,
     pub kind: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceScope {
+    #[default]
+    MatchesAndDerivations,
+    Matches,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum C4Level {
+    Context,
+    Container,
+    Component,
 }

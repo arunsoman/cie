@@ -236,6 +236,7 @@ impl RepositoryWriter {
         let conn = cie_polyglot::schema::open_db(path).map_err(err)?;
         cie_polyglot::ensure_all_schemas(&conn).map_err(err)?;
         conn.execute_batch("CREATE TABLE IF NOT EXISTS ingest_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS idx_retrieval_file_path ON files(path);
             CREATE TABLE IF NOT EXISTS semantic_files(path TEXT PRIMARY KEY,hash BLOB NOT NULL,payload BLOB NOT NULL);
             CREATE TABLE IF NOT EXISTS captured_sources(path TEXT PRIMARY KEY,content_hash TEXT NOT NULL,size_bytes INTEGER NOT NULL,zstd_bytes BLOB NOT NULL);
             CREATE TABLE IF NOT EXISTS file_status(path TEXT PRIMARY KEY,status TEXT NOT NULL);

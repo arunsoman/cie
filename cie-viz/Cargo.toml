@@ -14,6 +14,7 @@ cie-relations = { workspace = true }
 cie-concepts = { workspace = true }
 cie-incremental = { workspace = true }
 cie-summary = { workspace = true }
+schemars = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

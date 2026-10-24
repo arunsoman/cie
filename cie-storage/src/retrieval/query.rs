@@ -436,6 +436,26 @@ impl RevisionReader {
                 });
             }
         }
+        if domains {
+            for record in self.artifacts["cochange"]["edges"]
+                .as_array()
+                .into_iter()
+                .flatten()
+            {
+                ex.check(1)?;
+                if let Some((source, target)) = record["a"]
+                    .as_str()
+                    .and_then(|path| paths.get(path))
+                    .zip(record["b"].as_str().and_then(|path| paths.get(path)))
+                {
+                    ds.edges.push(Edge {
+                        source: source.clone(),
+                        target: target.clone(),
+                        relation: RelationKind::CoChanged,
+                    });
+                }
+            }
+        }
         ds.edges
             .retain(|e| ds.entities.contains_key(&e.source) && ds.entities.contains_key(&e.target));
         ex.check(ds.edges.len())?;
@@ -644,10 +664,13 @@ impl RevisionReader {
                 }
             }
             Predicate::Field { field, .. } => {
-                if !ds
-                    .entities
-                    .values()
-                    .any(|e| e.kind == kind && field_value(e, field).is_some())
+                if !matches!(field.as_str(), "id" | "entity_kind")
+                    && !super::tools::entity_fields(kind).contains(&field.as_str())
+                    && !(kind == EntityKind::File && field == "file.path")
+                    && !ds
+                        .entities
+                        .values()
+                        .any(|e| e.kind == kind && field_value(e, field).is_some())
                 {
                     return Err(StorageError::new(
                         "UnsupportedQuery",
@@ -827,6 +850,9 @@ impl RevisionReader {
     }
 }
 pub(crate) fn field_value(e: &Entity, field: &str) -> Option<Value> {
+    if e.kind == EntityKind::File && field == "file.path" {
+        return e.fields.get("path").cloned();
+    }
     if field == "id" {
         return Some(json!(e.id));
     }
@@ -855,7 +881,15 @@ fn add(
         .iter()
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
-    ds.entities.insert(id.clone(), Entity { id, kind, fields });
+    ds.entities.insert(
+        id.clone(),
+        Entity {
+            id,
+            kind,
+            fields,
+            evidence_refs: Vec::new(),
+        },
+    );
     Ok(())
 }
 
@@ -1174,6 +1208,7 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
                 | RelationKind::SourceSymbol
                 | RelationKind::StateOf
                 | RelationKind::HasEvidence
+                | RelationKind::CoChanged
         );
     }
     fn predicate(p: &Predicate, needs: &mut (bool, bool), depth: usize) -> Result<()> {
@@ -1268,6 +1303,10 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
                         relation(*r, &mut needs);
                     }
                 }
+            }
+            Output::View { kind, .. } => {
+                needs.0 |= kind == "duplicate_clusters";
+                needs.1 |= kind == "dependencies" || kind == "cochange";
             }
             _ => {}
         }

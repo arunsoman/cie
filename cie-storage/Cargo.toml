@@ -23,7 +23,7 @@ cie-concepts = { workspace = true }
 cie-llm = { workspace = true }
 serde = { workspace = true }
 schemars = "1"
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 blake3 = { workspace = true }
 zstd = { workspace = true }
 tree-sitter = { workspace = true }

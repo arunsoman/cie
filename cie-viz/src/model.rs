@@ -10,12 +10,15 @@
 //! `ViewSpec` interface; `deny_unknown_fields` on the closed structs is the
 //! deserialization half of the VIZ-A-01 schema test.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Epistemic display mode — the four honest states (PRD §8).
 /// Type-level non-optional on every element/edge (VIZ-A-02).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
 pub enum DisplayMode {
     Fact,
     Inference,
@@ -37,7 +40,7 @@ impl DisplayMode {
 /// `EvidenceRef` — shape EXACTLY `{ file, start, end }` (PRD §3.1 / TC-01).
 /// Byte offsets into the named file; mirrors `cie_core::SourceLocation`
 /// with the `FileId` resolved through the snapshot's file table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct EvidenceRef {
     pub file: String,
     pub start: u64,
@@ -45,7 +48,7 @@ pub struct EvidenceRef {
 }
 
 /// Why this element is on screen — honesty about selection, not confidence.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Salience {
     pub factors: Vec<String>,
@@ -55,7 +58,7 @@ pub struct Salience {
 
 /// One semantic node. `elementKind` is an OPEN string (VIZ-B-05: adding a
 /// kind is a new `NODE_TYPE` entry in the adapter, never a schema change).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ViewElement {
     pub id: String,
@@ -83,7 +86,7 @@ pub struct ViewElement {
 }
 
 /// One semantic relation. Edges carry the same epistemic law as elements.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ViewEdge {
     pub id: String,
@@ -98,7 +101,7 @@ pub struct ViewEdge {
 }
 
 /// G6 combo payload (`groups[]`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ViewGroup {
     pub id: String,
@@ -107,7 +110,7 @@ pub struct ViewGroup {
 }
 
 /// Incompleteness is INSIDE the spec, never hidden outside it (PRD §3.1).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Gap {
     pub id: String,
@@ -116,7 +119,7 @@ pub struct Gap {
 }
 
 /// Elements the producer withheld (salience cap, no evidence, ...).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HiddenCandidate {
     pub id: String,
@@ -134,7 +137,7 @@ pub struct HiddenCandidate {
 /// The epistemic footer — ALWAYS present, even when all counts are zero
 /// (VIZ-A-07). Rendered by a registered overlay plugin, outside the canvas
 /// (VIZ-F-06); gap ids must remain reachable through `caption` (VIZ-H-05).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EpistemicFooter {
     pub facts: u32,
@@ -160,7 +163,7 @@ impl EpistemicFooter {
 }
 
 /// Attestation block — makes cache, staleness and audit possible.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ScopeAttestation {
     pub revision: u64,
@@ -169,7 +172,7 @@ pub struct ScopeAttestation {
     pub coverage: ScopeCoverage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ScopeCoverage {
     pub analyzed: bool,
@@ -180,7 +183,7 @@ pub struct ScopeCoverage {
 /// Render hint — OPTIONAL; absence means the adapter chooses (VIZ-A-09).
 /// `strategy` is passed VERBATIM to G6 `layout.type` (VIZ-D-01); the
 /// adapter never enumerates layouts (VIZ-D-08).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LayoutHint {
     pub strategy: String,
@@ -192,7 +195,7 @@ pub struct LayoutHint {
 /// unchanged. Flattened extras (style, nodeStyle, preventDefault, ...) are
 /// carried verbatim; this struct is the one place `deny_unknown_fields`
 /// does NOT apply (the plugin surface is open by contract).
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FisheyePrefs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -221,7 +224,7 @@ pub struct FisheyePrefs {
 
 /// Render preferences. NEVER part of the content hash (VIZ-A-10 / VIZ-E-08:
 /// enabling fisheye or swapping renderer changes no semantic content).
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Preferences {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -240,7 +243,7 @@ pub struct Preferences {
 /// The closed top-level contract (PRD §3.1). Unknown top-level keys are a
 /// schema violation (VIZ-A-01) — `deny_unknown_fields` rejects a spec that
 /// smuggles chart names, colours or pixel values past the producer.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ViewSpec {
     pub elements: Vec<ViewElement>,
@@ -284,7 +287,11 @@ mod tests {
     use super::*;
 
     fn evidence() -> EvidenceRef {
-        EvidenceRef { file: "checkout.py".into(), start: 88, end: 120 }
+        EvidenceRef {
+            file: "checkout.py".into(),
+            start: 88,
+            end: 120,
+        }
     }
 
     fn element(mode: DisplayMode) -> ViewElement {
@@ -317,7 +324,10 @@ mod tests {
         ScopeAttestation {
             revision: 42,
             environments: vec![],
-            coverage: ScopeCoverage { analyzed: true, ratio: Some(1.0) },
+            coverage: ScopeCoverage {
+                analyzed: true,
+                ratio: Some(1.0),
+            },
         }
     }
 
