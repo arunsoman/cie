@@ -20,6 +20,9 @@
 // (dashed / "inferred"), and the Facts-only switch filters the whole
 // dashboard at once.
 
+import {AtlasProvider} from './atlas-personas/atlas-provider';
+import {ReviewerAtlas} from './atlas-personas/reviewer-atlas';
+
 import { useMemo, useState } from "react";
 import { FunctionFlow } from "./function-flow";
 import { callSiteSequence } from "@/lib/behaviour-views";
@@ -69,6 +72,15 @@ const PANELS = [
 type PanelId = (typeof PANELS)[number]["id"];
 
 export function AtlasView() {
+  const {storageRoot,sourceRoot,report,persona}=useCie();
+  const root=storageRoot??sourceRoot;
+  // First vertical slice. Legacy persona screens remain available until their
+  // registered projections are migrated; they do not claim core conformance.
+  return root&&report
+    ? <AtlasProvider root={root} revision={String(report.rev)} persona={persona}>{persona==='reviewer'?<ReviewerAtlas/>:<LegacyAtlasView/>}</AtlasProvider>
+    : <LegacyAtlasView/>;
+}
+function LegacyAtlasView() {
   const { storageRoot, sourceRoot, report: loadedReport, quality: loadedQuality, stack: loadedStack, concepts: loadedConcepts, atlasSelection, atlasFactsOnly, setAtlasSelection, selectFunction, setAtlasFactsOnly, drillUp, resetAtlas, openSourceViewer, persona, personaDisclosure, setPendingAsk, addChip, removeChip } = useCie();
   // RFC-0024 stage 2 — the panels derive FROM the plan (§14.2-1: switch =
   // re-plan, not re-page). planSheet is pure; the grid below renders

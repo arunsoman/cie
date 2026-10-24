@@ -66,7 +66,7 @@ const TITLES: Record<StageView, { title: string; caption: string }> = {
   deps: { title: "Dependencies", caption: "What your project declares it needs — names and versions as written." },
   runtime: { title: "Watching it run", caption: "Measured runtime evidence — every number names the tool that measured it." },
   quality: { title: "Quality metrics", caption: "The eight classic measures, computed by the ETL collector — formulas and sources shown." },
-  atlas: { title: "Atlas", caption: "Four synchronized views over one selection — containers, components, sequence, data flow." },
+  atlas: { title: "Atlas", caption: "Explore recorded code through interactive views and shared selections." },
   polyglot: { title: "Named diagrams", caption: "C4 architecture, state machines, workflows and impact views the engine can evidence — every box cites the bytes that earned it." },
   admin: { title: "CIE Admin", caption: "Every data structure CIE holds for this project — query and browse it directly." },
   chart: { title: "Chart", caption: "Drawn from your loaded report." },

@@ -1,5 +1,12 @@
 # Atlas persona PRDs — shared foundations (grid engine + persona cube)
 
+> **Mandatory implementation contract:** [Atlas core contract](atlas-core-contract.md)
+> governs shared selection, set algebra, source gestures, contributor identity and
+> conformance. It overrides conflicting single-click popup, single-filter,
+> chip-eviction and persona opt-out rules below. Legacy panels remain explicitly
+> uncertified until migrated; a PRD panel list is not an implementation status.
+
+
 **Date:** 2026-10-24 · **Status:** PRD, ready for implementation · **Supersedes nothing; extends:**
 `docs/atlas-charter.md`, `docs/atlas-ux-spec.md` (rev 2), `docs/storage-retrieval-api-spec.md` §16,
 `docs/chart-inventory.md`.

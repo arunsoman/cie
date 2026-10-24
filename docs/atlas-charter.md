@@ -1,5 +1,12 @@
 # The Atlas charter — why it exists, whom it serves, and the charts each user type needs
 
+> **Mandatory implementation contract:** [Atlas core contract](atlas-core-contract.md)
+> governs shared selection, set algebra, source gestures, contributor identity and
+> conformance. It overrides conflicting single-click popup, single-filter,
+> chip-eviction and persona opt-out rules below. Legacy panels remain explicitly
+> uncertified until migrated; a PRD panel list is not an implementation status.
+
+
 **Date:** 2026-10-23 · **Status:** charter + design inputs to RFC-0023 (`planSheet`)
 **Related:** `docs/rfc-0023-js-owns-pixels.md` (viz-manager, ChartPlan), `docs/chart-inventory.md` (the support-today tiers cited below), RFC-0019 (C4 concept tiers), `docs/VIZ-MULTI.md`
 
