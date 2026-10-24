@@ -13,6 +13,32 @@ import { randomUUID } from "crypto";
 import { scanRepoLanguages } from "./repo-scan";
 import { SUPPORTED_SUMMARY } from "./language-profiles";
 import type { RepoScan } from "./language-profiles";
+import os from "os";
+
+// Mirrors cie-polyglot/src/schema.rs::default_db_path exactly (FNV-1a 64 over
+// the canonicalized root, $TMPDIR/cie-polyglot-<h:x>.db). That scratch store
+// lives in the OS temp dir, keyed by path hash, and is meant to be reused
+// across runs against the same root — but for an ephemeral clone/snapshot
+// root (deleted below once the job ends), nothing else will ever ask for
+// that hash again, so the file would otherwise orphan forever and slowly
+// fill the temp filesystem (confirmed: 1000+ such orphans found on disk).
+async function cleanupPolyglotScratchDb(root: string): Promise<void> {
+  let canon: string;
+  try { canon = await fs.realpath(root); } catch { canon = path.resolve(root); }
+  let h = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const mask = 0xffffffffffffffffn;
+  for (const byte of Buffer.from(canon, "utf8")) {
+    h = (h ^ BigInt(byte)) & mask;
+    h = (h * prime) & mask;
+  }
+  const base = path.join(os.tmpdir(), `cie-polyglot-${h.toString(16)}`);
+  for (const ext of [".db", ".building"]) {
+    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+      await fs.rm(`${base}${ext}${suffix}`, { force: true }).catch(() => {});
+    }
+  }
+}
 
 // ---------- types ----------
 
@@ -201,11 +227,11 @@ async function runGit(dir: string | null, args: string[], timeoutMs: number, max
   return run("git", dir ? ["-C", dir, ...args] : args, { timeoutMs, maxStdout });
 }
 
-export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number; onStderr?: (text: string, renewStageBudget: () => void) => void }): Promise<RunResult> {
+export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number; onStderr?: (text: string, renewStageBudget: () => void) => void; env?: Record<string, string> }): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "echo", CI: "1" },
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "echo", CI: "1", ...opts.env },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -781,10 +807,20 @@ async function runPipeline(job: AnalyzeJob) {
     // Structured stage events keep the existing polling UI up to date.
     setStep(job, "read", "running", "Streaming files through the shared ingestion pipeline…");
     const output = path.join(workDir, "artifacts.json");
+    // The engine's scratch SQLite store (cie-polyglot-<hash>.db, built during
+    // the storage/duplicate-detection step) lands in the OS temp dir by
+    // default, which on this host is a small RAM-backed tmpfs shared with
+    // every other process on the machine — a dense repo's scratch store can
+    // run into tens-to-hundreds of MB and exhaust that long before the much
+    // larger, unshared JOBS_ROOT disk is anywhere near full. Point TMPDIR at
+    // JOBS_ROOT's filesystem for this process only.
+    const scratchTmp = path.join(JOBS_ROOT, ".scratch-tmp");
+    await fs.mkdir(scratchTmp, { recursive: true }).catch(() => {});
     let progressBuffer = "";
     const seenStages = new Set<StepKey>();
     const ing = await run(bin, ["ingest-polyglot", repoDir, "--web-out", output], {
       timeoutMs: CIE_TIMEOUT_MS,
+      env: { TMPDIR: scratchTmp },
       onStderr: (text, renewStageBudget) => {
         progressBuffer += text;
         const lines = progressBuffer.split("\n");
@@ -845,6 +881,15 @@ async function runPipeline(job: AnalyzeJob) {
     // (persistResultToDisk below) so "launch with the last opened
     // workspace" works after a server restart. The scratch workDir is
     // still wiped; result.json lands in its place.
+    // repoDir itself is ephemeral (a clone or a snapshot copy, both living
+    // under workDir, about to be deleted below) for every case except
+    // "local folder, no snapshot" — there repoDir is the user's own
+    // persistent folder, and the scratch db is worth keeping for
+    // incremental reuse on the next run. Everywhere else, repoDir's
+    // canonical path will never be asked for again, so its scratch db
+    // would otherwise orphan forever. Must run BEFORE repoDir is deleted —
+    // the hash has to match what the engine canonicalized while it existed.
+    if (!isLocal || job.viaSnapshot) await cleanupPolyglotScratchDb(repoDir);
     // Local folders are never touched (read-only analysis in place; the
     // user's folder is never inside workDir).
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});

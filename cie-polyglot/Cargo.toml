@@ -29,3 +29,4 @@ tree-sitter-php = { workspace = true }
 
 tree-sitter-kotlin-ng = { workspace = true }
 tree-sitter-lua = { workspace = true }
+jscpd-rs = "0.1.12"

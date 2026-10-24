@@ -453,351 +453,214 @@ impl Drop for FkGuard<'_> {
     }
 }
 
-/// Detect duplicate pairs. Same rows, same tiers, same canonical winner and
-/// the same per-symbol hidden counts as the brute-force reference
-/// (`detect_reference` in tests) — the speed comes from three structural
-/// changes, none of them parallelism:
+/// Detect duplicate pairs using `jscpd-rs`'s native clone detector (a
+/// token-based copy/paste detector — OXC-fast tokenization for JS/TS, a
+/// generic tokenizer for every other format, including java/kotlin/python)
+/// in place of the previous op-bag cosine-similarity engine.
 ///
-///   1. exact-hash grouping (O(n)): identical IRs are canonical duplicates
-///      with no cosine at all;
-///   2. an inverted index over the dense op-bag space with a Cauchy–Schwarz
-///      remainder bound: for any pair with cosine ≥ LOW_FLOOR, the smaller
-///      index's own scan provably reaches a shared dim before its suffix
-///      mass drops below LOW_FLOOR² (any pair reachable only through the
-///      tail is bounded under the floor), so sub-threshold pairs are never
-///      enumerated;
-///   3. one bulk transaction for the whole output instead of one auto-commit
-///      INSERT per pair; the §23.3 canonical winner ("computed over the
-///      whole pair set") is computed up front and written with each row,
-///      replacing the old post-hoc full-table UPDATE per family member
-///      (every pair got a row — hidden included — so the brute-force
-///      family was always the complete graph and the family walk always
-///      selected the same global argmax);
-///   4. rows stream into 512-row multi-row INSERTs whose tier texts are
-///      `CASE` literals inside the prepared statement — no 12.6M-row staging
-///      Vec, one step/reset per 512 rows instead of per row, and no
-///      SQLITE_TRANSIENT copy for the four text columns (rusqlite copies
-///      every bound text; these texts never vary, so they live in the
-///      statement and each row binds only a, b, similarity, outcome);
-///   5. the per-row foreign-key parent probes are suspended for the bulk
-///      insert (`FkGuard` restores the original setting on every path) —
-///      three probes × 12.6M rows is ~8.6s of redundant work: every
-///      referenced id was read from `symbols`/`ir_meta` in this same call
-///      and those tables' own foreign keys already enforced it at write
-///      time. Table contents are unaffected either way.
+/// Each symbol's own extracted source text (by its byte span) becomes one
+/// jscpd "file" — `source_id` is the symbol id itself, so a `CloneMatch`
+/// between two "files" directly names the two duplicate symbols, with no
+/// line-range-to-symbol lookup needed. The container/member and same-file
+/// span-containment exclusions (§23 preamble) still apply: jscpd would
+/// otherwise happily report a class's body as a "clone" of its own single
+/// method, since the method's text is a literal substring of the class's.
+///
+/// jscpd has no continuous similarity score — a match either clears its
+/// `min_lines`/`min_tokens` floor and gets reported, or it doesn't exist.
+/// The old 0.85/0.60/0.40 tier cut points are kept, but now bucket on how
+/// much of the SMALLER symbol's own line count the matched fragment covers
+/// (a match covering ~all of the smaller symbol is a canonical whole-body
+/// duplicate; a partial match is a fragment duplicate). Because jscpd only
+/// ever reports matches that already cleared its own floor, there is no
+/// honest "hidden below floor" residual the way the old exhaustive cosine
+/// scan had — `hidden_gaps` is always 0 here.
 pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     let mut report = DupReport::default();
-    let meta = load_ir_meta(conn)?;
-    let shape: BTreeMap<i64, Vec<u8>> = {
+
+    struct SymInfo {
+        file_id: i64,
+        start: i64,
+        end: i64,
+        kind: u8,
+    }
+    let mut syms: BTreeMap<i64, SymInfo> = BTreeMap::new();
+    let mut languages: BTreeMap<i64, String> = BTreeMap::new();
+    {
         let mut stmt = conn
-            .prepare("SELECT id, subtree_hash FROM symbols")
+            .prepare(
+                "SELECT s.id, s.file_id, s.start_byte, s.end_byte, s.kind, f.language
+                 FROM symbols s JOIN files f ON f.id = s.file_id",
+            )
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, i64>(3)?,
+                    r.get::<_, String>(4)?,
+                    r.get::<_, String>(5)?,
+                ))
+            })
             .map_err(|e| e.to_string())?;
-        rows.into_iter().collect()
-    };
-    let n = meta.len();
-    if n < 2 {
-        // no pairs, no gaps, no winner — the brute-force pass wrote no rows either
+        for row in rows {
+            let (id, file_id, start, end, kind, lang) = row.map_err(|e| e.to_string())?;
+            syms.insert(
+                id,
+                SymInfo { file_id, start, end, kind: kind_code(&kind) },
+            );
+            languages.insert(id, lang);
+        }
+    }
+    if syms.len() < 2 {
         return Ok(report);
     }
 
-    // -- dense op-bag space: one shared vocabulary, norms computed once ------
-    let mut names: Vec<&str> = meta
-        .values()
-        .flat_map(|(_, bag)| bag.keys().map(|k| k.as_str()))
-        .collect();
-    names.sort_unstable();
-    names.dedup();
-    let dim_of: HashMap<&str, u32> = names
-        .iter()
-        .enumerate()
-        .map(|(i, k)| (*k, i as u32))
-        .collect();
-    let ids: Vec<i64> = meta.keys().copied().collect();
-    let bags: Vec<Bag> = ids
-        .iter()
-        .map(|s| Bag::build(&meta[s].1, &dim_of))
-        .collect();
-
-    // shape-hash group ids, aligned with bag positions: equal subtree_hash
-    // bytes ⟺ equal id (missing ids — impossible for ir_meta symbols, but
-    // the old `shape.get(&a) == shape.get(&b)` treated None == None as equal
-    // — all share one group, preserving that exactly). Replaces a per-pair
-    // BTreeMap lookup + byte compare with one array compare.
-    let mut shape_gid: Vec<u32> = Vec::with_capacity(n);
+    // Decompress every file's cached source text once, keyed by file_id —
+    // symbols sharing a file reuse the same decompressed text.
+    let mut file_text: BTreeMap<i64, String> = BTreeMap::new();
     {
-        let mut intern: HashMap<&[u8], u32> = HashMap::with_capacity(n);
-        let mut next_id = 0u32;
-        let mut missing = None::<u32>;
-        for id in &ids {
-            match shape.get(id) {
-                Some(h) => {
-                    let e = intern.entry(h.as_slice()).or_insert_with(|| {
-                        next_id += 1;
-                        next_id - 1
-                    });
-                    shape_gid.push(*e);
-                }
-                None => {
-                    let e = missing.get_or_insert_with(|| {
-                        next_id += 1;
-                        next_id - 1
-                    });
-                    shape_gid.push(*e);
-                }
-            }
-        }
-    }
-
-    let mut shown_deg = vec![0i64; n]; // partners at or above the floor
-
-    // -- 0. container × member exclusion bookkeeping ---------------------------
-    // A class/trait and a function/method are never duplicates (the member
-    // is defined inside the container — the op-bag similarity is pure
-    // containment). Excluded pairs leave BOTH the shown set and the hidden
-    // residual; the per-symbol skipped count is exact arithmetic, not a
-    // walk: every container pairs with every member exactly once.
-    let kind_of = load_kinds(conn, &ids)?;
-    let nc = kind_of.iter().filter(|k| is_container(**k)).count() as i64;
-    let nm = kind_of.iter().filter(|k| is_member(**k)).count() as i64;
-    let skipped_deg = |i: usize| -> i64 {
-        let k = kind_of[i];
-        if is_container(k) {
-            nm
-        } else if is_member(k) {
-            nc
-        } else {
-            0
-        }
-    };
-
-    // -- 0b. same-file span-containment exclusion bookkeeping ----------------
-    // When one symbol's byte span strictly contains another's (same file),
-    // the outer's op-bag contains the inner's by construction — the same
-    // containment geometry the kind rule removes for container × member,
-    // now for any kinds: a nested function inside its encloser, a nested
-    // class inside its outer class. The per-symbol skip count is computed
-    // exactly from the spans, not from the scan (staged pairs are visited
-    // one-sided, so the scan cannot count symmetric degrees): per file,
-    // sort by (start asc, end desc); only later-starting symbols can sit
-    // inside a span, and the inner loop stops at the first start ≥ this
-    // span's end. Pairs the kind rule already excluded are counted there
-    // only — the buckets stay disjoint.
-    let spans = load_spans(conn, &ids)?;
-    let mut nested_only_deg = vec![0i64; n];
-    {
-        let mut by_file: BTreeMap<i64, Vec<usize>> = BTreeMap::new();
-        for (i, sp) in spans.iter().enumerate() {
-            by_file.entry(sp.0).or_default().push(i);
-        }
-        for positions in by_file.values() {
-            let mut order: Vec<usize> = positions.clone();
-            // start asc, end desc: a later position with an earlier-or-equal
-            // start is either inside this span or not comparable to it
-            order.sort_unstable_by(|&x, &y| {
-                spans[x].1.cmp(&spans[y].1).then(spans[y].2.cmp(&spans[x].2))
-            });
-            for (ii, &x) in order.iter().enumerate() {
-                let end_x = spans[x].2;
-                for &y in order[ii + 1..].iter() {
-                    if spans[y].1 >= end_x {
-                        break; // starts ascend: nothing further can be inside x
-                    }
-                    if span_nested(spans[x], spans[y])
-                        && !kind_excluded(kind_of[x], kind_of[y])
-                    {
-                        nested_only_deg[x] += 1;
-                        nested_only_deg[y] += 1;
-                    }
-                }
-            }
-        }
-    }
-    let skipped_nested: i64 = nested_only_deg.iter().sum::<i64>() / 2;
-
-    // -- 1. exact-hash grouping: canonical Fact rows, no cosine --------------
-    // BTreeMap keyed by hash bytes: iteration order (and therefore the row
-    // emission order) is identical to the previous pass. hash_gid gives the
-    // walk an O(1) "same ir_hash" test instead of a 32-byte memcmp.
-    let mut groups: BTreeMap<&[u8], Vec<u32>> = BTreeMap::new();
-    for (i, s) in ids.iter().enumerate() {
-        groups.entry(meta[s].0.as_slice()).or_default().push(i as u32);
-    }
-    let mut hash_gid: Vec<u32> = vec![0; n];
-    for (gi, members) in groups.values().enumerate() {
-        for &m in members {
-            hash_gid[m as usize] = gi as u32;
-        }
-    }
-
-    // -- 2. inverted index + weight-descending scan with remainder abort -----
-    // postings[d] lists the vectors containing dim d (built in ascending
-    // index order, so the candidate stream is deterministic).
-    let mut postings: Vec<Vec<u32>> = vec![Vec::new(); names.len()];
-    for (i, bag) in bags.iter().enumerate() {
-        if bag.norm == 0.0 {
-            continue; // empty bag: cosine 0 with everything, shares no dim
-        }
-        for &d in &bag.dims {
-            postings[d as usize].push(i as u32);
-        }
-    }
-    let mut candidates: Vec<(u32, u32)> = Vec::new();
-    {
-        // generation stamps replace the bool + clear-everything loop: a
-        // partner touched in a's scan has stamp == gen, and moving to the
-        // next `a` invalidates every stamp at once (no second pass over
-        // touched_list just to unmark).
-        let mut stamp = vec![u32::MAX; n];
-        let mut gen: u32 = 0;
-        let mut touched_list: Vec<u32> = Vec::new();
-        for a in 0..n {
-            let bag = &bags[a];
-            if bag.norm == 0.0 {
+        let mut stmt = conn
+            .prepare(
+                "SELECT f.id, f.size_bytes, c.zstd_bytes
+                 FROM files f JOIN file_source_cache c ON c.file_id = f.id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, Vec<u8>>(2)?))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (file_id, size_bytes, zstd_bytes) = row.map_err(|e| e.to_string())?;
+            if size_bytes < 0 {
                 continue;
             }
-            touched_list.clear();
-            let this_gen = gen;
-            gen += 1;
-            // dims of `a` in descending weight order (ties by dim for determinism)
-            let mut order: Vec<usize> = (0..bag.dims.len()).collect();
-            order.sort_unstable_by(|&x, &y| bag.vals[y].cmp(&bag.vals[x]));
-            // suffix squared mass in unit space, backward pass: suf[k] is an
-            // upper bound on the contribution any unscanned tail can still make
-            let d = bag.dims.len();
-            let mut suf = vec![0f64; d + 1];
-            for k in (0..d).rev() {
-                let uw = bag.vals[k] as f64 / bag.norm;
-                suf[k] = suf[k + 1] + uw * uw;
-            }
-            for &k in &order {
-                let dim = bag.dims[k] as usize;
-                for &bi in &postings[dim] {
-                    let b = bi as usize;
-                    if b == a
-                        || stamp[b] == this_gen
-                        || hash_gid[a] == hash_gid[b]
-                        || kind_excluded(kind_of[a], kind_of[b])
-                        || span_nested(spans[a], spans[b])
-                    {
-                        continue; // self / staged this round / canonical row / containment
-                    }
-                    stamp[b] = this_gen;
-                    touched_list.push(bi);
-                }
-                if suf[k + 1] < LOW_FLOOR * LOW_FLOOR - ABORT_SLACK {
-                    break;
-                }
-            }
-            for &bi in &touched_list {
-                if (a as u32) < bi {
-                    // the bound is per-scan: a's own scan reaches every
-                    // ≥-floor partner, so staging from the smaller index
-                    // yields each unordered pair exactly once
-                    candidates.push((a as u32, bi));
-                }
+            let Ok(bytes) = zstd::bulk::decompress(&zstd_bytes, size_bytes as usize) else {
+                continue;
+            };
+            if let Ok(text) = String::from_utf8(bytes) {
+                file_text.insert(file_id, text);
             }
         }
     }
 
-    // -- 3. §23.3 winner up front, then ONE bulk transaction ------------------
-    // The winner is a pure read of calls/symbols/files (tables the inserts
-    // never touch), so computing it before the write phase is order-neutral.
-    let winner = canonical_winner(conn, &ids)?;
-    // Bulk-load discipline: skip the per-row parent probes while the
-    // 12.6M-row output is written. Every referenced id was read out of
-    // `symbols`/`ir_meta` earlier in this very call, and those tables' own
-    // foreign keys already validated them at write time — re-probing three
-    // parents per row is ~8.6s of redundant B-tree searches. The guard
-    // restores the connection's original setting on every path (success,
-    // error, panic) and the pragma is only ever toggled outside a txn.
+    // One jscpd "file" per symbol. line_count is the tiering denominator —
+    // jscpd reports byte/line ranges per match, not a similarity score.
+    let mut jscpd_files: Vec<jscpd_rs::SourceFile> = Vec::with_capacity(syms.len());
+    let mut line_count: BTreeMap<i64, usize> = BTreeMap::new();
+    for (&id, info) in &syms {
+        let Some(text) = file_text.get(&info.file_id) else { continue };
+        let bytes = text.as_bytes();
+        let (start, end) = (info.start as usize, info.end as usize);
+        if end > bytes.len() || start >= end {
+            continue;
+        }
+        let body = String::from_utf8_lossy(&bytes[start..end]).into_owned();
+        line_count.insert(id, body.lines().count().max(1));
+        jscpd_files.push(jscpd_rs::SourceFile {
+            source_id: id.to_string(),
+            format: languages.get(&id).cloned().unwrap_or_default(),
+            content: body,
+        });
+    }
+    if jscpd_files.len() < 2 {
+        return Ok(report);
+    }
+
+    let mut options = jscpd_rs::get_default_options();
+    options.reporters.clear();
+    options.silent = true;
+    // Every symbol is already its own "file" (no file-level floor needed
+    // the way a whole-repo scan would) — these are jscpd's lowest floors
+    // that still keep single-token noise (e.g. a bare `return;`) out.
+    options.min_lines = 1;
+    options.min_tokens = 15;
+    options.max_lines = 1_000_000;
+    options.max_size_bytes = 64 * 1024 * 1024;
+    let result = jscpd_rs::detect_source_files(jscpd_files, &options);
+
+    // §23.3 winner, computed over every symbol that appears in any match —
+    // the old engine computed it "over the whole pair set" too.
+    let winner_ids: Vec<i64> = {
+        let mut set = BTreeSet::new();
+        for clone in &result.clones {
+            if let (Ok(a), Ok(b)) = (
+                clone.duplication_a.source_id.parse::<i64>(),
+                clone.duplication_b.source_id.parse::<i64>(),
+            ) {
+                set.insert(a);
+                set.insert(b);
+            }
+        }
+        set.into_iter().collect()
+    };
+    let winner = canonical_winner(conn, &winner_ids)?;
+
+    // Bulk-load discipline, same as before: every referenced id was just
+    // read from `symbols` in this call, so the per-row FK parent probes are
+    // pure redundancy during the insert.
     let _fk_guard = FkGuard::off(conn)?;
-    let tx = conn
-        .unchecked_transaction()
-        .map_err(|e| e.to_string())?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    let mut seen_pairs: BTreeSet<(i64, i64)> = BTreeSet::new();
     {
-        // 512-row multi-row INSERT with the tier texts as CASE literals:
-        // one step/reset cycle per 512 rows and zero per-row text binds
-        // (params are just a, b, similarity, outcome — the texts live in
-        // the prepared statement). Rows stream straight from the loops —
-        // no 12.6M-row staging Vec in between.
         let full_sql = dup_values_sql(CHUNK_ROWS, winner);
         let mut full = tx.prepare(&full_sql).map_err(|e| e.to_string())?;
         let mut pending: usize = 0;
-        // the rows of the not-yet-full chunk, replayed into an exact-size
-        // tail statement at the end
         let mut buf: Vec<(i64, i64, f64, u8)> = Vec::with_capacity(CHUNK_ROWS);
 
-        // canonical rows first — the grouping order above, exactly the
-        // order the previous engine staged them in
-        for members in groups.values() {
-            for i in 0..members.len() {
-                for j in i + 1..members.len() {
-                    let (x, y) = (members[i] as usize, members[j] as usize);
-                    // containment of either kind is not a canonical
-                    // duplicate: a class × its own function (kind rule), or
-                    // a nested function/class × its encloser (span rule —
-                    // single-member containers even share the exact hash)
-                    if kind_excluded(kind_of[x], kind_of[y])
-                        || span_nested(spans[x], spans[y])
-                    {
-                        continue;
-                    }
-                    let (av, bv) = (ids[x], ids[y]);
-                    feed_row(
-                        &mut full,
-                        &mut pending,
-                        &mut buf,
-                        av.min(bv),
-                        bv.max(av),
-                        1.0,
-                        C_CANONICAL,
-                    )?;
-                    shown_deg[x] += 1;
-                    shown_deg[y] += 1;
-                    report.canonical_hash += 1;
-                }
+        for clone in &result.clones {
+            let (Ok(a_id), Ok(b_id)) = (
+                clone.duplication_a.source_id.parse::<i64>(),
+                clone.duplication_b.source_id.parse::<i64>(),
+            ) else {
+                continue;
+            };
+            if a_id == b_id {
+                continue;
             }
-        }
-
-        // -- 4. exact verification + the §23.2 tier ladder (reference-identical) --
-        for (ai, bi) in candidates {
-            let (x, y) = (ai as usize, bi as usize);
-            let sim = bags[x].cosine(&bags[y]);
-            if sim < LOW_FLOOR {
-                continue; // sub-floor candidate: counted only in the gap residual
+            let (Some(sa), Some(sb)) = (syms.get(&a_id), syms.get(&b_id)) else {
+                continue;
+            };
+            if kind_excluded(sa.kind, sb.kind) {
+                report.skipped_kind_mismatch += 1;
+                continue;
             }
-            let combo: u8;
-            if sim >= 0.85 {
-                combo = C_HIGH;
+            if span_nested((sa.file_id, sa.start, sa.end), (sb.file_id, sb.start, sb.end)) {
+                report.skipped_nested += 1;
+                continue;
+            }
+            let (lo, hi) = (a_id.min(b_id), a_id.max(b_id));
+            if !seen_pairs.insert((lo, hi)) {
+                continue; // jscpd may report more than one overlapping fragment per pair
+            }
+            let matched_lines = (clone.duplication_a.end.line + 1)
+                .saturating_sub(clone.duplication_a.start.line)
+                .max(1);
+            let shorter = line_count
+                .get(&a_id)
+                .copied()
+                .unwrap_or(1)
+                .min(line_count.get(&b_id).copied().unwrap_or(1));
+            let ratio = (matched_lines as f64 / shorter as f64).min(1.0);
+            let combo = if ratio >= 0.999 {
+                report.canonical_hash += 1;
+                C_CANONICAL
+            } else if ratio >= 0.85 {
                 report.high += 1;
-            } else if sim >= 0.60 && shape_gid[x] == shape_gid[y] {
-                combo = C_MEDIUM;
+                C_HIGH
+            } else if ratio >= 0.60 {
                 report.medium += 1;
+                C_MEDIUM
             } else {
-                combo = C_LOW;
                 report.low += 1;
-            }
-            let (av, bv) = (ids[x], ids[y]);
-            feed_row(
-                &mut full,
-                &mut pending,
-                &mut buf,
-                av.min(bv),
-                bv.max(av),
-                sim,
-                combo,
-            )?;
-            shown_deg[x] += 1;
-            shown_deg[y] += 1;
+                C_LOW
+            };
+            feed_row(&mut full, &mut pending, &mut buf, lo, hi, ratio, combo)?;
         }
 
-        // tail chunk: an exact-size statement for the last pending rows —
-        // the same rows, the same order, so ids stay sequential
         if pending > 0 {
             let tail_sql = dup_values_sql(pending, winner);
             let mut tail = tx.prepare(&tail_sql).map_err(|e| e.to_string())?;
@@ -812,32 +675,19 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
         }
     }
     {
-        // hidden pairs are counted, not materialized: one row per symbol
+        // jscpd is a sparse detector: it never claims to have exhaustively
+        // compared every pair the way the old cosine scan did, so there is
+        // no honest "hidden below floor" count to report per symbol.
         let mut gap = tx
-            .prepare("INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, ?2)")
+            .prepare("INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, 0)")
             .map_err(|e| e.to_string())?;
-        for (i, &s) in ids.iter().enumerate() {
-            let hidden =
-                n as i64 - 1 - shown_deg[i] - skipped_deg(i) - nested_only_deg[i];
-            gap.execute(rusqlite::params![s, hidden])
-                .map_err(|e| e.to_string())?;
+        for &id in syms.keys() {
+            gap.execute(rusqlite::params![id]).map_err(|e| e.to_string())?;
         }
     }
     tx.commit().map_err(|e| e.to_string())?;
     drop(_fk_guard); // restore FK enforcement before the caller sees the conn
 
-    // Built once, AFTER the bulk insert above (never in `create_dup_schema`,
-    // which runs before any row exists) — a one-pass index build over the
-    // finished table, not per-row maintenance during a multi-million-row
-    // INSERT. symbol_a/symbol_b back the impact view's
-    // "WHERE symbol_a = ? OR symbol_b = ?" lookup (SQLite OR-optimizes into
-    // two indexed rowid scans + a merge — without them it's a full scan per
-    // center, and `produce_bundle` queries up to 50 centers); tier backs
-    // the bundle's per-tier center-selection query; detection/epistemic back
-    // the web's duplicates filters (polyglot-db.ts) — indexes MUST exist at
-    // build time so the web read path stays purely readOnly (DS-EVAL §6.3:
-    // the old lazy `ensureIndexes()` wrote on the read path and its
-    // read-write open blocked a concurrent writer under any journal mode).
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_dup_symbol_a ON duplicates(symbol_a);
          CREATE INDEX IF NOT EXISTS idx_dup_symbol_b ON duplicates(symbol_b);
@@ -847,17 +697,8 @@ pub fn detect(conn: &Connection) -> Result<DupReport, String> {
     )
     .map_err(|e| e.to_string())?;
 
-    // every fed row landed in exactly one counted bucket; sub-floor
-    // candidates were never fed; containment pairs were never candidates at
-    // all (kind-excluded counted in skipped_kind_mismatch, span-nested in
-    // skipped_nested — disjoint buckets — neither hidden)
     report.pairs = report.canonical_hash + report.high + report.medium + report.low;
-    report.skipped_kind_mismatch = (nc * nm) as usize;
-    report.skipped_nested = skipped_nested as usize;
-    report.hidden_gaps = n * (n - 1) / 2
-        - report.skipped_kind_mismatch
-        - report.skipped_nested
-        - report.pairs;
+    report.hidden_gaps = 0;
     Ok(report)
 }
 
