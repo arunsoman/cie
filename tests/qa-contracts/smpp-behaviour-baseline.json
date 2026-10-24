@@ -17,6 +17,7 @@
     "accepted_shapes": [
       "A single JSON file containing one RevSnapshot-shaped object (has 'rev', 'files', 'symbols', 'summaries').",
       "A single JSON file wrapping one snapshot under 'snapshots' (exactly one entry).",
+      "A single JSON file holding multiple web artifacts where exactly one top-level value is snapshot-shaped (e.g. under 'report'); sibling 'stack'/'concepts' fill gaps when the snapshot itself lacks them — this is the shape the real capture uses.",
       "A directory of JSON artifact files; the snapshot-shaped file is used, and 'stack'/'concepts' may be merged from sibling artifact files when the snapshot itself lacks them."
     ],
     "object_under_test": "The captured legacy bundle (the revision snapshot artifact CIE 5267564 actually persisted for the SMPP root) — read-only. The harness never writes, never re-ingests, never relabels.",
@@ -35,13 +36,20 @@
     "submit_sms": "SmsController.submitSms",
     "submission_service": "SubmissionService.submit",
     "manifest_builds": ["maven", "gradle"],
-    "db_effect_spellings": ["db_read", "db_write"],
+    "db_effect_spellings": ["db_read", "db_write", "DbRead", "DbWrite"],
     "lexical_hint_spellings": ["find", "findOne", "find_one", "query", "select", "execute", "save", "get", "cursor"],
     "auth_tag": "auth",
     "authz_annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
     "authz_callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
-    "fca_intent_translations": ["authorization"]
+    "fca_intent_translations": ["authorization", "auth"]
   },
+  "revisions": [
+    {
+      "rev": 1,
+      "date": "2026-10-24",
+      "reason": "Real-capture verification against arunsoman/smpp-mls (ingested with CIE 7b7b062, web bundle exported via --web-out). Three shape corrections, NO oracle-claim changes: (1) persisted EffectKind values serialize as serde variant names ('DbRead'/'DbWrite'), so the spellings list carries both the variant names and the as_str snake_case forms; (2) FCA promotion detection extended — the real capture shows the bare 'auth' tag promoted into the concept intent list verbatim AND into the label 'authorization & prints' AND into two MustAuthorize contracts ('must perform real authorization before returning success'), so intent translations include the raw tag and label/contract text patterns are matched as substrings; (3) the multi-artifact single-file web bundle shape added to bundle_contract. Expected result unchanged: 0 pass / 6 fail / 0 invalid."
+    }
+  ],
   "expectations": [
     {
       "id": "BB1-identity-one-app",
@@ -137,7 +145,9 @@
           "tag": "auth",
           "annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
           "callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
-          "fca_intent_translations": ["authorization"]
+          "fca_intent_translations": ["authorization", "auth"],
+          "fca_label_patterns": ["authorization", "authorize "],
+          "contract_text_patterns": ["authorization"]
         }
       },
       "scope_limitations": [

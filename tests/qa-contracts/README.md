@@ -37,7 +37,10 @@ Accepted bundle shapes (also pinned in the fixture's `bundle_contract`):
 1. a JSON file containing one RevSnapshot-shaped object
    (`rev`/`files`/`symbols`/`summaries`),
 2. a JSON file wrapping exactly one snapshot under `"snapshots"`,
-3. a directory of artifact JSONs — the snapshot-shaped file is used, and
+3. a JSON file holding multiple web artifacts where exactly one top-level
+   value is snapshot-shaped (e.g. under `"report"`) — the shape `--web-out`
+   actually produces; sibling `stack`/`concepts` fill gaps,
+4. a directory of artifact JSONs — the snapshot-shaped file is used, and
    `stack`/`concepts` are merged from sibling artifacts when the snapshot
    itself lacks them.
 
@@ -55,24 +58,53 @@ Against the **real capture** of the SMPP root taken at CIE `5267564`
 0 pass / 6 fail / 0 invalid
 ```
 
-Every expectation was checkable and every one failed **for its diagnosed
-reason**. These are *reproduced* defects, not repaired ones — that is the
-point. The exit code is `0` because the observed counts equal the fixture's
-`expected_result`; the human output says `baseline REPRODUCED`. What each
-failure reproduces:
+**Verified in this repository on 2026-10-24:** `arunsoman/smpp-mls` was
+cloned and ingested with CIE `7b7b062` (`cie ingest <root> --web-out
+<bundle>`), and the oracle replayed against the exported web bundle
+(snapshot under `'report'`):
+
+```
+result   : 0 pass / 6 fail / 0 invalid   (fixture expected 0 / 6 / 0)
+verdict  : baseline REPRODUCED — every checkable expectation fails for its diagnosed reason.
+```
+
+Real evidence named by that run: the root split into `build.gradle` +
+`pom.xml` app records (BB1); `SmsController.submitSms` with zero resolved
+callees and only `virtual_dispatch` texts (BB2); 7/7 `DbRead`/`DbWrite`
+claims receiver-blind, including `SMPPSession.parse_cstring` (a byte parser)
+and `verify_database.DatabaseVerifier.verify_all` (BB3); two lexical-only
+`verify_all` auth tags promoted into the FCA concept `authorization & prints`
+AND two `MustAuthorize` contracts — "'verify_all' must perform real
+authorization before returning success" (BB4); callee lists like
+`verify_all`'s `[277 ×7]` with no occurrence identity (BB5); 95 resolved
+callee records with zero source-order fields (BB6).
+
+To reproduce:
+
+```bash
+git clone --depth 1 https://github.com/arunsoman/smpp-mls
+./target/debug/cie ingest smpp-mls --web-out /tmp/smpp-bundle   # or cargo build -p cie-cli first
+python3 scripts/qa-behaviour-baseline.py /tmp/smpp-bundle
+```
 
 | Expectation | Layer | Reproduced defect |
 |---|---|---|
 | `BB1-identity-one-app` | identity | one app per manifest: Maven + Gradle over one source root recorded as two applications |
 | `BB2-dispatch-qualified-resolution` | dispatch | two-state resolved/unresolved model cannot state a solid declaration plus a qualified runtime dispatch (Spring proxy) |
 | `BB3-effects-receiver-provenance` | effects | spelling-classified effects: `data.find` becomes `db_read` with no receiver/library provenance anywhere in the bundle |
-| `BB4-auth-lexical-hint-not-fact` | semantic claims | `is_auth_name` matches `verify_`, stamps `auth`, and FCA promotes it into `authorization` intent / "Authorize X" labels with zero non-lexical evidence |
-| `BB5-callsite-occurrence-identity` | facts to store | repeated calls joined by caller + callee text; no per-occurrence span/arguments/guard survives |
+| `BB4-auth-lexical-hint-not-fact` | semantic claims | `is_auth_name` matches `verify_`, stamps `auth`; FCA emits the `authorization & prints` concept and `conformance.rs` fabricates `MustAuthorize` contracts — normative security obligations from a spelling |
+| `BB5-callsite-occurrence-identity` | facts to store | repeated calls joined by caller + callee text (e.g. `[277 ×7]` bare duplicates); for Java, call sites aren't first-class records at all (`virtual_dispatch` texts only) |
 | `BB6-diagram-source-order` | diagrams | chronology derivable only by BFS + visited-symbol set + symbol-id tie-breaks; repeats collapse; "no evidenced interactions" has no typed record |
 
 Exit codes: `0` observed counts equal the fixture's expectation; `1` drift
 (behaviour changed against the contract — investigate, never re-run until it
 "goes green"); `2` harness/usage error.
+
+Note the Java-specific deepening the real capture revealed: for Java,
+`submitSms`'s callees list is **empty** — every call survives only as
+`virtual_dispatch` unresolved text, so call sites are not first-class records
+at all in that language, which is strictly worse than the collapse BB5
+describes for resolved callees.
 
 ## The harness is generic; the fixture is the oracle
 

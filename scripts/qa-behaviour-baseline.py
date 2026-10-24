@@ -24,6 +24,7 @@ Exit codes: 0 results == fixture expected_result; 1 results differ;
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -104,6 +105,24 @@ def load_bundle(bundle_path: Path):
             return snaps[0], str(bundle_path)
         if _is_snapshot(data):
             return data, str(bundle_path)
+        # multi-artifact web bundle: exactly one snapshot-shaped value among
+        # the top-level artifact keys (e.g. under 'report')
+        if isinstance(data, dict):
+            snap_keys = [k for k, v in data.items() if _is_snapshot(v)]
+            if len(snap_keys) == 1:
+                snapshot = dict(data[snap_keys[0]])
+                merged = []
+                for key in ("stack", "concepts"):
+                    if key not in snapshot and isinstance(data.get(key), dict):
+                        snapshot[key] = data[key]
+                        merged.append(key)
+                provenance = f"{bundle_path} (snapshot under '{snap_keys[0]}'"
+                return snapshot, provenance + (f"; {', '.join(merged)} merged from siblings" if merged else ")")
+            if len(snap_keys) > 1:
+                raise HarnessError(
+                    f"bundle contains {len(snap_keys)} snapshot-shaped artifacts "
+                    f"({', '.join(snap_keys)}); exactly one is required"
+                )
         raise HarnessError(f"bundle file is not snapshot-shaped: {bundle_path}")
 
     # directory of artifacts
@@ -291,17 +310,24 @@ def check_call_resolution_dimensions(snapshot, params, evidence):
     )
 
 
+def norm_token(s: str) -> str:
+    """Normalize an effect/tag spelling for comparison: 'DbRead', 'db_read'
+    and 'db-read' are the same claim under different serializations."""
+    return re.sub(r"[^a-z0-9]", "", str(s).casefold())
+
+
 def check_effect_provenance(snapshot, params, evidence):
     """BB3: every db_* effect claim must carry receiver/library provenance.
     Legacy effects are bare strings (spelling-classified, no basis)."""
-    effect_names = {e.casefold() for e in params.get("effect_spellings", [])}
+    effect_names = {norm_token(e) for e in params.get("effect_spellings", [])}
     lexical = [l.casefold() for l in params.get("lexical_hint_spellings", [])]
     basis_fields = params.get("required_basis_fields", [])
     syms = sym_index(snapshot)
     claims = []
+    no_text = []
     for summary in summaries_of(snapshot):
         effects = summary.get("effects", [])
-        if isinstance(effects, list) and any(str(e).casefold() in effect_names for e in effects):
+        if isinstance(effects, list) and any(norm_token(e) in effect_names for e in effects):
             claims.append((summary, syms.get(summary.get("sym"))))
     if not claims:
         return INVALID, "no db_read/db_write effect claims anywhere in bundle — provenance requirement not evaluable"
@@ -311,11 +337,22 @@ def check_effect_provenance(snapshot, params, evidence):
         texts = callee_texts(summary, syms)
         if texts and any(any(sp in str(t).casefold() for sp in lexical) for t in texts):
             lexical_only.append(qual_name(sym) if sym else f"sym#{summary.get('sym')}")
+        elif not texts:
+            # builtin-classified calls leave NO callee text anywhere in the
+            # bundle — the provenance gap is total: the effect cannot even be
+            # traced back to the call that produced it
+            no_text.append(qual_name(sym) if sym else f"sym#{summary.get('sym')}")
     if lexical_only:
         evidence.append(
             f"{len(lexical_only)} db effect claim(s) whose only DB-shaped evidence is a lexical "
             f"spelling ({', '.join(lexical[:3])}...) — the data.find false-positive shape: "
             + ", ".join(lexical_only[:5])
+        )
+    if no_text:
+        evidence.append(
+            f"{len(no_text)} db effect claim(s) record NO callee text at all "
+            "(builtin-classified calls leave no trace of the call that produced them): "
+            + ", ".join(no_text[:5])
         )
     if len(with_basis) == len(claims):
         return PASS, f"all {len(claims)} db effect claim(s) carry receiver/resolution-basis provenance"
@@ -362,24 +399,46 @@ def check_auth_evidence(snapshot, params, evidence):
             "(no authorization annotation, no authz-library callee): " + ", ".join(lexical_only[:5])
         )
     promoted = []
+    label_patterns = [p.casefold() for p in params.get("fca_label_patterns", [])]
     concepts = snapshot.get("concepts") or {}
     for node in concepts.get("nodes", []) if isinstance(concepts, dict) else []:
         if not isinstance(node, dict):
             continue
         intent = {str(i).casefold() for i in node.get("intent", []) or []}
-        if any(i in intent for i in fca_intents) or str(node.get("label", "")).casefold().startswith("authorize "):
+        label = str(node.get("label", "")).casefold()
+        if (
+            any(i in intent for i in fca_intents)
+            or any(p in label for p in label_patterns)
+        ):
             promoted.append(str(node.get("label") or node.get("id")))
+    # normative contracts derived from the same lexical match (MustAuthorize …)
+    contract_patterns = [p.casefold() for p in params.get("contract_text_patterns", [])]
+    contract_hits = []
+    for contract in snapshot.get("contracts", []) or []:
+        if not isinstance(contract, dict):
+            continue
+        text = str(contract.get("expr", "")).casefold()
+        if any(p in text for p in contract_patterns):
+            contract_hits.append(
+                f"{contract.get('obligation', 'contract')}: {contract.get('expr')}"
+            )
     if promoted:
         evidence.append(
             "FCA promoted the bare tag into concept claims: " + ", ".join(promoted[:5])
         )
-    if not lexical_only and not promoted:
-        return PASS, f"all {len(tagged)} auth-tagged summary(ies) carry non-lexical validation evidence; no FCA promotion"
+    if contract_hits:
+        evidence.append(
+            f"{len(contract_hits)} normative contract(s) assert an authorization obligation "
+            "derived from the same spelling: " + " | ".join(contract_hits[:2])
+        )
+    if not lexical_only and not promoted and not contract_hits:
+        return PASS, f"all {len(tagged)} auth-tagged summary(ies) carry non-lexical validation evidence; no FCA/contract promotion"
     return FAIL, (
         "authorization claims exist without validation evidence — lexical name matches "
         f"('verify_'-style) were promoted into the '{tag}' tag"
         + (" and FCA 'authorization' concepts" if promoted else "")
-        + ", creating normative security claims the source never made"
+        + (" and normative MustAuthorize-style contracts" if contract_hits else "")
+        + ", creating security claims the source never made"
     )
 
 
