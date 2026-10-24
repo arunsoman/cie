@@ -242,8 +242,10 @@ def path_of(record, fields):
 
 def check_app_identity_evidence_split(snapshot, params, evidence):
     """BB1: one physical source root must not be split into one app per
-    manifest. Legacy AppSite is per-manifest, so maven+gradle over the same
-    dir appears as two apps."""
+    manifest. Two honest shapes satisfy the oracle: ONE app record whose
+    evidence list carries both manifests (the fixed engine), or multiple
+    records over one dir explicitly linked by one application identity.
+    The legacy shape — two records over one dir with no link — fails."""
     stack = snapshot.get("stack")
     if not isinstance(stack, dict):
         return INVALID, "no 'stack' artifact in bundle — identity surface absent; cannot evaluate app identity"
@@ -251,16 +253,57 @@ def check_app_identity_evidence_split(snapshot, params, evidence):
     if not isinstance(apps, list) or not apps:
         return INVALID, "stack carries no apps records — cannot evaluate app identity"
     builds = {b.casefold() for b in params.get("manifest_builds", [])}
-    relevant = [a for a in apps if isinstance(a, dict) and str(a.get("build", "")).casefold() in builds]
-    if len(relevant) < 2:
+
+    def tools_of(a):
+        # every manifest tool the record evidences: the build field plus the
+        # per-manifest evidence list (manifests are evidence, never identity)
+        tools = set()
+        b = str(a.get("build", "")).casefold()
+        if b:
+            tools.add(b)
+        for m in a.get("manifests") or []:
+            if isinstance(m, dict):
+                mt = str(m.get("tool", "")).casefold()
+                if mt:
+                    tools.add(mt)
+        return tools
+
+    # evaluability: both fixture manifests must be evidenced over some root
+    evidenced = set()
+    for a in apps:
+        if isinstance(a, dict):
+            evidenced |= tools_of(a) & builds
+    if evidenced != builds:
         return INVALID, (
             f"expected both manifests ({', '.join(sorted(builds))}) evidenced over one root; "
-            f"bundle records {len(relevant)} matching app record(s) — oracle precondition absent"
+            f"bundle evidences {', '.join(sorted(evidenced)) or 'none'} — oracle precondition absent"
         )
+
     groups = {}
-    for a in relevant:
-        groups.setdefault(a.get("dir", ""), []).append(a)
-    split_roots = {d: recs for d, recs in groups.items() if len({str(r.get("build")).casefold() for r in recs}) >= 2}
+    for a in apps:
+        if isinstance(a, dict) and tools_of(a) & builds:
+            groups.setdefault(a.get("dir", ""), []).append(a)
+    split_roots = {}
+    for d, recs in groups.items():
+        tools = set()
+        for r in recs:
+            tools |= tools_of(r)
+        tools &= builds
+        if len(tools) < 2:
+            continue  # only one of the fixture manifests lives over this root
+        if len(recs) == 1:
+            continue  # ONE record whose evidence list carries both manifests
+        identities = {
+            str(r.get("application", "")).casefold()
+            for r in recs
+            if r.get("application")
+        }
+        if len(identities) == 1 and all(
+            str(r.get("application", "")).casefold() == next(iter(identities))
+            for r in recs
+        ):
+            continue  # per-manifest records explicitly linked as one application
+        split_roots[d] = recs
     for d, recs in sorted(split_roots.items()):
         evidence.append(
             f"root dir '{d or '<root>'}': one physical source root split into "
@@ -367,8 +410,9 @@ def check_effect_provenance(snapshot, params, evidence):
 
 
 def check_auth_evidence(snapshot, params, evidence):
-    """BB4: auth tags must carry non-lexical evidence; FCA must not promote a
-    bare tag into an authorization trait. verify_* status checks are the
+    """BB4: auth TAGS must carry non-lexical evidence; name-only matches must
+    stay typed lexical hints (with their basis and gap note); FCA and
+    contracts must not promote either. verify_* status checks are the
     standing counterexample."""
     tag = params.get("tag", "auth")
     ann_patterns = [p.casefold() for p in params.get("annotation_patterns", [])]
@@ -376,12 +420,22 @@ def check_auth_evidence(snapshot, params, evidence):
     fca_intents = [i.casefold() for i in params.get("fca_intent_translations", [])]
     syms = sym_index(snapshot)
     tagged = []
+    hinted = []
     for summary in summaries_of(snapshot):
         tags = summary.get("tags", [])
         if isinstance(tags, list) and tag in {str(t).casefold() for t in tags}:
             tagged.append((summary, syms.get(summary.get("sym"))))
-    if not tagged:
-        return INVALID, f"no '{tag}'-tagged summaries in bundle — auth-claim provenance not evaluable"
+        hints = summary.get("lexical_hints") or []
+        if isinstance(hints, list) and any(
+            isinstance(h, dict) and str(h.get("hint", "")).casefold() == tag
+            for h in hints
+        ):
+            hinted.append((summary, syms.get(summary.get("sym"))))
+    if not tagged and not hinted:
+        return INVALID, (
+            f"no '{tag}' tag and no typed lexical hint in bundle — "
+            "auth-claim provenance not evaluable"
+        )
     evidence_bearing, lexical_only = [], []
     for summary, sym in tagged:
         qn = qual_name(sym) if sym else f"sym#{summary.get('sym')}"
@@ -397,6 +451,25 @@ def check_auth_evidence(snapshot, params, evidence):
         evidence.append(
             f"{len(lexical_only)} auth-tagged summary(ies) with ZERO non-lexical evidence "
             "(no authorization annotation, no authz-library callee): " + ", ".join(lexical_only[:5])
+        )
+    # typed hints must say what they are: a lexical basis and an honest gap note
+    unlabeled = []
+    for summary, sym in hinted:
+        qn = qual_name(sym) if sym else f"sym#{summary.get('sym')}"
+        recs = [
+            h
+            for h in (summary.get("lexical_hints") or [])
+            if isinstance(h, dict) and str(h.get("hint", "")).casefold() == tag
+        ]
+        for h in recs:
+            basis = str(h.get("basis", "")).casefold()
+            note = str(h.get("note", ""))
+            if "lexical" not in basis or not note.strip():
+                unlabeled.append(qn)
+    if unlabeled:
+        evidence.append(
+            f"{len(unlabeled)} '{tag}' lexical hint(s) do not state their lexical basis "
+            "and gap note — the hint is not honestly labeled: " + ", ".join(unlabeled[:5])
         )
     promoted = []
     label_patterns = [p.casefold() for p in params.get("fca_label_patterns", [])]
@@ -431,8 +504,12 @@ def check_auth_evidence(snapshot, params, evidence):
             f"{len(contract_hits)} normative contract(s) assert an authorization obligation "
             "derived from the same spelling: " + " | ".join(contract_hits[:2])
         )
-    if not lexical_only and not promoted and not contract_hits:
-        return PASS, f"all {len(tagged)} auth-tagged summary(ies) carry non-lexical validation evidence; no FCA/contract promotion"
+    if not lexical_only and not unlabeled and not promoted and not contract_hits:
+        return PASS, (
+            f"{len(tagged)} auth tag(s) carry non-lexical validation evidence "
+            f"(or none exist), {len(hinted)} lexical hint(s) are typed with basis and gap note; "
+            "no FCA/contract promotion"
+        )
     return FAIL, (
         "authorization claims exist without validation evidence — lexical name matches "
         f"('verify_'-style) were promoted into the '{tag}' tag"
@@ -653,6 +730,93 @@ def _degenerate_bundle() -> dict:
     }
 
 
+def _fixed_shaped_bundle() -> dict:
+    """A synthetic bundle shaped like the FIXED engine's capture (post
+    behavioural-evidence fixes): one merged app with both manifests, rich
+    per-call records, provenance-bearing db claims, typed hints, no
+    promotion. Every expectation must PASS — 6/0/0."""
+    return {
+        "rev": "r-fixed",
+        "files": ["pom.xml", "build.gradle", "src/main/java/sms/SmsController.java",
+                  "src/main/java/sms/SubmissionService.java"],
+        "symbols": [
+            {"id": 1, "kind": "class", "name": "SmsController", "qual_name": "sms.SmsController",
+             "loc": {"file": 2, "start": 0, "end": 900}, "lang": 4, "parent": None, "rev": "r-fixed",
+             "annotations": ["@RestController"]},
+            {"id": 2, "kind": "method", "name": "submitSms", "qual_name": "sms.SmsController.submitSms",
+             "loc": {"file": 2, "start": 120, "end": 800}, "lang": 4, "parent": 1, "rev": "r-fixed",
+             "annotations": ["@PostMapping(\"/sms\")"]},
+            {"id": 3, "kind": "method", "name": "verify_all", "qual_name": "sms.RecordVerifier.verify_all",
+             "loc": {"file": 2, "start": 810, "end": 890}, "lang": 4, "parent": None, "rev": "r-fixed",
+             "annotations": []},
+            {"id": 4, "kind": "method", "name": "persist", "qual_name": "sms.SubmissionService.persist",
+             "loc": {"file": 3, "start": 0, "end": 400}, "lang": 4, "parent": None, "rev": "r-fixed",
+             "annotations": []},
+        ],
+        "summaries": [
+            {"sym": 2, "effects": [], "tags": [], "callees": [], "unresolved_callees": [],
+             "complete": True,
+             "call_sites": [
+                 {"callee": "submissionService.submit", "receiver": "submissionService",
+                  "receiver_type": "sms.SubmissionService", "declaration": "resolved",
+                  "dispatch": "candidate", "observation": "unobserved",
+                  "span": {"start": 180, "end": 210}, "occurrence": 1, "arguments": 1,
+                  "guard": "unconditional", "source_order": 0, "statement_index": 1,
+                  "line": 14},
+                 {"callee": "logger.info", "receiver": "logger",
+                  "receiver_type": "org.slf4j.Logger", "declaration": "external",
+                  "dispatch": "external", "observation": "unobserved",
+                  "span": {"start": 240, "end": 262}, "occurrence": 1, "arguments": 1,
+                  "guard": "if (resp == null)", "source_order": 1, "statement_index": 2,
+                  "line": 15},
+             ]},
+            {"sym": 3, "effects": [], "tags": [], "callees": [], "unresolved_callees": [],
+             "complete": True,
+             "lexical_hints": [
+                 {"hint": "auth", "basis": "lexical-name-match",
+                  "note": "no authorization annotation and no authorization-library callee observed in this revision"},
+             ]},
+            {"sym": 4, "effects": ["DbWrite"], "tags": ["mutation"], "callees": [],
+             "unresolved_callees": [], "complete": True,
+             "receiver": ["SmsOutboundRepository"],
+             "resolution_basis": ["type-resolved-api-identity"],
+             "call_sites": [
+                 {"callee": "outboundRepository.save", "receiver": "outboundRepository",
+                  "receiver_type": "sms.SmsOutboundRepository", "declaration": "resolved",
+                  "dispatch": "candidate", "observation": "unobserved",
+                  "span": {"start": 90, "end": 122}, "occurrence": 1, "arguments": 1,
+                  "guard": "if (existing.getRequestId() == null)", "source_order": 0,
+                  "statement_index": 1, "line": 22,
+                  "effect": {"kind": "DbWrite", "receiver": "SmsOutboundRepository",
+                             "resolution_basis": "type-resolved-api-identity"}},
+                 {"callee": "outboundRepository.save", "receiver": "outboundRepository",
+                  "receiver_type": "sms.SmsOutboundRepository", "declaration": "resolved",
+                  "dispatch": "candidate", "observation": "unobserved",
+                  "span": {"start": 260, "end": 292}, "occurrence": 2, "arguments": 1,
+                  "guard": "unconditional", "source_order": 1, "statement_index": 2,
+                  "line": 41,
+                  "effect": {"kind": "DbWrite", "receiver": "SmsOutboundRepository",
+                             "resolution_basis": "type-resolved-api-identity"}},
+             ]},
+        ],
+        "stack": {
+            "apps": [
+                {"dir": "", "name": "smpp-mls", "build": "gradle", "framework": "spring",
+                 "evidence": "build.gradle",
+                 "manifests": [
+                     {"tool": "gradle", "evidence": "build.gradle"},
+                     {"tool": "maven", "evidence": "pom.xml"},
+                 ]},
+            ]
+        },
+        "interaction_gaps": [
+            {"sym": 3, "kind": "no_evidenced_interactions",
+             "reason": "no call records reference this symbol and it invokes none in this revision"},
+        ],
+        "concepts": {"nodes": []},
+    }
+
+
 def self_test() -> int:
     fixture = load_fixture(FIXTURE_DEFAULT)
     ok = True
@@ -660,34 +824,36 @@ def self_test() -> int:
     print("SELF-TEST 1: legacy-shaped synthetic bundle — must reproduce 0 pass / 6 fail / 0 invalid")
     results, counts, _ = evaluate(fixture, _legacy_shaped_bundle(), "synthetic legacy shape")
     for r in results:
-        print(f"  [{r['status']:>7}] {r['id']}  (expected {r['expected']})")
+        print(f"  [{r['status']:>7}] {r['id']}")
     if (counts[PASS], counts[FAIL], counts[INVALID]) != (0, 6, 0):
         print(f"  MISMATCH: got {counts[PASS]} pass / {counts[FAIL]} fail / {counts[INVALID]} invalid")
         ok = False
     else:
-        print("  reproduced: 0 pass / 6 fail / 0 invalid")
-    # every failure must fail for its DIAGNOSED reason (expected==fail everywhere)
-    for r in results:
-        if r["status"] != r["expected"]:
-            print(f"  MISMATCH: {r['id']} status {r['status']} != expected {r['expected']}")
-            ok = False
+        print("  reproduced: 0 pass / 6 fail / 0 invalid (the legacy defects stay caught)")
 
     print("SELF-TEST 2: degenerate bundle (SMPP evidence stripped) — zero silent passes")
     results2, counts2, _ = evaluate(fixture, _degenerate_bundle(), "synthetic degenerate")
     for r in results2:
-        print(f"  [{r['status']:>7}] {r['id']}  (expected {r['expected']})")
+        print(f"  [{r['status']:>7}] {r['id']}")
     if counts2[PASS] != 0:
         print(f"  SILENT PASS DETECTED: {counts2[PASS]} expectation(s) passed on absent evidence")
         ok = False
     else:
         print(f"  no silent pass: {counts2[PASS]} pass / {counts2[FAIL]} fail / {counts2[INVALID]} invalid")
-        for r in results2:
-            if r["status"] != INVALID:
-                print(f"  NOTE: {r['id']} is {r['status']} (not invalid) — acceptable only if evidence-present")
+
+    print("SELF-TEST 3: fixed-shape synthetic bundle — must satisfy 6 pass / 0 fail / 0 invalid")
+    results3, counts3, _ = evaluate(fixture, _fixed_shaped_bundle(), "synthetic fixed shape")
+    for r in results3:
+        print(f"  [{r['status']:>7}] {r['id']}  ({r['reason'][:96]})")
+    if (counts3[PASS], counts3[FAIL], counts3[INVALID]) != (6, 0, 0):
+        print(f"  MISMATCH: got {counts3[PASS]} pass / {counts3[FAIL]} fail / {counts3[INVALID]} invalid")
+        ok = False
+    else:
+        print("  satisfied: 6 pass / 0 fail / 0 invalid (the fixed shape is recognizably honest)")
 
     print()
     if ok:
-        print("SELF-TEST OK — statuses are distinct, absence is never a pass, legacy shape reproduces 0/6/0.")
+        print("SELF-TEST OK — legacy shape 0/6/0, absence never passes, fixed shape 6/0/0.")
         return 0
     print("SELF-TEST FAILED — harness must be fixed before use.")
     return 1

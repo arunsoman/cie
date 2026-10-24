@@ -426,7 +426,10 @@ mod tests {
             line: 12,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         f.calls.push(CallSite {
             caller: cie_core::types::SymbolId(1),
             callee_text: "save(rows)".into(),
@@ -434,7 +437,10 @@ mod tests {
             line: 20,
             in_loop: false,
             arg_vars: vec!["rows".into()],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         f.ifs.push(IfSite {
             symbol: cie_core::types::SymbolId(1),
             line: 14,
@@ -531,7 +537,10 @@ mod tests {
             line: 30,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         let spec = flow_chart(&facts, &store, &FlowOptions::default()).expect("gate-clean");
         assert!(
             !spec.edges.iter().any(|e| e.edge_kind == "calls" && e.evidence.file.is_empty()),

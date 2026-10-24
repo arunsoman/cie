@@ -217,17 +217,27 @@ pub fn map_claims_until(
     deadline: Option<std::time::Instant>,
 ) -> std::io::Result<Vec<ClaimMapping>> {
     check_deadline(deadline)?;
-    // Precompute symbol token sets.
+    // Precompute symbol token sets. Tokens get the SAME plural stemming the
+    // reconciliation key (conflict_key) applies — "log refunds" and a
+    // `refund` function are the same subject, and a claim that names its
+    // subject must map to it (a latent acc18 gap surfaced when global claim
+    // ids removed the id-collision that used to mask it).
     let mut symbol_tokens: Vec<(SymbolId, BTreeSet<String>, BTreeSet<String>)> = vec![];
     for sym in &store.symbols {
         check_deadline(deadline)?;
         if !sym.is_function_like() {
             continue;
         }
-        let mut name_tokens = tokenize(&sym.name);
-        let mut content_tokens = tokenize(&sym.qual_name);
+        let mut name_tokens: Vec<String> = tokenize(&sym.name)
+            .into_iter()
+            .map(stem_plural)
+            .collect();
+        let mut content_tokens: Vec<String> = tokenize(&sym.qual_name)
+            .into_iter()
+            .map(stem_plural)
+            .collect();
         if let Some(doc) = &sym.doc {
-            content_tokens.extend(tokenize(doc));
+            content_tokens.extend(tokenize(doc).into_iter().map(stem_plural));
         }
         if let Some(s) = summaries.get(&sym.id) {
             for t in &s.tags {
@@ -245,6 +255,7 @@ pub fn map_claims_until(
         let tokens: Vec<String> = tokenize(&claim.text)
             .into_iter()
             .filter(|t| !STOPWORDS.contains(&t.as_str()) && t.len() > 2)
+            .map(stem_plural)
             .collect();
         let tokens: BTreeSet<String> = tokens.into_iter().collect();
         let mut scored: Vec<(SymbolId, f32)> = vec![];
@@ -765,6 +776,16 @@ fn conflict_key(text: &str) -> String {
     toks.sort();
     toks.dedup();
     toks.join("+")
+}
+
+/// Same plural normalization the reconciliation key (conflict_key) applies:
+/// "refunds" and "refund" name one subject. len>3 keeps "class"/"gas" safe.
+fn stem_plural(t: String) -> String {
+    if t.len() > 3 && t.ends_with('s') {
+        t[..t.len() - 1].to_string()
+    } else {
+        t
+    }
 }
 
 fn summaries_entrypoint(id: SymbolId, store: &SymbolStore) -> bool {

@@ -30,3 +30,10 @@ class Cart:
 
     def list_purchases(self):
         return [item.name for item, _ in self.lines]
+
+    def persist(self, store_conn):
+        try:
+            store_conn.save(self.lines)
+        except Exception:
+            pass
+        return True

@@ -415,7 +415,10 @@ mod tests {
             line: 2,
             in_loop: false,
             arg_vars: vec!["u".into()],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         f.assignments.push(AssignmentFact {
             symbol: SymbolId(0),
             var: "r".into(),
@@ -512,7 +515,10 @@ mod tests {
             line: 3,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         // Source site: `u` is a request input (taint source).
         f.sources.push(SourceSite {
             symbol: SymbolId(0),
@@ -547,7 +553,10 @@ mod tests {
             line: 3,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         f.calls.push(CallSite {
             caller: SymbolId(0),
             callee_text: "external.b".into(),
@@ -555,7 +564,10 @@ mod tests {
             line: 4,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
         let (_, solution) = solve_unresolved(&per_file, 1);
         assert!(matches!(
             solution,

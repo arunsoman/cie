@@ -25,7 +25,7 @@ fn cited_history_binds_producer_records_but_not_dirty_or_unavailable_sites() {
     fs::create_dir_all(&root).unwrap();
     fs::write(
         root.join("auth.py"),
-        "def authorize():\n    print('hello')\n    return True\n",
+        "def authorize():\n    \"\"\"must authorize the caller before returning.\"\"\"\n    print('hello')\n    return True\n",
     )
     .unwrap();
     let policy = "- The system must authorize every payment request.\n";

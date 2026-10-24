@@ -848,10 +848,13 @@ pub mod scenarios {
             seen.contains("explicit"),
             "docstring contract binds Explicit"
         );
-        // InferredCandidate: naming-based rules (charge → authorization).
+        // InferredCandidate: the swallowed-exception rule (conf/PR-004 on
+        // Cart.persist). The naming-convention authorization contracts were
+        // retired to typed lexical hints — a name is never a claim — so the
+        // InferredCandidate authority binds through real mechanical rules.
         assert!(
             seen.contains("inferred_candidate"),
-            "naming rules bind InferredCandidate"
+            "mechanical inferred rules bind InferredCandidate"
         );
         // Verified: mechanically checked findings (dead code on list_purchases).
         assert!(

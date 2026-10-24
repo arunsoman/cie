@@ -20,3 +20,4 @@ scripts/askpass.sh
 scripts/bench/
 
 /web/native/
+__pycache__/

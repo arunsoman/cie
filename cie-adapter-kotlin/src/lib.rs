@@ -295,6 +295,9 @@ fn walk_kotlin(ctx: &mut KotlinCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: ctx.in_loop(node),
                 arg_vars: arg_vars_of_call(node, ctx.bytes),
+                receiver: callee_text.split('.').next().filter(|_| callee_text.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             if is_spawn_call(&callee_text) {
                 ctx.facts.async_facts.push(AsyncSite {

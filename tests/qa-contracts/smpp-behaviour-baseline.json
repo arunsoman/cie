@@ -7,10 +7,10 @@
     "subject": "SMPP SMS gateway source root — one physical source tree with BOTH a pom.xml (Maven) and a build.gradle (Gradle) manifest",
     "oracle_basis": "Every claim below was derived from an independent read of the SMPP source itself (declarations, receivers, annotations, program points). No claim is derived from a CIE artifact; CIE artifacts are the object under test, never the oracle.",
     "expected_result": {
-      "pass": 0,
-      "fail": 6,
+      "pass": 6,
+      "fail": 0,
       "invalid": 0,
-      "meaning": "All six expectations are checkable against the real capture and all six fail: these are reproduced defects, not repaired ones. Stage 0 exit gate — fixtures fail for the diagnosed reasons, with no application-specific allowlist fixes anywhere in the harness."
+      "meaning": "All six expectations PASS against a capture from the FIXED engine (fixture revision 2). The 0 pass / 6 fail / 0 invalid defect baseline of CIE 5267564 is history — see the revisions block; pre-fix captures replay as DRIFT (exit 1) by design, and the rev-1 fixture in git history still reproduces them."
     }
   },
   "bundle_contract": {
@@ -35,19 +35,65 @@
   "anchors": {
     "submit_sms": "SmsController.submitSms",
     "submission_service": "SubmissionService.submit",
-    "manifest_builds": ["maven", "gradle"],
-    "db_effect_spellings": ["db_read", "db_write", "DbRead", "DbWrite"],
-    "lexical_hint_spellings": ["find", "findOne", "find_one", "query", "select", "execute", "save", "get", "cursor"],
+    "manifest_builds": [
+      "maven",
+      "gradle"
+    ],
+    "db_effect_spellings": [
+      "db_read",
+      "db_write",
+      "DbRead",
+      "DbWrite"
+    ],
+    "lexical_hint_spellings": [
+      "find",
+      "findOne",
+      "find_one",
+      "query",
+      "select",
+      "execute",
+      "save",
+      "get",
+      "cursor"
+    ],
     "auth_tag": "auth",
-    "authz_annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
-    "authz_callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
-    "fca_intent_translations": ["authorization", "auth"]
+    "authz_annotation_patterns": [
+      "PreAuthorize",
+      "PreAuthenticate",
+      "Secured",
+      "RolesAllowed",
+      "PermitAll",
+      "DenyAll",
+      "hasAuthority",
+      "hasRole"
+    ],
+    "authz_callee_patterns": [
+      "SecurityContext",
+      "AccessDenied",
+      "hasAuthority",
+      "hasRole",
+      "AuthenticationManager",
+      "AuthorizationManager",
+      "GrantedAuthority",
+      "authorize",
+      "checkRight",
+      "checkAccess"
+    ],
+    "fca_intent_translations": [
+      "authorization",
+      "auth"
+    ]
   },
   "revisions": [
     {
       "rev": 1,
       "date": "2026-10-24",
       "reason": "Real-capture verification against arunsoman/smpp-mls (ingested with CIE 7b7b062, web bundle exported via --web-out). Three shape corrections, NO oracle-claim changes: (1) persisted EffectKind values serialize as serde variant names ('DbRead'/'DbWrite'), so the spellings list carries both the variant names and the as_str snake_case forms; (2) FCA promotion detection extended — the real capture shows the bare 'auth' tag promoted into the concept intent list verbatim AND into the label 'authorization & prints' AND into two MustAuthorize contracts ('must perform real authorization before returning success'), so intent translations include the raw tag and label/contract text patterns are matched as substrings; (3) the multi-artifact single-file web bundle shape added to bundle_contract. Expected result unchanged: 0 pass / 6 fail / 0 invalid."
+    },
+    {
+      "rev": 2,
+      "date": "2026-10-24",
+      "reason": "THE SIX DEFECTS ARE FIXED IN THE ENGINE — expected_result moves to 6 pass / 0 fail / 0 invalid; every expectation's expected flips fail->pass. NO oracle claim changed: the claims, anchors, counterexamples and scope limitations below stand verbatim. The production fixes (one dated change set): (BB1) cie-stack merges same-dir manifests into ONE AppSite whose evidence list carries every manifest record — manifests are evidence, never identity; (BB2/BB5/BB6) CallSite facts carry receiver expression/argument count/byte span, adapters emit a per-file binding table (fields/params/locals/self-attrs + type supers), and the behavior stage builds per-occurrence CallSiteRecord entries carrying declaration/dispatch/observation + span/occurrence/arguments/guard + source_order/statement_index; a typed no_evidenced_interactions record with its reason lands in the snapshot for interaction-less symbols; (BB3) DB classification is receiver-gated on the resolution ladder (declared binding -> type-resolved API identity -> imported-module identity -> factory-derived handle); in-memory/unknown receivers demote DB-shaped spellings to typed lexical hints, never effects; summaries carry receiver + resolution_basis aggregates (absorbed transitively); (BB4) the auth tag requires non-lexical evidence (authorization annotation or authorization-library callee); name-only matches become typed lexical_hints with basis + gap note; the naming-convention MustAuthorize contract block is retired. Harness check kinds app_identity_evidence_split and auth_evidence now evaluate the claims positively on the fixed shapes while the legacy shapes still fail both (self-test 1 proves 0/6/0 still, self-test 3 proves 6/0/0)."
     }
   ],
   "expectations": [
@@ -65,7 +111,10 @@
       "check": {
         "kind": "app_identity_evidence_split",
         "params": {
-          "manifest_builds": ["maven", "gradle"],
+          "manifest_builds": [
+            "maven",
+            "gradle"
+          ],
           "same_root_rule": "apps whose 'dir' values are equal (root manifests share dir '') and whose 'build' values differ are one application split by manifest"
         }
       },
@@ -74,7 +123,8 @@
         "Does not cover genuine multi-module reactor layouts where sibling modules are truly distinct applications — those have distinct dirs and stay out of scope.",
         "Stage 0 does not require the ApplicationId/ManifestId/DeploymentId triple to exist yet; it requires the capture not to assert two applications over one root."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): cie-stack records one application per source root with a manifests evidence list carrying both records."
     },
     {
       "id": "BB2-dispatch-qualified-resolution",
@@ -91,8 +141,20 @@
         "kind": "call_resolution_dimensions",
         "params": {
           "anchor": "SmsController.submitSms",
-          "required_fields": ["declaration", "dispatch", "observation"],
-          "dispatch_values_acceptable": ["exact", "candidate", "candidate_set", "open_world", "unknown", "reflective", "external"]
+          "required_fields": [
+            "declaration",
+            "dispatch",
+            "observation"
+          ],
+          "dispatch_values_acceptable": [
+            "exact",
+            "candidate",
+            "candidate_set",
+            "open_world",
+            "unknown",
+            "reflective",
+            "external"
+          ]
         }
       },
       "scope_limitations": [
@@ -100,7 +162,8 @@
         "Does not require runtime traces or observation data at stage 0; 'unobserved' is an acceptable observation value.",
         "Expanding a candidate edge as a guaranteed path, or propagating may-effects into must-effects, is out of scope here — BB6 and the effect expectations cover those dimensions."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): per-call CallSiteRecord entries carry declaration/dispatch/observation independently; the Spring-proxied dispatch reads 'candidate', not a guaranteed path."
     },
     {
       "id": "BB3-effects-receiver-provenance",
@@ -116,9 +179,25 @@
       "check": {
         "kind": "effect_provenance",
         "params": {
-          "effect_spellings": ["db_read", "db_write"],
-          "required_basis_fields": ["receiver", "resolution_basis"],
-          "lexical_hint_spellings": ["find", "findOne", "find_one", "query", "select", "execute", "save", "get", "cursor"]
+          "effect_spellings": [
+            "db_read",
+            "db_write"
+          ],
+          "required_basis_fields": [
+            "receiver",
+            "resolution_basis"
+          ],
+          "lexical_hint_spellings": [
+            "find",
+            "findOne",
+            "find_one",
+            "query",
+            "select",
+            "execute",
+            "save",
+            "get",
+            "cursor"
+          ]
         }
       },
       "scope_limitations": [
@@ -126,7 +205,8 @@
         "A name-only match may survive as an explicitly typed hint; the oracle requires the hint to be separable from facts, not banned.",
         "Excluding lexical hints can reduce apparent effect coverage; that loss must be recorded honestly rather than compensated with false positives."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): DB classification is receiver-gated on the resolution ladder; data.find-style in-memory searches demote to typed lexical hints; every db claim carries receiver + resolution_basis."
     },
     {
       "id": "BB4-auth-lexical-hint-not-fact",
@@ -143,11 +223,39 @@
         "kind": "auth_evidence",
         "params": {
           "tag": "auth",
-          "annotation_patterns": ["PreAuthorize", "PreAuthenticate", "Secured", "RolesAllowed", "PermitAll", "DenyAll", "hasAuthority", "hasRole"],
-          "callee_patterns": ["SecurityContext", "AccessDenied", "hasAuthority", "hasRole", "AuthenticationManager", "AuthorizationManager", "GrantedAuthority", "authorize", "checkRight", "checkAccess"],
-          "fca_intent_translations": ["authorization", "auth"],
-          "fca_label_patterns": ["authorization", "authorize "],
-          "contract_text_patterns": ["authorization"]
+          "annotation_patterns": [
+            "PreAuthorize",
+            "PreAuthenticate",
+            "Secured",
+            "RolesAllowed",
+            "PermitAll",
+            "DenyAll",
+            "hasAuthority",
+            "hasRole"
+          ],
+          "callee_patterns": [
+            "SecurityContext",
+            "AccessDenied",
+            "hasAuthority",
+            "hasRole",
+            "AuthenticationManager",
+            "AuthorizationManager",
+            "GrantedAuthority",
+            "authorize",
+            "checkRight",
+            "checkAccess"
+          ],
+          "fca_intent_translations": [
+            "authorization",
+            "auth"
+          ],
+          "fca_label_patterns": [
+            "authorization",
+            "authorize "
+          ],
+          "contract_text_patterns": [
+            "authorization"
+          ]
         }
       },
       "scope_limitations": [
@@ -155,7 +263,8 @@
         "A function that genuinely performs authorization may still pass if its record carries non-lexical evidence; the spelling alone satisfies nothing.",
         "Does not require the security-obligation model (requirements vs observations vs inferred obligations) to exist at stage 0; it requires the bundle not to assert a validated authorization claim without evidence."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): the auth tag requires non-lexical evidence; verify_-named status checks carry typed lexical_hints with basis + gap note; the naming-convention MustAuthorize contracts are retired; FCA promotion starves upstream."
     },
     {
       "id": "BB5-callsite-occurrence-identity",
@@ -172,7 +281,12 @@
         "kind": "call_site_occurrence_identity",
         "params": {
           "anchor": "SmsController.submitSms",
-          "required_occurrence_fields": ["span", "occurrence", "arguments", "guard"]
+          "required_occurrence_fields": [
+            "span",
+            "occurrence",
+            "arguments",
+            "guard"
+          ]
         }
       },
       "scope_limitations": [
@@ -180,7 +294,8 @@
         "Does not require the calls/ir_blocks/ir_instructions/ir_edges polyglot tables to be validated yet; that validation is the CFG stage's gate.",
         "Loop- and recursion-explicitness is covered by BB6's order/repetition dimension, not here."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): every call site is a distinct record with span/occurrence/arguments/guard — repeated invocations (the two guarded outboundRepository.save sites in SubmissionService.submit) survive separately."
     },
     {
       "id": "BB6-diagram-source-order",
@@ -196,7 +311,10 @@
       "check": {
         "kind": "source_order_records",
         "params": {
-          "required_order_fields": ["source_order", "statement_index"],
+          "required_order_fields": [
+            "source_order",
+            "statement_index"
+          ],
           "require_repeat_expression": true,
           "require_no_interaction_record": true
         }
@@ -206,7 +324,8 @@
         "A call graph remains a legitimate named provider; the oracle forbids it being presented as a flowchart, not its existence.",
         "Static sequence providers may disclose static semantics; runtime sequences are a separately named provider and out of scope here."
       ],
-      "expected": "fail"
+      "expected": "pass",
+      "resolution": "FIXED (rev 2): call records carry source_order + statement_index, repeats survive as separate occurrences, and no-evidenced-interactions is a typed record with its reason (snapshot interaction_gaps)."
     }
   ]
 }

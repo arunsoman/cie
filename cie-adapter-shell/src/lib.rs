@@ -342,7 +342,10 @@ impl ShellCtx {
             line,
             in_loop: false,
             arg_vars: vec![],
-        });
+                receiver: cmd.to_string().split('.').next().filter(|_| cmd.to_string().contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
     }
 }
 

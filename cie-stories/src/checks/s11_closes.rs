@@ -92,7 +92,10 @@ pub fn us_034() -> Result<(), String> {
         line: 1,
         in_loop: false,
         arg_vars: vec![],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     f.async_facts.push(AsyncSite { symbol: SymbolId(2), kind: cie_semantic::facts::AsyncKind::Await, line: 5 });
     f.symbols.push(cie_semantic::facts::SymbolFact {
             annotations: Vec::new(),
@@ -208,7 +211,10 @@ pub fn us_052() -> Result<(), String> {
         line: 3,
         in_loop: false,
         arg_vars: vec!["/orders".into()],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     let scan = extract_endpoints_from_langfacts(&[f]);
     if scan.sites.len() != 1 || scan.sites[0].route != "/orders" || scan.sites[0].file != "api/orders.py" {
         return Err("route call must become an evidenced site".into());
@@ -392,7 +398,10 @@ pub fn us_079() -> Result<(), String> {
         line: 2,
         in_loop: false,
         arg_vars: vec![],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     f.calls.push(CallSite {
         caller: SymbolId(1),
         callee_text: "worker2".into(),
@@ -400,7 +409,10 @@ pub fn us_079() -> Result<(), String> {
         line: 3,
         in_loop: false,
         arg_vars: vec![],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     f.assignments.push(AssignmentFact {
         symbol: SymbolId(2), var: "x".into(), line: 12, rhs_kind: cie_semantic::facts::RhsKind::Vars, rhs_data: vec![],
     });
@@ -428,7 +440,10 @@ pub fn us_080() -> Result<(), String> {
         line: 2,
         in_loop: false,
         arg_vars: vec!["mu1".into()],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     f.calls.push(CallSite {
         caller: SymbolId(1),
         callee_text: "unlock".into(),
@@ -436,7 +451,10 @@ pub fn us_080() -> Result<(), String> {
         line: 3,
         in_loop: false,
         arg_vars: vec!["mu1".into()],
-    });
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            });
     let store = cie_semantic::facts::SymbolStore::build(f.symbols.clone());
     let v = build_concurrency_view(&f, &store);
     if v.lock_sites.len() != 2
@@ -501,6 +519,7 @@ pub fn us_089() -> Result<(), String> {
         state_model: None,
         concepts_tier: None,
         usecase_view: Vec::new(),
+        interaction_gaps: Vec::new(),
         rev,
         files: vec![],
         stack: None,

@@ -205,6 +205,7 @@ mod tests {
             state_model: None,
             concepts_tier: None,
             usecase_view: Vec::new(),
+            interaction_gaps: Vec::new(),
             rev,
             files: vec![],
             stack: None,

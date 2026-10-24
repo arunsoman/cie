@@ -179,6 +179,7 @@ fn stack() -> StackReport {
                 build: "gradle".into(),
                 framework: "spring".into(),
                 evidence: "billing/build.gradle.kts".into(),
+                manifests: vec![],
                 docker: Some(AppGovernance {
                     kind: "compose".into(),
                     service: Some("billing".into()),
@@ -192,6 +193,7 @@ fn stack() -> StackReport {
                 build: "cargo".into(),
                 framework: "axum".into(),
                 evidence: "alerts/Cargo.toml".into(),
+                manifests: vec![],
                 docker: Some(AppGovernance {
                     kind: "own-dockerfile".into(),
                     service: None,

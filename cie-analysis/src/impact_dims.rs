@@ -213,6 +213,9 @@ mod tests {
             line,
             in_loop,
             arg_vars: vec![],
+            receiver: None,
+            arguments: None,
+            span: (0, 0),
         }
     }
 

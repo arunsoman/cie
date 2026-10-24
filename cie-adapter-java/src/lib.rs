@@ -26,8 +26,8 @@ use cie_adapters::{
 };
 use cie_core::types::{SourceLocation, SymbolId};
 use cie_semantic::facts::{
-    AsyncKind, AsyncSite, Callee, CallSite, ExceptionSite, IfSite, ImportFact, LangFacts,
-    SymbolFact, SymbolKind,
+    AsyncKind, AsyncSite, BindingFact, BindingKind, Callee, CallSite, ExceptionSite, IfSite,
+    ImportFact, LangFacts, SymbolFact, SymbolKind, TypeDeclFact,
 };
 use cie_semantic::LangId;
 use std::collections::BTreeSet;
@@ -82,6 +82,16 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 }
                 None => name.clone(),
             };
+            // the extends/implements surface, as written — receiver-type
+            // classification reads this (e.g. `extends JpaRepository<...>`)
+            let supers = supers_of(node, ctx.bytes);
+            if !supers.is_empty() {
+                ctx.facts.type_decls.push(TypeDeclFact {
+                    symbol: id,
+                    name: name.clone(),
+                    supers: supers.clone(),
+                });
+            }
             ctx.facts.symbols.push(SymbolFact {
                 id,
                 kind,
@@ -134,6 +144,30 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 .unwrap_or_default();
             if mods.contains("static") || mods.contains("final") || mods.contains("private") {
                 ctx.direct_names.insert(name.clone());
+            }
+            // formal parameters are name → declared-type bindings.
+            {
+                let mut c = node.walk();
+                for child in node.children(&mut c) {
+                    if child.kind() == "formal_parameters" {
+                        let mut pc = child.walk();
+                        for p in child.children(&mut pc) {
+                            if p.kind() == "formal_parameter" || p.kind() == "spread_parameter" {
+                                let (pname, ptype) = param_binding(p, ctx.bytes);
+                                if !pname.is_empty() {
+                                    ctx.facts.bindings.push(BindingFact {
+                                        owner: id,
+                                        name: pname,
+                                        kind: BindingKind::Param,
+                                        type_text: ptype,
+                                        rhs_text: None,
+                                        line: ctx.line(node),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
             }
             // `throws` clauses: raised-exception facts even without a throw
             // site (FR-2: interface contracts stay visible downstream).
@@ -194,6 +228,7 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 // target is unknown → unresolved (FR-4).
                 Callee::Unresolved("virtual_dispatch".into())
             };
+            let receiver = if object.is_empty() { None } else { Some(object.clone()) };
             ctx.facts.calls.push(CallSite {
                 caller: ctx.func,
                 callee_text: full,
@@ -205,6 +240,9 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                     .iter()
                     .any(|l| l.line <= ctx.line(node) && node.end_byte() as u32 >= l.line * 0),
                 arg_vars: collect_args(node, ctx.bytes),
+                receiver,
+                arguments: Some(argument_count(node)),
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             // spawn-style async: new Thread(...).start(), executors, futures
             if full_for_async.contains("new Thread")
@@ -220,6 +258,57 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
             }
             walk_children(ctx, node);
             return;
+        }
+        "field_declaration" => {
+            // one declared type, possibly several declarators, class-scoped.
+            let ftype = node
+                .child_by_field_name("type")
+                .map(|t| text_of(t, ctx.bytes).trim().to_string());
+            let owner = ctx.class_stack.last().copied();
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                if child.kind() == "variable_declarator" {
+                    if let Some(vname) = child.child_by_field_name("name") {
+                        let n = text_of(vname, ctx.bytes).trim().to_string();
+                        if !n.is_empty() {
+                            if let (Some(owner), Some(ftype)) = (owner, ftype.clone()) {
+                                ctx.facts.bindings.push(BindingFact {
+                                    owner,
+                                    name: n,
+                                    kind: BindingKind::Field,
+                                    type_text: Some(ftype),
+                                    rhs_text: None,
+                                    line: ctx.line(node),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        "local_variable_declaration" => {
+            let ltype = node
+                .child_by_field_name("type")
+                .map(|t| text_of(t, ctx.bytes).trim().to_string());
+            let owner = ctx.func;
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                if child.kind() == "variable_declarator" {
+                    if let Some(vname) = child.child_by_field_name("name") {
+                        let n = text_of(vname, ctx.bytes).trim().to_string();
+                        if !n.is_empty() {
+                            ctx.facts.bindings.push(BindingFact {
+                                owner,
+                                name: n,
+                                kind: BindingKind::Local,
+                                type_text: ltype.clone(),
+                                rhs_text: None,
+                                line: ctx.line(node),
+                            });
+                        }
+                    }
+                }
+            }
         }
         "throw_statement" => {
             ctx.facts.exceptions.push(ExceptionSite {
@@ -346,6 +435,49 @@ fn collect_args(node: tree_sitter::Node, bytes: &[u8]) -> Vec<String> {
         }
     }
     out
+}
+
+/// Argument count at the call site: every real argument child of the
+/// argument_list (identifiers, literals, expressions — commas excluded).
+fn argument_count(node: tree_sitter::Node) -> u32 {
+    let mut n = 0u32;
+    if let Some(args) = node.child_by_field_name("arguments") {
+        let mut c = args.walk();
+        for a in args.children(&mut c) {
+            if !matches!(a.kind(), "," | "(" | ")" | "comment" | "line_comment" | "block_comment") {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+/// The extends/implements surface of a type declaration, as written
+/// (`extends JpaRepository<SmsOutboundEntity, Long>`).
+fn supers_of(node: tree_sitter::Node, bytes: &[u8]) -> String {
+    let mut parts: Vec<String> = vec![];
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        if matches!(child.kind(), "superclass" | "interfaces" | "extends_interfaces") {
+            let t = text_of(child, bytes).trim().to_string();
+            if !t.is_empty() {
+                parts.push(t);
+            }
+        }
+    }
+    parts.join(" ")
+}
+
+/// Extract (name, declared type) from one formal parameter node.
+fn param_binding(node: tree_sitter::Node, bytes: &[u8]) -> (String, Option<String>) {
+    let name = node
+        .child_by_field_name("name")
+        .map(|n| text_of(n, bytes).trim().to_string())
+        .unwrap_or_default();
+    let ptype = node
+        .child_by_field_name("type")
+        .map(|t| text_of(t, bytes).trim().to_string());
+    (name, ptype)
 }
 
 fn collect_identifiers(node: tree_sitter::Node, bytes: &[u8], out: &mut Vec<String>) {

@@ -4,6 +4,7 @@
 pub mod deps;
 pub mod beliefs;
 pub mod behavior;
+pub mod receiver;
 pub mod alternatives;
 pub mod concurrency;
 pub mod focus;

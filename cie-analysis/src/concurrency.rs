@@ -425,7 +425,10 @@ mod tests {
                     line: 10,
                     in_loop: false,
                     arg_vars: vec!["self._lock".into()],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 CallSite {
                     caller: SymbolId(1),
                     callee_text: "release".into(),
@@ -433,7 +436,10 @@ mod tests {
                     line: 20,
                     in_loop: false,
                     arg_vars: vec!["self._lock".into()],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
             ],
             ..Default::default()
         };
@@ -462,7 +468,10 @@ mod tests {
                     line: 2,
                     in_loop: false,
                     arg_vars: vec!["mu1".into()],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 CallSite {
                     caller: f1,
                     callee_text: "f2".into(),
@@ -470,7 +479,10 @@ mod tests {
                     line: 3,
                     in_loop: false,
                     arg_vars: vec![],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 CallSite {
                     caller: f2,
                     callee_text: "acquire".into(),
@@ -478,7 +490,10 @@ mod tests {
                     line: 8,
                     in_loop: false,
                     arg_vars: vec!["mu2".into()],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 CallSite {
                     caller: f2,
                     callee_text: "acquire".into(),
@@ -486,7 +501,10 @@ mod tests {
                     line: 9,
                     in_loop: false,
                     arg_vars: vec!["mu1".into()],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 // f2 calls back into f1 → the reverse direction of the
                 // suspected cycle is also emitted
                 CallSite {
@@ -496,7 +514,10 @@ mod tests {
                     line: 10,
                     in_loop: false,
                     arg_vars: vec![],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
             ],
             ..Default::default()
         };
@@ -530,7 +551,10 @@ mod tests {
                     line: 2,
                     in_loop: false,
                     arg_vars: vec![],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
                 CallSite {
                     caller: spawner,
                     callee_text: "worker_b".into(),
@@ -538,7 +562,10 @@ mod tests {
                     line: 3,
                     in_loop: false,
                     arg_vars: vec![],
-                },
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
+            },
             ],
             assignments: vec![
                 AssignmentFact {

@@ -550,6 +550,26 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
         } else {
             Callee::Unresolved("pending".into())
         };
+        // receiver expression: the dotted head of the callee text ("db" in
+        // "db.query(...)"), when the call has one.
+        let receiver = callee_text
+            .split('.')
+            .next()
+            .filter(|_| callee_text.contains('.'))
+            .map(|h| h.trim().trim_end_matches('(').to_string())
+            .filter(|h| !h.is_empty());
+        let arguments = node
+            .child_by_field_name("arguments")
+            .map(|a| {
+                let mut n = 0u32;
+                let mut c = a.walk();
+                for child in a.children(&mut c) {
+                    if !matches!(child.kind(), "," | "(" | ")" | "comment") {
+                        n += 1;
+                    }
+                }
+                n
+            });
         facts.calls.push(CallSite {
             caller: ctx.func,
             callee_text: callee_text.clone(),
@@ -557,6 +577,9 @@ fn walk_light(facts: &mut LangFacts, ctx: &mut LightCtx, node: Node) {
             line,
             in_loop,
             arg_vars,
+            receiver,
+            arguments,
+            span: (cb, ce),
         });
         if let Some(sink_kind) = effects::classify_sink(&callee_text, text(node, ctx.bytes)) {
             let args_text = node

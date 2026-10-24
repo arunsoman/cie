@@ -63,6 +63,24 @@ pub struct RevSnapshot {
     /// nodes stay the only truth, this is the read-friendly view.
     #[serde(default)]
     pub usecase_view: Vec<cie_concepts::UsecaseView>,
+    /// Behavioural-evidence redesign (diagrams layer): typed records for
+    /// symbols with NO evidenced interactions in this revision — no call
+    /// records reference them and they invoke nothing resolvable. A sequence
+    /// or flow panel over such a symbol states the gap instead of rendering
+    /// an empty lifeline as if it explained a process. Absent (empty) on
+    /// artifacts predating the field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interaction_gaps: Vec<InteractionGap>,
+}
+
+/// One "no evidenced interactions" record with its reason.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InteractionGap {
+    pub sym: cie_core::types::SymbolId,
+    /// Record kind vocabulary: "no_evidenced_interactions".
+    pub kind: String,
+    /// The honest reason, as written, naming what was looked for.
+    pub reason: String,
 }
 
 /// Extension trait: snapshot + file-index persistence over the generic

@@ -665,6 +665,33 @@ pub fn run_ingest_with_progress(
                 s
             })
             .collect(),
+        // Behavioural-evidence redesign (diagrams layer): typed records for
+        // symbols with NO evidenced interactions — nothing calls them and
+        // they invoke nothing (no resolved callees, no unresolved call
+        // texts). Derived once here so every diagram consumer states the
+        // gap instead of rendering an empty lifeline as if it explained a
+        // process.
+        interaction_gaps: {
+            let mut gaps: Vec<cie_incremental::InteractionGap> = vec![];
+            for s in analysis.summaries.values() {
+                if s.callees.is_empty()
+                    && s.unresolved_callees.is_empty()
+                    && !analysis
+                        .reverse_deps
+                        .get(&s.sym)
+                        .map(|set| !set.is_empty())
+                        .unwrap_or(false)
+                {
+                    gaps.push(cie_incremental::InteractionGap {
+                        sym: s.sym,
+                        kind: "no_evidenced_interactions".into(),
+                        reason: "no call records reference this symbol and it invokes none in this revision".into(),
+                    });
+                }
+            }
+            gaps.sort_by_key(|g| g.sym);
+            gaps
+        },
         findings: analysis.findings.clone(),
         contracts: analysis.contracts.clone(),
         concepts: analysis.concepts.clone(),

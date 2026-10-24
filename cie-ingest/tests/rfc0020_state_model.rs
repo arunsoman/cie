@@ -8,7 +8,7 @@ fn filtered_model_persists_roundtrips_and_survives_noop_without_fabrication() {
         cie_core::types::now_ns()
     ));
     std::fs::create_dir_all(&root).unwrap();
-    std::fs::write(root.join("app.py"),"def authorize():\n    print('hello')\n    return True\n\ndef test_authorize():\n    assert authorize()\n").unwrap();
+    std::fs::write(root.join("app.py"),"def authorize():\n    \"\"\"must authorize the caller before returning.\"\"\"\n    print('hello')\n    return True\n\ndef test_authorize():\n    assert authorize()\n").unwrap();
     let out = run_ingest(&root, &IngestOptions::default()).unwrap();
     assert!(out
         .snapshot

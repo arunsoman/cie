@@ -275,6 +275,14 @@ pub fn stack_report(root: &Path) -> types::StackReport {
             build: a.build.clone(),
             framework: a.framework.clone(),
             evidence: a.evidence.clone(),
+            manifests: a
+                .manifests
+                .iter()
+                .map(|(tool, file)| types::ManifestEvidence {
+                    tool: tool.clone(),
+                    evidence: file.clone(),
+                })
+                .collect(),
             docker: None, // the governance join fills this below
         })
         .collect();
@@ -405,6 +413,7 @@ fn det_apps_empty() -> detect::AppDet {
         build: String::new(),
         framework: String::new(),
         evidence: String::new(),
+        manifests: vec![],
         holds_jvm: false,
     }
 }

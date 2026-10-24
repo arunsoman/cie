@@ -175,6 +175,9 @@ fn walk_php(ctx: &mut PhpCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: false,
                 arg_vars: vec![],
+                receiver: String::new().split('.').next().filter(|_| String::new().contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             // No native async in v1 — async extension calls are unsupported
             // assumptions, NEVER fabricated AsyncFacts (FR-4).

@@ -109,6 +109,9 @@ fn walk_c(ctx: &mut CCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: false,
                 arg_vars: collect_args(node, ctx.bytes),
+                receiver: callee_text.split('.').next().filter(|_| callee_text.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             // malloc/free/realloc → resource-ownership effects (§14.3).
             let base = callee_text

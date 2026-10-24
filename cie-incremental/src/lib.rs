@@ -29,7 +29,7 @@ pub use timeline::{
 pub use differential::{RelationState, RelationTrace};
 pub use engine::{AnalysisStatus, CancellationToken, Checkpoint, Engine, EngineBudget, RunOutcome, WorkItem};
 pub use proptests::{clean_recompute, extract_segments, Edit, IncrWorld, RepoSnapshot, SymInfo};
-pub use snapshot::{RevSnapshot, SnapshotStoreExt};
+pub use snapshot::{InteractionGap, RevSnapshot, SnapshotStoreExt};
 
 use std::collections::{BTreeMap, BTreeSet};
 

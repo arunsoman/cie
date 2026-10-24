@@ -35,6 +35,9 @@ fn call_fact(caller: u32, callee: u32, _kind_note: &str, resolved: bool) -> Call
         line: callee,
         in_loop: false,
         arg_vars: vec![],
+        receiver: None,
+        arguments: None,
+        span: (0, 0),
     }
 }
 

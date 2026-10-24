@@ -97,6 +97,10 @@ export interface AppSite {
   build: string;
   framework: string;
   evidence: string;
+  /** ALL manifest evidence over this root: one source root with several
+   *  manifests (pom.xml + build.gradle) is ONE app, recorded once with
+   *  both records here — manifests are evidence, never identity */
+  manifests?: { tool: string; evidence: string }[];
   /** RFC-0019 §6.3: how the repo says this app is containerized — compose /
    *  its own Dockerfile / nothing, each with file:line evidence */
   docker?: AppGovernance;

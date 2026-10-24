@@ -297,6 +297,9 @@ fn walk_lua(ctx: &mut LuaCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: ctx.in_loop(node),
                 arg_vars: arg_vars_of_call(node, ctx.bytes),
+                receiver: callee_text.split('.').next().filter(|_| callee_text.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             // Lua-specific raises/catches + sinks (checked before the shared
             // classifier, which would misroute `os.execute` → SQL).

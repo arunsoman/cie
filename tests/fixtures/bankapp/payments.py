@@ -2,11 +2,13 @@
 
 def charge(amount, user):
     ok = authorize(user)
+    cursor = connection.cursor()
     cursor.execute("UPDATE accounts SET balance = balance - 1 WHERE user = 'x'")
     cursor.execute("UPDATE ledger SET charged = 1 WHERE user = 'x'")
     return 200
 
 def list_purchases(user):
+    cursor = connection.cursor()
     ids = cursor.fetchall("SELECT id FROM purchases WHERE user = 'u'")
     for id in ids:
         cursor.fetchall("SELECT * FROM items WHERE id = " + str(id))

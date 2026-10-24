@@ -186,6 +186,9 @@ fn walk_cs(ctx: &mut CsCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: false,
                 arg_vars: vec![],
+                receiver: callee_text.split('.').next().filter(|_| callee_text.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             // async table (§16 #7): Task.Run → Spawn, Channel → Channel.
             if callee_text.contains("Task.Run") {

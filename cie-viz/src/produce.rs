@@ -502,6 +502,7 @@ mod tests {
             files,
             symbols,
             usecase_view: Vec::new(),
+            interaction_gaps: Vec::new(),
             summaries: vec![],
             findings: vec![],
             contracts: vec![],

@@ -352,6 +352,19 @@ pub struct AppGovernance {
     pub evidence: String,
 }
 
+/// one manifest evidence record: the build tool and the manifest file that
+/// grounds it (behavioural-evidence redesign: manifests are EVIDENCE, never
+/// identity — one physical source root with several manifests is ONE app
+/// whose evidence list carries all of them).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestEvidence {
+    /// "maven" | "gradle" | "cargo" | "npm" | "python" | "go"
+    pub tool: String,
+    /// the manifest file path, as written
+    pub evidence: String,
+}
+
 /// one detected application: its dir, the language as detected from its OWN
 /// manifest, and the HTTP framework named in that manifest
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -367,6 +380,11 @@ pub struct AppSite {
     pub framework: String,
     /// the manifest file that named it
     pub evidence: String,
+    /// ALL manifest evidence over this app's root — when a source root
+    /// declares several build systems (pom.xml + build.gradle), the app is
+    /// recorded ONCE with both records here, never as two applications.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub manifests: Vec<ManifestEvidence>,
     /// RFC-0019 §6.3: compose / own-dockerfile / none — as far as the repo says
     pub docker: Option<AppGovernance>,
 }

@@ -431,7 +431,10 @@ impl SqlAdapter {
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
-                    });
+                receiver: target.split('.').next().filter(|_| target.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                 }
                 continue;
             }
@@ -474,7 +477,10 @@ impl SqlAdapter {
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
-                    });
+                receiver: bare_name(&t).split('.').next().filter(|_| bare_name(&t).contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                 }
                 continue;
             }
@@ -513,7 +519,10 @@ impl SqlAdapter {
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
-                    });
+                receiver: bare_name(&t).split('.').next().filter(|_| bare_name(&t).contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                 }
                 // calls to other stored procedures: bare CALL x / PERFORM x / SELECT x(
                 for word in ["call", "perform"] {
@@ -525,7 +534,10 @@ impl SqlAdapter {
                             line: stmt.line,
                             in_loop: false,
                             arg_vars: vec![],
-                        });
+                receiver: bare_name(&t).split('.').next().filter(|_| bare_name(&t).contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                     }
                 }
                 if stmt.text.to_ascii_uppercase().contains("EXECUTE IMMEDIATE") {
@@ -563,11 +575,14 @@ impl SqlAdapter {
                 if !target.is_empty() {
                     facts.calls.push(CallSite {
                         caller: module_id,
-                        callee_text: target,
+                        callee_text: target.clone(),
                         callee: Callee::Unresolved("pending".into()),
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
+                        receiver: None,
+                        arguments: None,
+                        span: (0, 0),
                     });
                 }
                 continue;
@@ -585,7 +600,10 @@ impl SqlAdapter {
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
-                    });
+                receiver: bare_name(&t).split('.').next().filter(|_| bare_name(&t).contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                 }
                 facts.unsupported.push(format!(
                     "line {}: index definition — counted in the notes, not drawn as its own node",
@@ -623,7 +641,10 @@ impl SqlAdapter {
                         line: stmt.line,
                         in_loop: false,
                         arg_vars: vec![],
-                    });
+                receiver: bare_name(&t).split('.').next().filter(|_| bare_name(&t).contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (0, 0),
+            });
                 }
                 continue;
             }

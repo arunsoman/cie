@@ -324,6 +324,31 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                     line: line_of(node),
                 });
             }
+            // parameters are name → (absent) declared-type bindings: the
+            // resolver must know a receiver IS a parameter (untyped).
+            if let Some(params) = node.child_by_field_name("parameters") {
+                let mut c = params.walk();
+                for p in params.children(&mut c) {
+                    if matches!(p.kind(), "identifier" | "typed_parameter" | "default_parameter" | "typed_default_parameter") {
+                        let pname = p
+                            .child_by_field_name("name")
+                            .map(|n| text(n, ctx.bytes).to_string())
+                            .unwrap_or_else(|| text(p, ctx.bytes).to_string());
+                        let pname = pname.trim();
+                        if !pname.is_empty() && pname != "self" && pname != "cls" {
+                            let ptype = p.child_by_field_name("type").map(|t| text(t, ctx.bytes).trim().to_string());
+                            facts.bindings.push(BindingFact {
+                                owner: id,
+                                name: pname.to_string(),
+                                kind: BindingKind::Param,
+                                type_text: ptype,
+                                rhs_text: None,
+                                line: line_of(node),
+                            });
+                        }
+                    }
+                }
+            }
             if let Some(body) = node.child_by_field_name("body") {
                 let doc = docstring_of(body, ctx.bytes);
                 if doc.is_some() {
@@ -361,6 +386,9 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                                 line: line_of(child),
                                 in_loop: false,
                                 arg_vars: vec![],
+                                receiver: None,
+                                arguments: None,
+                                span: span_of(child),
                             });
                         }
                     }
@@ -392,6 +420,26 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
             } else {
                 Callee::Unresolved("pending".into())
             };
+            // receiver expression: the dotted head of the callee text
+            // ("data" in "data.find(...)", "self.conn" in "self.conn.cursor()").
+            let receiver = callee_text
+                .split('.')
+                .next()
+                .filter(|_| callee_text.contains('.'))
+                .map(|h| h.trim().to_string())
+                .filter(|h| !h.is_empty());
+            let arguments = node
+                .child_by_field_name("arguments")
+                .map(|a| {
+                    let mut n = 0u32;
+                    let mut c = a.walk();
+                    for child in a.children(&mut c) {
+                        if !matches!(child.kind(), "," | "(" | ")" | "comment") {
+                            n += 1;
+                        }
+                    }
+                    n
+                });
             facts.calls.push(CallSite {
                 caller: ctx.func,
                 callee_text,
@@ -399,6 +447,9 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                 line,
                 in_loop,
                 arg_vars: dedup(arg_vars),
+                receiver,
+                arguments,
+                span: (cb, ce),
             });
 
             // Sink detection.
@@ -581,6 +632,15 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                         rhs_kind,
                         rhs_data: rhs_data.clone(),
                     });
+                    // local binding with its rhs — receiver-type evidence.
+                    facts.bindings.push(BindingFact {
+                        owner: ctx.func,
+                        name: var.clone(),
+                        kind: BindingKind::Local,
+                        type_text: None,
+                        rhs_text: Some(rhs_text.clone()),
+                        line: line_of(node),
+                    });
                     if let Some(sk) = effects::classify_source(&rhs_text) {
                         facts.sources.push(SourceSite {
                             symbol: ctx.func,
@@ -588,6 +648,22 @@ fn walk(facts: &mut LangFacts, ctx: &mut Ctx, node: Node) {
                             line: line_of(node),
                             kind: sk,
                         });
+                    }
+                } else if left.kind() == "attribute" {
+                    // self.X = rhs → class-scoped attribute binding.
+                    let attr_text = text(left, ctx.bytes).to_string();
+                    if let Some(attr_name) = attr_text.strip_prefix("self.") {
+                        if !attr_name.contains('.') {
+                            let rhs_text = text(right, ctx.bytes).to_string();
+                            facts.bindings.push(BindingFact {
+                                owner: ctx.class.unwrap_or(ctx.func),
+                                name: attr_name.trim().to_string(),
+                                kind: BindingKind::SelfAttr,
+                                type_text: None,
+                                rhs_text: Some(rhs_text),
+                                line: line_of(node),
+                            });
+                        }
                     }
                 }
             }

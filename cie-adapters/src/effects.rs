@@ -96,6 +96,168 @@ pub fn classify_builtin(text: &str) -> Option<BuiltinKind> {
     Some(kind)
 }
 
+/// Receiver/library provenance knowledge (behavioural-evidence redesign,
+/// effects layer). These tables recognize database APIs by TYPE identity —
+/// declared receiver types, imported DB modules, factory calls that yield
+/// DB handles — never by a call's method spelling alone. A DB-shaped method
+/// name on an in-memory or unresolved receiver is a lexical hint, not a
+/// database effect.
+
+/// Types whose identity IS a database API (JDBC/JPA/Spring-Data/drivers).
+pub fn is_db_api_type(type_text: &str) -> bool {
+    let t = type_text.trim();
+    if t.is_empty() {
+        return false;
+    }
+    let simple = t.rsplit('.').next().unwrap_or(t);
+    // generic args stripped: JpaRepository<SmsOutboundEntity, Long>
+    let base = simple.split('<').next().unwrap_or(simple);
+    let base_lower = base.to_ascii_lowercase();
+    // package-qualified DB APIs
+    let pkg = [
+        "java.sql.",
+        "javax.sql.",
+        "jakarta.persistence.",
+        "javax.persistence.",
+        "org.springframework.jdbc.",
+        "org.springframework.data.",
+        "org.hibernate.",
+        "psycopg2.",
+        "sqlite3.",
+        "jaydebeapi.",
+    ];
+    if pkg.iter().any(|p| t.starts_with(p)) {
+        return true;
+    }
+    // conventional DB type names
+    base_lower.ends_with("repository")
+        || base_lower.ends_with("repo")
+        || base_lower.contains("jdbctemplate")
+        || base_lower.contains("entitymanager")
+        || base_lower.contains("databaseclient")
+        || base_lower.contains("mongotemplate")
+        || base_lower.contains("sqlsession")
+        || matches!(
+            base,
+            "Connection"
+                | "PreparedStatement"
+                | "Statement"
+                | "ResultSet"
+                | "DataSource"
+                | "Cursor"
+        )
+}
+
+/// Types whose instances live in process memory — a DB-shaped method name on
+/// one of these receivers is a memory operation (`data.find` on bytes/String).
+pub fn is_in_memory_type(type_text: &str) -> bool {
+    let simple = type_text.trim().rsplit('.').next().unwrap_or(type_text.trim());
+    matches!(
+        simple,
+        "String"
+            | "str"
+            | "bytes"
+            | "byte[]"
+            | "Byte[]"
+            | "char[]"
+            | "Matcher"
+            | "Pattern"
+            | "StringBuilder"
+            | "StringBuffer"
+            | "List"
+            | "ArrayList"
+            | "LinkedList"
+            | "Map"
+            | "HashMap"
+            | "TreeMap"
+            | "LinkedHashMap"
+            | "Set"
+            | "HashSet"
+            | "TreeSet"
+            | "Optional"
+            | "Iterator"
+            | "Stream"
+            | "Array"
+            | "array"
+            | "list"
+            | "dict"
+            | "set"
+            | "tuple"
+            | "int"
+            | "float"
+            | "bool"
+            | "long"
+            | "Integer"
+            | "Long"
+            | "Boolean"
+            | "ByteBuffer"
+            | "JSONArray"
+            | "JSONObject"
+            | "Object"
+)
+}
+
+/// Imported modules whose identity is a database driver/API.
+pub fn is_db_module(head: &str) -> bool {
+    let h = head.trim();
+    matches!(
+        h,
+        "psycopg2"
+            | "sqlite3"
+            | "jaydebeapi"
+            | "pymysql"
+            | "mysql"
+            | "cx_Oracle"
+            | "pymongo"
+            | "sqlalchemy"
+            | "peewee"
+            | "asyncpg"
+            | "aiosqlite"
+            | "duckdb"
+            | "pyodbc"
+    )
+}
+
+/// True when an assigned right-hand side is a factory call that yields a
+/// database handle: `<...>.cursor()`, `<...>.connection()`, or a known DB
+/// module's `connect(...)`.
+pub fn db_factory_rhs(rhs: &str) -> bool {
+    let r = rhs.trim();
+    let lower = r.to_ascii_lowercase();
+    if lower.ends_with(".cursor()") || lower.ends_with(".connection()") {
+        return true;
+    }
+    // head of the factory call is the receiver of .connect(...)
+    if let Some(head) = r.split(".connect(").next() {
+        if head != r && is_db_module(head.trim()) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Persistence-shaped method names, classified ONLY after the receiver is
+/// known to be a DB API. Returns the builtin the call would carry.
+pub fn persistence_kind(method_name: &str) -> Option<BuiltinKind> {
+    let m = method_name.to_ascii_lowercase();
+    let m = m.split('(').next().unwrap_or(&m);
+    if m.starts_with("execute") || m.starts_with("insert") || m.starts_with("update")
+        || m.starts_with("delete") || m.starts_with("upsert") || m.starts_with("save")
+        || m.starts_with("persist") || m.starts_with("merge") || m.starts_with("flush")
+        || m.starts_with("commit")
+    {
+        return Some(BuiltinKind::DbExecute);
+    }
+    if m.starts_with("query") || m.starts_with("find") || m.starts_with("fetch")
+        || m.starts_with("select") || m.starts_with("get") || m.starts_with("read")
+        || m.starts_with("load") || m.starts_with("search") || m.starts_with("count")
+        || m.starts_with("exists")
+    {
+        return Some(BuiltinKind::DbQuery);
+    }
+    None
+}
+
 /// Classify a call as a taint sink.
 pub fn classify_sink(text: &str, args_text: &str) -> Option<SinkKind> {
     let lower = text.to_ascii_lowercase();

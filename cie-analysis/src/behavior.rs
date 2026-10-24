@@ -4,10 +4,41 @@
 //! `complete = false` — never silently "no defect".
 
 use cie_core::types::{Ns, RevId, SymbolId};
-use cie_semantic::facts::{BuiltinKind, Callee, LangFacts, RhsKind, SymbolStore};
-use cie_summary::{builtin_effects, EffectKind, FunctionSummary};
+use cie_semantic::facts::{BuiltinKind, Callee, CallSite, LangFacts, RhsKind, SymbolFact, SymbolStore};
+use cie_summary::{
+    builtin_effects, CallSiteRecord, CallSpan, EffectClaim, EffectKind, FunctionSummary,
+    LexicalHint,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+
+/// Authorization annotation surfaces — a `auth` tag requires one of these
+/// (or an authorization-library callee). Lexical name matches alone are
+/// typed hints, never the tag (behavioural-evidence redesign).
+const AUTHZ_ANN_PATTERNS: &[&str] = &[
+    "preauthorize",
+    "preauthenticate",
+    "secured",
+    "rolesallowed",
+    "permitall",
+    "denyall",
+    "hasauthority",
+    "hasrole",
+];
+
+/// Authorization-library callee surfaces (receiver-qualified texts match).
+const AUTHZ_CALLEE_PATTERNS: &[&str] = &[
+    "securitycontext",
+    "accessdenied",
+    "hasauthority",
+    "hasrole",
+    "authenticationmanager",
+    "authorizationmanager",
+    "grantedauthority",
+    "authorize",
+    "checkright",
+    "checkaccess",
+];
 
 pub struct BehaviorResult {
     pub summaries: BTreeMap<SymbolId, FunctionSummary>,
@@ -184,43 +215,238 @@ pub fn compute_summaries_with_reuse(
             stats.reused_symbols += 1;
             seeded.insert(sid);
         }
+        // this symbol's call sites with their file facts, in source order
+        // (empty for reused summaries — their records ride in the prior copy).
+        let mut sym_calls: Vec<(&LangFacts, &CallSite)> = vec![];
         if fresh {
+            // ---- per-occurrence call-site records + receiver-aware effects ----
             for facts in per_file {
                 for call in facts.calls.iter().filter(|c| c.caller == sid) {
+                    sym_calls.push((facts, call));
+                }
+            }
+            sym_calls.sort_by(|a, b| {
+                (a.1.line, a.1.span.0, a.1.callee_text.as_str())
+                    .cmp(&(b.1.line, b.1.span.0, b.1.callee_text.as_str()))
+            });
+            let mut statement_lines: Vec<u32> = sym_calls.iter().map(|(_, c)| c.line).collect();
+            statement_lines.dedup();
+            let mut occurrence: BTreeMap<String, u32> = BTreeMap::new();
+
+            for (order, (facts, call)) in sym_calls.iter().enumerate() {
+                let rclass = call
+                    .receiver
+                    .as_deref()
+                    .map(|r| crate::receiver::resolve_receiver(store, facts, sid, r))
+                    .unwrap_or(crate::receiver::ReceiverClass::Unknown);
+                let method = call
+                    .callee_text
+                    .rsplit('.')
+                    .next()
+                    .unwrap_or(&call.callee_text)
+                    .to_ascii_lowercase();
+
+                // ---- resolution dimensions (declaration / dispatch) ----
+                let (declaration, dispatch, receiver_type): (&str, &str, Option<String>) =
                     match &call.callee {
-                        Callee::Builtin(b) => {
-                            for e in builtin_effects(*b) {
-                                s.effects.insert(*e);
+                        Callee::Resolved(_) => ("resolved", "exact", None),
+                        Callee::Builtin(_) => match &rclass {
+                            crate::receiver::ReceiverClass::Db { identity, .. } => {
+                                ("external", "external", Some(identity.clone()))
                             }
-                            match b {
-                                BuiltinKind::DbQuery => {
-                                    s.reads.insert("db".into());
+                            crate::receiver::ReceiverClass::InMemory { identity } => {
+                                ("external", "exact", Some(identity.clone()))
+                            }
+                            crate::receiver::ReceiverClass::InTree { .. } => {
+                                ("external", "external", None)
+                            }
+                            crate::receiver::ReceiverClass::ExternalType { identity } => {
+                                ("external", "external", Some(identity.clone()))
+                            }
+                            crate::receiver::ReceiverClass::Unknown => {
+                                ("unresolved", "unknown", None)
+                            }
+                        },
+                        Callee::Unresolved(reason) => match reason.as_str() {
+                            "reflective" => ("unresolved", "reflective", None),
+                            "external_module" => ("external", "external", None),
+                            _ => match &rclass {
+                                crate::receiver::ReceiverClass::Db { identity, .. } => {
+                                    ("external", "external", Some(identity.clone()))
                                 }
-                                BuiltinKind::DbExecute => {
-                                    s.writes.insert("db".into());
+                                crate::receiver::ReceiverClass::InMemory { identity } => {
+                                    ("external", "exact", Some(identity.clone()))
                                 }
-                                BuiltinKind::FileRead => {
-                                    s.reads.insert("fs".into());
+                                crate::receiver::ReceiverClass::InTree { identity, symbol } => {
+                                    let declared = store
+                                        .children_of(*symbol)
+                                        .iter()
+                                        .any(|c| {
+                                            store.get(*c).map(|m| m.name == method).unwrap_or(false)
+                                        });
+                                    if declared {
+                                        ("resolved", "candidate", Some(identity.clone()))
+                                    } else {
+                                        ("unresolved", "unknown", Some(identity.clone()))
+                                    }
                                 }
-                                BuiltinKind::FileWrite => {
-                                    s.writes.insert("fs".into());
+                                crate::receiver::ReceiverClass::ExternalType { identity } => {
+                                    ("external", "external", Some(identity.clone()))
                                 }
-                                BuiltinKind::Env => {
-                                    s.reads.insert("env".into());
+                                crate::receiver::ReceiverClass::Unknown => {
+                                    ("unresolved", "unknown", None)
                                 }
-                                _ => {}
+                            },
+                        },
+                    };
+
+                // ---- effects: receiver-gated, with provenance or demotion ----
+                let mut rec_effect: Option<EffectClaim> = None;
+                let mut rec_hint: Option<String> = None;
+                let mut db_labels = |s: &mut FunctionSummary, k: BuiltinKind| {
+                    match k {
+                        BuiltinKind::DbQuery => {
+                            s.reads.insert("db".into());
+                        }
+                        BuiltinKind::DbExecute => {
+                            s.writes.insert("db".into());
+                        }
+                        _ => {}
+                    }
+                };
+                match &call.callee {
+                    Callee::Builtin(b) => {
+                        let db_receiver = match &rclass {
+                            crate::receiver::ReceiverClass::Db { identity, basis } => {
+                                Some((identity.clone(), basis.to_string()))
+                            }
+                            _ => None,
+                        };
+                        match db_receiver {
+                            Some((ident, basis)) => {
+                                // the receiver IS a database API: persistence-
+                                // shaped methods are db claims WITH provenance,
+                                // superseding the spelling classification.
+                                if let Some(k) =
+                                    cie_adapters::effects::persistence_kind(&method)
+                                {
+                                    let kind = if k == BuiltinKind::DbExecute {
+                                        EffectKind::DbWrite
+                                    } else {
+                                        EffectKind::DbRead
+                                    };
+                                    s.effects.insert(kind);
+                                    db_labels(&mut s, k);
+                                    s.receiver.insert(ident.clone());
+                                    s.resolution_basis.insert(basis.clone());
+                                    rec_effect = Some(EffectClaim {
+                                        kind,
+                                        receiver: ident,
+                                        resolution_basis: basis,
+                                    });
+                                } else {
+                                    for e in builtin_effects(*b) {
+                                        s.effects.insert(*e);
+                                    }
+                                    db_labels(&mut s, *b);
+                                }
+                            }
+                            None => {
+                                if matches!(b, BuiltinKind::DbQuery | BuiltinKind::DbExecute)
+                                    && matches!(
+                                        rclass,
+                                        crate::receiver::ReceiverClass::InMemory { .. }
+                                            | crate::receiver::ReceiverClass::Unknown
+                                    )
+                                {
+                                    // spelling alone on a non-DB/unknown receiver:
+                                    // a typed lexical hint, never a db effect.
+                                    let hk = if *b == BuiltinKind::DbQuery {
+                                        "db_read"
+                                    } else {
+                                        "db_write"
+                                    };
+                                    let note = format!(
+                                        "'{}' matches a db spelling but the receiver is {} — demoted to a lexical hint, not a db effect",
+                                        call.callee_text,
+                                        rclass.describe()
+                                    );
+                                    s.lexical_hints.push(LexicalHint {
+                                        hint: hk.into(),
+                                        basis: "lexical-spelling".into(),
+                                        note,
+                                    });
+                                    rec_hint = Some(hk.to_string());
+                                } else {
+                                    for e in builtin_effects(*b) {
+                                        s.effects.insert(*e);
+                                    }
+                                    db_labels(&mut s, *b);
+                                }
                             }
                         }
-                        Callee::Resolved(id) => {
-                            s.callees.push(*id);
-                        }
-                        Callee::Unresolved(reason) => {
-                            s.unresolved_callees
-                                .push(format!("{} ({})", call.callee_text, reason));
+                    }
+                    Callee::Resolved(id) => {
+                        s.callees.push(*id);
+                    }
+                    Callee::Unresolved(reason) => {
+                        s.unresolved_callees
+                            .push(format!("{} ({})", call.callee_text, reason));
+                        if let crate::receiver::ReceiverClass::Db { identity, basis } = &rclass {
+                            // Java-style repository access never reaches the
+                            // builtin classifier — a db-typed receiver with a
+                            // persistence-shaped method IS the db claim.
+                            if let Some(k) = cie_adapters::effects::persistence_kind(&method) {
+                                let kind = if k == BuiltinKind::DbExecute {
+                                    EffectKind::DbWrite
+                                } else {
+                                    EffectKind::DbRead
+                                };
+                                s.effects.insert(kind);
+                                db_labels(&mut s, k);
+                                s.receiver.insert(identity.clone());
+                                s.resolution_basis.insert(basis.to_string());
+                                rec_effect = Some(EffectClaim {
+                                    kind,
+                                    receiver: identity.clone(),
+                                    resolution_basis: basis.to_string(),
+                                });
+                            }
                         }
                     }
                 }
 
+                // ---- the record itself ----
+                let occ = occurrence.entry(call.callee_text.clone()).or_insert(0);
+                *occ += 1;
+                let statement_index = statement_lines
+                    .iter()
+                    .position(|l| *l == call.line)
+                    .map(|i| (i + 1) as u32)
+                    .unwrap_or(0);
+                s.call_sites.push(CallSiteRecord {
+                    callee: call.callee_text.clone(),
+                    receiver: call.receiver.clone(),
+                    receiver_type,
+                    declaration: declaration.into(),
+                    dispatch: dispatch.into(),
+                    observation: "unobserved".into(),
+                    span: CallSpan {
+                        start: call.span.0,
+                        end: call.span.1,
+                    },
+                    occurrence: *occ,
+                    arguments: call.arguments,
+                    guard: guard_for(facts, sid, call),
+                    source_order: order as u32,
+                    statement_index,
+                    line: call.line,
+                    effect: rec_effect,
+                    hint: rec_hint,
+                });
+            }
+
+            for facts in per_file {
                 for r in facts.returns.iter().filter(|r| r.symbol == sid) {
                     if let Some(c) = &r.constant {
                         s.returns_constants.insert(c.clone());
@@ -281,8 +507,34 @@ pub fn compute_summaries_with_reuse(
         if sym.is_test() {
             s.tags.insert("test".into());
         }
-        if is_auth_name(&sym.name) {
+        // auth: a semantic claim requiring non-lexical evidence — an
+        // authorization annotation on the symbol or an authorization-library
+        // callee. A name match alone is a typed lexical hint, never the tag.
+        let authz_evidence = authz_evidence(store, sym, &sym_calls);
+        if authz_evidence {
             s.tags.insert("auth".into());
+        }
+        if fresh {
+            if !authz_evidence && is_auth_name(&sym.name) {
+                s.lexical_hints.push(LexicalHint {
+                    hint: "auth".into(),
+                    basis: "lexical-name-match".into(),
+                    note: "no authorization annotation and no authorization-library callee observed in this revision".into(),
+                });
+            }
+            // the former naming-convention MustAuthorize contracts (money/
+            // destructive names) are retired to hints — no normative claim is
+            // asserted from a spelling alone.
+            if (is_money_name(&sym.name) || is_destructive_name(&sym.name)) && !authz_evidence {
+                s.lexical_hints.push(LexicalHint {
+                    hint: "authorize-first".into(),
+                    basis: "lexical-name-match".into(),
+                    note: format!(
+                        "'{}' matches a money/destructive naming convention; no authorization evidence is asserted — the former naming-convention contract is now this hint",
+                        sym.name
+                    ),
+                });
+            }
         }
         if is_money_name(&sym.name) {
             s.tags.insert("money".into());
@@ -384,4 +636,63 @@ pub fn compute_summaries_with_reuse(
         reverse_deps,
         reuse: stats,
     }
+}
+
+/// Enclosing guard of a call site: the innermost `if` condition whose span
+/// contains the call (facts.ifs carry §14.1 branch spans), else the loop
+/// marker, else "unconditional". This is what makes per-occurrence guards
+/// reconstructible without re-parsing.
+fn guard_for(facts: &LangFacts, sid: SymbolId, call: &CallSite) -> String {
+    let mut best: Option<&cie_semantic::facts::IfSite> = None;
+    for i in facts.ifs.iter().filter(|i| i.symbol == sid) {
+        let contains = if i.loc.end > i.loc.start {
+            call.span.0 >= i.loc.start && call.span.1 <= i.loc.end
+        } else {
+            // adapters without branch spans: line equality fallback
+            i.line == call.line
+        };
+        if contains && best.map(|b| i.loc.start >= b.loc.start).unwrap_or(true) {
+            best = Some(i);
+        }
+    }
+    if let Some(i) = best {
+        return i.cond.chars().take(160).collect();
+    }
+    if call.in_loop {
+        "loop".to_string()
+    } else {
+        "unconditional".to_string()
+    }
+}
+
+/// Non-lexical authorization evidence for a symbol: an authorization
+/// annotation on the declaration, or an authorization-library callee
+/// (receiver-qualified call text or resolved callee name).
+fn authz_evidence(
+    store: &SymbolStore,
+    sym: &SymbolFact,
+    calls: &[(&LangFacts, &CallSite)],
+) -> bool {
+    let ann_hit = sym.annotations.iter().any(|a| {
+        let al = a.to_ascii_lowercase();
+        AUTHZ_ANN_PATTERNS.iter().any(|p| al.contains(p))
+    });
+    if ann_hit {
+        return true;
+    }
+    for (_, call) in calls {
+        let t = call.callee_text.to_ascii_lowercase();
+        if AUTHZ_CALLEE_PATTERNS.iter().any(|p| t.contains(p)) {
+            return true;
+        }
+        if let Callee::Resolved(id) = &call.callee {
+            if let Some(cs) = store.get(*id) {
+                let n = cs.name.to_ascii_lowercase();
+                if AUTHZ_CALLEE_PATTERNS.iter().any(|p| n.contains(p)) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }

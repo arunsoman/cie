@@ -73,7 +73,7 @@ fn hit_carries_real_evidence_and_contract_join() {
     let dir = tmp_dir("evidence");
     std::fs::write(
         dir.join("app.py"),
-        "def authorize(user):\n    \"\"\"Checks whether the caller has permission to proceed.\"\"\"\n    return user.is_admin\n",
+        "def authorize(user):\n    \"\"\"Checks whether the caller has permission; must authorize the caller before proceeding.\"\"\"\n    return user.is_admin\n",
     )
     .unwrap();
 
@@ -84,9 +84,11 @@ fn hit_carries_real_evidence_and_contract_join() {
         .find(|h| h["symbol"] == "app.authorize")
         .expect("authorize found");
     assert_eq!(hit["evidence"], "app.py:1");
-    // The naming-convention contract extractor already recognizes
-    // "authorize"-named functions (cie-analysis::conformance) — the
-    // search hit should carry it, proving the hybrid join is real.
+    // The docstring contract extractor binds the authored requirement
+    // ("must authorize the caller...") as an Explicit contract
+    // (cie-analysis::conformance) — the search hit should carry it,
+    // proving the hybrid join is real. (Naming-convention authorization
+    // contracts were retired: a function name is a hint, never a claim.)
     assert!(
         !hit["contracts"].as_array().unwrap().is_empty(),
         "authorize should carry a contract"

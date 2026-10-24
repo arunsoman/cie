@@ -192,6 +192,9 @@ fn walk_cpp(ctx: &mut CppCtx, node: tree_sitter::Node) {
                 line: ctx.line(node),
                 in_loop: false,
                 arg_vars: vec![],
+                receiver: callee_text.split('.').next().filter(|_| callee_text.contains('.')).map(|h| h.trim().trim_end_matches('(').to_string()).filter(|h| !h.is_empty()),
+                arguments: None,
+                span: (node.start_byte() as u32, node.end_byte() as u32),
             });
             if callee_text.contains("std::thread") || callee_text.contains("std::async") {
                 ctx.facts.async_facts.push(cie_semantic::facts::AsyncSite {

@@ -35,6 +35,8 @@ pub struct AppDet {
     pub build: String,
     pub framework: String,
     pub evidence: String,
+    /// every manifest evidence record over this root: (build tool, manifest path)
+    pub manifests: Vec<(String, String)>,
     /// the app's dir contains java/kotlin sources (spring must pair with one)
     pub holds_jvm: bool,
 }
@@ -94,6 +96,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
                 build,
                 framework: if is_spring { "spring".into() } else { "jvm-unknown".into() },
                 evidence: rel_manifest.to_string(),
+                manifests: vec![],
                 holds_jvm: dir_has_jvm(&dir),
             })
         }
@@ -114,6 +117,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
                 build: "cargo".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
+                manifests: vec![],
                 holds_jvm: false,
             })
         }
@@ -136,6 +140,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
                 build: "npm".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
+                manifests: vec![],
                 holds_jvm: false,
             })
         }
@@ -154,6 +159,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
                 build: "python".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
+                manifests: vec![],
                 holds_jvm: false,
             })
         }
@@ -172,6 +178,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
                 build: "go".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
+                manifests: vec![],
                 holds_jvm: false,
             })
         }
@@ -216,10 +223,41 @@ fn dir_has_jvm(dir: &str) -> bool {
     dir.is_empty() // root manifests can't prove it — callers gate spring on is_jvm()
 }
 
+/// Behavioural-evidence redesign (identity layer): manifests are EVIDENCE,
+/// never identity. Several manifests over the SAME dir (pom.xml +
+/// build.gradle at one root) are one physical application — merge them into
+/// ONE AppDet whose members ride along for the evidence list. Deterministic:
+/// input is sorted by (dir, evidence).
+fn merge_same_root(apps: Vec<AppDet>) -> Vec<AppDet> {
+    let mut out: Vec<AppDet> = vec![];
+    for a in apps {
+        match out.last_mut() {
+            Some(last) if last.dir == a.dir => {
+                // same root: fold into the first record (deterministic: the
+                // lexicographically-first manifest names the app/build).
+                if last.name.is_empty() && !a.name.is_empty() {
+                    last.name = a.name.clone();
+                }
+                if last.framework != "spring" && a.framework == "spring" {
+                    last.framework = a.framework.clone();
+                }
+                last.manifests.push((a.build.clone(), a.evidence.clone()));
+                last.holds_jvm = last.holds_jvm || a.holds_jvm;
+            }
+            _ => {
+                let mut first = a;
+                first.manifests = vec![(first.build.clone(), first.evidence.clone())];
+                out.push(first);
+            }
+        }
+    }
+    out
+}
+
 /// what the build tool files at the project root say
 pub fn detect(root: &Path) -> Detect {
     let mut d = Detect::default();
-    d.apps = find_apps(root);
+    d.apps = merge_same_root(find_apps(root));
     // root-manifest spring gates on the REAL jvm files (is_jvm checks counts)
     for app in d.apps.iter_mut() {
         if app.framework == "spring" && !app.dir.is_empty() {

@@ -181,6 +181,9 @@ mod tests {
                     line: 10,
                     in_loop: false,
                     arg_vars: vec!["/orders/{id}".into()],
+                    receiver: None,
+                    arguments: None,
+                    span: (0, 0),
                 },
                 CallSite {
                     caller: SymbolId(1),
@@ -189,6 +192,9 @@ mod tests {
                     line: 11,
                     in_loop: false,
                     arg_vars: vec![],
+                    receiver: None,
+                    arguments: None,
+                    span: (0, 0),
                 },
             ],
             vec![],
@@ -210,6 +216,9 @@ mod tests {
                 callee: Callee::Unresolved("express route".into()),
                 line: 5,
                 in_loop: false,
+                receiver: None,
+                arguments: None,
+                span: (0, 0),
                 arg_vars: vec![],
             }],
             vec![LiteralFact {
@@ -250,6 +259,9 @@ mod tests {
             line: 3,
             in_loop: false,
             arg_vars: vec!["/orders".into()],
+            receiver: None,
+            arguments: None,
+            span: (0, 0),
         });
         let scan = extract_endpoints_from_langfacts(&[f1]);
         assert_eq!(scan.files_scanned, 1);

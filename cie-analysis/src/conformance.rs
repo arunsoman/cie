@@ -462,44 +462,13 @@ pub fn run(
             }
         }
     }
-    // Naming-convention candidate contracts for auth-named functions
-    for sym in &store.symbols {
-        if !sym.is_function_like() || sym.is_test() {
-            continue;
-        }
-        if is_auth_name(&sym.name) {
-            contracts.push(Contract {
-                verified_by: vec![],
-                introduced: None,
-                id: cid,
-                obligation: ObligationKind::MustAuthorize,
-                expr: format!(
-                    "'{}' must perform real authorization before returning success",
-                    sym.name
-                ),
-                authority: Authority::InferredCandidate,
-                symbols: vec![sym.id],
-                source: ContractSource::NamingConvention,
-            });
-            cid += 1;
-        }
-        if is_money_name(&sym.name) || is_destructive_name(&sym.name) {
-            contracts.push(Contract {
-                verified_by: vec![],
-                introduced: None,
-                id: cid,
-                obligation: ObligationKind::MustAuthorize,
-                expr: format!(
-                    "'{}' must be preceded by established authorization",
-                    sym.name
-                ),
-                authority: Authority::InferredCandidate,
-                symbols: vec![sym.id],
-                source: ContractSource::NamingConvention,
-            });
-            cid += 1;
-        }
-    }
+    // Naming-convention MustAuthorize contracts were RETIRED (behavioural-
+    // evidence redesign): a function name is a lexical hint, never a
+    // normative authorization claim. The candidates now surface as typed
+    // `lexical_hints` on the function summaries (behavior.rs), so an auditor
+    // sees the same lead without the bundle asserting a security obligation
+    // the source never made. Docstring contracts above stay: they are
+    // explicitly authored.
 
     // Ordering for deterministic output
     findings.sort_by(|a, b| (&a.kind, &a.symbol).cmp(&(&b.kind, &b.symbol)));

@@ -482,6 +482,12 @@ fn rewrite(facts: &mut LangFacts, map: &BTreeMap<SymbolId, SymbolId>) {
     for a in &mut facts.async_facts {
         a.symbol = m(a.symbol);
     }
+    for b in &mut facts.bindings {
+        b.owner = m(b.owner);
+    }
+    for t in &mut facts.type_decls {
+        t.symbol = m(t.symbol);
+    }
 }
 
 /// Group `ImportFact`s per module path for resolution.

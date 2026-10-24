@@ -145,6 +145,63 @@ pub struct CallSite {
     pub in_loop: bool,
     /// Names of variables passed as arguments (taint analysis inputs).
     pub arg_vars: Vec<String>,
+    /// The receiver expression as written ("submissionService" in
+    /// `submissionService.submit(req)`), when the call has one. Evidence for
+    /// receiver-typed resolution downstream — never a resolved type by itself.
+    #[serde(default)]
+    pub receiver: Option<String>,
+    /// Argument count at the call site (positional + named), when counted.
+    #[serde(default)]
+    pub arguments: Option<u32>,
+    /// Byte span [start, end) of the call expression within the file — the
+    /// per-occurrence identity that lets repeated calls stay distinct.
+    #[serde(default)]
+    pub span: (u32, u32),
+}
+
+/// Scope of a variable binding recorded by an adapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum BindingKind {
+    /// Class-level field (`private final SubmissionService submissionService;`).
+    Field,
+    /// Function parameter with (possibly absent) declared type.
+    Param,
+    /// Local variable declaration/assignment inside a function body.
+    Local,
+    /// `self.X = ...` attribute assignment (class-scoped in spirit).
+    SelfAttr,
+}
+
+/// One name → type/binding-evidence record. Adapters emit what the syntax
+/// literally declares: a declared type text (Java fields/params/locals) or
+/// the assigned right-hand-side expression (Python assignments). Downstream
+/// resolution (cie-analysis) turns these into receiver-type evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BindingFact {
+    /// Owner symbol: the enclosing function (Param/Local/SelfAttr) or the
+    /// enclosing class (Field).
+    pub owner: SymbolId,
+    pub name: String,
+    pub kind: BindingKind,
+    /// Declared type text when the syntax states one ("SubmissionService").
+    #[serde(default)]
+    pub type_text: Option<String>,
+    /// Right-hand-side expression text when the binding is an assignment
+    /// ("self.conn.cursor()").
+    #[serde(default)]
+    pub rhs_text: Option<String>,
+    pub line: u32,
+}
+
+/// A type declaration's inheritance surface (extends/implements), so
+/// receiver-type classification can recognize a DB API through what the
+/// type itself declares (e.g. `extends JpaRepository<...>`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeDeclFact {
+    pub symbol: SymbolId,
+    pub name: String,
+    /// The extends/implements clause as written (may be empty).
+    pub supers: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -311,6 +368,13 @@ pub struct LangFacts {
     pub async_facts: Vec<AsyncSite>,
     /// Constructs this adapter could not model — surfaced in evidence.
     pub unsupported: Vec<String>,
+    /// Variable bindings the syntax declares (fields/params/locals/self-attrs)
+    /// — the receiver-type evidence table for downstream resolution.
+    #[serde(default)]
+    pub bindings: Vec<BindingFact>,
+    /// Type declarations' inheritance surfaces (extends/implements).
+    #[serde(default)]
+    pub type_decls: Vec<TypeDeclFact>,
     /// Resource-ownership effects (TASK-016/017/020): malloc/free/realloc,
     /// borrows, moves — the §14.3 `Owns`/`Reads`/`Writes` raw material.
     #[serde(default)]

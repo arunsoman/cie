@@ -66,6 +66,9 @@ fn task_007_builder_from_facts() {
         line: 3,
         in_loop: false,
         arg_vars: vec![],
+        receiver: None,
+        arguments: None,
+        span: (0, 0),
     });
 
     let g = cie_semantic::graph::relation_graph_from_facts(&[f], &store);
