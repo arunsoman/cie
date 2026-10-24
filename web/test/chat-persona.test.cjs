@@ -173,3 +173,46 @@ test("scoped answering (RFC-0024 stage 5) survives every persona — scope outra
   // unscoped prompts never carry the scope law
   assert.ok(!cp.buildSystemPrompt("auditor", DIGEST, false).includes("SELECTION SCOPE"));
 });
+
+// ---- §5: persona experience across the WHOLE chat — the instant paths ----
+
+const KINDS = ["story", "quality", "diagram", "mastery", "impact"];
+const CANNED = "**3 things to fix first** — the report's own ordering.\n\n- Secret in config.yml (rose)";
+
+test("lens: every non-fresher persona frames EVERY instant kind — no persona hole anywhere in the chat", () => {
+  for (const id of PERSONAS) {
+    const p = cp.CHAT_PERSONAS[id];
+    if (id === "fresher") continue; // identity lens — covered by the no-digit test below
+    for (const kind of KINDS) {
+      assert.ok(typeof p.lens[kind] === "string" && p.lens[kind].length > 12, `${id} has a lens line for ${kind}`);
+      const framed = cp.voiceInstant(id, kind, CANNED);
+      assert.ok(framed.startsWith(p.lens[kind] + "\n\n"), `${id}/${kind}: lens prepended verbatim`);
+      assert.ok(framed.endsWith(CANNED), `${id}/${kind}: canned answer unchanged below the lens (byte-verbatim)`);
+      assert.ok(framed.includes(CANNED), `${id}/${kind}: original content intact`);
+    }
+  }
+});
+
+test("lens law: the framing line names the lens, never a fact — no digits, and fresher is the identity lens", () => {
+  for (const id of PERSONAS) for (const kind of KINDS) {
+    assert.ok(!/\d/.test(cp.CHAT_PERSONAS[id].lens[kind]), `${id}/${kind}: lens has no digits — framing, not facts`);
+  }
+  // fresher = identity for all kinds (the canned copy IS the onboarding voice)
+  for (const kind of KINDS) {
+    assert.equal(cp.voiceInstant("fresher", kind, CANNED), CANNED, `fresher/${kind} byte-identical to today's answers`);
+  }
+});
+
+test("lens: unknown kind / no kind passes through; distinct kinds differ", () => {
+  assert.equal(cp.voiceInstant("auditor", undefined, CANNED), CANNED, "no kind → untouched (LLM path & errors)");
+  const framed = cp.voiceInstant("auditor", "quality", CANNED);
+  assert.notEqual(framed, CANNED);
+  assert.notEqual(cp.voiceInstant("architect", "quality", CANNED), framed, "different personas, different lens on the same kind");
+});
+
+test("greeting: every persona greets in its own voice; fresher keeps the original line", () => {
+  const tags = Object.values(cp.CHAT_PERSONAS).map((p) => p.greeting);
+  assert.equal(new Set(tags).size, tags.length, "greetings distinct per persona");
+  assert.ok(tags.every((g) => g.length >= 20), "greetings are real lines");
+  assert.equal(cp.CHAT_PERSONAS.fresher.greeting, "Hi! I've read your whole project.");
+});

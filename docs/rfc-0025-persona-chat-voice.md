@@ -57,7 +57,41 @@ First-run default stays `fresher` (ux-spec §14.2-6), whose voice reproduces
 the original prompt's identity lines verbatim — a visitor who never opens
 the persona menu sees the exact previous behavior.
 
-## 4 · Acceptance
+## 4 · §5 (v2) — experience completion: every path speaks the persona
+
+The first cut personalized the LLM path only and left the deterministic
+fast paths persona-neutral. That contradicted the immersion expectation:
+**one persona in, one persona out — no matter what the user asks or what
+path fires, the whole chat reads in that voice.** So:
+
+1. **Deterministic lens on instant answers.** `voiceInstant(persona, kind,
+   content)` is applied at the chat's single `respond` boundary (and at
+   the two `pushChat` sites that bypass it — journey cards, trace
+   hand-off). Five instant kinds are lensed: `story` / `quality` /
+   `diagram` (polyglot, concept, draw-anything) / `mastery` / `impact`.
+   The lens PREPENDS a persona framing line above the byte-verbatim canned
+   answer: same real data, same citations, same disclosure lines, framed
+   in the persona's voice. Lens lines are static vocabulary with NO
+   digits — they can name the lens, never a fact.
+2. **Fresher is the identity lens.** The canned copy was written for
+   onboarding, so fresher = no framing: the first-run experience is
+   byte-for-byte today's.
+3. **Greeting joins the voice.** Each persona greets the dock in its own
+   words (fresher keeps the original line).
+4. **Errors are never wrapped.** Diagnostic clarity outranks the voice:
+   error bubbles (and their technical details) stay exact for every
+   persona. The scope header (stage 5) also always renders above any lens.
+5. **The LLM path needs no lens** — the persona composes its system
+   prompt; wrapping would speak the persona twice.
+6. **Companion-chart picking stays question-keyword-driven** (persona is
+   a reading, not a picker override — the picker selects from real
+   collectables by what was asked).
+
+Remaining scope (needs its own RFC): stage views outside the atlas frame
+(deep-dive panes), journey content gating per persona, canvas chart
+footnotes. The chat — the asking surface — is now persona-complete.
+
+## 5 · Acceptance
 
 - For all five personas the built prompt contains every honesty-core
   marker (menu engine/layout strings, chart rules, strict rules, evidence
@@ -65,4 +99,7 @@ the persona menu sees the exact previous behavior.
 - All 10 persona-pair prompts differ in their identity line.
 - Fresh-scoped: the scope law + honesty line survive for all personas.
 - Fallback: `"bogus"`, null, 123, missing → byte-equal to fresher.
-- Full web suite: 99/99 node tests green.
+- Lens: every non-fresher persona frames all five instant kinds
+  (prepend-only, byte-verbatim content, digit-free lines); fresher byte-
+  identity; no-kind pass-through; distinct greetings.
+- Full web suite: 101/101 node tests green.

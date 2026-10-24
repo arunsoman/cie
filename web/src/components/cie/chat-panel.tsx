@@ -38,7 +38,8 @@ import { providerLabel } from "@/lib/llm-config";
 // also picks who answers in Ask CIE — the chat's system prompt, starters
 // and status line all follow it (chat-persona.ts is the honest core + the
 // five voices).
-import { CHAT_PERSONAS, DEFAULT_CHAT_PERSONA, sanitizePersonaId } from "@/lib/chat-persona";
+import { CHAT_PERSONAS, DEFAULT_CHAT_PERSONA, sanitizePersonaId, voiceInstant } from "@/lib/chat-persona";
+import type { InstantKind } from "@/lib/chat-persona";
 
 // Blast-radius / impact questions are the one chat path that calls the real
 // engine live, on demand (cie impact --symbol) — see the fast path below.
@@ -50,7 +51,7 @@ function cut8(items: string[]): string {
   return items.length > 4 ? `${shown}, +${items.length - 4} more` : shown;
 }
 
-const STARTERS = CHAT_PERSONAS[DEFAULT_CHAT_PERSONA].starters;
+const GREETING = CHAT_PERSONAS[DEFAULT_CHAT_PERSONA].greeting; // fallback if a voice omitted its greeting
 
 // Tiny safe renderer for CIE's answers: **bold** → <strong>, lines that start
 // with "-" become bullet lists. No dangerouslySetInnerHTML, no other markdown.
@@ -155,7 +156,7 @@ export function ChatPanel() {
       pushChat({ role: "user", content: `Trace ${t.title}, end to end` });
       const ans = answerData.scope ? null : buildTraceAnswer(report, t.entryId);
       if (ans) {
-        pushChat({ role: "assistant", content: ans.answer, card: ans.card, instant: true });
+        pushChat({ role: "assistant", content: voiceInstant(persona, "mastery", ans.answer), card: ans.card, instant: true });
         markMasteryPrompt(ans.promptKey);
       }
     }
@@ -181,6 +182,15 @@ export function ChatPanel() {
     // on the canvas right away — never a click needed to see it. "respond"
     // is the one place that pushes an assistant turn, so this cannot be
     // forgotten by any of the answer paths below.
+    //
+    // Persona immersion (RFC-0025 §5): EVERY instant answer passes through
+    // voiceInstant here — the persona's lens line sits above the byte-
+    // verbatim canned data, so no matter which instant path fired, the
+    // answer speaks the persona's voice. The LLM path needs no lens (the
+    // persona composes its system prompt); error bubbles are never wrapped
+    // (diagnostic clarity outranks the voice). The legal scope header, when
+    // present, always renders above the lens. Fresher lens = identity, so
+    // this wrapper is a byte-for-byte no-op on the default experience.
     const respond = (msg: {
       content: string;
       chart?: ChatChartSpec;
@@ -188,8 +198,9 @@ export function ChatPanel() {
       error?: boolean;
       technical?: string;
       providerIssue?: boolean;
-    }) => {
-      pushChat({ role: "assistant", ...msg, content: scope ? `${scope.header}\n\n${msg.content}` : msg.content });
+    }, kind?: InstantKind) => {
+      const content = msg.error ? msg.content : voiceInstant(voice.id, kind, msg.content);
+      pushChat({ role: "assistant", ...msg, content: scope ? `${scope.header}\n\n${content}` : content });
       if (msg.chart) openChartOnCanvas(msg.chart);
     };
 
@@ -208,7 +219,7 @@ export function ChatPanel() {
     // its own story instead of the project map. ----
     const storyAns = tryAnswerStory(question, stories);
     if (storyAns) {
-      respond({ content: storyAns.answer, chart: withChart(storyAns.chart), instant: true });
+      respond({ content: storyAns.answer, chart: withChart(storyAns.chart), instant: true }, "story");
       return;
     }
 
@@ -218,7 +229,7 @@ export function ChatPanel() {
     // Instant, nothing invented; unmatched questions fall through. ----
     const qualityAns = tryAnswerQuality(question, quality, concepts);
     if (qualityAns) {
-      respond({ content: qualityAns.answer, chart: withChart(qualityAns.chart), instant: true });
+      respond({ content: qualityAns.answer, chart: withChart(qualityAns.chart), instant: true }, "quality");
       return;
     }
 
@@ -234,7 +245,7 @@ export function ChatPanel() {
     // count answer, never the stand-in drawn as if it were named. ----
     const polyAns = tryPolyglotDraw(question, polyglotSpecs);
     if (polyAns) {
-      respond({ content: polyAns.answer, instant: true });
+      respond({ content: polyAns.answer, instant: true }, "diagram");
       if (polyAns.artifact) openPolyglotOnCanvas(polyAns.artifact);
       return;
     }
@@ -248,7 +259,7 @@ export function ChatPanel() {
     // stand-in drawn as if it were the story). ----
     const conceptAns = tryConceptDraw(question, report, concepts);
     if (conceptAns) {
-      respond({ content: conceptAns.answer, instant: true });
+      respond({ content: conceptAns.answer, instant: true }, "diagram");
       if (conceptAns.conceptId != null) openConceptOnCanvas(conceptAns.conceptId, conceptAns.kind);
       return;
     }
@@ -265,7 +276,7 @@ export function ChatPanel() {
       const traceCard = masteryAns.card?.kind === "trace";
       pushChat({
         role: "assistant",
-        content: masteryAns.answer || "(the trace card below is the answer)",
+        content: voiceInstant(voice.id, "mastery", masteryAns.answer || "(the trace card below is the answer)"),
         card: masteryAns.card,
         chart: masteryAns.chart ?? undefined,
         instant: true,
@@ -279,7 +290,7 @@ export function ChatPanel() {
     // store (draw-anything.ts) — instant, and nothing can be invented. ----
     const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
     if (local) {
-      respond({ content: local.answer, chart: withChart(local.chart), instant: true });
+      respond({ content: local.answer, chart: withChart(local.chart), instant: true }, "diagram");
       return;
     }
 
@@ -331,7 +342,7 @@ export function ChatPanel() {
                 (impact.affected_concepts.length ? ` It also reaches into: ${cut8(impact.affected_concepts)}.` : ""),
               chart,
               instant: true,
-            });
+            }, "impact");
           }
         } catch {
           respond({ content: "The connection dropped before CIE could work out the impact. Please check your internet and try again.", error: true });
@@ -441,7 +452,7 @@ export function ChatPanel() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 mb-3">
               <Compass className="h-6 w-6 text-emerald-700" />
             </div>
-            <p className="font-semibold text-stone-900">Hi! I&apos;ve read your whole project.</p>
+            <p className="font-semibold text-stone-900">{voice.greeting ?? GREETING}</p>
             <p className="text-sm text-stone-500 mt-1 max-w-[260px]">
               {voice.tagline} Charts I draw appear here, and any chart can
               go big on the canvas.

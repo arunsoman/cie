@@ -14,13 +14,22 @@
 // never overwrite or delete a core line.
 //
 // The deterministic fast paths (stories, quality, polyglot/concept draws,
-// draw-anything, impact) are deliberately NOT persona-aware: they are
-// instant, local re-reads of real collectables ("no AI involved, nothing
-// invented") — a persona voice there would put words in canned evidence.
+// draw-anything, impact) ARE persona-aware through a prepend-only LENS
+// (voiceInstant): the persona's framing line sits above the answer, which
+// stays byte-verbatim below it — same real data, same citations, same
+// disclosure lines, just intro'd in the persona's own voice. Lens lines are
+// static persona vocabulary with NO digits — they can name the lens, never
+// a fact. Fresher is the identity lens: the canned copy was written for
+// onboarding, so the first-run experience is exactly what it always was.
 
 import type { PersonaId } from "./atlas-presets";
 
 export const DEFAULT_CHAT_PERSONA: PersonaId = "fresher";
+
+/** the answer kinds the chat produces WITHOUT the LLM (instant paths).
+ *  The persona lens keys on these so every instant answer is intro'd in
+ *  the persona's voice — no path left speaking the system's default. */
+export type InstantKind = "story" | "quality" | "diagram" | "mastery" | "impact";
 
 /** fragment caps — enforced by the composer; a persona can lengthen its
  *  voice, never widen the core. Tests assert fragments stay within caps. */
@@ -29,6 +38,8 @@ const CAPS = { intro: 5, voice: 6, focus: 6, chartBias: 3, extraRules: 4 } as co
 export interface ChatPersona {
   /** the PersonaId this voice answers as (=== its catalog key) */
   id: PersonaId;
+  /** empty-state greeting line (first thing they read in the dock) */
+  greeting: string;
   /** identity block — the first lines the model sees */
   intro: string[];
   /** how this persona speaks: audience, vocabulary, length budget, format */
@@ -45,11 +56,14 @@ export interface ChatPersona {
   voiceTag: string;
   /** the one-line chat flavor of the persona, shown in the empty state */
   tagline: string;
+  /** deterministic lens per instant-answer kind; fresher omits it (identity) */
+  lens: Partial<Record<InstantKind, string>>;
 }
 
 export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
   fresher: {
     id: "fresher",
+    greeting: "Hi! I've read your whole project.",
     intro: [
       "You are CIE's friendly explainer. CIE is a tool that reads a software project and turns it into a plain-English health report.",
       "You are chatting with the project's owner. They may be completely non-technical — a founder, a manager, a student. Be warm, patient and clear.",
@@ -70,10 +84,12 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
     ],
     voiceTag: "Onboarding voice",
     tagline: "Plain words before technical words — everything explained as we go.",
+    lens: {}, // identity: the canned instant copy IS the onboarding voice
   },
 
   reviewer: {
     id: "reviewer",
+    greeting: "Hi. I've read everything — ready for the review pass.",
     intro: [
       "You are CIE's code reviewer: a calm, exact senior reviewer helping the project's own developer judge what has been built.",
       "You are talking to someone who reads code. Technical vocabulary is welcome — but every claim about THIS project must still come from the report's facts.",
@@ -103,10 +119,18 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
     ],
     voiceTag: "Reviewer voice",
     tagline: "Exact, cited, severity-first — the senior review pass.",
+    lens: {
+      story: "Review lens — the recorded handoffs, read for what they prove:",
+      quality: "Review pass — the same findings, read in severity order with citation discipline:",
+      diagram: "Reviewing the drawn structure as the engine mapped it:",
+      mastery: "Review checklist framing for this tour:",
+      impact: "Review verdict on change risk:",
+    },
   },
 
   architect: {
     id: "architect",
+    greeting: "Hi. I've mapped your whole system — ask me how the pieces fit.",
     intro: [
       "You are CIE's technical architect: you read the project as STRUCTURE — modules, boundaries, flows and the seams between them.",
       "You are talking to someone who maintains or evolves this code. Assume code vocabulary, map every general claim back to the concrete facts given.",
@@ -137,10 +161,18 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
     ],
     voiceTag: "Architect voice",
     tagline: "Structure, seams and coupling — the whole system first.",
+    lens: {
+      story: "Structure lens — who owns which flow, and where the seams sit:",
+      quality: "Architecture pass — the health report, read for cost of change:",
+      diagram: "The structure, as the engine mapped it:",
+      mastery: "Architecture framing for the tour:",
+      impact: "Blast radius, read as coupling:",
+    },
   },
 
   auditor: {
     id: "auditor",
+    greeting: "Hello. I've read the whole project — ready to triage it.",
     intro: [
       "You are CIE's auditor: a risk-and-security first pass for someone deciding what must be fixed before anything else ships.",
       "You never exaggerate and never reassure beyond evidence: findings are quoted with their severity, proven facts are distinguished from CIE's guesses, and gaps are named as gaps.",
@@ -171,10 +203,18 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
     ],
     voiceTag: "Auditor voice",
     tagline: "Risk first, evidence quoted, gaps named — nothing softened.",
+    lens: {
+      story: "Audit framing — access and custody, read for exposure:",
+      quality: "Audit pass — exposure first, in the report's own severity order:",
+      diagram: "Audit view of the surfaces involved:",
+      mastery: "Audit checklist framing for this tour:",
+      impact: "Blast radius — exposure and the minimum safe test set:",
+    },
   },
 
   consultant: {
     id: "consultant",
+    greeting: "Good to meet you. I've read this project the way an outside consultant would.",
     intro: [
       "You are CIE's independent software consultant: you have just been handed this codebase on someone else's behalf and must brief the owner honestly.",
       "You are talking to a decision maker (buyer, manager, grant reviewer) who did not write the code and wants to know: what shape is it really in, and can it be trusted and grown?",
@@ -204,6 +244,13 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
     ],
     voiceTag: "Consultant voice",
     tagline: "An outside verdict: strengths, risks, recommendations.",
+    lens: {
+      story: "Outside-in: who depends on what:",
+      quality: "Verdict framing — strengths before risks, all cited from the report:",
+      diagram: "The shape of the system, as an outside reviewer sees it:",
+      mastery: "Consultant framing for the guided tour:",
+      impact: "Change-safety verdict:",
+    },
   },
 };
 
@@ -212,6 +259,18 @@ export const CHAT_PERSONAS: Record<PersonaId, ChatPersona> = {
  *  (a persona is a preference, never a reason to fail a question). */
 export function sanitizePersonaId(raw: unknown): PersonaId {
   return typeof raw === "string" && raw in CHAT_PERSONAS ? (raw as PersonaId) : DEFAULT_CHAT_PERSONA;
+}
+
+/** The one persona-lens rule for INSTANT answers: prepend the persona's
+ *  framing line above the verbatim answer (fresher = identity — the canned
+ *  copy was written for onboarding; other personas own the intro). The
+ *  answer below the lens stays byte-for-byte the same real data, citations
+ *  and disclosures; the lens line itself carries NO digits (it can name
+ *  the lens, never a fact). Unknown kinds pass through unchanged. */
+export function voiceInstant(persona: PersonaId, kind: InstantKind | undefined, content: string): string {
+  if (!kind) return content;
+  const lens = CHAT_PERSONAS[persona]?.lens[kind];
+  return lens ? `${lens}\n\n${content}` : content;
 }
 
 /** The shared system-prompt composer: persona fragments first (identity,

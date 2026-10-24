@@ -1162,3 +1162,20 @@ Work Log:
 
 Stage Summary:
 - PERSONA-CHAT-VOICE is ON ORIGIN pushed on top of the audit fixes: origin/main == local == c5aa8e1 (0366dcd + c5aa8e1). One persona concept now governs Atlas + chat. NEXT known backlog: calendar time units + IANA timezones, provider projection caching, stored-impact artifacts (retrieval), or the user's pick.
+
+---
+Task ID: PERSONA-CHAT-VOICE-v2-immersion
+Agent: main
+Task: Close the immersion gap the user called out: one persona in, one persona out — the deterministic instant answers now speak the persona's voice too, so every possible chat path follows the chosen persona.
+
+Work Log:
+- Reframed: first version personalized the LLM path and left canned fast paths persona-neutral "by law" — the user corrected the law itself: persona = the experience profile across the system (asks AND looks), so an instant quality answer inside Auditor/Security must READ as auditor even though no LLM is involved.
+- chat-persona.ts: InstantKind vocabulary (story/quality/diagram/mastery/impact); per-persona lens: Partial<Record<InstantKind,string>> — static framing lines with a NO-DIGITS law (framing line can name the lens, never a fact); voiceInstant(persona, kind, content) prepends the lens above the byte-verbatim canned answer (same data, same citations, same disclosure footers). Fresher = identity lens: the canned copy WAS the onboarding voice, so day-one behavior is byte-identical.
+- chat-panel.tsx: the single respond() boundary takes the kind and applies the lens to every instant answer (story→story, quality→quality, polyglot+concept+draw-anything→diagram, impact→impact); the two pushChat sites that bypass respond (journey card, trace hand-off) wrap via voiceInstant too. Error bubbles are never wrapped (diagnostics exact); LLM answers need no lens (persona composes their system prompt); scope header still renders above any lens.
+- Each persona now greets the dock in its own words (fresher keeps "Hi! I've read your whole project.").
+- RFC-0025 gained §5 (experience completion) with the remaining honest scope listed (deep-dive stage panes, journey gating, canvas footnotes — separate RFC).
+- Tests: chat-persona.test.cjs now 12 tests — lens coverage for all five kinds × four non-fresher personas (no persona hole anywhere), digit-free framing law, fresher byte-identity for all kinds, no-kind pass-through (LLM path + errors), distinct per-persona greetings.
+- Companion-chart picking stays question-keyword-driven on purpose (persona is a reading lens, not a picker override).
+
+Stage Summary:
+- The chat is now persona-complete end to end: prompts (LLM), instant answers (lens), starters, greeting, header/footer tags. Atlas was already persona-planned (RFC-0024). 105/105 web tests.
