@@ -17,9 +17,9 @@
 //! The classification is generic library knowledge (the same class of table
 //! as the builtin spellings), never an application allowlist.
 
-use cie_adapters::effects::{db_factory_rhs, is_db_api_type, is_db_module, is_in_memory_type};
+use cie_adapters::effects::{db_factory_rhs, is_db_module, is_in_memory_type};
 use cie_core::types::SymbolId;
-use cie_semantic::facts::{BindingFact, BindingKind, LangFacts, SymbolStore, TypeDeclFact};
+use cie_semantic::facts::{BindingFact, LangFacts, SymbolStore, TypeDeclFact};
 
 /// How strongly (and through which rung) a receiver resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,13 +73,36 @@ fn is_db_supers(supers: &str) -> bool {
         || s.contains("sqlsession")
 }
 
+fn local_type(store:&SymbolStore,facts:&LangFacts,text:&str)->Option<SymbolId>{
+    let qualified=text.split('<').next().unwrap_or(text).trim();
+    let simple=qualified.rsplit('.').next().unwrap_or(qualified);
+    let candidates:Vec<_>=store.symbols.iter().filter(|s|s.kind.is_type_like()&&s.name==simple).collect();
+    let same_file:Vec<_>=candidates.iter().filter(|s|store.files.path(s.loc.file)==facts.path).collect();
+    if same_file.len()==1{return Some(same_file[0].id);}
+    let imports:Vec<_>=facts.imports.iter().filter(|i|i.module.rsplit('.').next()==Some(simple)).map(|i|i.module.as_str()).collect();
+    let imported:Vec<_>=candidates.iter().filter(|s|imports.iter().any(|q|store.files.path(s.loc.file).ends_with(&format!("{}.java",q.replace('.',"/"))))).collect();
+    if imported.len()==1{return Some(imported[0].id);}
+    if !imports.is_empty(){return None;}
+    if qualified.contains('.') {
+        return candidates.iter().find(|s|s.qual_name==qualified || store.files.path(s.loc.file).ends_with(&format!("{}.java",qualified.replace('.',"/")))).map(|s|s.id);
+    }
+    if candidates.len()==1{Some(candidates[0].id)}else{None}
+}
+fn known_db_type(name:&str)->bool{
+    ["java.sql.","javax.sql.","jakarta.persistence.","javax.persistence.","org.springframework.jdbc.","org.springframework.data.","org.hibernate."].iter().any(|p|name.starts_with(p))
+}
+
 /// Classify a declared type text through the identity tables + in-tree supers.
 fn classify_type(type_text: &str, facts: &LangFacts, store: &SymbolStore) -> ReceiverClass {
     let t = type_text.trim();
     if t.is_empty() {
         return ReceiverClass::Unknown;
     }
-    if is_db_api_type(t) {
+    if let Some(symbol)=local_type(store,facts,t){
+        let identity=store.get(symbol).map(|s|s.qual_name.clone()).unwrap_or_else(||t.to_string());
+        return ReceiverClass::InTree{identity,symbol};
+    }
+    if known_db_type(t) || facts.imports.iter().any(|i|i.module.rsplit('.').next()==Some(t)&&known_db_type(&i.module)) {
         return ReceiverClass::Db {
             identity: t.to_string(),
             basis: "type-resolved-api-identity",
@@ -103,16 +126,6 @@ fn classify_type(type_text: &str, facts: &LangFacts, store: &SymbolStore) -> Rec
                 identity: t.to_string(),
                 basis: "type-resolved-api-identity",
             };
-        }
-    }
-    if let Some(sym) = store.resolve_unique_name(simple) {
-        if let Some(sf) = store.get(sym) {
-            if matches!(sf.kind, cie_semantic::facts::SymbolKind::Class | cie_semantic::facts::SymbolKind::Interface | cie_semantic::facts::SymbolKind::Enum | cie_semantic::facts::SymbolKind::Struct) {
-                return ReceiverClass::InTree {
-                    identity: sf.qual_name.clone(),
-                    symbol: sym,
-                };
-            }
         }
     }
     if t.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
@@ -249,7 +262,7 @@ pub fn resolve_receiver(
         }
         // an in-tree type name (`ResponseEntity.ok(...)` style statics resolve
         // through the symbol table when the type is declared in the tree)
-        if let Some(sym) = store.resolve_unique_name(expr) {
+        if let Some(sym) = local_type(store,facts,expr) {
             if let Some(sf) = store.get(sym) {
                 if matches!(sf.kind, cie_semantic::facts::SymbolKind::Class | cie_semantic::facts::SymbolKind::Interface | cie_semantic::facts::SymbolKind::Enum | cie_semantic::facts::SymbolKind::Struct) {
                     return ReceiverClass::InTree {
@@ -283,4 +296,21 @@ pub fn resolve_receiver(
         return classify_type(head, facts, store);
     }
     ReceiverClass::Unknown
+}
+
+/// Resolve local declarations before interpreting API effects. Inheritance
+/// evidence belongs to the declaring file, not the caller's file.
+pub fn resolve_receiver_project(store:&SymbolStore,facts:&LangFacts,all:&[LangFacts],sym:SymbolId,expr:&str)->ReceiverClass{
+    let result=resolve_receiver(store,facts,sym,expr);
+    if let ReceiverClass::InTree{ref identity,symbol}=result {
+        if let Some(owner)=all.iter().find(|f|store.get(symbol).map(|s|store.files.path(s.loc.file)==f.path).unwrap_or(false)){
+            if let Some(decl)=owner.type_decls.iter().find(|d|d.symbol==symbol){
+                let names:Vec<_>=decl.supers.split(|c:char|!c.is_alphanumeric()&&c!='.'&&c!='_').filter(|s|!s.is_empty()).collect();
+                if names.iter().any(|name|known_db_type(name)||owner.imports.iter().any(|i|i.module.rsplit('.').next()==Some(*name)&&known_db_type(&i.module))){
+                    return ReceiverClass::Db{identity:identity.clone(),basis:"type-resolved-api-identity"};
+                }
+            }
+        }
+    }
+    result
 }

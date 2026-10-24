@@ -32,6 +32,8 @@ pub enum ConceptKind {
     Value,
     Aggregate,
     UseCase,
+    /// A formal intersection of technical attributes, not a business story.
+    Facet,
     Rule,
     Invariant,
 }
@@ -48,6 +50,7 @@ impl ConceptKind {
             ConceptKind::Value => "Value",
             ConceptKind::Aggregate => "Aggregate",
             ConceptKind::UseCase => "UseCase",
+            ConceptKind::Facet => "Facet",
             ConceptKind::Rule => "Rule",
             ConceptKind::Invariant => "Invariant",
         }
@@ -110,6 +113,8 @@ pub struct ConceptNode {
     /// Additional DAG parents beyond the primary one, with edge reasons.
     pub extra_edges: Vec<(ConceptNodeId, EdgeReason)>,
     pub primary_edge: EdgeReason,
+    #[serde(default)]
+    pub entry_symbol: Option<SymbolId>,
     pub symbols: Vec<SymbolId>,
     pub behaviors: Vec<BehaviorRef>,
     pub rules: Vec<RuleRef>,
@@ -134,6 +139,7 @@ impl ConceptNode {
             children: vec![],
             extra_edges: vec![],
             primary_edge: EdgeReason::PackageContainment,
+            entry_symbol: None,
             symbols: vec![],
             behaviors: vec![],
             rules: vec![],

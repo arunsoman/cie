@@ -1,4 +1,5 @@
 "use client";
+import { DiagramNavigation } from "./diagram-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SelectionConductor,
@@ -20,6 +21,7 @@ import { askAboutChartElement } from "@/lib/quality";
 
 const conductor = new SelectionConductor();
 export interface DiagramSelection {
+  symbolId?:number;
   kind: "node" | "link" | "msg";
   id: string;
   label: string;
@@ -129,7 +131,7 @@ export function ChatChart({
               ? data.view
               : { ...data.view, layoutHint: { strategy: layout } },
             {
-              factsOnly: onSelectElement ? atlasFactsOnly : false,
+              factsOnly: onSelectElement && spec.kind!=="sequence" ? atlasFactsOnly : false,
               keepIds: filterKeep ?? undefined,
             },
           ),
@@ -161,9 +163,12 @@ export function ChatChart({
               : entry.id,
           label: entry.label,
           loc: entry.loc,
+          symbolId:entry.symbolId,
         });
         return;
       }
+      const fn=entry.symbolId!=null ? report?.symbols.find(s=>Number(s.id)===entry.symbolId) : report?.symbols.find(s=>['Function','Method','Test'].includes(s.kind)&&report.files[s.loc.file]===entry.loc?.file&&s.loc.start===entry.loc?.byteStart&&s.loc.end===entry.loc?.byteEnd);
+      if(fn){useCie.getState().selectFunction(Number(fn.id));return;}
       addChip({
         id: entry.id,
         label: entry.label,
@@ -276,6 +281,7 @@ export function ChatChart({
     <div className="mt-1" data-cie-chart={spec.kind}>
       {spec.title && <p className="text-sm font-semibold">{spec.title}</p>}
       {spec.tell && <p className="text-xs text-stone-500">{spec.tell}</p>}
+      {spec.kind==="sequence"&&atlasFactsOnly&&<p className="text-xs text-amber-700">Candidate and unresolved boundaries remain visible; dashed calls are not proven runtime dispatch.</p>}
       {!!gated.spec?.elements.length && (
         <div
           ref={host}
@@ -285,6 +291,7 @@ export function ChatChart({
         />
       )}
       {!gated.spec?.elements.length && <div ref={host} />}
+      {!!gated.spec?.elements.length && <DiagramNavigation handle={handle} />}
       <p
         role={failure ? "alert" : undefined}
         className="text-[10px] text-stone-500 mt-1"

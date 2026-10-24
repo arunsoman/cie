@@ -226,10 +226,11 @@ pub fn compute_summaries_with_reuse(
                 }
             }
             sym_calls.sort_by(|a, b| {
-                (a.1.line, a.1.span.0, a.1.callee_text.as_str())
-                    .cmp(&(b.1.line, b.1.span.0, b.1.callee_text.as_str()))
+                (a.1.span.1, std::cmp::Reverse(a.1.span.0), a.1.line)
+                    .cmp(&(b.1.span.1, std::cmp::Reverse(b.1.span.0), b.1.line))
             });
             let mut statement_lines: Vec<u32> = sym_calls.iter().map(|(_, c)| c.line).collect();
+            statement_lines.sort_unstable();
             statement_lines.dedup();
             let mut occurrence: BTreeMap<String, u32> = BTreeMap::new();
 
@@ -237,7 +238,7 @@ pub fn compute_summaries_with_reuse(
                 let rclass = call
                     .receiver
                     .as_deref()
-                    .map(|r| crate::receiver::resolve_receiver(store, facts, sid, r))
+                    .map(|r| crate::receiver::resolve_receiver_project(store, facts, per_file, sid, r))
                     .unwrap_or(crate::receiver::ReceiverClass::Unknown);
                 let method = call
                     .callee_text
@@ -282,7 +283,7 @@ pub fn compute_summaries_with_reuse(
                                         .children_of(*symbol)
                                         .iter()
                                         .any(|c| {
-                                            store.get(*c).map(|m| m.name == method).unwrap_or(false)
+                                            store.get(*c).map(|m| m.name == call.callee_text.rsplit('.').next().unwrap_or(&call.callee_text)).unwrap_or(false)
                                         });
                                     if declared {
                                         ("resolved", "candidate", Some(identity.clone()))
@@ -300,6 +301,28 @@ pub fn compute_summaries_with_reuse(
                         },
                     };
 
+                // Declaration navigation must retain identity, not just a type label.
+                // Candidate targets never enter exact `callees` or must-effect propagation.
+                let target_symbols: Vec<SymbolId> = match &call.callee {
+                    Callee::Resolved(id) => vec![*id],
+                    Callee::Unresolved(reason) if reason == "reflective" => vec![],
+                    _ => {
+                        if let crate::receiver::ReceiverClass::InTree { symbol, .. } = &rclass {
+                            let name = call.callee_text.rsplit('.').next().unwrap_or(&call.callee_text);
+                            store.children_of(*symbol).iter().copied().filter(|id| {
+                                store.get(*id).map(|m| m.is_function_like() && m.name == name).unwrap_or(false)
+                            }).filter(|id| {
+                                let params = per_file.iter().flat_map(|f| &f.bindings)
+                                    .filter(|b| b.owner == *id && b.kind == cie_semantic::facts::BindingKind::Param).count();
+                                call.arguments.map(|n| params == n as usize).unwrap_or(true)
+                            }).collect()
+                        } else { vec![] }
+                    }
+                };
+                let (declaration, dispatch, receiver_type) = if !target_symbols.is_empty() && !matches!(call.callee, Callee::Resolved(_)) {
+                    let identity = match &rclass { crate::receiver::ReceiverClass::InTree { identity, .. } => Some(identity.clone()), _ => receiver_type };
+                    (if target_symbols.len() == 1 { "resolved" } else { "ambiguous" }, "candidate", identity)
+                } else { (declaration, dispatch, receiver_type) };
                 // ---- effects: receiver-gated, with provenance or demotion ----
                 let mut rec_effect: Option<EffectClaim> = None;
                 let mut rec_hint: Option<String> = None;
@@ -356,6 +379,8 @@ pub fn compute_summaries_with_reuse(
                                     && matches!(
                                         rclass,
                                         crate::receiver::ReceiverClass::InMemory { .. }
+                                            | crate::receiver::ReceiverClass::InTree { .. }
+                                            | crate::receiver::ReceiverClass::ExternalType { .. }
                                             | crate::receiver::ReceiverClass::Unknown
                                     )
                                 {
@@ -426,6 +451,7 @@ pub fn compute_summaries_with_reuse(
                     .unwrap_or(0);
                 s.call_sites.push(CallSiteRecord {
                     callee: call.callee_text.clone(),
+                    target_symbols,
                     receiver: call.receiver.clone(),
                     receiver_type,
                     declaration: declaration.into(),

@@ -156,6 +156,11 @@ impl RevisionReader {
         }
         for summary in self.snapshot["summaries"].as_array().into_iter().flatten() {
             if let Some(source) = summary["sym"].as_u64().and_then(|n| core.get(&n)) {
+                let declared: BTreeSet<u64> = summary["callees"].as_array().into_iter().flatten().filter_map(Value::as_u64)
+                    .chain(summary["call_sites"].as_array().into_iter().flatten().flat_map(|c|c["target_symbols"].as_array().into_iter().flatten()).filter_map(Value::as_u64)).collect();
+                for target in declared.iter().filter_map(|id|core.get(id)) {
+                    ds.edges.push(Edge{source:source.clone(),target:target.clone(),relation:RelationKind::DeclaredCalls});
+                }
                 for callee in summary["callees"].as_array().into_iter().flatten() {
                     if let Some(target) = callee.as_u64().and_then(|n| core.get(&n)) {
                         ds.edges.push(Edge {

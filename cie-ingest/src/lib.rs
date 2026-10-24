@@ -56,7 +56,7 @@ use std::path::{Path, PathBuf};
 /// usecase-first projection (A5). Bumping the version sends every
 /// folder's next ingest through ONE full pass, which rebuilds the
 /// concepts tree and fills `usecase_view`, then the fast path holds.
-pub const CONCEPTS_TIER_VERSION: u8 = 3;
+pub const CONCEPTS_TIER_VERSION: u8 = 4;
 
 /// RFC-0024: does the head revision's persisted snapshot predate the
 /// current concepts-tier version? True when it loads but carries a
@@ -321,7 +321,7 @@ pub fn run_ingest_with_progress(
 
     // TASK-030: load the prior snapshot to seed summary reuse.
     let prior_snapshot: Option<RevSnapshot> = match prev_index.as_ref() {
-        Some(idx) if idx.last_rev > 0 => store.load_snapshot(idx.last_rev)?,
+        Some(idx) if idx.last_rev > 0 => store.load_snapshot(idx.last_rev)?.filter(|s|s.concepts_tier==Some(CONCEPTS_TIER_VERSION)),
         _ => None,
     };
 
@@ -343,6 +343,11 @@ pub fn run_ingest_with_progress(
                     entry.insert(extracted.files.path(sym.loc.file).to_string());
                 }
             }
+            if let Some(receiver)=c.receiver.as_deref() {
+                if let cie_analysis::receiver::ReceiverClass::InTree{symbol,..}=cie_analysis::receiver::resolve_receiver_project(&extracted.store,facts,&extracted.per_file,c.caller,receiver) {
+                    if let Some(sym)=extracted.store.get(symbol){entry.insert(extracted.files.path(sym.loc.file).to_string());}
+                }
+            }
         }
     }
     let mut plan30 = cie_analysis::behavior::ReusePlan {
@@ -356,13 +361,22 @@ pub fn run_ingest_with_progress(
         let qual_of: BTreeMap<u32, (String, String)> = prev
             .symbols
             .iter()
-            .map(|s| (s.id.0, (extracted.files.path(s.loc.file).to_string(), s.qual_name.clone())))
+            .map(|s| (s.id.0, (prev.files.get(s.loc.file.0 as usize).cloned().unwrap_or_default(), s.qual_name.clone())))
             .collect();
+        // Prior numeric IDs are revision-local. Translate through unique
+        // declaration identities before seeding either exact or candidate edges.
+        let remap: BTreeMap<SymbolId,SymbolId> = prev.symbols.iter().filter_map(|old| {
+            let path=prev.files.get(old.loc.file.0 as usize)?;
+            let candidates:Vec<_>=extracted.store.symbols.iter().filter(|new|extracted.files.path(new.loc.file)==path&&new.qual_name==old.qual_name).collect();
+            if candidates.len()==1{Some((old.id,candidates[0].id))}else{None}
+        }).collect();
         for sum in &prev.summaries {
-            if let Some((path, qual)) = qual_of.get(&sum.sym.0) {
-                plan30
-                    .prior_summaries
-                    .insert((path.clone(), qual.clone()), sum.clone());
+            if let (Some((path,qual)),Some(new_id))=(qual_of.get(&sum.sym.0),remap.get(&sum.sym)) {
+                let mut seeded=sum.clone();seeded.sym=*new_id;
+                seeded.callees=seeded.callees.iter().filter_map(|id|remap.get(id).copied()).collect();
+                seeded.callers=seeded.callers.iter().filter_map(|id|remap.get(id).copied()).collect();
+                for call in &mut seeded.call_sites{call.target_symbols=call.target_symbols.iter().filter_map(|id|remap.get(id).copied()).collect();}
+                plan30.prior_summaries.insert((path.clone(),qual.clone()),seeded);
             }
         }
         for entry in &prev.summary_cache {
@@ -384,8 +398,8 @@ pub fn run_ingest_with_progress(
                 cie_semantic::facts::Callee::Unresolved(reason) => format!("u{}", reason),
             };
             fact_bufs.entry(c.caller).or_default().push_str(&format!(
-                "call|{}|{}|{}\n",
-                c.callee_text, callee, c.in_loop
+                "call|{}|{}|{}|{:?}|{:?}|{:?}|{}\n",
+                c.callee_text, callee, c.in_loop,c.receiver,c.arguments,c.span,c.line
             ));
             if let cie_semantic::facts::Callee::Resolved(id) = c.callee {
                 callers_of.entry(id).or_default().insert(c.caller);
@@ -437,6 +451,21 @@ pub fn run_ingest_with_progress(
                 s.arg_vars.join(","),
                 s.kind
             ));
+        }
+    }
+    for facts in &extracted.per_file {
+        let binding_profile=serde_json::to_string(&(&facts.bindings,&facts.type_decls,&facts.imports)).unwrap_or_default();
+        // Declaration changes (including a newly ambiguous type) must invalidate
+        // callers even when their own method body is unchanged.
+        let declarations: Vec<_> = extracted.store.symbols.iter().filter(|s| !s.is_function_like())
+            .map(|s| (&s.qual_name, extracted.files.path(s.loc.file))).collect();
+        let declaration_profile=serde_json::to_string(&declarations).unwrap_or_default();
+        for sym in &extracted.store.symbols {
+            if sym.is_function_like() && extracted.files.path(sym.loc.file)==facts.path {
+                fact_bufs.entry(sym.id).or_default().push_str(&binding_profile);
+                fact_bufs.entry(sym.id).or_default().push_str(&declaration_profile);
+                fact_bufs.entry(sym.id).or_default().push_str(&format!("{:?}",plan30.dep_hash(&facts.path)));
+            }
         }
     }
     for sym in &extracted.store.symbols {

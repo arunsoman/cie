@@ -281,6 +281,7 @@ fn relation_kinds() -> Vec<RelationKind> {
     vec![
         RelationKind::DefinedIn,
         RelationKind::Calls,
+        RelationKind::DeclaredCalls,
         RelationKind::MemberOfConcept,
         RelationKind::ChildConceptOf,
         RelationKind::MemberOfCluster,

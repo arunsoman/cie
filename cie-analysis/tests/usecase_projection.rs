@@ -137,7 +137,7 @@ fn one_record_per_usecase_with_the_chain_members_and_class_cut() {
             cie_concepts::UsecaseLink {
                 id: broad.id,
                 label: broad.label.clone(),
-                kind: ConceptKind::UseCase,
+                kind: ConceptKind::Facet,
             },
             cie_concepts::UsecaseLink {
                 id: 0,

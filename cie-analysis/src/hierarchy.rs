@@ -661,7 +661,7 @@ pub fn build_hierarchy(
             if let Some(c4) = &c4 {
                 let sym = store.get(*id);
                 let path = sym.map(|s| store.files.path(s.loc.file)).unwrap_or("");
-                if c4.route_files.contains(path) {
+                if stack.map(|st| st.routes.iter().any(|route| route.rel == path && sym.map(|s| s.qual_name == format!("{}.{}", route.owner, route.method)).unwrap_or(false))).unwrap_or(false) {
                     attrs.insert("http-route".into());
                 }
                 if s.effects.contains(&EffectKind::DbWrite) {
@@ -730,7 +730,7 @@ pub fn build_hierarchy(
             &fca::concept_label(&concept.intent),
             &evidence,
         );
-        let mut n = ConceptNode::new(0, label, ConceptKind::UseCase, now);
+        let mut n = ConceptNode::new(0, label, ConceptKind::Facet, now);
         n.intent = concept.intent.iter().cloned().collect();
         n.primary_edge = EdgeReason::FcaSubsumption;
         n.provenance = "fca:godin-v1".into();
@@ -837,6 +837,41 @@ pub fn build_hierarchy(
             if let Some(node) = dag.get_mut(id) {
                 node.extra_edges.push((class_id, EdgeReason::FcaSubsumption));
             }
+        }
+    }
+
+    // Source-backed API capabilities have an actual trigger/root. FCA groups
+    // remain Facets; a shared attribute never becomes a business story.
+    if let Some(stack) = stack {
+        let mut seen = BTreeSet::new();
+        for route in &stack.routes {
+            if !seen.insert((route.verb.clone(), route.path.clone(), route.rel.clone(), route.method.clone())) { continue; }
+            let roots: Vec<_> = store.symbols.iter().filter(|s| s.is_function_like() && store.files.path(s.loc.file) == route.rel && s.qual_name == format!("{}.{}", route.owner, route.method)).collect();
+            if roots.len() != 1 { continue; }
+            let entry = roots[0].id;
+            let mut members = vec![entry];
+            let mut visited = BTreeSet::from([entry]);
+            let mut incomplete = false;
+            let mut i = 0;
+            while i < members.len() && i < 1000 {
+                if let Some(summary) = behavior.summaries.get(&members[i]) {
+                    incomplete |= !summary.unresolved_callees.is_empty() || !summary.complete;
+                    for target in summary.callees.iter().chain(summary.call_sites.iter().flat_map(|c| c.target_symbols.iter())) {
+                        if visited.insert(*target) && store.get(*target).is_some() { members.push(*target); }
+                    }
+                } else { incomplete = true; }
+                i += 1;
+            }
+            incomplete |= i < members.len();
+            members.truncate(1000);
+            let mut node = ConceptNode::new(0, format!("{} {}", route.verb, route.path), ConceptKind::UseCase, now);
+            node.entry_symbol = Some(entry);
+            node.symbols = members;
+            node.intent = vec!["http-entrypoint".into()];
+            node.provenance = "api:declared-route-v1".into();
+            node.coverage_complete = !incomplete;
+            let id = dag.push(node);
+            dag.link_child(root, id);
         }
     }
 
@@ -960,7 +995,7 @@ pub fn usecase_projection(
 
     let mut out = Vec::new();
     for n in &dag.nodes {
-        if n.kind != ConceptKind::UseCase {
+        if !matches!(n.kind, ConceptKind::UseCase | ConceptKind::Facet) {
             continue;
         }
         // Primary-parent climb, nearest first, defensive hop cap (the same
@@ -990,7 +1025,7 @@ pub fn usecase_projection(
             .children
             .iter()
             .copied()
-            .filter(|&c| dag.get(c).map(|c| c.kind == ConceptKind::UseCase).unwrap_or(false))
+            .filter(|&c| dag.get(c).map(|c| matches!(c.kind, ConceptKind::UseCase | ConceptKind::Facet)).unwrap_or(false))
             .collect();
 
         let mut members = Vec::with_capacity(n.symbols.len());

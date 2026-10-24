@@ -488,7 +488,7 @@ export function buildC4Spec(
     const rootApp = apps.some((a) => !a.dir);
     const fileCount = new Map<string, number>();
     const symFile = new Map<string, number>();
-    for (const f of report.files) {
+    for (const f of (report.viewScope?.files ?? report.files)) {
       const d = claimant(f);
       if (!d && !rootApp) continue; // no root app → loose files belong to no box
       fileCount.set(d, (fileCount.get(d) ?? 0) + 1);
@@ -616,7 +616,7 @@ export function buildC4Spec(
   const g = buildCallGraph(report);
   const fileCount = new Map<string, number>();
   const symCount = new Map<string, number>();
-  for (const f of report.files) {
+  for (const f of (report.viewScope?.files ?? report.files)) {
     const c = containerOf(f);
     fileCount.set(c, (fileCount.get(c) ?? 0) + 1);
   }

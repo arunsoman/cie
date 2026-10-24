@@ -198,6 +198,7 @@ interface CieState {
   setLlmSettingsOpen: (open: boolean) => void;
   setChatOpen: (open: boolean) => void;
   hydrateChatOpen: () => void;
+  selectFunction: (symbolId: number) => void;
   openSourceViewer: (req: SourceViewerRequest) => void;
   closeSourceViewer: () => void;
   cacheSource: (path: string, content: string) => void;
@@ -479,6 +480,14 @@ export const useCie = create<CieState>((set, get) => ({
     } catch {}
   },
 
+  selectFunction: (symbolId) => set(s => {
+    const symbol=s.report?.symbols.find(x=>Number(x.id)===symbolId);
+    if(!symbol||!s.report||!['Function','Method','Test'].includes(symbol.kind))return {};
+    const file=s.report.files[symbol.loc.file];
+    const loc={file,byteStart:symbol.loc.start,byteEnd:symbol.loc.end};
+    const ref={kind:'symbol' as const,id:symbol.qual_name,label:symbol.name,loc};
+    return {view:'atlas' as const,atlasSelection:{primary:ref,scope:'symbol' as const},sourceViewer:{...loc,elName:symbol.name},...addChipState(s.chatContext,{id:`function:${symbolId}`,label:symbol.name,kind:'symbol',revision:s.report.rev??0,loc,files:[file],sourceTitle:'Function selection'})};
+  }),
   openSourceViewer: (req) => set({ sourceViewer: req }),
   closeSourceViewer: () => set({ sourceViewer: null }),
   cacheSource: (path, content) => set((s) => ({ sourceCache: { ...s.sourceCache, [path]: content } })),

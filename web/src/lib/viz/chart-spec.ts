@@ -3,6 +3,7 @@ import type { ViewSpec, ViewElement } from "viz-adapter";
 import type { ChatChartSpec, ElementLoc } from "../chat-chart";
 import type { CieReport, CieViewSpec, ConceptTree } from "../cie-types";
 export interface ChartElement {
+  symbolId?:number;
   id: string;
   label: string;
   kind: string;
@@ -59,6 +60,7 @@ export function chartElements(
           : undefined);
       return {
         id: n.id,
+        symbolId:n.symbolId,
         label: n.title,
         kind: n.kind,
         loc,
@@ -99,6 +101,7 @@ export function chartElements(
   if (spec.msgs)
     return spec.msgs.map((m, i) => ({
       id: `message:${i}:${m.label}`,
+      symbolId:m.symbolId,
       label: `${m.from} → ${m.to}: ${m.label}`,
       kind: "step",
       loc: m.loc,

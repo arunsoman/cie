@@ -108,6 +108,9 @@ pub struct CallSpan {
 pub struct CallSiteRecord {
     /// Callee text as written ("submissionService.submit").
     pub callee: String,
+    /// Navigable declarations, separate from exact/possible runtime dispatch.
+    #[serde(default)]
+    pub target_symbols: Vec<SymbolId>,
     /// Receiver expression as written, when the call has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receiver: Option<String>,

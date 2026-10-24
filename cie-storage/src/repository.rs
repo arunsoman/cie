@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::path::{Path, PathBuf};
-const FORMAT: &str = "stream-facts-v4";
+const FORMAT: &str = "stream-facts-v5";
 
 #[derive(Serialize, Deserialize)]
 struct CachedFacts {
@@ -443,7 +443,7 @@ impl RepositoryWriter {
                                 ))
                             })
                             .copied();
-                        self.conn.execute("UPDATE calls SET callee_symbol_id=?1,resolution=?2 WHERE caller_symbol_id=?3 AND callee_text=?4", params![target, if target.is_some() {"RESOLVED"} else {"UNRESOLVED"},cid,call.callee_text]).map_err(err)?;
+                        self.conn.execute("UPDATE calls SET callee_symbol_id=?1,resolution=?2 WHERE caller_symbol_id=?3 AND callee_text=?4 AND call_node_id IN (SELECT id FROM ast_nodes WHERE start_byte=?5 AND end_byte=?6)", params![target, if target.is_some() {"RESOLVED"} else {"UNRESOLVED"},cid,call.callee_text,call.span.0,call.span.1]).map_err(err)?;
                     }
                 }
             }

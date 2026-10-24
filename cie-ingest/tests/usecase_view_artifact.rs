@@ -60,7 +60,7 @@ fn the_projection_rides_the_artifact_with_a_consistent_id_space() {
         .concepts
         .nodes
         .iter()
-        .filter(|n| n.kind == ConceptKind::UseCase)
+        .filter(|n| matches!(n.kind, ConceptKind::UseCase | ConceptKind::Facet))
         .collect();
     assert_eq!(snap.usecase_view.len(), uc_nodes.len());
     for (v, n) in snap.usecase_view.iter().zip(&uc_nodes) {
@@ -77,7 +77,7 @@ fn the_projection_rides_the_artifact_with_a_consistent_id_space() {
                 .unwrap_or_else(|| panic!("chain id {} resolves", link.id));
             assert_eq!(node.id, link.id);
             assert_eq!(node.label, link.label);
-            assert!(matches!(node.kind, ConceptKind::UseCase | ConceptKind::Domain));
+            assert!(matches!(node.kind, ConceptKind::UseCase | ConceptKind::Facet | ConceptKind::Domain));
         }
         let last = v.chain.last().unwrap();
         assert_eq!(
