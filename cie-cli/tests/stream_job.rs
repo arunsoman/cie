@@ -55,6 +55,22 @@ fn unified_job_exports_views_and_preserves_the_legacy_alias() {
         .iter()
         .filter(|e| e["key"] == "storage" && e["state"] == "running")
         .collect();
+    let read_heartbeats: Vec<&serde_json::Value> = events
+        .iter()
+        .filter(|e| e["key"] == "read" && e["state"] == "running")
+        .collect();
+    assert!(
+        read_heartbeats.iter().any(|e| e["detail"].as_str().unwrap_or("").contains("Scanned")),
+        "read step should emit periodic scan heartbeats; got: {read_heartbeats:?}"
+    );
+    assert!(
+        storage_heartbeats.iter().any(|e| e["detail"].as_str().unwrap_or("").contains("storage initializing")),
+        "storage step should emit an initializing heartbeat; got: {storage_heartbeats:?}"
+    );
+    assert!(
+        storage_heartbeats.iter().any(|e| e["detail"].as_str().unwrap_or("").contains("Resolving polyglot call targets")),
+        "storage step should emit call-target heartbeats; got: {storage_heartbeats:?}"
+    );
     assert!(
         storage_heartbeats.iter().any(|e| e["detail"].as_str().unwrap_or("").contains("Building view:")),
         "storage step should emit building-view heartbeats; got: {storage_heartbeats:?}"

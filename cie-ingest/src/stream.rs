@@ -52,7 +52,15 @@ impl StreamSession {
         registry: &LanguageRegistry,
         opts: &crate::IngestOptions,
     ) -> io::Result<Self> {
-        let mut session = Self::capture_deferred(root, registry, opts)?;
+        Self::capture_with_progress(root, registry, opts, &|_, _, _| {})
+    }
+    pub fn capture_with_progress(
+        root: &Path,
+        registry: &LanguageRegistry,
+        opts: &crate::IngestOptions,
+        progress: &dyn Fn(&str, &str, &str),
+    ) -> io::Result<Self> {
+        let mut session = Self::capture_deferred_with_progress(root, registry, opts, progress)?;
         session.extracted = Some(session.materialize()?);
         Ok(session)
     }
@@ -60,6 +68,14 @@ impl StreamSession {
         root: &Path,
         registry: &LanguageRegistry,
         opts: &crate::IngestOptions,
+    ) -> io::Result<Self> {
+        Self::capture_deferred_with_progress(root, registry, opts, &|_, _, _| {})
+    }
+    pub fn capture_deferred_with_progress(
+        root: &Path,
+        registry: &LanguageRegistry,
+        opts: &crate::IngestOptions,
+        progress: &dyn Fn(&str, &str, &str),
     ) -> io::Result<Self> {
         let storage = RepositoryWriter::open(root, StoragePolicy::default())?;
         let mut receipt = SourceReceipt::default();
@@ -92,7 +108,11 @@ impl StreamSession {
         }
         paths.sort();
         let mut seen = BTreeSet::new();
-        for path in paths {
+        let total = paths.len();
+        for (idx, path) in paths.into_iter().enumerate() {
+            if idx % 50 == 0 {
+                progress("read", "running", &format!("Scanned {} of {} files…", idx, total));
+            }
             let rel = path
                 .strip_prefix(root)
                 .map_err(err)?

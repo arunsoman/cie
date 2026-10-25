@@ -226,7 +226,7 @@ pub fn run_ingest_with_progress(
     progress("read", "running", "Streaming source files through parsing and cached fact reuse…");
     let t0 = now_ns();
     let registry = default_registry();
-    let stream = stream::StreamSession::capture_deferred(project, &registry, opts)?;
+    let stream = stream::StreamSession::capture_deferred_with_progress(project, &registry, opts, progress)?;
     progress("read", "done", &stream.receipt.disclosure().unwrap_or_default());
     let store = Store::open(project)?;
     let walked = stream.walked.clone();

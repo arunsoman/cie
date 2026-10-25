@@ -432,8 +432,13 @@ impl RepositoryWriter {
                 ids.insert((path, start, end), id);
             }
         }
+        let mut call_heartbeat: usize = 0;
         for facts in &extracted.per_file {
             for call in &facts.calls {
+                call_heartbeat += 1;
+                if call_heartbeat % 1000 == 0 {
+                    progress("storage", "running", &format!("Resolving polyglot call targets… ({} processed)", call_heartbeat));
+                }
                 let caller = extracted.store.get(call.caller);
                 let callee = match call.callee {
                     cie_semantic::facts::Callee::Resolved(id) => extracted.store.get(id),
