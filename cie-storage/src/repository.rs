@@ -433,6 +433,9 @@ impl RepositoryWriter {
             }
         }
         let mut call_heartbeat: usize = 0;
+        let mut update = self.conn.prepare(
+            "UPDATE calls SET callee_symbol_id=?1,resolution=?2 WHERE caller_symbol_id=?3 AND callee_text=?4 AND call_node_id IN (SELECT id FROM ast_nodes WHERE start_byte=?5 AND end_byte=?6)",
+        ).map_err(err)?;
         for facts in &extracted.per_file {
             for call in &facts.calls {
                 call_heartbeat += 1;
@@ -460,11 +463,19 @@ impl RepositoryWriter {
                                 ))
                             })
                             .copied();
-                        self.conn.execute("UPDATE calls SET callee_symbol_id=?1,resolution=?2 WHERE caller_symbol_id=?3 AND callee_text=?4 AND call_node_id IN (SELECT id FROM ast_nodes WHERE start_byte=?5 AND end_byte=?6)", params![target, if target.is_some() {"RESOLVED"} else {"UNRESOLVED"},cid,call.callee_text,call.span.0,call.span.1]).map_err(err)?;
+                        update.execute(params![
+                            target,
+                            if target.is_some() { "RESOLVED" } else { "UNRESOLVED" },
+                            cid,
+                            call.callee_text,
+                            call.span.0,
+                            call.span.1,
+                        ]).map_err(err)?;
                     }
                 }
             }
         }
+        drop(update);
         self.conn
             .execute("UPDATE files SET revision=?1", [rev])
             .map_err(err)?;
@@ -535,7 +546,9 @@ impl RepositoryWriter {
         )?;
         self.record_stage(
             "c4",
-            timed!("c4", stage!("c4", cie_polyglot::c4::detect_c4(&self.conn, &root, rev as i64))),
+            timed!("c4", stage!("c4", cie_polyglot::c4::detect_c4_with_progress(&self.conn, &root, rev as i64,
+                &|detail| progress("storage", "running", &format!("Building view: c4: {detail}"))
+            ))),
         )?;
         self.record_stage(
             "state_machines",
@@ -549,7 +562,9 @@ impl RepositoryWriter {
             "duplicate_clusters",
             timed!("duplicate_clusters", stage!("duplicate_clusters", cie_polyglot::duplicates::cluster_canonical(&self.conn))),
         )?;
-        let bundle = match timed!("viewspec", stage!("viewspec", cie_polyglot::viewspec::produce_bundle(&self.conn))) {
+        let bundle = match timed!("viewspec", stage!("viewspec", cie_polyglot::viewspec::produce_bundle_with_progress(&self.conn,
+            &|detail| progress("storage", "running", &format!("Building view: viewspec: {detail}"))
+        ))) {
             Ok(bundle) => bundle,
             Err(e) => {
                 self.record_stage::<()>("viewspec", Err(e))?;

@@ -48,13 +48,21 @@ pub fn produce(conn: &Connection) -> Result<BTreeMap<String, Value>, String> {
 /// used to blank the whole document (empty stdout, exit 1); that is worse
 /// than honestly naming what couldn't be drawn.
 pub fn produce_bundle(conn: &Connection) -> Result<Value, String> {
+    produce_bundle_with_progress(conn, &|_| {})
+}
+
+/// Same as [`produce_bundle`], but calls `progress` before each producer
+/// family and periodically through the (up to 50) impact-center specs —
+/// the one loop here whose cost scales with repo size — so a slow bundle on
+/// a large repo still renews the caller's silence watchdog.
+pub fn produce_bundle_with_progress(conn: &Connection, progress: &dyn Fn(&str)) -> Result<Value, String> {
     let mut specs = BTreeMap::new();
     let mut skipped: Vec<Value> = Vec::new();
 
     for (family, result) in [
-        ("state-machines", produce_state_machines(conn, &mut specs)),
-        ("workflows", produce_workflows(conn, &mut specs)),
-        ("c4", produce_c4(conn, &mut specs)),
+        ("state-machines", { progress("Producing state-machine specs…"); produce_state_machines(conn, &mut specs) }),
+        ("workflows", { progress("Producing workflow specs…"); produce_workflows(conn, &mut specs) }),
+        ("c4", { progress("Producing C4 specs…"); produce_c4(conn, &mut specs) }),
     ] {
         if let Err(reason) = result {
             skipped.push(json!({ "family": family, "reason": reason }));
@@ -77,7 +85,14 @@ pub fn produce_bundle(conn: &Connection) -> Result<Value, String> {
         .map_err(|e| e.to_string())?;
     drop(stmt);
     let truncated = centers.len() > 50;
-    for center in centers.into_iter().take(50) {
+    let n_centers = centers.len().min(50);
+    if n_centers > 0 {
+        progress(&format!("Producing {n_centers} duplicate-impact specs…"));
+    }
+    for (idx, center) in centers.into_iter().take(50).enumerate() {
+        if idx % 10 == 0 && idx > 0 {
+            progress(&format!("Producing duplicate-impact specs… ({idx} of {n_centers} processed)"));
+        }
         match crate::duplicates::impact_duplicate_spec(conn, center) {
             Ok(spec) => {
                 specs.insert(format!("impact:{center}"), spec);

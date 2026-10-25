@@ -112,6 +112,19 @@ fn semantic_hash(label: &str, kind: &str, provenance: &str) -> Vec<u8> {
 /// Build the C4 hierarchy over an ingested + lowered store. `root` is the
 /// ingested folder (for DDD dir checks); `revision` stamps the nodes.
 pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Result<C4Report, String> {
+    detect_c4_with_progress(conn, root, revision, &|_| {})
+}
+
+/// Same as [`detect_c4`], but calls `progress` at each phase boundary and
+/// periodically inside the two loops that scale with repo size (class
+/// linking, relationships) — so a slow pass on a large repo still renews
+/// the caller's silence watchdog instead of going quiet for minutes.
+pub fn detect_c4_with_progress(
+    conn: &Connection,
+    root: &std::path::Path,
+    revision: i64,
+    progress: &dyn Fn(&str),
+) -> Result<C4Report, String> {
     let mut report = C4Report::default();
     let files: Vec<(i64, String)> = {
         let mut stmt = conn
@@ -144,6 +157,7 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
     report.project = 1;
 
     // ---- containers: one per manifest root (§20.1) ------------------------
+    progress("Scoping containers from manifest roots…");
     // file scope per container (dir prefix)
     let mut containers: Vec<(i64, String)> = Vec::new(); // (node id, dir prefix)
     let mut file_container: BTreeMap<i64, i64> = BTreeMap::new();
@@ -211,6 +225,7 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
     }
 
     // ---- components (§20.2) ------------------------------------------------
+    progress("Linking framework-annotated components…");
     //  a. framework annotation sites (Fact when confidence 1.0)
     {
         let mut stmt = conn
@@ -270,6 +285,7 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
     }
 
     //  b. naming suffix groups (Inference) — per container
+    progress("Grouping naming-suffix and DDD-directory components…");
     for (cid, dir) in &containers {
         let mut stmt = conn
             .prepare(
@@ -374,7 +390,11 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
         drop(stmt);
-        for (sid, name, file_id) in rows {
+        progress(&format!("Linking {} classes to their containers…", rows.len()));
+        for (idx, (sid, name, file_id)) in rows.into_iter().enumerate() {
+            if idx % 500 == 0 && idx > 0 {
+                progress(&format!("Linking classes to their containers… ({idx} processed)"));
+            }
             // skip symbols already carried by a node
             let carried: i64 = conn
                 .query_row(
@@ -408,6 +428,7 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
     }
 
     // ---- relationships (§20.3) --------------------------------------------
+    progress("Resolving cross-component relationships…");
     // cross-component calls → uses; imports → depends-on (v1: calls, via the
     // calls table joined through component membership)
     {
@@ -456,7 +477,14 @@ pub fn detect_c4(conn: &Connection, root: &std::path::Path, revision: i64) -> Re
             }
             m
         };
-        for (caller_sym, callee_sym) in rows {
+        let n_calls = rows.len();
+        if n_calls > 0 {
+            progress(&format!("Resolving cross-component relationships… ({n_calls} calls)"));
+        }
+        for (idx, (caller_sym, callee_sym)) in rows.into_iter().enumerate() {
+            if idx % 1000 == 0 && idx > 0 {
+                progress(&format!("Resolving cross-component relationships… ({idx} of {n_calls} processed)"));
+            }
             let (Some(from), Some(to)) = (node_of_sym.get(&caller_sym), node_of_sym.get(&callee_sym))
             else {
                 continue;
