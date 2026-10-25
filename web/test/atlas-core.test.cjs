@@ -13,7 +13,7 @@ function evaluate(q,universe=['a','b','c','d']){
  const a=evaluate(q.difference.left,universe),b=evaluate(q.difference.right,universe);return new Set([...a].filter(x=>!b.has(x)));
 }
 const settle=()=>new Promise(r=>setImmediate(r));
-const view=(id='table',binding='selection')=>({id,binding,outputs:()=>[{id:'rows',output:{entities:{page:{limit:30}}}}],project:r=>({kind:'table',title:id,items:[],total:r.matches,continuation:null,gaps:[]})});
+const view=(id='table',binding='selection')=>({id,binding,purpose:binding==='repository'?'navigation':'analysis',outputs:()=>[{id:'rows',output:{entities:{page:{limit:30}}}}],project:r=>({kind:'table',title:id,items:[],total:r.matches,continuation:null,gaps:[]})});
 function harness(views=[view()]){
  const calls=[];let closeCount=0;
  const storage={retrieve:(query,outputs,signal)=>new Promise((resolve,reject)=>calls.push({query,outputs,signal,resolve,reject})),source:async e=>({path:e.file,text:'captured',revision:'7',truncated:false,returned:{start:0,end:20}}),close:async()=>{closeCount++;}};

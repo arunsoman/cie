@@ -164,7 +164,10 @@ function parseSequenceLabel(
 }
 
 function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
-  const parsed = spec.elements.map((e) => ({ e, p: parseSequenceLabel(e.label) }));
+  const parsed = spec.elements.map((e) => {const value=e.fields?.sequence as {from:string;to:string;msg:string;order:number;fromLabel?:string;toLabel?:string}|undefined;
+    return {e,p:value&&typeof value.from==='string'&&typeof value.to==='string'?value:parseSequenceLabel(e.label)};
+  }).sort((a,b)=>Number((a.p as {order?:number})?.order??0)-Number((b.p as {order?:number})?.order??0));
+  const laneLabels=new Map<string,string>();for(const {p} of parsed)if(p){const v=p as {fromLabel?:string;toLabel?:string};laneLabels.set(p.from,v.fromLabel??p.from);laneLabels.set(p.to,v.toLabel??p.to);}
   const lanes: string[] = [];
   for (const { p } of parsed) {
     if (!p) continue;
@@ -183,8 +186,8 @@ function renderSequence(container: HTMLElement, spec: ViewSpec): Graph {
     for (const [key, y] of [["top", HEADER_Y], ["bottom", footerY]] as const) {
       nodes.push({
         id: `lane:${lane}:${key}`,
-        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: lanes.filter(l=>l.split('/').pop()===lane.split('/').pop()).length===1 ? lane.split('/').pop() ?? lane : lane, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
-        data: {},
+        style: { x, y: y + HEADER_H / 2, size: [w, HEADER_H], radius: 5, fill: "#eef3ef", stroke: "#3c6e5d", lineWidth: 1.4, labelText: laneLabels.get(lane)??lane, labelFontSize: 12, labelFontWeight: 500, labelPlacement: "center" as const, labelWordWrap: true, labelWordWrapWidth: w - 10 },
+        data: {atlasVisualId:lane},
       });
     }
   }
@@ -458,9 +461,10 @@ async function renderSpecG6(
     if (id == null) return;
     setSelected([String(id)], "user");
     const detail=Number((e as unknown as {detail?:number}).detail??1);
-    interactions.forEach(cb=>cb({id:String(id),type:'click',detail}));
+    const visualId=graph.getNodeData().find(n=>n.id===id)?.data?.atlasVisualId??id;
+    interactions.forEach(cb=>cb({id:String(visualId),type:'click',detail}));
   };
-  const onDoubleClick=(e:IElementEvent)=>{if(e.target?.id!=null)interactions.forEach(cb=>cb({id:String(e.target.id),type:'doubleClick',detail:2}));};
+  const onDoubleClick=(e:IElementEvent)=>{if(e.target?.id!=null){const id=graph.getNodeData().find(n=>n.id===e.target.id)?.data?.atlasVisualId??e.target.id;interactions.forEach(cb=>cb({id:String(id),type:'doubleClick',detail:2}));}};
   graph.on('node:dblclick',onDoubleClick);graph.on('edge:dblclick',onDoubleClick);
   graph.on("node:click", onClick);
   graph.on("edge:click", onClick);
@@ -477,9 +481,9 @@ async function renderSpecG6(
   const offHighlight = hub.subscribe((ids) => {
     if(disposed)return;
     const states = Object.fromEntries(
-      [...spec.elements, ...spec.edges]
-        .filter((e) => knownIds.has(e.id))
-        .map((e) => [e.id, ids.includes(e.id) ? ["selected"] : []]),
+      [...graph.getNodeData(), ...graph.getEdgeData()]
+        .filter((e) => e.id!=null&&knownIds.has(e.id))
+        .map((e) => [String(e.id), ids.includes(String(e.id)) ? ["selected"] : []]),
     );
     void graph.setElementState(states, false).catch(error=>{if(!disposed)console.error(error);});
   });
@@ -499,9 +503,7 @@ async function renderSpecG6(
     },
     setSelected(ids, origin) {
       setSelected(
-        ids.filter((id) =>
-          [...spec.elements, ...spec.edges].some((el) => el.id === id),
-        ),
+        ids.flatMap(id=>{const lanes=graph.getNodeData().filter(n=>n.data?.atlasVisualId===id).map(n=>String(n.id));return lanes.length?lanes:knownIds.has(id)?[id]:[];}),
         origin,
       );
     },
@@ -625,7 +627,7 @@ export async function renderViaNegotiator(
 ) {
   return renderHosted(
     spec,
-    { required: {} },
+    { required: (options.requiredCapabilities as Record<string,boolean>)??{} },
     defaultRegistry(),
     container,
     options,

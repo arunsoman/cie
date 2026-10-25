@@ -134,7 +134,7 @@ export function ConceptDiagramCanvas({
     const v = diagram.view;
     if (!v) return m;
     for (const el of v.elements)
-      m.set(el.id, {
+      if(el.evidence.file) m.set(el.id, {
         label: el.label,
         file: el.evidence.file,
         start: el.evidence.start,

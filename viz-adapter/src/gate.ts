@@ -5,8 +5,16 @@
  * same stable codes.
  */
 
-import type { ViewSpec } from './types';
+import type { ViewSpec, EvidenceRef } from './types';
 import { VizError } from './errors';
+
+export function recordedEvidenceValid(value:unknown):boolean {
+  if(!value||typeof value!=='object')return false;const e=value as Record<string,unknown>;
+  const text=(v:unknown)=>typeof v==='string'&&v.length>0;
+  if(!text(e.repository)||!text(e.revision))return false;
+  return e.kind==='stored-fact'?!!(text(e.artifact)&&text(e.recordId)):e.kind==='aggregate'?!!text(e.descriptor):e.kind==='runtime'?!!(text(e.runId)&&text(e.sampleId)):false;
+}
+export function evidenceValid(value:EvidenceRef|undefined):boolean{return !!value&&(!!value.file||recordedEvidenceValid(value));}
 
 /** Salience-bounded cap of 2 000 elements per view (PRD VIZ-I-06). */
 export const ELEMENT_CAP = 2_000;
@@ -19,7 +27,7 @@ export function gate(spec: ViewSpec): void {
     }
     seen.add(el.id);
 
-    if (!el.evidence || !el.evidence.file) {
+    if (!evidenceValid(el.evidence)) {
       throw new VizError('ELEMENT_WITHOUT_EVIDENCE', el.id);
     }
     if (el.displayMode !== 'Fact' && !el.claimId) {
@@ -41,7 +49,7 @@ export function gate(spec: ViewSpec): void {
   }
 
   for (const e of spec.edges) {
-    if (!e.evidence || !e.evidence.file) {
+    if (!evidenceValid(e.evidence)) {
       throw new VizError('EDGE_WITHOUT_EVIDENCE', e.id);
     }
   }

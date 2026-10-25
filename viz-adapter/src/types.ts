@@ -16,11 +16,21 @@ export type ElementKind = string;
 export type EngineId = 'g6' | 'jointjs' | 'reactflow' | 'mermaid';
 
 /** `{ file, start, end }` byte-span evidence — REQUIRED everywhere. */
-export interface EvidenceRef {
+export interface SourceSpanEvidence {
   file: string;
   start: number;
   end: number;
 }
+
+/** Client render evidence may cite a captured fact or contributor set without
+ * fabricating source coordinates. Rust source-span producers remain compatible. */
+export interface RecordedEvidenceRef {
+  kind:'stored-fact'|'aggregate'|'runtime'; repository:string; revision:string;
+  artifact?:string; recordId?:string; descriptor?:string; runId?:string; sampleId?:string;
+  file?:never; start?:never; end?:never;
+}
+export type EvidenceRef=SourceSpanEvidence|RecordedEvidenceRef;
+
 
 export interface Salience {
   factors: string[];

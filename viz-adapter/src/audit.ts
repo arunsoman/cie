@@ -12,6 +12,7 @@
  */
 
 import type { ViewSpec } from './types';
+import {recordedEvidenceValid} from './gate';
 
 export interface AuditFinding {
   rule: string;
@@ -37,6 +38,7 @@ export function audit(spec: ViewSpec): AuditFinding[] {
   }
 
   for (const e of spec.edges) {
+    if(recordedEvidenceValid(e.evidence))continue;
     if (!e.evidence || !e.evidence.file) {
       out.push({ rule: 'VIZ-H-02', detail: `edge ${e.id} carries no evidence` });
       continue;

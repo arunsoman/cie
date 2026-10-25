@@ -323,7 +323,7 @@ export function announce(spec: ViewSpec, elementId: string): string | null {
     Hypothesis: 'hypothesis, cannot be proven statically',
     Fog: 'fog, not determinable from static analysis',
   };
-  return `${el.label}, ${known[el.displayMode]}, evidence ${el.evidence.file}`;
+  return `${el.label}, ${known[el.displayMode]}, evidence ${el.evidence.file??JSON.stringify(el.evidence)}`;
 }
 
 /** Roving tabindex order = outline order (elements, then edges). */
