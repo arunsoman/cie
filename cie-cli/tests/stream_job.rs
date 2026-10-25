@@ -47,10 +47,23 @@ fn unified_job_exports_views_and_preserves_the_legacy_alias() {
         "cie-polyglot-viewspec-bundle"
     );
     let events: Vec<serde_json::Value> = String::from_utf8_lossy(&run.stderr)
-        .lines().filter_map(|line| line.strip_prefix("CIE_STAGE "))
-        .map(|line| serde_json::from_str(line).unwrap()).collect();
-    let completed: Vec<&str> = events.iter().filter(|e| e["state"] == "done")
-        .filter_map(|e| e["key"].as_str()).collect();
+        .lines()
+        .filter_map(|line| line.strip_prefix("CIE_STAGE "))
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let storage_heartbeats: Vec<&serde_json::Value> = events
+        .iter()
+        .filter(|e| e["key"] == "storage" && e["state"] == "running")
+        .collect();
+    assert!(
+        storage_heartbeats.iter().any(|e| e["detail"].as_str().unwrap_or("").contains("Building view:")),
+        "storage step should emit building-view heartbeats; got: {storage_heartbeats:?}"
+    );
+    let completed: Vec<&str> = events
+        .iter()
+        .filter(|e| e["state"] == "done")
+        .filter_map(|e| e["key"].as_str())
+        .collect();
     assert_eq!(&completed[..5], &["read", "resolve", "stack", "concepts", "storage"]);
     assert_eq!(completed.last(), Some(&"publish"));
     // Cached runs must also settle every core phase rather than leaving the UI pending.

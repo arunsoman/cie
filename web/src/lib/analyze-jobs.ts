@@ -97,8 +97,13 @@ export interface AnalyzeJob {
 // started, hidden behind the generic "something went wrong" banner).
 const JOBS_ROOT = process.env.CIE_JOBS_ROOT?.trim() || path.join(process.cwd(), ".cie-jobs");
 const CLONE_TIMEOUT_MS = 120_000;
-// Per-stage watchdog. Optional docs have a separate cooperative Rust budget.
-const CIE_TIMEOUT_MS = 240_000;
+// Cooperative watchdog: generous outer ceiling, but the real guard is the
+// silence budget. The Rust engine sends CIE_STAGE events while it is healthy
+// and making progress; every event renews the silence timer. A slow-but-live
+// stage keeps running. We only kill when nothing has been heard for
+// CIE_SILENCE_MS, or on a genuine failure / OS signal (OOM).
+const CIE_OUTER_TIMEOUT_MS = 15 * 60_000;
+const CIE_SILENCE_MS = 5 * 60_000;
 const JOB_TTL_MS = 45 * 60_000;
 const MAX_JOBS = 12;
 
@@ -219,15 +224,23 @@ export interface RunResult {
    *  A truncated JSON payload must never be misreported as the engine
    *  "producing unparseable JSON" — the cut is on our side (issue #12). */
   stdoutTruncated: boolean;
+  /** Set when the OS killed the process by signal (SIGKILL from the kernel
+   *  OOM killer, most commonly) rather than it exiting with a code. Node
+   *  gives `code: null, signal: 'SIGKILL'` in that case — collapsing that
+   *  into `code: -1` and dropping the signal is how a real OOM kill used to
+   *  get reported as an opaque "crash" with no stderr to explain why (the
+   *  killed process never gets to print anything). Null when the process
+   *  exited normally, even on a non-zero code. */
+  signal: NodeJS.Signals | null;
 }
 
 /** A read-only git command run inside a folder (or plain git with dir=null).
  *  Only read commands are ever passed — nothing here can change a repo. */
 async function runGit(dir: string | null, args: string[], timeoutMs: number, maxStdout = 4 * 1024 * 1024): Promise<RunResult> {
-  return run("git", dir ? ["-C", dir, ...args] : args, { timeoutMs, maxStdout });
+  return run("git", dir ? ["-C", dir, ...args] : args, { silenceMs: timeoutMs, maxStdout });
 }
 
-export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs: number; maxStdout?: number; onStderr?: (text: string, renewStageBudget: () => void) => void; env?: Record<string, string> }): Promise<RunResult> {
+export function run(cmd: string, args: string[], opts: { cwd?: string; outerTimeoutMs?: number; silenceMs?: number; maxStdout?: number; onStderr?: (text: string, renewStageBudget: () => void) => void; env?: Record<string, string> }): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -240,16 +253,31 @@ export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs
     let stdoutTruncated = false;
     const cap = opts.maxStdout ?? 256 * 1024 * 1024;
     let settled = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let silenceTimer: ReturnType<typeof setTimeout>;
+    let outerTimer: ReturnType<typeof setTimeout>;
+    const silenceMs = opts.silenceMs ?? CIE_SILENCE_MS;
+    const outerMs = opts.outerTimeoutMs ?? CIE_OUTER_TIMEOUT_MS;
+    const killForSilence = () => {
+      if (settled || timedOut) return;
+      timedOut = true;
+      child.kill("SIGKILL");
+    };
     const renewStageBudget = () => {
       if (settled || timedOut) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        timedOut = true;
-        child.kill("SIGKILL");
-      }, opts.timeoutMs);
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(killForSilence, silenceMs);
     };
-    renewStageBudget();
+    const startTimers = () => {
+      clearTimeout(outerTimer);
+      outerTimer = setTimeout(() => {
+        if (!settled && !timedOut) {
+          timedOut = true;
+          child.kill("SIGKILL");
+        }
+      }, outerMs);
+      renewStageBudget();
+    };
+    startTimers();
     // StringDecoder, not Buffer.toString(): a multi-byte UTF-8 character
     // split across pipe chunks must never be corrupted mid-JSON — chunk
     // boundaries are a property of the pipe, not of the text.
@@ -269,15 +297,17 @@ export function run(cmd: string, args: string[], opts: { cwd?: string; timeoutMs
     });
     child.on("error", (err) => {
       settled = true;
-      clearTimeout(timer);
-      resolve({ code: -1, stdout, stderr: `${stderr}\n${err.message}`, timedOut, stdoutTruncated });
+      clearTimeout(silenceTimer);
+      clearTimeout(outerTimer);
+      resolve({ code: -1, stdout, stderr: `${stderr}\n${err.message}`, timedOut, stdoutTruncated, signal: null });
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       settled = true;
-      clearTimeout(timer);
+      clearTimeout(silenceTimer);
+      clearTimeout(outerTimer);
       stdout += stdoutDecoder.end();
       stderr += stderrDecoder.end();
-      resolve({ code: code ?? -1, stdout, stderr, timedOut, stdoutTruncated });
+      resolve({ code: code ?? -1, stdout, stderr, timedOut, stdoutTruncated, signal });
     });
   });
 }
@@ -496,7 +526,7 @@ export async function resolveCieBin(): Promise<string | null> {
   }
   // Verified last resort: a `cie` on $PATH that can PROVE it is this
   // project's engine. Identity, not just exit code.
-  const probe = await run("cie", ["--version"], { timeoutMs: 10_000, maxStdout: 4096 });
+  const probe = await run("cie", ["--version"], { silenceMs: 10_000, maxStdout: 4096 });
   const out = `${probe.stdout}\n${probe.stderr}`;
   if (probe.code === 0 && CIE_VERSION_MARKER.test(out.trim())) {
     resolvedCieBin = "cie";
@@ -529,9 +559,14 @@ async function cieBinMissingTechnical(): Promise<string> {
 // ---------- plain-words error mapping ----------
 
 /** Prefix technical details with the exact engine binary that ran, so a
- *  wrong/impostor binary is diagnosable from the UI alone (issue #7). */
-function engineTechnical(bin: string, detail: string): string {
-  return `engine binary: ${bin}\n${detail}`;
+ *  wrong/impostor binary is diagnosable from the UI alone (issue #7).
+ *  `signal` is appended when the OS killed the process by signal — stderr
+ *  alone can't show that (a killed process never gets to print anything),
+ *  so without this the technical panel silently trails off after the last
+ *  stage line with no indication that it was a kill, not a graceful exit. */
+function engineTechnical(bin: string, detail: string, signal?: NodeJS.Signals | null): string {
+  const killedLine = signal ? `\nkilled by signal: ${signal} (most likely the OS killed it for memory — an OOM kill)` : "";
+  return `engine binary: ${bin}\n${detail}${killedLine}`;
 }
 
 function cloneErrorPlain(stderr: string, timedOut: boolean, branch?: string): string {
@@ -556,11 +591,13 @@ function cloneErrorPlain(stderr: string, timedOut: boolean, branch?: string): st
 // has its own branch (UNSUPPORTED_PLAIN). Every other failure — non-zero
 // exit, panic, malformed output — is on the engine, so the message says so
 // and points at the technical details instead of guessing at a cause.
-function engineErrorPlain(kind: "bin-missing" | "timeout" | "crash" | "bad-output"): string {
+function engineErrorPlain(kind: "bin-missing" | "silent" | "crash" | "bad-output" | "killed"): string {
   if (kind === "bin-missing") return "The CIE engine isn't installed on this server yet — that's on us, not you.";
-  if (kind === "timeout") return "This analysis stage exceeded its time limit. The check stopped; try again or inspect the technical details.";
+  if (kind === "silent") return "This analysis stage stopped making progress. The check stopped; try again or inspect the technical details.";
   if (kind === "bad-output")
     return "The CIE engine finished but produced output we couldn't understand — that's on us, not your project. Nothing needs fixing on your side; the technical details below show what went wrong.";
+  if (kind === "killed")
+    return "The CIE engine was stopped by the server itself — most likely it ran out of memory for a repository this size. That's a server limit, not a problem with your project. Try again, or ask whoever runs this server to give CIE more memory for large repositories.";
   return "The CIE engine hit an unexpected error while reading this project — that's on us, not you. It isn't about the languages in your repo (the inventory step already checked those). You can try again; the technical details below show exactly what happened.";
 }
 
@@ -736,7 +773,7 @@ async function runPipeline(job: AnalyzeJob) {
             );
             return;
           }
-          const untar = await run("tar", ["-xf", tarPath, "-C", snapDir], { timeoutMs: 90_000 });
+          const untar = await run("tar", ["-xf", tarPath, "-C", snapDir], { silenceMs: 90_000 });
           if (untar.code !== 0) {
             markRunningStepFailed(
               job,
@@ -758,7 +795,7 @@ async function runPipeline(job: AnalyzeJob) {
       const cloneArgs = ["clone", "--depth", "1", "--single-branch"];
       if (job.branchRef) cloneArgs.push("--branch", job.branchRef);
       cloneArgs.push(job.url, repoDir);
-      const clone = await run("git", cloneArgs, { timeoutMs: CLONE_TIMEOUT_MS });
+      const clone = await run("git", cloneArgs, { silenceMs: CLONE_TIMEOUT_MS });
       if (clone.code !== 0) {
         markRunningStepFailed(job, cloneErrorPlain(clone.stderr, clone.timedOut, job.branch), `git clone exit ${clone.code}: ${clone.stderr.slice(0, 400)}`);
         return;
@@ -819,7 +856,6 @@ async function runPipeline(job: AnalyzeJob) {
     let progressBuffer = "";
     const seenStages = new Set<StepKey>();
     const ing = await run(bin, ["ingest-polyglot", repoDir, "--web-out", output], {
-      timeoutMs: CIE_TIMEOUT_MS,
       env: { TMPDIR: scratchTmp },
       onStderr: (text, renewStageBudget) => {
         progressBuffer += text;
@@ -831,11 +867,10 @@ async function runPipeline(job: AnalyzeJob) {
           try {
             const event = JSON.parse(line.slice(10)) as { key: StepKey; state: StepState; detail?: string };
             if (STEP_ORDER.some((s) => s.key === event.key) && ["running", "done", "skipped", "failed"].includes(event.state)) {
-              // Repeated chatter cannot keep a hung process alive.
-              if (event.state === "running" && !seenStages.has(event.key)) {
-                seenStages.add(event.key);
-                renewStageBudget();
-              }
+              // Any real progress — a stage transition, a detail update,
+              // or a heartbeat from a long stage — renews the silence
+              // budget. The outer ceiling still guards against runaway runs.
+              renewStageBudget();
               setStep(job, event.key, event.state, event.detail);
             }
           } catch { /* diagnostic text is not a stage event */ }
@@ -843,7 +878,17 @@ async function runPipeline(job: AnalyzeJob) {
       },
     });
     if (ing.timedOut || ing.code !== 0) {
-      markRunningStepFailed(job, engineErrorPlain(ing.timedOut ? "timeout" : "crash"), engineTechnical(bin, ing.stderr.slice(-2000)));
+      // A non-null signal with no timeout means the OS killed the process
+      // (almost always SIGKILL from the kernel OOM killer on a large repo,
+      // not a timeout and not the engine exiting on its own) — distinct
+      // from a generic "crash" so the plain-words message doesn't guess.
+      const kind = ing.timedOut ? "silent" : ing.signal ? "killed" : "crash";
+      // Only attach the signal line (and its OOM guess) when the signal is
+      // the actual explanation — a timeout kill is self-inflicted by this
+      // file's own watchdog (`child.kill("SIGKILL")` above) and already
+      // has its own correct explanation; repeating the signal there would
+      // make an intentional, expected kill look like an unexplained one.
+      markRunningStepFailed(job, engineErrorPlain(kind), engineTechnical(bin, ing.stderr.slice(-2000), ing.timedOut ? null : ing.signal));
       return;
     }
     let artifacts: {report:{rev:number;files:string[];symbols:unknown[]}};

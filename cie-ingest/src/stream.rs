@@ -204,7 +204,17 @@ impl StreamSession {
         rev: u64,
         graph: &ExtractedProject,
     ) -> io::Result<cie_storage::repository::PublishedRevision> {
+        self.finish_with_progress(_root, rev, graph, &|_, _, _| {})
+    }
+
+    pub fn finish_with_progress(
+        self,
+        _root: &Path,
+        rev: u64,
+        graph: &ExtractedProject,
+        progress: &dyn Fn(&str, &str, &str),
+    ) -> io::Result<cie_storage::repository::PublishedRevision> {
         self.storage
-            .commit(rev, graph, &self.receipt, &self.receipt.skipped)
+            .commit_with_progress(rev, graph, &self.receipt, &self.receipt.skipped, progress)
     }
 }

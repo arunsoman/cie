@@ -801,7 +801,7 @@ pub fn run_ingest_with_progress(
         &SymbolStore::build_with_files(snapshot.symbols.clone(), revision_files.clone()),
     );
     progress("storage", "running", "Storage module builds C4, state and workflow views, detects duplicate clusters and publishes the revision…");
-    let _publication = stream.finish(project, rev, &extracted)?;
+    let _publication = stream.finish_with_progress(project, rev, &extracted, progress)?;
     store.save_snapshot(&snapshot)?;
     // Issue #11: only now, with this revision's snapshot durably written, may
     // meta.json name it current. A crash anywhere above leaves the previous

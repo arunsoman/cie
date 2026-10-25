@@ -398,7 +398,19 @@ impl RepositoryWriter {
         receipt: &T,
         skipped_inputs: &[String],
     ) -> io::Result<PublishedRevision> {
+        self.commit_with_progress(rev, extracted, receipt, skipped_inputs, &|_, _, _| {})
+    }
+
+    pub fn commit_with_progress<T: Serialize>(
+        mut self,
+        rev: u64,
+        extracted: &ExtractedProject,
+        receipt: &T,
+        skipped_inputs: &[String],
+        progress: &dyn Fn(&str, &str, &str),
+    ) -> io::Result<PublishedRevision> {
         let root = self.project_root.clone();
+        progress("storage", "running", "Resolving polyglot call targets…");
         self.invalidate_derived()?;
         // Resolve polyglot calls from the authoritative adapter graph using
         // path+span identity, never first-name-wins across unrelated scopes.
@@ -487,30 +499,52 @@ impl RepositoryWriter {
         if invalid {
             return Err(err("stream store contains dangling references"));
         }
-        self.record_stage("uast", cie_polyglot::uast::normalize(&self.conn))?;
+        // TEMPORARY diagnostic timing — isolating which storage sub-stage is
+        // responsible for the real-repo 240s timeout observed on
+        // shahy-restructure (2366 files). Progress heartbeats now keep the
+        // runner from killing a slow-but-healthy stage; this timing stays
+        // useful for identifying genuine slow substages.
+        macro_rules! stage {
+            ($name:literal, $expr:expr) => {{
+                progress("storage", "running", concat!("Building view: ", $name, "…"));
+                let __r = $expr;
+                __r
+            }};
+        }
+        macro_rules! timed {
+            ($name:literal, $expr:expr) => {{
+                let __t0 = std::time::Instant::now();
+                let __r = $expr;
+                eprintln!("CIE_STAGE_TIMING {{\"stage\":{:?},\"ms\":{}}}", $name, __t0.elapsed().as_millis());
+                __r
+            }};
+        }
+        self.record_stage("uast", timed!("uast", stage!("uast", cie_polyglot::uast::normalize(&self.conn))))?;
         self.record_stage(
             "framework_registry",
-            cie_polyglot::frameworks::install_registry(&self.conn),
+            timed!("framework_registry", stage!("framework_registry", cie_polyglot::frameworks::install_registry(&self.conn))),
         )?;
         self.record_stage(
             "frameworks",
-            cie_polyglot::frameworks::link_clients(&self.conn),
+            timed!("frameworks", stage!("frameworks", cie_polyglot::frameworks::link_clients(&self.conn))),
         )?;
         self.record_stage(
             "c4",
-            cie_polyglot::c4::detect_c4(&self.conn, &root, rev as i64),
+            timed!("c4", stage!("c4", cie_polyglot::c4::detect_c4(&self.conn, &root, rev as i64))),
         )?;
         self.record_stage(
             "state_machines",
-            cie_polyglot::statemachines::detect_t3(&self.conn, &mut Default::default()),
+            timed!("state_machines", stage!("state_machines", cie_polyglot::statemachines::detect_t3(&self.conn, &mut Default::default()))),
         )?;
-        self.record_stage("workflows", cie_polyglot::workflows::detect(&self.conn))?;
-        self.record_stage("duplicates", cie_polyglot::duplicates::detect(&self.conn))?;
+        self.record_stage("workflows", timed!("workflows", stage!("workflows", cie_polyglot::workflows::detect(&self.conn))))?;
+        self.record_stage("duplicates", timed!("duplicates", stage!("duplicates", cie_polyglot::duplicates::detect_with_progress(&self.conn,
+            &|detail| progress("storage", "running", &format!("Building view: duplicates: {detail}"))
+        ))))?;
         self.record_stage(
             "duplicate_clusters",
-            cie_polyglot::duplicates::cluster_canonical(&self.conn),
+            timed!("duplicate_clusters", stage!("duplicate_clusters", cie_polyglot::duplicates::cluster_canonical(&self.conn))),
         )?;
-        let bundle = match cie_polyglot::viewspec::produce_bundle(&self.conn) {
+        let bundle = match timed!("viewspec", stage!("viewspec", cie_polyglot::viewspec::produce_bundle(&self.conn))) {
             Ok(bundle) => bundle,
             Err(e) => {
                 self.record_stage::<()>("viewspec", Err(e))?;
@@ -531,6 +565,7 @@ impl RepositoryWriter {
         artifacts.put(rev, crate::artifacts::Artifact::StageStatus, &stages)?;
         artifacts.put(rev, crate::artifacts::Artifact::StreamReceipt, receipt)?;
         artifacts.put(rev, crate::artifacts::Artifact::Polyglot, &bundle)?;
+        progress("storage", "running", "Publishing the revision…");
         self.conn
             .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
             .map_err(err)?;
