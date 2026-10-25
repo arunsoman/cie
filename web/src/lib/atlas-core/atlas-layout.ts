@@ -49,3 +49,32 @@ export const reviewerLayout: AtlasLayout = { id: 'reviewer.reference', columns: 
     areas: ['r4 r4 r4 r4 r4 r4 r4 r4', 'hero hero hero hero hero kinds kinds kinds', 'hero hero hero hero hero kinds kinds kinds', 'hero hero hero hero hero kinds kinds kinds', 'files files files tree tree tree tree tree', 'files files files tree tree tree tree tree', 'files files files tree tree tree tree tree', 'flow flow flow flow seq seq seq seq', 'flow flow flow flow seq seq seq seq', 'flow flow flow flow seq seq seq seq', 'flow flow flow flow seq seq seq seq', 'calls calls calls calls calls calls calls calls', 'calls calls calls calls calls calls calls calls', 'calls calls calls calls calls calls calls calls'],
     areasMd: ['r4 r4', 'hero hero', 'hero hero', 'kinds files', 'tree tree', 'tree tree', 'flow flow', 'flow flow', 'seq seq', 'seq seq', 'calls calls', 'calls calls'], areasBase: ['r4', 'hero', 'kinds', 'files', 'tree', 'flow', 'seq', 'calls'],
     slots: [{ viewId: 'symbols', area: 'hero', minHeightPx: 330, isHero: true, chrome: 'table-dense' }, { viewId: 'kinds', area: 'kinds', minHeightPx: 220, chrome: 'card' }, { viewId: 'files', area: 'files', minHeightPx: 330, chrome: 'card' }, { viewId: 'hierarchy', area: 'tree', minHeightPx: 330, chrome: 'canvas' }, { viewId: 'controlflow', area: 'flow', minHeightPx: 440, chrome: 'canvas' }, { viewId: 'sequence', area: 'seq', minHeightPx: 440, chrome: 'canvas' }, { viewId: 'calls', area: 'calls', minHeightPx: 330, chrome: 'canvas' }], dock: { defaultOpen: true, widthPx: 280 } };
+
+/** Onboarding reading order: files, declaration structure, then a selected function. */
+export const fresherLayout: AtlasLayout = {
+    id: 'fresher.guided', columns: 8, rowHeightPx: 110,
+    areas: ['r4 r4 r4 r4 r4 r4 r4 r4',
+        'hero hero hero tree tree tree tree tree',
+        'hero hero hero tree tree tree tree tree',
+        'hero hero hero tree tree tree tree tree',
+        'files files files files files kinds kinds kinds',
+        'files files files files files kinds kinds kinds',
+        'files files files files files kinds kinds kinds',
+        'flow flow flow flow seq seq seq seq',
+        'flow flow flow flow seq seq seq seq',
+        'flow flow flow flow seq seq seq seq',
+        'flow flow flow flow seq seq seq seq',
+        'calls calls calls calls calls calls calls calls',
+        'calls calls calls calls calls calls calls calls'],
+    areasMd: ['r4 r4', 'hero tree', 'hero tree', 'files files', 'files files', 'kinds kinds', 'flow flow', 'flow flow', 'seq seq', 'seq seq', 'calls calls'],
+    areasBase: ['r4', 'hero', 'tree', 'files', 'kinds', 'flow', 'seq', 'calls'],
+    slots: [
+        {viewId: 'files', area: 'hero', minHeightPx: 330, isHero: true, chrome: 'card'},
+        {viewId: 'hierarchy', area: 'tree', minHeightPx: 330, chrome: 'canvas'},
+        {viewId: 'symbols', area: 'files', minHeightPx: 330, chrome: 'table-dense'},
+        {viewId: 'kinds', area: 'kinds', minHeightPx: 220, chrome: 'card'},
+        {viewId: 'controlflow', area: 'flow', minHeightPx: 440, chrome: 'canvas'},
+        {viewId: 'sequence', area: 'seq', minHeightPx: 440, chrome: 'canvas'},
+        {viewId: 'calls', area: 'calls', minHeightPx: 330, chrome: 'canvas'},
+    ], dock: {defaultOpen: true, widthPx: 280},
+};

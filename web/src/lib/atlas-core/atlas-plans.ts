@@ -1,6 +1,6 @@
 import type { AtlasEvidencePolicy } from './atlas-types';
 import type { AtlasRegistry } from './atlas-registry';
-import { assertLayout, reviewerLayout, type AtlasLayout } from './atlas-layout';
+import { assertLayout, reviewerLayout, fresherLayout, type AtlasLayout } from './atlas-layout';
 export interface AtlasPersonaPlan {
     id: string;
     layout: AtlasLayout;
@@ -25,4 +25,4 @@ export class AtlasPlanRegistry {
 }
 /** These are shared infrastructure defaults, not claims of completed persona PRDs. */
 export function foundationPlans(registry: AtlasRegistry) { const plans = new AtlasPlanRegistry(registry); for (const id of ['fresher', 'reviewer', 'architect', 'auditor', 'consultant', 'performance'])
-    plans.register({ id, layout: { ...reviewerLayout, id: `${id}.reference` }, views: ['symbols', 'kinds', 'files', 'calls', 'hierarchy', 'controlflow', 'sequence'], policy: { factsOnly: id === 'auditor' || id === 'reviewer', locked: id === 'auditor' }, ...(id === 'consultant' ? { withChangeContext: 'reviewer' } : {}) }); return plans; }
+    plans.register({ id, layout: id === 'fresher' ? fresherLayout : { ...reviewerLayout, id: `${id}.reference` }, views: ['symbols', 'kinds', 'files', 'calls', 'hierarchy', 'controlflow', 'sequence'], policy: { factsOnly: id === 'auditor' || id === 'reviewer', locked: id === 'auditor' }, ...(id === 'consultant' ? { withChangeContext: 'reviewer' } : {}) }); return plans; }

@@ -135,3 +135,7 @@ message preservation, repeated/self calls, recorded evidence without code spans,
 and semantic-hash stability under presentation changes. Native tests ingest source
 and verify captured IR, summaries, contributor queries and source reads through
 the actual storage module. Browser tests validate the built application.
+
+## Persona migration checkpoint
+
+See [chart migration matrix](atlas-migration-matrix.md) for the complete legacy panel inventory and explicit persona gaps. Fresher now composes the registered catalog with a guided layout; it does not claim C4, concept, entry-point or data-flow parity. Reviewer and Fresher share selection, evidence and placement logic.

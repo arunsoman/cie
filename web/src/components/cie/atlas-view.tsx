@@ -22,6 +22,7 @@
 
 import {AtlasProvider} from './atlas-personas/atlas-provider';
 import {ReviewerAtlas} from './atlas-personas/reviewer-atlas';
+import {FresherAtlas} from './atlas-personas/fresher-atlas';
 
 import { useMemo, useState } from "react";
 import { FunctionFlow } from "./function-flow";
@@ -77,7 +78,7 @@ export function AtlasView() {
   // First vertical slice. Legacy persona screens remain available until their
   // registered projections are migrated; they do not claim core conformance.
   return root&&report
-    ? <AtlasProvider root={root} revision={String(report.rev)} persona={persona}>{persona==='reviewer'?<ReviewerAtlas/>:<LegacyAtlasView/>}</AtlasProvider>
+    ? <AtlasProvider root={root} revision={String(report.rev)} persona={persona}>{persona==='reviewer'?<ReviewerAtlas/>:persona==='fresher'?<FresherAtlas/>:<LegacyAtlasView/>}</AtlasProvider>
     : <LegacyAtlasView/>;
 }
 function LegacyAtlasView() {
