@@ -30,13 +30,46 @@ use cie_semantic::facts::{
     ImportFact, LangFacts, SymbolFact, SymbolKind, TypeDeclFact,
 };
 use cie_semantic::LangId;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use tree_sitter::Parser;
 
 pub struct JavaAdapter;
 
 fn text_of<'a>(node: tree_sitter::Node<'a>, bytes: &'a [u8]) -> &'a str {
     std::str::from_utf8(&bytes[node.byte_range()]).unwrap_or("")
+}
+
+/// Only uniquely named, non-overridable methods in the immediate class are
+/// eligible. An unrelated class's private method cannot classify this call.
+fn closed_method_names(class: tree_sitter::Node, bytes: &[u8]) -> BTreeSet<String> {
+    let mut names: BTreeMap<String, (usize, bool)> = BTreeMap::new();
+    if let Some(body) = class.child_by_field_name("body") {
+        let mut cursor = body.walk();
+        for method in body
+            .named_children(&mut cursor)
+            .filter(|n| n.kind() == "method_declaration")
+        {
+            let Some(name) = method.child_by_field_name("name") else {
+                continue;
+            };
+            let mut method_cursor = method.walk();
+            let modifiers = method
+                .named_children(&mut method_cursor)
+                .find(|n| n.kind() == "modifiers")
+                .map(|n| text_of(n, bytes))
+                .unwrap_or("");
+            let closed = modifiers
+                .split_whitespace()
+                .any(|m| matches!(m, "static" | "final" | "private"));
+            let entry = names.entry(text_of(name, bytes).to_string()).or_default();
+            entry.0 += 1;
+            entry.1 |= closed;
+        }
+    }
+    names
+        .into_iter()
+        .filter_map(|(name, (count, closed))| (count == 1 && closed).then_some(name))
+        .collect()
 }
 
 struct JavaCtx<'a> {
@@ -109,7 +142,9 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 annotations: annotations_of(node, ctx.bytes),
             });
             ctx.class_stack.push(id);
+            let previous_direct_names = std::mem::replace(&mut ctx.direct_names, closed_method_names(node, ctx.bytes));
             walk_children(ctx, node);
+            ctx.direct_names = previous_direct_names;
             ctx.class_stack.pop();
             return;
         }
@@ -137,14 +172,8 @@ fn walk_java(ctx: &mut JavaCtx, node: tree_sitter::Node) {
                 doc: None,
                 annotations: annotations_of(node, ctx.bytes),
             });
-            // static/final/private declarations are Direct-capable targets.
-            let mods = node
-                .child_by_field_name("modifiers")
-                .map(|m| text_of(m, ctx.bytes).to_string())
-                .unwrap_or_default();
-            if mods.contains("static") || mods.contains("final") || mods.contains("private") {
-                ctx.direct_names.insert(name.clone());
-            }
+            // Direct-capable targets were collected from this class before
+            // walking bodies, including declarations later in source order.
             // formal parameters are name → declared-type bindings.
             {
                 let mut c = node.walk();
@@ -695,4 +724,14 @@ public class Auth {
         .find(|s| s.name == "check")
         .expect("check symbol exists");
     assert_eq!(guarded.symbol, check_sym.id);
+}
+
+#[test]
+fn closed_helpers_are_order_independent_and_do_not_leak_across_classes_or_overloads() {
+    let source = "class A { public int pay() { return save(); } private int save() { return 1; } } class B { public int run() { return save(); } public int save() { return 2; } } class C { public int run() { return helper(1); } private int helper(int n) { return n; } private int helper(String n) { return 0; } }";
+    let facts = JavaAdapter.extract_deep("App.java", source);
+    let calls: Vec<_> = facts.calls.iter().map(|c| &c.callee).collect();
+    assert!(matches!(calls[0], Callee::Unresolved(reason) if reason == "pending"));
+    assert!(matches!(calls[1], Callee::Unresolved(reason) if reason == "virtual_dispatch"));
+    assert!(matches!(calls[2], Callee::Unresolved(reason) if reason == "virtual_dispatch"));
 }
