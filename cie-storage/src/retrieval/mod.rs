@@ -10,6 +10,7 @@ mod providers;
 pub use payload::*;
 mod query;
 mod architecture;
+mod quality;
 pub mod tools;
 pub use contract::*;
 use rusqlite::{Connection, OpenFlags};
@@ -393,11 +394,12 @@ impl RevisionReader {
             }),
         );
         let (duplicates, domains) = query::dataset_needs(&request)?;
-        let dataset = if let Some(dataset) = self.file_plan(&request, &mut ex)? {
+        let mut dataset = if let Some(dataset) = self.file_plan(&request, &mut ex)? {
             dataset
         } else {
             self.dataset_with_duplicates(&mut ex, duplicates, domains)?
         };
+        if quality::needed(&request) { self.quality_fields(&mut dataset, &mut ex)?; }
         let matches = self.evaluate(&request.query, &dataset, &mut ex, 0)?;
         let hash = blake3::hash(&serde_json::to_vec(&request.query)?)
             .to_hex()

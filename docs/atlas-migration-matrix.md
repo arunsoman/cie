@@ -8,7 +8,7 @@ Code inventory: 2026-10-25. Governing rule: [any chart, anywhere](atlas-semantic
 |---|---|---|---|
 | Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | External systems, unresolved entry coverage, data flow, automated tour and start-point ranking |
 | Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Full unresolved-entry coverage, read/write effects, findings and change-specific review |
-| Architect | `ArchitectAtlas` → shared core | Typed C4 containers/components, shared selection and source; dedicated orientation layout | Dependency hero, external systems, complete component interactions, duplication, drift, timelines, risk and quality scorecards |
+| Architect | `ArchitectAtlas` → shared core | Typed C4 containers/components, shared selection and source; dedicated orientation layout | Dependency hero, external systems, complete component interactions, duplication, drift, timelines, risk charts and quality collection |
 | Auditor | `LegacyAtlasView` | Legacy facts preference; core has locked facts policy but this screen is not migrated | Evidence-backed routes, externals, findings, boundary writes and locked policy in rendered UI |
 | Consultant | `LegacyAtlasView` | Legacy scoped exploration | Shared producers, busiest-container evidence and change-context composition |
 | Performance | No selectable persona in `PERSONA_ORDER` | PRD and foundation plan only | Measurements, performance semantic producers and an explicitly supported UI route |
@@ -47,6 +47,7 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 | hierarchy | Captured file/declaration parent structure | Entity contributors and recorded parent evidence |
 | containers | C4 L2 application boundaries | Captured app ownership; typed container contributors and representative member source; no deployment proof |
 | components | C4 L3 component interpretation | Captured framework roles and generated groups; class/method contributors and parent/container context |
+| scorecard | Captured per-file coverage, complexity, duplicate-pair, risk and security values | File contributors, source, cursor paging, explicit unknown/zero semantics; collection and ENG-11 gaps remain |
 | entries | Captured application bootstrap entries | Unique recorded symbol target; bootstrap classes do not imply function IR |
 | routes | Captured service routes | Exact handler selection; API double-click opens that handler, file cells select file contributors |
 | concepts | Generated concept DAG with recorded parent edges | Typed concept-to-symbol contributor mapping; recorded descendants up to eight levels; representative member source; never upgraded to Fact |
@@ -88,3 +89,10 @@ Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders
 - TypeScript and production build passed. All 32 production-browser checks passed with zero browser errors, covering Architect core routing, shared file/container/component selection, captured component source, duplication, persona switching, and replacement canvas readiness.
 - Architect screenshot reviewed at 1550 × 1000. QA exposed and fixed an asynchronous canvas replacement race: each render now owns an isolated DOM host, stale events are ignored, and the canvas stays hidden until the current semantic render is ready. Old renders cannot repaint the next chart's host.
 - This is not the full Architect PRD. Deployment, captured external-image system projection, complete component dependencies, duplication/drift/risk scorecards, large-repository readability and `smpp-mls` domain acceptance remain pending. Auditor and Consultant retain legacy screen dependencies, so their shared legacy builders have not been deleted.
+
+## Validation receipt — Architect REN-0 scorecard
+
+- 185 application tests and 25 Rust storage tests passed; TypeScript and production build passed.
+- Native storage tests cover measured zero, unknown measurements, scan-coverage requirements, generated/vendor filtering before paging, same-file duplicate pair counting and descending risk ordering.
+- Production browser checks cover scorecard metric-cell selection and captured file source, alongside shared chart interaction and persona checks. Fixtures with quality measurements are explicitly synthetic captured test data; they are not evidence that the production ingestion pipeline collects quality.
+- Current ingestion does not publish a quality artifact. The scorecard renders unknown states when none is captured, rather than borrowing demo data. Collector implementation, richer generated-file metadata and non-symbol file population coverage remain pending. See the Architect PRD ledger.

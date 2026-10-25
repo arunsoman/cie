@@ -93,3 +93,9 @@ export const architectLayout: AtlasLayout = {
     areas: [...reviewerLayout.areas], areasMd: [...reviewerLayout.areasMd], areasBase: [...reviewerLayout.areasBase],
     slots: reviewerLayout.slots.map(slot => ({...slot, viewId: slot.area === 'hero' ? 'containers' : slot.area === 'tree' ? 'components' : slot.area === 'files' ? 'symbols' : slot.area === 'kinds' ? 'files' : slot.viewId})),
 };
+
+// REN-0 ships first: the Architect scorecard sits before the secondary graphs.
+architectLayout.areas.splice(4, 0, 'score score score score score score score score', 'score score score score score score score score');
+architectLayout.areasMd.splice(3, 0, 'score score', 'score score');
+architectLayout.areasBase.splice(3, 0, 'score');
+architectLayout.slots.splice(2, 0, {viewId:'scorecard', area:'score', minHeightPx:220, chrome:'table-dense'});

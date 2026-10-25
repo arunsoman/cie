@@ -80,7 +80,7 @@ export function createAtlasCore(options: {
         }
         const groups = new Map<string, AtlasViewDefinition[]>();
         for (const definition of definitions.values()) {
-            const key = JSON.stringify([definition.binding, definition.targetKind ?? universe, definition.expand ?? null]);
+            const key = JSON.stringify([definition.binding, definition.targetKind ?? universe, definition.expand ?? null, definition.filter ?? null]);
             const group = groups.get(key) ?? [];
             group.push(definition);
             groups.set(key, group);
@@ -90,7 +90,8 @@ export function createAtlasCore(options: {
             try {
                 const source = binding === 'repository' ? base : query;
                 const expanded = defs[0].expand ? { union: [source, { follow: { input: source, relation: defs[0].expand.relation, incoming: defs[0].expand.incoming ?? false, max_depth: defs[0].expand.maxDepth, min_depth: 1 } }] } as AtlasQuery : source;
-                const boundQuery = mapPopulation(expanded, universe, defs[0].targetKind ?? universe);
+                const mapped = mapPopulation(expanded, universe, defs[0].targetKind ?? universe);
+                const boundQuery: AtlasQuery = defs[0].filter ? {intersect: [mapped, {select: {kind: defs[0].targetKind ?? universe, filter: defs[0].filter}}]} : mapped;
                 const outputs = defs.flatMap(d => d.outputs(pages.get(d.id)?.slice(-1)[0] ?? null, { pin: state.pin, query: boundQuery, version, controls: state.workspace.charts[d.id] }).map(o => ({ id: `${d.id}__${o.id}`, output: o.output })));
                 const result = await storage.retrieve(boundQuery, outputs, signal);
                 if (!samePin(state.pin, { repository: result.repository, revision: result.revision }))

@@ -212,7 +212,7 @@ pub fn describe_with_options(reader: &RevisionReader, request: DescribeRequest) 
 }
 pub fn entity_fields(kind: EntityKind) -> &'static [&'static str] {
     match kind {
-        EntityKind::File => &["path", "language", "size_bytes", "content_hash"],
+        EntityKind::File => &["path", "language", "size_bytes", "content_hash", "quality"],
         EntityKind::Symbol => &[
             "name",
             "qualified_name",

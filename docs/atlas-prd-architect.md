@@ -20,10 +20,10 @@
 ## Current delivery boundary (2026-10-25)
 
 Architect now routes through `ArchitectAtlas` and the shared core using
-`architect.orientation`. It provides typed C4 application containers, framework and
+`architect.orientation`. The REN-0 scorecard is now registered and placed before secondary charts; it uses captured quality measurements and explicit missing states. It also provides typed C4 application containers, framework and
 generated component interpretation, file/symbol/API charts and captured call views.
 This is the C4 orientation increment, not the dependency/duplication/drift hero
-specified below. Twelve registered core charts remain placeable in any slot and
+specified below. Thirteen registered core charts remain placeable in any slot and
 participate in the shared selection. See the [migration matrix](atlas-migration-matrix.md)
 for remaining producer and evidence gaps. Legacy Architect layout descriptions
 below are requirements, not claims about the delivered orientation slice.
@@ -253,10 +253,10 @@ mistake for "measured and found to be zero." This is normative, not a style note
   already shows — no divergence between the two code paths.
 - [ ] `driftboard` in this persona's grid is pixel-for-pixel the same component instance used in the
   Reviewer preset (verified by shared test fixture, not just "looks the same").
-- [ ] `scorecard` renders with real coverage/complexity/duplicate/hotspot/security values for every file
+- [x] `scorecard` renders with real coverage/complexity/duplicate/hotspot/security values for every file
   that has them, sorted by hotspot risk descending, and the cohesion/coupling column reads literally
   "not yet measured" for every row until `ENG-11` ships — never a number.
-- [ ] Clicking a `scorecard` row scopes every other panel to that file (`SCOPE(space, module, file)`) —
+- [x] Clicking a `scorecard` row scopes every other panel to that file (`SCOPE(space, module, file)`) —
   the same verb a component box already uses, verified, not a new one.
 
 ## 11. Resolved decisions log
@@ -283,3 +283,26 @@ buckets. Phase 3 (`ENG-04`): `timeline` panel goes live. Phase 4 (`ENG-11`): the
 column goes live, the one phase in this PRD that is genuine new engine work rather than wiring. Each
 phase is independently demoable and independently shippable — never a single "architect preset" big-bang
 release.
+
+## Current chart delivery ledger
+
+| PRD chart | Delivery status | Remaining work |
+|---|---|---|
+| scorecard (REN-0) | Registered, storage-backed, paged file table; captured values, source and cross-filtering | Current ingest does not collect a quality artifact. Without one, columns explicitly show not run/not collected. No claim of five automatically collected metrics. ENG-11 remains not yet measured. |
+| depgraph (REN-1) | Pending | Captured dependency graph producer and dependency hero |
+| boundedcontexts (REN-2) | Partial foundation | Captured application/C4 ownership exists; compose the PRD context view and disclose missing conceptual boundaries |
+| duplication (REN-3) | Pending | Pair/overlap producers, selectable tables and chord geometry |
+| driftboard | Pending | Shared Reviewer/Architect producer with contributor evidence |
+| timeline (ENG-04) | Pending | Captured semantic revision events, not an invented time series |
+| risktreemap (REN-4) | Pending | Typed area geometry over captured hotspot risk, with contributor identity |
+
+Scorecard rows cover captured files reachable from the shared symbol population;
+non-analyzable/config-only files without symbol membership remain a population gap.
+Page size is 30 rather than mounting thousands of rows. Security/duplicate zero
+requires explicit per-file `scanned_files` coverage plus an actual result array;
+absence of a record never proves a clean scan. Legacy artifacts can still provide
+positive recorded finding/pair counts. Coverage without a captured row says
+"not run" (no recorded run), distinct from measured 0%. Captured timestamps are
+shown; source-hash equivalence is not asserted. Fixed generated/vendor exclusions
+are applied before counting pairs and before paging; ingestion still owns which
+ignored/source files enter the captured revision.

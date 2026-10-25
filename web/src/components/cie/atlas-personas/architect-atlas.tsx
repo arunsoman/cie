@@ -9,7 +9,7 @@ export function ArchitectAtlas() {
         <details className="text-xs text-stone-600 rounded border p-2">
             <summary>Architecture evidence and remaining coverage</summary>
             <p>C4 application boundaries come from captured build records. Components include captured framework roles and stored generated groupings. Architectural grouping remains an interpretation; deployment and runtime communication are unverified. Missing external systems and relationships are not invented.</p>
-            <p>This orientation slice does not complete the Architect PRD: dependency analysis, duplication, drift, timelines, risk and quality scorecards still need shared producers. Ask CIE currently uses its separate chat context.</p>
+            <p>This orientation slice does not complete the Architect PRD: dependency analysis, duplication, drift, timelines and risk charts still need shared producers. The scorecard shows captured quality measurements and explicit collection gaps. Ask CIE currently uses its separate chat context.</p>
         </details>
         <AtlasWorkspaceControls />
         <AtlasLayoutView />

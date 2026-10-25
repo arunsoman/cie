@@ -277,5 +277,6 @@ export interface AtlasViewDefinition {
         incoming?: boolean;
     };
     targetKind?: EntityKind;
+    filter?: Record<string, unknown>;
     project(response: AtlasResponse, context: ProjectionContext): AtlasViewSpec;
 }

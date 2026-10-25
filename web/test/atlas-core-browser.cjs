@@ -9,6 +9,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await fs.writeFile(path.join(subject,'b.py'),'def refund(x):\n    return x - 1\n');
   await require('./helpers/atlas-api-fixture.cjs')(subject);
   const cli=path.resolve(__dirname,'../../target/debug/cie'),run=spawnSync(cli,['ingest-polyglot',subject,'--web-out',path.join(root,'capture.json')],{encoding:'utf8'});assert.equal(run.status,0,run.stderr);
+  await require('./helpers/atlas-quality-fixture.cjs')(subject);
   await fs.writeFile(path.join(job,'result.json'),JSON.stringify({revision:'1',label:'Atlas core QA',sourceRoot:null,storageRoot:subject}));
   const port=process.env.ATLAS_PORT??'4402';server=spawn(process.execPath,['scripts/start-standalone.cjs'],{cwd:path.resolve(__dirname,'..'),env:{...process.env,PORT:port,HOSTNAME:'127.0.0.1',CIE_BIN:cli,CIE_JOBS_ROOT:path.join(root,'jobs')},stdio:['ignore','pipe','pipe']});
   let log='';server.stderr.on('data',b=>log+=b);
@@ -115,6 +116,19 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await page.waitForFunction(()=>document.querySelector('[role="img"][aria-label="C4 application containers"]')?.getAttribute('data-render-state')==='ready');
   check('chart replacement waits for its own canvas render',await containers.getByRole('img',{name:'C4 application containers',exact:true}).getAttribute('data-render-state')==='ready');
   await page.getByRole('heading',{name:'Architect · captured architecture orientation',exact:true}).scrollIntoViewIfNeeded();
+  const scorecard=page.getByRole('region',{name:'Module scorecard',exact:true});await scorecard.waitFor();
+  check('Architect scorecard shows captured risk and missing cohesion explicitly',(await scorecard.innerText()).includes('90')&&(await scorecard.innerText()).includes('not yet measured'));
+  await scorecard.getByRole('button',{name:'90',exact:true}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('[aria-label="Module scorecard"] button')].some(b=>b.textContent==='90'&&b.getAttribute('aria-pressed')==='true'));
+  check('scorecard metric cell contributes a file selection',await scorecard.getByRole('button',{name:'90',exact:true}).getAttribute('aria-pressed')==='true');
+  await scorecard.getByRole('button',{name:'90',exact:true}).dblclick();await page.getByRole('region',{name:'Captured evidence',exact:true}).getByText(/class Payments/).waitFor();
+  check('scorecard metric double click opens captured file',await page.getByRole('region',{name:'Captured evidence',exact:true}).count()===1);await page.getByRole('button',{name:'Close evidence',exact:true}).click();
+  await scorecard.getByRole('button',{name:'90',exact:true}).click();
+  await page.getByRole('heading',{name:'Architect · captured architecture orientation',exact:true}).scrollIntoViewIfNeeded();
+  await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[aria-label="Module scorecard"]')?.getAttribute('aria-busy')==='false'&&document.querySelectorAll('[aria-label="Module scorecard"] tbody tr').length===3);
+  check('scorecard keeps measured zero and missing coverage visibly distinct',(await scorecard.innerText()).includes('not run')&&await scorecard.getByRole('button',{name:'0',exact:true}).count()>0);
+  await scorecard.scrollIntoViewIfNeeded();const scoreOut=process.env.ATLAS_QA_OUT??root;await fs.mkdir(scoreOut,{recursive:true});await page.screenshot({path:path.join(scoreOut,'atlas-scorecard.png'),fullPage:true});
   const architectureOut=process.env.ATLAS_QA_OUT??root;await fs.mkdir(architectureOut,{recursive:true});await page.screenshot({path:path.join(architectureOut,'atlas-core-architect.png'),fullPage:true});
   await page.getByRole('button',{name:/Atlas: Architect/}).click();await page.getByRole('menuitemradio',{name:/Reviewer/}).click();await page.getByTestId('atlas-core-reviewer').waitFor();
   const out=process.env.ATLAS_QA_OUT??root;await fs.mkdir(out,{recursive:true});await page.screenshot({path:path.join(out,'atlas-core-reviewer.png'),fullPage:true});check('no browser errors',errors.length===0);await fs.writeFile(path.join(out,'checks.json'),JSON.stringify({checks,errors},null,2));console.log(JSON.stringify({checks,output:out},null,2));

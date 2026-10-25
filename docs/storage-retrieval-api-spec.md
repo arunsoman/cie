@@ -1010,3 +1010,17 @@ relations retain their generated-group meaning. Captured framework roles carry
 `origin: captured_framework_role` so consumers can distinguish them from generated
 component groupings. A container `location`, when present, is representative member
 source, not a fabricated manifest or deployment span.
+
+### Captured file quality projection
+
+Selecting File entities may request `fields: ["path", "quality"]`. The `quality`
+field is lazily derived from the pinned revision's quality artifact and supports
+normal field predicates, ordering, facets and cube dimensions/measures. Its numeric
+fields are `coverage_percent`, `avg_cc`, `max_cc`, `duplicate_pairs`, `hotspot_risk`
+and `security_findings`; unknown values are null, never implicit zero. `available`
+indicates artifact presence, `excluded` applies the documented generated/vendor
+path policy, and collection timestamp/honesty/risk formula remain available.
+Security/duplicate zero requires explicit per-file `scanned_files` and a result
+array; a same-file duplicate pair is counted once, and pairs involving excluded
+paths are omitted. Cohesion/coupling remains unmeasured. Queries never execute
+collectors or inspect the live working tree to fill these fields.

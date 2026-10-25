@@ -221,3 +221,19 @@ render state is keyed by the current render hash, stale interactions are ignored
 and each cleanup disposes only its own graph/DOM host. This prevents an old chart
 from briefly appearing beneath a replacement chart's title. The shared source and
 selection services remain independent of this rendering lifecycle.
+
+## Architect scorecard (REN-0)
+
+`scorecard` is a registered file-target producer, not persona-local data handling.
+Storage lazily projects `File.quality` from the captured quality artifact when a
+query/output requests those fields. Numeric metrics remain null when uncollected;
+measured zero is preserved. Risk ordering, file filters, facets/cubes and cursor
+paging run inside storage. Generated/vendor exclusions and same-file pair counting
+are deterministic. The UI renders source-linked rows with the shared gestures;
+cohesion/coupling stays literal `not yet measured`. No live source analysis or
+external metric collection occurs during retrieval.
+
+View definitions may now declare a typed storage predicate in `filter`; it is
+applied after universe mapping and participates in the batch key, so one chart's
+restriction never leaks into another chart sharing its target kind. See the
+Architect PRD chart ledger for collection and population limitations.
