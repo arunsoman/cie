@@ -17,7 +17,7 @@ export interface PresentationSpec {
     detail: 'summary' | 'full';
 }
 export interface PresentationProfile extends PresentationSpec {
-    host: 'viz-adapter' | 'table' | 'metric';
+    host: 'viz-adapter' | 'table' | 'metric' | 'treemap';
 }
 export class PresentationRegistry {
     private profiles = new Map<string, PresentationProfile>();
@@ -40,3 +40,5 @@ for (const [kind, host, family, required] of [
 export function planPresentation(model: SemanticViewSpec, request?: PresentationSpec) { const p = request ? presentations.get(request.profile, model.kind) : presentations.defaultFor(model.kind); if (request && request.kind !== model.kind)
     throw new Error('Presentation cannot change semantic view kind'); return { ...p, ...request, host: p.host }; }
 presentations.register({ profile: 'metric.table', kind: 'metric', host: 'table', layout: { family: 'grid', direction: 'TB' }, required: ['selection', 'table'], preferred: [], detail: 'full' });
+
+presentations.register({profile:'metric.treemap',kind:'metric',host:'treemap',layout:{family:'grid',direction:'TB'},required:['selection','metrics'],preferred:[],detail:'full'});

@@ -8,7 +8,7 @@ Code inventory: 2026-10-25. Governing rule: [any chart, anywhere](atlas-semantic
 |---|---|---|---|
 | Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | External systems, unresolved entry coverage, data flow, automated tour and start-point ranking |
 | Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Full unresolved-entry coverage, read/write effects, findings and change-specific review |
-| Architect | `ArchitectAtlas` → shared core | Typed C4 containers/components, shared selection and source; dedicated orientation layout | Dependency hero, external systems, complete component interactions, duplication, drift, timelines, risk charts and quality collection |
+| Architect | `ArchitectAtlas` → shared core | PRD seven-panel grid, declared dependency graph, candidate contexts, scorecard, structural duplicate candidates, captured drift and risk treemap; charts-first display | Dependency hero, external systems, complete component interactions, duplication, drift, timelines, risk charts and quality collection |
 | Auditor | `LegacyAtlasView` | Legacy facts preference; core has locked facts policy but this screen is not migrated | Evidence-backed routes, externals, findings, boundary writes and locked policy in rendered UI |
 | Consultant | `LegacyAtlasView` | Legacy scoped exploration | Shared producers, busiest-container evidence and change-context composition |
 | Performance | No selectable persona in `PERSONA_ORDER` | PRD and foundation plan only | Measurements, performance semantic producers and an explicitly supported UI route |
@@ -96,3 +96,26 @@ Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders
 - Native storage tests cover measured zero, unknown measurements, scan-coverage requirements, generated/vendor filtering before paging, same-file duplicate pair counting and descending risk ordering.
 - Production browser checks cover scorecard metric-cell selection and captured file source, alongside shared chart interaction and persona checks. Fixtures with quality measurements are explicitly synthetic captured test data; they are not evidence that the production ingestion pipeline collects quality.
 - Current ingestion does not publish a quality artifact. The scorecard renders unknown states when none is captured, rather than borrowing demo data. Collector implementation, richer generated-file metadata and non-symbol file population coverage remain pending. See the Architect PRD ledger.
+
+
+## Architect PRD composition checkpoint
+
+The default now follows `architect.default`, not the earlier orientation layout.
+All seven PRD panel IDs are registered; registration is not evidence that their
+underlying engine requirements are complete. Timeline is an explicit unavailable
+state. Duplication's literal clone/chord/FCA requirements, paired drift comparison,
+layer/quality facets, production quality collection and ENG-11 remain pending.
+Chart-only display hides explanatory text/controls by default while preserving
+labels, active constraints, errors and unavailable states. See Architect PRD
+current delivery boundary for the exact scope.
+
+
+Validation: 189 application tests and 25 storage tests passed, with TypeScript
+and production build checks. Native acceptance covers a manifest-only empty module,
+declaration-based selection independent of imports, scoped recorded drift with
+both document/code references, missing/zero quality values and shared populations.
+Production-browser coverage includes the seven Architect slots, charts-first
+startup, risk selection/deselection, captured source, opt-in details and constraint
+preservation, plus existing cross-persona chart placement and selection checks.
+Screenshots use explicitly synthetic captured QA metrics, not production quality
+collection evidence. Domain acceptance on `smpp-mls` remains outstanding.

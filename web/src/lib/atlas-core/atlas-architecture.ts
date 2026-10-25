@@ -18,7 +18,7 @@ function reference(entity:Entity,c:ProjectionContext):AtlasItemRef {
         provenance:[{kind:'stored-fact',pin:c.pin,artifact:kind==='container'?'stack.apps':'captured_components',recordId:entity.id}]};
 }
 function architecture(id:string,target:'container'|'component'):AtlasViewDefinition {
-    return {id,binding:'selection',targetKind:target,
+    return {id,binding:'selection',targetKind:target,unfilteredTargetUniverse:target==='container',
         outputs:()=>[
             {id:'members',output:{entities:{page:{limit:500}}}},
             {id:'graph',output:{graph:{max_nodes:100,max_edges:300,expansion:{relations:target==='container'?['communicates_with']:['child_component_of','component_in_container'],max_depth:target==='container'?1:8}}}},
@@ -51,3 +51,10 @@ function architecture(id:string,target:'container'|'component'):AtlasViewDefinit
 }
 export const containerView=architecture('containers','container');
 export const componentView=architecture('components','component');
+
+/** Same captured service boundaries, explicitly labelled as DDD candidates. */
+export const boundedContextView:AtlasViewDefinition={...containerView,id:'boundedcontexts',project(r,c){
+ const view=containerView.project(r,c),title='Bounded context candidates';
+ const gaps=[...view.gaps,'Captured applications are candidate contexts, not validated business or DDD boundaries. Concept-based boundary validation remains pending.'];
+ return {...view,title,gaps,semantic:view.semantic?{...view.semantic,title,gaps}:undefined};
+}};

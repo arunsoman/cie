@@ -189,3 +189,29 @@ capability rejection/fallback, layout validity, stale responses, revisions and
 native-storage/browser integration. A passing selection suite alone is not proof
 that all persona requirements are implemented. Maintain a delivery ledger in
 atlas-core-contract.md distinguishing implemented, partial and producer-dependent.
+
+
+## Architect default composition and display density
+
+`architect.default` follows the Architect PRD §4 seven-panel grid. Persona TSX
+only chooses presentation density and composes the shared layout and controls.
+`AtlasDisplayContext` hides prose, chart outlines and workspace/placement controls
+by default for Architect; it does not change producer queries, populations,
+selection, evidence policy or rendering semantics. Essential chart labels,
+active constraint chips, missing-data states and errors stay visible. Details can
+be restored explicitly. Native G6 canvases remain the graph renderers.
+
+`declares_dependency` links Container → Dependency only through an exact captured
+manifest evidence path, with ambiguous ownership left unlinked. Reverse mapping
+selects declaring modules. It is distinct from File → `uses_dependency` and from
+runtime calls. `unfilteredTargetUniverse` lets container charts include manifest-only
+modules at an unrestricted repository root; any selection, breadcrumb, change
+scope or filtered base disables this expansion. An empty module cannot fabricate
+symbol membership. Duplicate-pair mapping includes both left and right sources.
+
+The `driftboard` producer is registered once for all personas and projects recorded
+claim verifications through `source_symbol`; unmapped claims do not silently
+acquire guessed source ownership. The risk producer uses native file quality and
+a dedicated metric treemap presentation. Binary area packing preserves measured
+risk proportions; zero/unknown scores never receive invented area, and remain
+selectable in a separate list. These renderers preserve the universal gestures.

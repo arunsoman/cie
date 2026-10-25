@@ -527,6 +527,13 @@ async function renderSpecG6(
 
 async function readableViewport(graph:Graph) {
   await graph.zoomTo(1,false);
+  // Center small diagrams as a whole at readable scale. Focusing the first
+  // node clips its neighbours even when the complete graph fits the panel.
+  const bounds=graph.getNodeData().map(n=>graph.getElementRenderBounds(n.id!));
+  const [width,height]=graph.getSize();
+  if(bounds.length && Math.max(...bounds.map(b=>b.max[0]))-Math.min(...bounds.map(b=>b.min[0]))<=width-24 && Math.max(...bounds.map(b=>b.max[1]))-Math.min(...bounds.map(b=>b.min[1]))<=height-24){
+    await graph.fitCenter(false);return;
+  }
   const first=graph.getNodeData().find(n=>!String(n.id).includes('::') && !String(n.id).startsWith('lane:') && !String(n.id).endsWith(':bottom')) ?? graph.getNodeData()[0];
   if(first?.id) await graph.focusElement(first.id,false);
   else await graph.fitCenter(false);

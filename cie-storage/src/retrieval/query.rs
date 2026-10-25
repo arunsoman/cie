@@ -156,10 +156,26 @@ impl RevisionReader {
         }
         for summary in self.snapshot["summaries"].as_array().into_iter().flatten() {
             if let Some(source) = summary["sym"].as_u64().and_then(|n| core.get(&n)) {
-                let declared: BTreeSet<u64> = summary["callees"].as_array().into_iter().flatten().filter_map(Value::as_u64)
-                    .chain(summary["call_sites"].as_array().into_iter().flatten().flat_map(|c|c["target_symbols"].as_array().into_iter().flatten()).filter_map(Value::as_u64)).collect();
-                for target in declared.iter().filter_map(|id|core.get(id)) {
-                    ds.edges.push(Edge{source:source.clone(),target:target.clone(),relation:RelationKind::DeclaredCalls});
+                let declared: BTreeSet<u64> = summary["callees"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_u64)
+                    .chain(
+                        summary["call_sites"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .flat_map(|c| c["target_symbols"].as_array().into_iter().flatten())
+                            .filter_map(Value::as_u64),
+                    )
+                    .collect();
+                for target in declared.iter().filter_map(|id| core.get(id)) {
+                    ds.edges.push(Edge {
+                        source: source.clone(),
+                        target: target.clone(),
+                        relation: RelationKind::DeclaredCalls,
+                    });
                 }
                 for callee in summary["callees"].as_array().into_iter().flatten() {
                     if let Some(target) = callee.as_u64().and_then(|n| core.get(&n)) {
@@ -216,6 +232,16 @@ impl RevisionReader {
                             target: sid.clone(),
                             relation,
                         });
+                    }
+                }
+                let mut row = row;
+                for (side, field) in [("left", "symbol_a"), ("right", "symbol_b")] {
+                    if let Some(symbol) = row[field]
+                        .as_i64()
+                        .and_then(|n| poly.get(&n))
+                        .and_then(|id| ds.entities.get(id))
+                    {
+                        row[format!("{side}_source")] = json!({"id":symbol.id,"name":symbol.fields.get("qualified_name"),"location":symbol.fields.get("location")});
                     }
                 }
                 add(&mut ds, ex, EntityKind::DuplicatePair, id, row)?;
@@ -431,6 +457,7 @@ impl RevisionReader {
                 });
             }
             self.architecture_entities(&mut ds, ex)?;
+            self.drift_entities(&mut ds, ex)?;
             let evidence: Vec<_> = ds
                 .entities
                 .values()
@@ -1270,6 +1297,7 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
                 | RelationKind::CommunicatesWith
                 | RelationKind::MemberOfComponent
                 | RelationKind::ChildComponentOf
+                | RelationKind::DeclaresDependency
                 | RelationKind::UsesDependency
                 | RelationKind::SourceSymbol
                 | RelationKind::StateOf
@@ -1320,7 +1348,6 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
                         | EntityKind::Concept
                         | EntityKind::Summary
                         | EntityKind::Contract
-                        | EntityKind::Finding
                         | EntityKind::DuplicatePair
                         | EntityKind::Cluster
                 );

@@ -19,14 +19,32 @@
 
 ## Current delivery boundary (2026-10-25)
 
-Architect now routes through `ArchitectAtlas` and the shared core using
-`architect.orientation`. The REN-0 scorecard is now registered and placed before secondary charts; it uses captured quality measurements and explicit missing states. It also provides typed C4 application containers, framework and
-generated component interpretation, file/symbol/API charts and captured call views.
-This is the C4 orientation increment, not the dependency/duplication/drift hero
-specified below. Thirteen registered core charts remain placeable in any slot and
-participate in the shared selection. See the [migration matrix](atlas-migration-matrix.md)
-for remaining producer and evidence gaps. Legacy Architect layout descriptions
-below are requirements, not claims about the delivered orientation slice.
+Architect uses `ArchitectAtlas` and shared producers in the **`architect.default`**
+seven-panel grid specified in §4: dependency graph, bounded-context candidates,
+scorecard, duplication, documentation drift, revision timeline, and risk treemap.
+The registry, rather than the legacy preset fallback, controls the rendered layout.
+
+**Charts first (user requirement):** explanatory prose, chart outlines, placement
+controls, provenance, workspace tools and evidence notes are hidden by default.
+`Show controls and details` reveals them without resetting selection or replacing
+charts. Titles, node/axis labels, values, active selection chips, actionable errors,
+and truthful unavailable states remain visible. The chat dock starts closed for
+this persona. Source opens only on explicit double-click/Enter. Other personas
+retain their current display density.
+
+**Delivered versus partial:** dependencies show captured manifest declarations,
+including modules with zero declarations; dependency clicks select declaring
+modules, not guessed import usage. Bounded contexts are application-based
+candidates, not validated DDD boundaries. The scorecard and true area-proportional
+risk treemap use captured quality data; production quality collection is still
+missing. Duplication currently shows stored structural candidates, **not** the
+required literal-clone table/chord/FCA tabs. Drift shows scoped recorded
+verifications and offers captured document/code evidence; simultaneous paired
+DOC/CODE comparison remains pending. Timeline explicitly says **not yet indexed**
+until ENG-04 exists. Layer/facet/architect pivot requirements, ENG-11, capture
+coverage and large-repository/domain acceptance remain open. This increment is
+not full verbatim PRD completion. Nineteen registered charts remain placeable in
+any slot when controls are revealed.
 
 ## 1. Problem
 
@@ -243,7 +261,7 @@ mistake for "measured and found to be zero." This is normative, not a style note
 
 ## 10. Acceptance criteria
 
-- [ ] Architect hero renders `depgraph`, not `containers`.
+- [x] Architect hero renders `depgraph`, not `containers`.
 - [ ] `layer` pivot (rows=module, columns=layer) renders with real edge counts for a repo carrying
   `.cie/layers.yaml`, and with `Unclassified` fallback for one that doesn't.
 - [ ] Churn-bucket facet on `risktreemap` cross-filters `depgraph` edges to the matching files.

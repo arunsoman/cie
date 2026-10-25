@@ -277,6 +277,8 @@ export interface AtlasViewDefinition {
         incoming?: boolean;
     };
     targetKind?: EntityKind;
+    /** Include manifest-only targets at the unrestricted repository root. */
+    unfilteredTargetUniverse?: boolean;
     filter?: Record<string, unknown>;
     project(response: AtlasResponse, context: ProjectionContext): AtlasViewSpec;
 }

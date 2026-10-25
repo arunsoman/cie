@@ -1,4 +1,5 @@
 'use client';
+import {useAtlasDetails} from './atlas-display';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RenderHandle } from 'viz-adapter';
 import type { AtlasViewSpec } from '@/lib/atlas-core';
@@ -8,6 +9,7 @@ import { DiagramNavigation } from '../diagram-navigation';
 import { g6PresentationOptions } from '@/lib/viz/atlas-host-profiles';
 export function AtlasCanvas({ spec, disabled }: {spec: AtlasViewSpec; disabled: boolean}) {
     const {core, interaction} = useAtlas(), state = useAtlasState();
+    const details=useAtlasDetails(), canvasHeight=state.persona==='architect'?330:420;
     const container = useRef<HTMLDivElement>(null), handle = useRef<RenderHandle | null>(null);
     const [render, setRender] = useState({hash: '', status: 'loading', notice: 'Preparing visualization…'});
     const compiled = useMemo(() => {try {return {view: atlasVisualization(spec, state.pin), error: null};} catch(e) {return {view: null, error: String(e)};}}, [spec, state.pin]);
@@ -25,7 +27,7 @@ export function AtlasCanvas({ spec, disabled }: {spec: AtlasViewSpec; disabled: 
         // Every asynchronous render owns its own DOM host. A late disposal or
         // render from a previous chart can never clear or repaint the next one.
         const stage = document.createElement('div');
-        stage.style.width = '100%'; stage.style.height = '420px';
+        stage.style.width = '100%'; stage.style.height = `${canvasHeight}px`;
         container.current.replaceChildren(stage);
         setRender({hash, status: 'loading', notice: 'Preparing visualization…'});
         void import('@/lib/viz/g6-engine').then(async ({renderViaNegotiator}) => {
@@ -46,9 +48,9 @@ export function AtlasCanvas({ spec, disabled }: {spec: AtlasViewSpec; disabled: 
             if (handle.current === owned) handle.current = null;
             stage.remove(); void owned?.dispose();
         };
-    }, [view, spec, interaction, compiled.error, hash]);
+    }, [view, spec, interaction, compiled.error, hash, canvasHeight]);
     useEffect(() => {
         if (current.status === 'ready') handle.current?.setSelected([...spec.items, ...(spec.links ?? [])].filter(i => core.isSelected(i.ref.id) || state.focusedItemId === i.ref.id).map(i => i.key), 'programmatic');
     }, [state.selection, state.focusedItemId, spec, core, current.status]);
-    return <><div ref={container} role="img" aria-label={spec.title} data-render-state={current.status} data-render-hash={hash} className="min-h-[420px] border rounded" style={{visibility: current.status === 'ready' ? 'visible' : 'hidden'}}/><DiagramNavigation handle={handle}/><p role="status" className="text-xs">{current.notice}</p></>;
+    return <><div ref={container} role="img" aria-label={spec.title} data-render-state={current.status} data-render-hash={hash} className="border rounded" style={{minHeight:canvasHeight,visibility: current.status === 'ready' ? 'visible' : 'hidden'}}/>{details&&<DiagramNavigation handle={handle}/>}{(details||current.status!=='ready')&&<p role="status" className="text-xs">{current.notice}</p>}</>;
 }

@@ -17,6 +17,63 @@ fn owner(path: &str, apps: &[(String, String)]) -> Option<String> {
     (best.len() == 1).then(|| best[0].0.clone())
 }
 impl RevisionReader {
+    /// Captured document/code verification, linked by recorded symbol IDs only.
+    pub(crate) fn drift_entities(&self, ds: &mut Dataset, ex: &mut Execution) -> Result<()> {
+        let drift = &self.artifacts["drift"];
+        for verification in drift["verifications"].as_array().into_iter().flatten() {
+            ex.check(1)?;
+            let Some(claim) = drift["claims"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|c| c["id"] == verification["claim"])
+            else {
+                continue;
+            };
+            let Some(number) = claim["id"].as_u64() else {
+                continue;
+            };
+            let id = self.id("drift_claim", number);
+            let ids: BTreeSet<u64> = verification["symbols"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_u64)
+                .chain(
+                    drift["mappings"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter(|m| m["claim"] == claim["id"])
+                        .flat_map(|m| m["symbols"].as_array().into_iter().flatten())
+                        .filter_map(Value::as_u64),
+                )
+                .collect();
+            let mut sources = Vec::new();
+            for n in ids {
+                let sid = self.id("symbol", n);
+                if let Some(symbol) = ds.entities.get(&sid) {
+                    sources.push(json!({"id":sid,"location":symbol.fields.get("location")}));
+                    ds.edges.push(Edge {
+                        source: id.clone(),
+                        target: sid,
+                        relation: RelationKind::SourceSymbol,
+                    });
+                }
+            }
+            let fields = json!({"origin":"captured_document_drift","claim":claim["text"],"status":verification["status"],"reason":verification["reason"],"document":claim["loc"],"sources":sources,"complete":drift["complete"],"incomplete_reason":drift["incomplete_reason"],"checker":verification["checker"]});
+            ds.entities.insert(
+                id.clone(),
+                Entity {
+                    id,
+                    kind: EntityKind::Finding,
+                    fields: serde_json::from_value(fields)?,
+                    evidence_refs: vec![],
+                },
+            );
+        }
+        Ok(())
+    }
     pub(crate) fn architecture_entities(&self, ds: &mut Dataset, ex: &mut Execution) -> Result<()> {
         let apps: Vec<Value> = self.snapshot["stack"]["apps"]
             .as_array()
@@ -44,6 +101,41 @@ impl RevisionReader {
                 },
             );
             scopes.push((id, dir.trim_end_matches('/').to_string()));
+        }
+        // A declaration belongs to an app only through its captured manifest evidence.
+        // Do not infer runtime use or discard a module with zero declarations.
+        for (index, dependency) in self.artifacts["deps"]["table"]["deps"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            ex.check(1)?;
+            let Some(source) = dependency["source"].as_str() else {
+                continue;
+            };
+            let owners: Vec<_> = apps
+                .iter()
+                .enumerate()
+                .filter(|(_, app)| {
+                    app["evidence"].as_str() == Some(source)
+                        || app["manifests"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .any(|m| m["evidence"].as_str() == Some(source))
+                })
+                .map(|(i, _)| self.id("container", i))
+                .filter(|id| ds.entities.contains_key(id))
+                .collect();
+            let target = self.id("dependency", index);
+            if owners.len() == 1 && ds.entities.contains_key(&target) {
+                ds.edges.push(Edge {
+                    source: owners[0].clone(),
+                    target,
+                    relation: RelationKind::DeclaresDependency,
+                });
+            }
         }
         let symbols: Vec<_> = ds
             .entities

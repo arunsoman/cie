@@ -172,6 +172,7 @@ export function semanticProjection(spec: AtlasViewSpec, c: ProjectionContext, r:
         return { ...common, kind: 'dependency', nodes, relations: (spec.links ?? []).map(e => ({ ...binding(e.key, e.label, e.ref, e.authority), from: e.from, to: e.to, relation: e.label })) };
     if (spec.kind === 'table' || spec.kind === 'pivot')
         return { ...common, kind: 'table', columns: spec.columns ?? [{ id: 'label', label: 'Symbol' }, { id: 'detail', label: 'File' }], rows: nodes.map((n, i) => ({ ...n, cellBindings: Object.fromEntries(Object.entries(spec.items[i].cellRefs ?? {}).map(([column, ref]) => [column, binding(`${n.visualId}:cell:${column}`, String(spec.items[i].fields?.[column] ?? column), ref, n.authority, n.membership)])), values: { label: n.label, detail: spec.items[i].detail ?? null, ...spec.items[i].fields as Record<string, CellValue> } })) };
+    if (spec.kind === 'treemap') return {...common,kind:'metric',dimensions:[{id:'file',label:'File'}],measures:[{id:'risk',label:'Captured hotspot risk'}],cells:nodes.map((n,i)=>({...n,members:{file:n.label},measures:{risk:spec.items[i].value??null}}))};
     if (spec.kind === 'bars')
         return { ...common, kind: 'metric', dimensions: [{ id: 'group', label: 'Group' }], measures: [{ id: 'count', label: 'Count', unit: 'entities' }], cells: nodes.map((n, i) => ({ ...n, members: { group: n.label }, measures: { count: spec.items[i].value ?? null } })) };
     throw new Error(`A typed semantic model is required for ${spec.kind}`);

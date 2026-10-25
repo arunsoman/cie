@@ -11,6 +11,8 @@ export const storageMappings: PopulationMapping[] = [
     { from: 'symbol', to: 'container', relation: 'member_of_container' }, { from: 'container', to: 'symbol', relation: 'member_of_container', incoming: true },
     { from: 'file', to: 'container', relation: 'member_of_container' }, { from: 'container', to: 'file', relation: 'member_of_container', incoming: true },
 
+    {from:'container',to:'dependency',relation:'declares_dependency'}, {from:'dependency',to:'container',relation:'declares_dependency',incoming:true},
+    {from:'finding',to:'symbol',relation:'source_symbol'}, {from:'symbol',to:'finding',relation:'source_symbol',incoming:true},
     { from: 'route', to: 'symbol', relation: 'source_symbol' }, { from: 'symbol', to: 'route', relation: 'source_symbol', incoming: true },
     { from: 'entry_point', to: 'symbol', relation: 'source_symbol' }, { from: 'symbol', to: 'entry_point', relation: 'source_symbol', incoming: true },
 
@@ -26,12 +28,20 @@ export const storageMappings: PopulationMapping[] = [
     { from: 'state_machine', to: 'symbol', relation: 'source_symbol' }, { from: 'state', to: 'state_machine', relation: 'state_of' },
 ];
 export function mapPopulation(query: AtlasQuery, from: EntityKind, to: EntityKind, mappings = storageMappings): AtlasQuery {
+    if (from === to) return query;
+    // Both sides contribute to clone selection and to scoped pair discovery.
+    if (from === 'duplicate_pair' || to === 'duplicate_pair') {
+        const incoming=to==='duplicate_pair', other=incoming?from:to;
+        const input=incoming?mapPopulation(query,other,'symbol',mappings):query;
+        const joined:AtlasQuery={union:['left_symbol','right_symbol'].map(relation=>({follow:{input,relation,incoming,max_depth:1}}))};
+        return incoming?joined:mapPopulation(joined,'symbol',other,mappings);
+    }
     if (from === to)
         return query;
     const queue: [
         EntityKind,
         AtlasQuery
-    ][] = [[from, query]], seen = new Set([from]);
+    ][] = [[from, query]], seen = new Set<EntityKind>([from]);
     for (let i = 0; i < queue.length; i++) {
         const [kind, q] = queue[i];
         for (const m of mappings.filter(m => m.from === kind)) {
