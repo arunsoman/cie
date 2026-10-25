@@ -55,6 +55,7 @@ pub enum EntityKind {
     EntryPoint,
     Framework,
     Component,
+    Container,
     Dependency,
     StateMachine,
     State,
@@ -75,6 +76,7 @@ impl EntityKind {
         Self::EntryPoint,
         Self::Framework,
         Self::Component,
+        Self::Container,
         Self::Dependency,
         Self::StateMachine,
         Self::State,
@@ -117,6 +119,9 @@ pub enum RelationKind {
     LeftSymbol,
     RightSymbol,
     CanonicalSymbol,
+    MemberOfContainer,
+    ComponentInContainer,
+    CommunicatesWith,
     MemberOfComponent,
     ChildComponentOf,
     UsesDependency,
@@ -135,6 +140,9 @@ impl RelationKind {
         matches!(
             (self, source, target),
             (RelationKind::CoChanged, File, File)
+                | (RelationKind::MemberOfContainer, Symbol | File, Container)
+                | (RelationKind::ComponentInContainer, Component, Container)
+                | (RelationKind::CommunicatesWith, Container, Container)
                 | (RelationKind::MemberOfComponent, Symbol, Component)
                 | (RelationKind::ChildComponentOf, Component, Component)
                 | (RelationKind::UsesDependency, File, Dependency)

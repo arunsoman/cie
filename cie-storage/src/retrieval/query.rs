@@ -430,6 +430,7 @@ impl RevisionReader {
                     relation: RelationKind::ChildComponentOf,
                 });
             }
+            self.architecture_entities(&mut ds, ex)?;
             let evidence: Vec<_> = ds
                 .entities
                 .values()
@@ -1264,7 +1265,10 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
         );
         needs.1 |= matches!(
             r,
-            RelationKind::MemberOfComponent
+            RelationKind::MemberOfContainer
+                | RelationKind::ComponentInContainer
+                | RelationKind::CommunicatesWith
+                | RelationKind::MemberOfComponent
                 | RelationKind::ChildComponentOf
                 | RelationKind::UsesDependency
                 | RelationKind::SourceSymbol

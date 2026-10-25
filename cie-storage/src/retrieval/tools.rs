@@ -269,6 +269,7 @@ pub fn entity_fields(kind: EntityKind) -> &'static [&'static str] {
             "handler_location",
         ],
         EntityKind::Framework => &["name", "evidence", "modules", "file.path"],
+        EntityKind::Container => &["name", "dir", "build", "framework", "docker", "evidence", "origin", "location"],
         EntityKind::Component => &["label", "kind", "confidence", "provenance"],
         EntityKind::Dependency => &[
             "name",
@@ -305,6 +306,9 @@ fn relation_kinds() -> Vec<RelationKind> {
         RelationKind::LeftSymbol,
         RelationKind::RightSymbol,
         RelationKind::CanonicalSymbol,
+        RelationKind::MemberOfContainer,
+        RelationKind::ComponentInContainer,
+        RelationKind::CommunicatesWith,
         RelationKind::MemberOfComponent,
         RelationKind::ChildComponentOf,
         RelationKind::UsesDependency,

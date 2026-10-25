@@ -994,3 +994,19 @@ selected Symbols to find their routes/application entries. Typed intersections
 narrow this polymorphic relation. Application bootstrap classes retain Class
 identity; they do not establish a function execution flow. Unsupported inline,
 listen and other entries remain queryable as records with unresolved status.
+
+### Captured architecture identities
+
+`container` is an entity kind projected from captured application/build records.
+`member_of_container` links captured Symbols and Files to the unique longest
+recorded application directory; duplicate roots remain ambiguous and unlinked.
+`component_in_container` links captured framework component groups to their
+application. Class descendants are selected through recorded parent identities,
+not name prefixes. `communicates_with` links application records only when both
+names resolve uniquely in captured cross-service matches. These are structural
+projections over a pinned revision, not proof of deployment or runtime traffic.
+Existing `component` records and `member_of_component`/`child_component_of`
+relations retain their generated-group meaning. Captured framework roles carry
+`origin: captured_framework_role` so consumers can distinguish them from generated
+component groupings. A container `location`, when present, is representative member
+source, not a fabricated manifest or deployment span.
