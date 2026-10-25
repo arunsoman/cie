@@ -7,10 +7,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 pub(crate) fn stage(name: &str, state: &str, detail: &str) {
-    eprintln!(
+    use std::io::Write;
+    let line = format!(
         "CIE_STAGE {}",
         json!({"key":name,"state":state,"detail":detail})
     );
+    eprintln!("{}", line);
+    let _ = std::io::stderr().flush();
 }
 fn optional<T: serde::Serialize>(name: &str, f: impl FnOnce() -> Result<T, String>) -> Value {
     stage(name, "running", "Processing captured repository evidence…");
