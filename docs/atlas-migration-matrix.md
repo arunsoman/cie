@@ -54,3 +54,10 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 For each migrated persona: select a file, select a function, remove just the function, remove the file; verify every analytical view population. Double-click must open captured evidence without toggling selection. Duplicate or move a chart while selected; scope must survive. Switch personas and back; scope must survive. Validate semantic chart shape separately from the shared-set invariant.
 
 Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders yet: Architect, Auditor and Consultant still depend on them. Retire each producer only after all callers have migrated. Ask CIE/MCP still need explicit shared-context integration.
+
+## Validation receipt — Fresher checkpoint
+
+- 166 automated tests passed; TypeScript check and production build passed.
+- 19 production-browser checks passed with no browser errors using a freshly ingested Python fixture, including file/function refinement, function deselection, double-click captured source, Fresher → Reviewer selection preservation, chart relocation/duplication and bounded accessible node lists.
+- Fresher screenshot reviewed at 1550 × 1000. This is not a readability audit of every chart or a large-repository/persona acceptance result. `smpp-mls` and the remaining persona pages still need that exercise.
+- Large accessible graph outlines now scroll within 192px instead of stretching neighboring panels. G6 canvases retain their own readable-scale pan/zoom controls.

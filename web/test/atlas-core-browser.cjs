@@ -32,6 +32,9 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await freshSymbols.getByRole('button',{name:'a.pay',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[aria-label="Selected symbols"]')?.textContent.includes('43 matching symbols')&&document.querySelector('[aria-label="Selected symbols"]')?.getAttribute('aria-busy')==='false');
   check('Fresher function deselection restores file scope',await onboardingFiles.getByRole('button',{name:/a.py · 43$/}).count()===1);
+  const outline=page.getByRole('region',{name:'Recorded file and symbol hierarchy',exact:true}).getByRole('list',{name:'Selectable graph nodes'});
+  check('large declaration outline stays bounded and scrollable',await outline.evaluate(el=>el.clientHeight<=192&&el.scrollHeight>el.clientHeight));
+  await page.getByRole('navigation',{name:'Atlas onboarding guide'}).scrollIntoViewIfNeeded();
   const freshOut=process.env.ATLAS_QA_OUT??root;await fs.mkdir(freshOut,{recursive:true});await page.screenshot({path:path.join(freshOut,'atlas-core-fresher.png'),fullPage:true});
   await page.getByRole('button',{name:/Atlas: Onboarding/}).click();await page.getByRole('menuitemradio',{name:/Reviewer/}).click();await page.getByTestId('atlas-core-reviewer').waitFor();
   check('Fresher to Reviewer preserves selection',await page.getByRole('button',{name:'Remove a.py',exact:true}).isVisible());

@@ -17,6 +17,10 @@
 **Builds on:** `atlas-charter.md` §4, `atlas-ux-spec.md` §5 (choreography — unchanged by this PRD),
 `atlas-presets.ts` (`fresher` preset, unchanged by this PRD), `chart-inventory.md` Tier A.
 
+## Current delivery boundary (2026-10-25)
+
+`FresherAtlas` now routes through the shared Atlas core with `fresher.guided` layout and guided file → symbol → function exploration. All seven registered core charts are placeable in any slot. These are not substitutions for the original containers, concept tree, entry tables or data-flow requirements below: those producers remain pending, as recorded in the [migration matrix](atlas-migration-matrix.md). No full persona-completion claim is made by this checkpoint.
+
 ## 1. Problem
 
 The fresher preset is the one persona that is already ~100% Tier A and already matches the charter
