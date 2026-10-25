@@ -6,7 +6,7 @@ Code inventory: 2026-10-25. Governing rule: [any chart, anywhere](atlas-semantic
 
 | Persona | Current route | Delivered slice | Remaining objective gaps |
 |---|---|---|---|
-| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | Containers, boot/service entries, concepts, data flow, automated tour and start-point ranking |
+| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | Containers, boot/service entries, data flow, automated tour and start-point ranking |
 | Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Entry/route-led review, read/write effects, findings and change-specific review |
 | Architect | `LegacyAtlasView` | Legacy charts; not core conformant | Register container/component/concept and boundary producers, then compose its layout |
 | Auditor | `LegacyAtlasView` | Legacy facts preference; core has locked facts policy but this screen is not migrated | Evidence-backed routes, externals, findings, boundary writes and locked policy in rendered UI |
@@ -24,8 +24,8 @@ Legacy panel membership: F=Fresher, R=Reviewer, A=Architect, U=Auditor, C=Consul
 | Containers / C4 | F A U C | `buildC4Spec`, stack apps/externals + report | Missing; register build-evidence entities and contributor mapping. Never relabel declaration hierarchy as C4. |
 | Application entries | F R C | stack mains | Missing producer, exact symbol resolution and file fallback evidence |
 | Service entries | F R U | stack routes | Missing producer, route → handler mapping and API-root call expansion |
-| Components | F R A U C | `buildComponentSpec`, concepts/report | Missing concept/component producer; preserve fallback disclosure |
-| Concept hierarchy | F R A U C | `buildConceptTreeSpec`, concepts | Missing. Current core hierarchy is declarations, not concepts; validate generated concept membership/labels separately |
+| Components | F R A U C | `buildComponentSpec`, concepts/report | Concept DAG producer is registered; component-specific producer still missing; preserve fallback disclosure |
+| Concept hierarchy | F R A U C | `buildConceptTreeSpec`, concepts | Registered as `concepts`: generated interpretations, primary + extra parent edges, descendant selection, representative member evidence. Concept label correctness still requires domain review. `hierarchy` remains declarations. |
 | Flow | F R A U C | `buildFlowSpec`, report/selection | Native function CFG exists in core; aggregate component/API flow not yet migrated |
 | Sequence | R A | `callSiteSequence`, report graph | Typed static sequence exists in core; occurrence order, dispatch uncertainty, depth limits disclosed; not runtime proof |
 | Data flow | F R A U C | `buildDataFlowSpec`, recorded reads/writes | Missing typed producer and storage relations; do not substitute declared calls |
@@ -45,6 +45,7 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 | symbols | Selected symbol table with pagination | Stable symbol IDs; declaration span and file |
 | kinds | Selected symbols grouped by kind | Aggregate contributor descriptor; source only where supplied |
 | hierarchy | Captured file/declaration parent structure | Entity contributors and recorded parent evidence |
+| concepts | Generated concept DAG with recorded parent edges | Typed concept-to-symbol contributor mapping; recorded descendants up to eight levels; representative member source; never upgraded to Fact |
 | controlflow | Native IR for one selected function | Blocks/branches point to captured code; unavailable IR is explicit |
 | sequence | Structured static call occurrences | Symbols, call evidence and disclosed unresolved boundaries |
 | calls | Declared call dependency graph | Symbol/relationship contributors; static inference policy applies |
@@ -61,3 +62,10 @@ Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders
 - 19 production-browser checks passed with no browser errors using a freshly ingested Python fixture, including file/function refinement, function deselection, double-click captured source, Fresher → Reviewer selection preservation, chart relocation/duplication and bounded accessible node lists.
 - Fresher screenshot reviewed at 1550 × 1000. This is not a readability audit of every chart or a large-repository/persona acceptance result. `smpp-mls` and the remaining persona pages still need that exercise.
 - Large accessible graph outlines now scroll within 192px instead of stretching neighboring panels. G6 canvases retain their own readable-scale pan/zoom controls.
+
+## Validation receipt — generated concepts checkpoint
+
+- 172 application tests passed, including the new concept producer checks and a native-storage comparison against an independent oracle built from captured concept memberships and descendant edges.
+- All 20 Rust storage tests passed; the native Node module was rebuilt. The type checker now permits explicit typed intersection narrowing of polymorphic traversals. Disjoint typed intersections and mixed-kind unions remain rejected. This avoids the work-limit failure reproduced by nested reverse relation predicates; no storage budget was increased.
+- TypeScript and production build passed. 22 production-browser checks passed with zero browser errors, including adding and removing a concept while a file constraint remains active. Fresher's default graph is now `concepts`; declaration hierarchy stays available through the chart menu.
+- Concept labels are preserved from ingestion, not validated as business truth by this test. Multiple parent edges, low/missing confidence, incomplete coverage and bounded graph/source evidence are disclosed. The representative captured member preview does not prove concept naming quality. Full `smpp-mls` domain review and all-persona readability acceptance remain outstanding.

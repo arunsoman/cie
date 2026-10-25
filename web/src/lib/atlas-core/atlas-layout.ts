@@ -70,7 +70,7 @@ export const fresherLayout: AtlasLayout = {
     areasBase: ['r4', 'hero', 'tree', 'files', 'kinds', 'flow', 'seq', 'calls'],
     slots: [
         {viewId: 'files', area: 'hero', minHeightPx: 330, isHero: true, chrome: 'card'},
-        {viewId: 'hierarchy', area: 'tree', minHeightPx: 330, chrome: 'canvas'},
+        {viewId: 'concepts', area: 'tree', minHeightPx: 330, chrome: 'canvas'},
         {viewId: 'symbols', area: 'files', minHeightPx: 330, chrome: 'table-dense'},
         {viewId: 'kinds', area: 'kinds', minHeightPx: 220, chrome: 'card'},
         {viewId: 'controlflow', area: 'flow', minHeightPx: 440, chrome: 'canvas'},

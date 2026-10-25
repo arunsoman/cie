@@ -13,8 +13,8 @@ export function FresherAtlas() {
         </nav>
         <details className="text-xs text-stone-600 rounded border p-2">
             <summary>What this onboarding view covers</summary>
-            <p>Files, declaration hierarchy, symbols, symbol counts, native function control flow, and static calls share one storage-backed selection. Declaration hierarchy is not the concept tree. Static calls do not prove runtime execution.</p>
-            <p>C4 containers, application and service entry tables, concept hierarchy, and read/write data flow still need core producers. These legacy panels are not included in this slice. Ask CIE currently uses its separate chat context.</p>
+            <p>Files, generated concepts, declaration hierarchy, symbols, symbol counts, native function control flow, and static calls share one storage-backed selection. Concept interpretations are separate from captured declaration structure. Static calls do not prove runtime execution.</p>
+            <p>C4 containers, application and service entry tables, and read/write data flow still need core producers. These legacy panels are not included in this slice. Ask CIE currently uses its separate chat context.</p>
         </details>
         <AtlasWorkspaceControls />
         <AtlasLayoutView />

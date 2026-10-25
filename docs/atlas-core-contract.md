@@ -139,3 +139,18 @@ the actual storage module. Browser tests validate the built application.
 ## Persona migration checkpoint
 
 See [chart migration matrix](atlas-migration-matrix.md) for the complete legacy panel inventory and explicit persona gaps. Fresher now composes the registered catalog with a guided layout; it does not claim C4, concept, entry-point or data-flow parity. Reviewer and Fresher share selection, evidence and placement logic.
+
+## Generated concept producer checkpoint
+
+`concepts` is an additional registered selection-bound view. It preserves primary
+and extra parent relationships as a DAG, marks expanded parents as context, and
+keeps generated labels/membership as Inference. Selecting a node includes recorded
+descendants up to eight levels, then maps contributors through storage relations.
+Double-click uses a recorded representative member source where available; it is
+not evidence that the concept name is semantically correct. Graph/evidence limits,
+low or missing confidence and incomplete coverage are disclosed. Facts-only hides
+these interpretations in both the semantic model and render envelope.
+
+Storage intersection narrowing is required for polymorphic concept membership;
+see the retrieval API specification. No new process or persistence responsibility
+has been added to ingestion.

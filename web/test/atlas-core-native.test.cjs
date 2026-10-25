@@ -14,16 +14,35 @@ test('Atlas core evaluates real storage contributor sets, graph, cursors and cap
   const {createAtlasCore}=load(path.resolve(__dirname,'../src/lib/atlas-core/atlas-core.ts'));
   const {reviewerViews}=load(path.resolve(__dirname,'../src/lib/atlas-core/atlas-projections.ts'));
   const {hierarchyView,controlFlowView,sequenceView}=load(path.resolve(__dirname,'../src/lib/atlas-core/atlas-semantic-producers.ts'));
-  const views=[...reviewerViews,hierarchyView,controlFlowView,sequenceView];
+  const {conceptView}=load(path.resolve(__dirname,'../src/lib/atlas-core/atlas-concepts.ts'));
+  const views=[...reviewerViews,hierarchyView,controlFlowView,sequenceView,conceptView];
   storage=atlasStorage(root,'1');const base={select:{kind:'symbol'}};
   const probe=await storage.retrieve(base,[{id:'rows',output:{entities:{page:{limit:1}}}}],new AbortController().signal);
   core=createAtlasCore({pin:{repository:probe.repository,revision:'1'},base,storage,views,persona:'reviewer'});
   const wait=async()=>{const deadline=Date.now()+8000;while(Object.values(core.getState().views).some(v=>v.status==='loading')){if(Date.now()>deadline)throw new Error('Atlas timed out');await new Promise(r=>setTimeout(r,5));}for(const v of Object.values(core.getState().views))assert.equal(v.status,'ready',v.error);};
   await core.start();await wait();
+  const conceptRows=await storage.retrieve({select:{kind:'concept'}},[{id:'all',output:{entities:{page:{limit:500}}}}],new AbortController().signal);
+  const capturedConcepts=conceptRows.outputs[0].data.items;
+  assert.ok(capturedConcepts.length>0,'fixture ingestion generates captured concepts');
+  const concept=core.getState().views.concepts.spec.items.find(i=>i.role==='member'&&capturedConcepts.find(e=>e.id===i.key)?.fields.symbols?.length);
+  assert.ok(concept,'selectable concept with recorded symbol contributors');
+  const rootConcept=capturedConcepts.find(e=>e.id===concept.key),descendants=new Set([rootConcept.fields.id]);
+  for(let depth=0;depth<8;depth++){const previous=new Set(descendants);for(const e of capturedConcepts)if(previous.has(e.fields.parent)||(e.fields.extra_edges??[]).some(([p])=>previous.has(p)))descendants.add(e.fields.id);}
+  const expectedSymbols=new Set(capturedConcepts.filter(e=>descendants.has(e.fields.id)).flatMap(e=>e.fields.symbols));
+  core.dispatch({type:'toggle',item:concept.ref});await wait();
+  assert.equal(core.getState().views.symbols.spec.total,expectedSymbols.size,'concept selection matches an independent captured membership oracle');
+  assert.ok(core.getState().views.concepts.spec.semantic.nodes.every(n=>n.authority==='Inference'));
+  core.dispatch({type:'toggle',item:concept.ref});await wait();
   const initial=core.getState(),files=initial.views.files.spec.items;assert.equal(files.length,2);
   const a=files.find(i=>i.label==='a.py'),b=files.find(i=>i.label==='b.py');assert.ok(a&&b);assert.equal(initial.views.symbols.spec.total,a.value+b.value);
   core.dispatch({type:'toggle',item:a.ref});await wait();assert.equal(core.getState().views.symbols.spec.total,a.value);
   assert.ok(core.getState().views.symbols.spec.items.every(i=>i.detail==='a.py'));
+  core.dispatch({type:'toggle',item:concept.ref});await wait();
+  assert.ok(core.getState().views.symbols.spec.items.every(i=>i.detail==='a.py'),'file and concept constraints intersect through symbol contributors');
+  core.dispatch({type:'toggle',item:concept.ref});await wait();
+  await assert.rejects(storage.retrieve({union:[{select:{kind:'symbol'}},{select:{kind:'file'}}]},[{id:'bad',output:{entities:{}}}],new AbortController().signal),/compatible entity kinds/);
+  await assert.rejects(storage.retrieve({intersect:[{select:{kind:'symbol'}},{select:{kind:'file'}}]},[{id:'bad',output:{entities:{}}}],new AbortController().signal),/compatible entity kinds/);
+
   assert.equal(core.getState().views.files.spec.items.length,1,'file chart receives the same selection as every other chart');
   core.dispatch({type:'toggle',item:b.ref});await wait();assert.equal(core.getState().views.symbols.spec.total,a.value+b.value);
   core.dispatch({type:'remove',itemId:a.ref.id});await wait();assert.equal(core.getState().views.symbols.spec.total,b.value);
