@@ -1,27 +1,21 @@
 //! Engine orchestration (PRD §12 pipeline): walk → hash → plan → extract →
 //! analyze → persist snapshot → report. Incremental by construction.
 
-
 pub mod churn;
 pub mod cochange;
-pub mod sample;
 pub mod history;
 pub mod pipeline;
+pub mod sample;
 pub mod stream;
+pub use cie_storage::relations_store;
 pub use cie_storage::stack_store;
 pub use cie_storage::state_model_store;
-pub use cie_storage::relations_store;
 pub mod navigation;
 pub use cie_storage::org_store;
 pub use cie_storage::vector_store;
 
 pub use stream::{FactsSource, SourceReceipt};
 
-pub use history::{
-    archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
-    CommitMeta, FileTouch, GitHistoryProvider, HistoryFacts, HistoryOptions, HistoryUnavailable,
-    SystemGit,
-};
 pub use churn::{
     churn_factors, co_change, co_change_coupling, ChurnExclusions, ChurnFactor, ChurnReport,
     CoChangeCoupling, CoChangeCouplingReport, CoChangeEdge, ExclusionEffect,
@@ -35,15 +29,20 @@ use cie_incremental::{plan_ingest, FileIndex, FileRecord, IngestPlan};
 use cie_llm::persist::LabelStoreExt;
 use cie_llm::{Budget, Labeler, OfflineProvider, ProviderKind};
 use cie_semantic::facts::SymbolStore;
-use stack_store::StackStoreExt;
-use relations_store::RelationGraphStoreExt;
-use vector_store::EmbeddingStoreExt;
 use cie_semantic::lang_for_path;
 use cie_semantic::LangId;
 use cie_store::Store;
 use cie_summary::{ReuseStats, SummaryCacheEntry};
+pub use history::{
+    archaeology_chain, bind_claims_to_history, parse_blame, parse_log, parse_numstat, BlameLine,
+    CommitMeta, FileTouch, GitHistoryProvider, HistoryFacts, HistoryOptions, HistoryUnavailable,
+    SystemGit,
+};
+use relations_store::RelationGraphStoreExt;
+use stack_store::StackStoreExt;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use vector_store::EmbeddingStoreExt;
 
 /// RFC-0024 (concepts-tier staleness): the concepts shape the current
 /// engine builds. Bump ONLY when a full ingest must re-run to refresh
@@ -124,10 +123,7 @@ type GraphTriple = (
     std::collections::BTreeMap<SymbolId, Vec<SymbolId>>,
 );
 
-fn rebuild_graphs(
-    store: &SymbolStore,
-    summaries: &[cie_summary::FunctionSummary],
-) -> GraphTriple {
+fn rebuild_graphs(store: &SymbolStore, summaries: &[cie_summary::FunctionSummary]) -> GraphTriple {
     let mut callees_of: std::collections::BTreeMap<SymbolId, Vec<SymbolId>> =
         std::collections::BTreeMap::new();
     let mut reverse_deps: std::collections::BTreeMap<
@@ -167,6 +163,13 @@ pub const IGNORED: &[&str] = &[
 pub struct Walked {
     pub files: BTreeMap<String, (Hash, LangId)>,
     pub stack_inputs: BTreeMap<String, Hash>,
+    /// The already-read BODIES for `stack_inputs`, captured by the same walk
+    /// (utf8 text, ≤ MAX_FILE_BYTES — the walk's own gates). The stack lens
+    /// consumes these instead of re-opening the files from disk: the read
+    /// phase paid for these bytes once, so step 5 never pays again. Anything
+    /// absent here (non-utf8, walk-skipped) falls back to the lens' disk
+    /// read, byte-identical to before.
+    pub stack_input_sources: BTreeMap<String, String>,
 }
 
 /// Walk the folder and hash every analyzable source file.
@@ -194,7 +197,13 @@ pub fn walk_and_hash(root: &Path, langs: Option<&Vec<LangId>>) -> std::io::Resul
             // filtered by `langs`: a python-only analysis still reads the
             // compose file that says how its service is governed.
             if cie_stack::is_stack_input(&rel) {
-                out.stack_inputs.insert(rel, content_hash(&bytes));
+                out.stack_inputs.insert(rel.clone(), content_hash(&bytes));
+                // same handoff as the live walk: keep the already-read body
+                // for the stack lens (utf8 only — otherwise the lens falls
+                // back to its own disk read, same failure as before)
+                if let Ok(text) = std::str::from_utf8(&bytes) {
+                    out.stack_input_sources.insert(rel.clone(), text.into());
+                }
                 continue;
             }
             let lang = lang_for_path(&name);
@@ -223,11 +232,20 @@ pub fn run_ingest_with_progress(
     opts: &IngestOptions,
     progress: &dyn Fn(&str, &str, &str),
 ) -> std::io::Result<IngestOutcome> {
-    progress("read", "running", "Streaming source files through parsing and cached fact reuse…");
+    progress(
+        "read",
+        "running",
+        "Streaming source files through parsing and cached fact reuse…",
+    );
     let t0 = now_ns();
     let registry = default_registry();
-    let stream = stream::StreamSession::capture_deferred_with_progress(project, &registry, opts, progress)?;
-    progress("read", "done", &stream.receipt.disclosure().unwrap_or_default());
+    let stream =
+        stream::StreamSession::capture_deferred_with_progress(project, &registry, opts, progress)?;
+    progress(
+        "read",
+        "done",
+        &stream.receipt.disclosure().unwrap_or_default(),
+    );
     let store = Store::open(project)?;
     let walked = stream.walked.clone();
     let current = walked.files;
@@ -239,12 +257,7 @@ pub fn run_ingest_with_progress(
     // Batched (DS-EVAL §6.4): one load+write per run, not per file — the
     // per-record whole-file rewrite is O(n²) in bytes.
     store.mark_tombstones(plan.deleted.iter().cloned())?;
-    store.clear_tombstones(
-        plan.changed
-            .iter()
-            .chain(plan.added.iter())
-            .cloned(),
-    )?;
+    store.clear_tombstones(plan.changed.iter().chain(plan.added.iter()).cloned())?;
 
     // Fast path: nothing changed (acceptance #10). Deliberately does NOT
     // load the analysis snapshot — re-ingest wall time is hashing + plan only.
@@ -256,7 +269,11 @@ pub fn run_ingest_with_progress(
     // re-hash above) and, when it predates the marker, fall through to the
     // full pass — which rebuilds the concepts (and everything else) and
     // re-stamps; the fast path then holds again for every run after that.
-    if opts.facts_from == FactsSource::Polyglot && !plan.has_work() && !head_concepts_tier_stale(&store) && stream.has_revision(store.last_rev()) {
+    if opts.facts_from == FactsSource::Polyglot
+        && !plan.has_work()
+        && !head_concepts_tier_stale(&store)
+        && stream.has_revision(store.last_rev())
+    {
         let last = store.last_rev();
         let wall = now_ns() - t0;
         let mut index = prev_index.unwrap_or_default();
@@ -272,10 +289,24 @@ pub fn run_ingest_with_progress(
         // revision's language content is unchanged, so its identity holds),
         // and keep the summary-reuse fast path fully intact for the adapter
         // lens — its inputs didn't change.
-        let prior_stack = if last > 0 { store.load_stack(last).ok().flatten() } else { None };
+        let prior_stack = if last > 0 {
+            store.load_stack(last).ok().flatten()
+        } else {
+            None
+        };
         let stack_snapshot = if !plan.stack_inputs_changed.is_empty() {
-            progress("stack", "running", "Refreshing framework evidence for the current revision…");
-            let refreshed = cie_stack::stack_report_stage(project, None);
+            progress(
+                "stack",
+                "running",
+                "Refreshing framework evidence for the current revision…",
+            );
+            // §6.2: the bodies this run's read phase already captured feed the
+            // lens — the refresh re-reads nothing it already read.
+            let refreshed = cie_stack::stack_report_stage_with(
+                project,
+                Some(&stream.walked.stack_input_sources),
+                None,
+            );
             if last > 0 {
                 store.save_stack(last, &refreshed)?;
                 // keep the persisted snapshot's embedded copy consistent —
@@ -297,9 +328,17 @@ pub fn run_ingest_with_progress(
             stack: stack_snapshot,
             ..Default::default()
         };
-        progress("stack", "done", "Framework evidence ready for the current revision.");
+        progress(
+            "stack",
+            "done",
+            "Framework evidence ready for the current revision.",
+        );
         for key in ["resolve", "concepts", "storage"] {
-            progress(key, "done", "Reused the current revision; no source changes require rebuilding.");
+            progress(
+                key,
+                "done",
+                "Reused the current revision; no source changes require rebuilding.",
+            );
         }
         return Ok(IngestOutcome {
             rev: last,
@@ -321,11 +360,17 @@ pub fn run_ingest_with_progress(
 
     // TASK-030: load the prior snapshot to seed summary reuse.
     let prior_snapshot: Option<RevSnapshot> = match prev_index.as_ref() {
-        Some(idx) if idx.last_rev > 0 => store.load_snapshot(idx.last_rev)?.filter(|s|s.concepts_tier==Some(CONCEPTS_TIER_VERSION)),
+        Some(idx) if idx.last_rev > 0 => store
+            .load_snapshot(idx.last_rev)?
+            .filter(|s| s.concepts_tier == Some(CONCEPTS_TIER_VERSION)),
         _ => None,
     };
 
-    progress("resolve", "running", "Assembling repository facts and resolving cross-file calls…");
+    progress(
+        "resolve",
+        "running",
+        "Assembling repository facts and resolving cross-file calls…",
+    );
     let extracted = stream.materialize()?;
     progress("resolve", "done", "Repository graph assembled.");
     let source_receipt = stream.receipt.clone();
@@ -343,9 +388,19 @@ pub fn run_ingest_with_progress(
                     entry.insert(extracted.files.path(sym.loc.file).to_string());
                 }
             }
-            if let Some(receiver)=c.receiver.as_deref() {
-                if let cie_analysis::receiver::ReceiverClass::InTree{symbol,..}=cie_analysis::receiver::resolve_receiver_project(&extracted.store,facts,&extracted.per_file,c.caller,receiver) {
-                    if let Some(sym)=extracted.store.get(symbol){entry.insert(extracted.files.path(sym.loc.file).to_string());}
+            if let Some(receiver) = c.receiver.as_deref() {
+                if let cie_analysis::receiver::ReceiverClass::InTree { symbol, .. } =
+                    cie_analysis::receiver::resolve_receiver_project(
+                        &extracted.store,
+                        facts,
+                        &extracted.per_file,
+                        c.caller,
+                        receiver,
+                    )
+                {
+                    if let Some(sym) = extracted.store.get(symbol) {
+                        entry.insert(extracted.files.path(sym.loc.file).to_string());
+                    }
                 }
             }
         }
@@ -361,22 +416,67 @@ pub fn run_ingest_with_progress(
         let qual_of: BTreeMap<u32, (String, String)> = prev
             .symbols
             .iter()
-            .map(|s| (s.id.0, (prev.files.get(s.loc.file.0 as usize).cloned().unwrap_or_default(), s.qual_name.clone())))
+            .map(|s| {
+                (
+                    s.id.0,
+                    (
+                        prev.files
+                            .get(s.loc.file.0 as usize)
+                            .cloned()
+                            .unwrap_or_default(),
+                        s.qual_name.clone(),
+                    ),
+                )
+            })
             .collect();
         // Prior numeric IDs are revision-local. Translate through unique
         // declaration identities before seeding either exact or candidate edges.
-        let remap: BTreeMap<SymbolId,SymbolId> = prev.symbols.iter().filter_map(|old| {
-            let path=prev.files.get(old.loc.file.0 as usize)?;
-            let candidates:Vec<_>=extracted.store.symbols.iter().filter(|new|extracted.files.path(new.loc.file)==path&&new.qual_name==old.qual_name).collect();
-            if candidates.len()==1{Some((old.id,candidates[0].id))}else{None}
-        }).collect();
+        let remap: BTreeMap<SymbolId, SymbolId> = prev
+            .symbols
+            .iter()
+            .filter_map(|old| {
+                let path = prev.files.get(old.loc.file.0 as usize)?;
+                let candidates: Vec<_> = extracted
+                    .store
+                    .symbols
+                    .iter()
+                    .filter(|new| {
+                        extracted.files.path(new.loc.file) == path && new.qual_name == old.qual_name
+                    })
+                    .collect();
+                if candidates.len() == 1 {
+                    Some((old.id, candidates[0].id))
+                } else {
+                    None
+                }
+            })
+            .collect();
         for sum in &prev.summaries {
-            if let (Some((path,qual)),Some(new_id))=(qual_of.get(&sum.sym.0),remap.get(&sum.sym)) {
-                let mut seeded=sum.clone();seeded.sym=*new_id;
-                seeded.callees=seeded.callees.iter().filter_map(|id|remap.get(id).copied()).collect();
-                seeded.callers=seeded.callers.iter().filter_map(|id|remap.get(id).copied()).collect();
-                for call in &mut seeded.call_sites{call.target_symbols=call.target_symbols.iter().filter_map(|id|remap.get(id).copied()).collect();}
-                plan30.prior_summaries.insert((path.clone(),qual.clone()),seeded);
+            if let (Some((path, qual)), Some(new_id)) =
+                (qual_of.get(&sum.sym.0), remap.get(&sum.sym))
+            {
+                let mut seeded = sum.clone();
+                seeded.sym = *new_id;
+                seeded.callees = seeded
+                    .callees
+                    .iter()
+                    .filter_map(|id| remap.get(id).copied())
+                    .collect();
+                seeded.callers = seeded
+                    .callers
+                    .iter()
+                    .filter_map(|id| remap.get(id).copied())
+                    .collect();
+                for call in &mut seeded.call_sites {
+                    call.target_symbols = call
+                        .target_symbols
+                        .iter()
+                        .filter_map(|id| remap.get(id).copied())
+                        .collect();
+                }
+                plan30
+                    .prior_summaries
+                    .insert((path.clone(), qual.clone()), seeded);
             }
         }
         for entry in &prev.summary_cache {
@@ -392,14 +492,27 @@ pub fn run_ingest_with_progress(
     let mut callers_of: BTreeMap<SymbolId, std::collections::BTreeSet<SymbolId>> = BTreeMap::new();
     for facts in &extracted.per_file {
         for c in &facts.calls {
+            // Resolved callees enter the row by STABLE identity (decl file +
+            // qual name), never by revision-local numeric id: a symbol
+            // inserted earlier in the walk shifts ids but changes nothing
+            // about this caller's facts. Likewise the row omits the call's
+            // byte span and line — a purely positional shift (another
+            // function gained a line above) is not a fact change, and the
+            // seed contract says untouched facts stay untouched (TASK-030).
+            // Receiver text, argument count and loop context stay: they
+            // feed resolution and effects.
             let callee = match &c.callee {
-                cie_semantic::facts::Callee::Resolved(id) => format!("r{}", id.0),
+                cie_semantic::facts::Callee::Resolved(id) => extracted
+                    .store
+                    .get(*id)
+                    .map(|s| format!("r|{}|{}", extracted.files.path(s.loc.file), s.qual_name))
+                    .unwrap_or_else(|| format!("r{}", id.0)),
                 cie_semantic::facts::Callee::Builtin(b) => format!("b{:?}", b),
                 cie_semantic::facts::Callee::Unresolved(reason) => format!("u{}", reason),
             };
             fact_bufs.entry(c.caller).or_default().push_str(&format!(
-                "call|{}|{}|{}|{:?}|{:?}|{:?}|{}\n",
-                c.callee_text, callee, c.in_loop,c.receiver,c.arguments,c.span,c.line
+                "call|{}|{}|{}|{:?}|{:?}\n",
+                c.callee_text, callee, c.in_loop, c.receiver, c.arguments
             ));
             if let cie_semantic::facts::Callee::Resolved(id) = c.callee {
                 callers_of.entry(id).or_default().insert(c.caller);
@@ -453,20 +566,80 @@ pub fn run_ingest_with_progress(
             ));
         }
     }
+    // A symbol's OWN declared bindings (params/locals/self-attrs) are local
+    // facts: a changed declared type changes the resolution basis of the
+    // body that consumes it. Rows are identity-stable — names and texts,
+    // never numeric ids or positions — so a symbol inserted elsewhere in the
+    // walk or a line shift cannot dirty an unchanged body.
     for facts in &extracted.per_file {
-        let binding_profile=serde_json::to_string(&(&facts.bindings,&facts.type_decls,&facts.imports)).unwrap_or_default();
-        // Declaration changes (including a newly ambiguous type) must invalidate
-        // callers even when their own method body is unchanged.
-        let declarations: Vec<_> = extracted.store.symbols.iter().filter(|s| !s.is_function_like())
-            .map(|s| (&s.qual_name, extracted.files.path(s.loc.file))).collect();
-        let declaration_profile=serde_json::to_string(&declarations).unwrap_or_default();
-        for sym in &extracted.store.symbols {
-            if sym.is_function_like() && extracted.files.path(sym.loc.file)==facts.path {
-                fact_bufs.entry(sym.id).or_default().push_str(&binding_profile);
-                fact_bufs.entry(sym.id).or_default().push_str(&declaration_profile);
-                fact_bufs.entry(sym.id).or_default().push_str(&format!("{:?}",plan30.dep_hash(&facts.path)));
-            }
+        for b in &facts.bindings {
+            fact_bufs.entry(b.owner).or_default().push_str(&format!(
+                "bind|{:?}|{}|{:?}|{:?}\n",
+                b.kind, b.name, b.type_text, b.rhs_text
+            ));
         }
+    }
+    // Declaration basis per FILE: the non-function symbols (classes, modules,
+    // interfaces) the file's methods hang off. Hashed into the persisted
+    // summary cache and compared against the prior run below. A changed basis
+    // poisons the file's own symbols' prior hashes — the dirty worklist then
+    // recomputes them and cascades to their transitive callers even when a
+    // caller's own method body is unchanged. This must NOT ride the
+    // per-symbol local-fact hash itself: those rows are identity-stable local
+    // facts, and folding repo-global material into them (serialized bindings
+    // with revision-local numeric owner ids, dep files' content hashes) made
+    // one file's edit poison untouched files' keys — TASK-030's
+    // exact-invalidation contract.
+    let mut current_decl: BTreeMap<String, [u8; 32]> = BTreeMap::new();
+    for facts in &extracted.per_file {
+        let declarations: Vec<(&str, &str)> = extracted
+            .store
+            .symbols
+            .iter()
+            .filter(|s| !s.is_function_like() && extracted.files.path(s.loc.file) == facts.path)
+            .map(|s| (s.qual_name.as_str(), extracted.files.path(s.loc.file)))
+            .collect();
+        // Class-scoped binding rows ride the basis too: a FIELD's declared
+        // type is the resolution basis of every method that receives a value
+        // through it, so a field retype — or a `extends` change, or a
+        // rewritten import — must invalidate unchanged bodies in the file.
+        // Stably serialized: owner by (path, qual), never numeric ids.
+        let class_bindings: Vec<(
+            &str,
+            &cie_semantic::facts::BindingKind,
+            &str,
+            &Option<String>,
+            &Option<String>,
+        )> = facts
+            .bindings
+            .iter()
+            .filter(|b| b.kind == cie_semantic::facts::BindingKind::Field)
+            .filter_map(|b| {
+                let owner = extracted.store.get(b.owner)?;
+                Some((
+                    extracted.files.path(owner.loc.file),
+                    &b.kind,
+                    b.name.as_str(),
+                    &b.type_text,
+                    &b.rhs_text,
+                ))
+            })
+            .collect();
+        let type_decls: Vec<(&str, &str)> = facts
+            .type_decls
+            .iter()
+            .map(|t| (t.name.as_str(), t.supers.as_str()))
+            .collect();
+        let imports: Vec<(&str, &Vec<String>, &Option<String>)> = facts
+            .imports
+            .iter()
+            .map(|i| (i.module.as_str(), &i.names, &i.alias))
+            .collect();
+        let profile = format!("{declarations:?} {class_bindings:?} {type_decls:?} {imports:?}");
+        current_decl.insert(
+            facts.path.clone(),
+            cie_core::types::content_hash(profile.as_bytes()),
+        );
     }
     for sym in &extracted.store.symbols {
         if !sym.is_function_like() {
@@ -483,6 +656,27 @@ pub fn run_ingest_with_progress(
         for entry in &prev.summary_cache {
             for (qual, hash) in &entry.symbol_keys {
                 prior_local.insert(format!("{}::{}", entry.path, qual), *hash);
+            }
+        }
+        // Declaration-basis invalidation: a file whose declarations changed
+        // poisons its own symbols' prior hashes — the worklist treats them as
+        // locally changed and cascades to their callers. Snapshots without a
+        // decl hash (older engines) skip the check.
+        for entry in &prev.summary_cache {
+            let Some(prev_decl) = entry.decl_hash else {
+                continue;
+            };
+            let Some(cur_decl) = current_decl.get(&entry.path) else {
+                continue;
+            };
+            if prev_decl != *cur_decl {
+                let prefix = format!("{}::", entry.path);
+                let poisoned = cie_core::types::content_hash(b"declaration-basis-changed");
+                for (k, v) in prior_local.iter_mut() {
+                    if k.starts_with(&prefix) {
+                        *v = poisoned;
+                    }
+                }
             }
         }
     }
@@ -571,8 +765,18 @@ pub fn run_ingest_with_progress(
     let stack_budget_ms = opts
         .budget_ms
         .map(|total| std::cmp::max(total / 4, 1).min(20_000));
-    progress("stack", "running", "Detecting frameworks, routes and runtime structure…");
-    let stack = cie_stack::stack_report_stage(project, stack_budget_ms);
+    progress(
+        "stack",
+        "running",
+        "Detecting frameworks, routes and runtime structure…",
+    );
+    // RFC-0019 §6.1/§6.2: the lens runs on the bodies the read phase already
+    // read for hashing — manifests/configs are never opened a second time.
+    let stack = cie_stack::stack_report_stage_with(
+        project,
+        Some(&stream.walked.stack_input_sources),
+        stack_budget_ms,
+    );
     progress("stack", "done", "Framework analysis complete.");
     // Persist BEFORE save_snapshot so a crash mid-ingest can never leave a
     // snapshot naming a stack artifact that isn't durably on disk.
@@ -581,10 +785,8 @@ pub fn run_ingest_with_progress(
     // RFC-0022 §6.1: the one real call-graph substrate, built and persisted
     // for the first time outside a test. Same crash-safety rule as the
     // stack artifact above — written before save_snapshot.
-    let relations = cie_semantic::graph::relation_graph_from_facts(
-        &extracted.per_file,
-        &extracted.store,
-    );
+    let relations =
+        cie_semantic::graph::relation_graph_from_facts(&extracted.per_file, &extracted.store);
     // Saved after the tombstone compaction below, in the snapshot ID space.
 
     // RFC-0022 §6.2: embed()/HnswRsStore both existed, tested, with zero
@@ -593,7 +795,11 @@ pub fn run_ingest_with_progress(
     // successful revision's embeddings to carry forward — unchanged
     // symbol text is never re-embedded (vector_store::update_embeddings).
     let prev_rev = store.last_rev();
-    let prev_vectors = if prev_rev > 0 { store.load_embeddings(prev_rev).unwrap_or(None) } else { None };
+    let prev_vectors = if prev_rev > 0 {
+        store.load_embeddings(prev_rev).unwrap_or(None)
+    } else {
+        None
+    };
     let embed_texts = vector_store::symbol_texts(&extracted.store);
     let vectors = vector_store::update_embeddings(
         prev_vectors.as_ref(),
@@ -613,12 +819,19 @@ pub fn run_ingest_with_progress(
     for facts in &extracted.per_file {
         for c in &facts.calls {
             if let cie_semantic::facts::Callee::Unresolved(_) = &c.callee {
-                unresolved_calls.entry(c.caller).or_default().push(c.callee_text.clone());
+                unresolved_calls
+                    .entry(c.caller)
+                    .or_default()
+                    .push(c.callee_text.clone());
             }
         }
     }
 
-    progress("concepts", "running", "Analyzing behavior, security and tests; building FCA/Godin concept groups…");
+    progress(
+        "concepts",
+        "running",
+        "Analyzing behavior, security and tests; building FCA/Godin concept groups…",
+    );
     let analysis = cie_analysis::analyze_with_history(
         &extracted.store,
         &extracted.per_file,
@@ -628,9 +841,14 @@ pub fn run_ingest_with_progress(
         reuse_ref,
         Some(project),
         Some(&stack),
+        Some(&extracted.seeds),
     );
 
-    progress("concepts", "done", "Analysis and concept clustering complete.");
+    progress(
+        "concepts",
+        "done",
+        "Analysis and concept clustering complete.",
+    );
 
     // Persist label cache (LLM provenance recorded per PRD §63).
     store.save_labels(&label_cache)?;
@@ -728,16 +946,17 @@ pub fn run_ingest_with_progress(
             let mut coverage = analysis.coverage.clone();
             if !source_receipt.skipped.is_empty() || !source_receipt.partial.is_empty() {
                 coverage.complete = false;
-                coverage.notes.extend(source_receipt.skipped.iter().cloned());
-                coverage.notes.extend(source_receipt.partial.iter().cloned());
+                coverage
+                    .notes
+                    .extend(source_receipt.skipped.iter().cloned());
+                coverage
+                    .notes
+                    .extend(source_receipt.partial.iter().cloned());
             }
             coverage
         },
         evidence: analysis.evidence.clone(),
-        warnings: source_receipt
-            .disclosure()
-            .into_iter()
-            .collect(),
+        warnings: source_receipt.disclosure().into_iter().collect(),
         ingest_wall_ns: wall,
         incremental: false,
         summary_cache: plan30
@@ -754,6 +973,9 @@ pub fn run_ingest_with_progress(
                             .map(|qual| (qual.to_string(), *h))
                     })
                     .collect(),
+                // the file's declaration basis at save time — the next run
+                // compares against it to invalidate changed declarations
+                decl_hash: current_decl.get(path).copied(),
             })
             .collect(),
         summary_reuse: Some(ReuseStats {
@@ -778,7 +1000,12 @@ pub fn run_ingest_with_progress(
     let purged = store.purge_tombstoned(&mut snapshot)?;
     let model = cie_contract::obligations::StateModelBuilder::from_effects(
         &SymbolStore::build(snapshot.symbols.clone()),
-        &snapshot.summaries.iter().map(|s| (s.sym, s.clone())).collect());
+        &snapshot
+            .summaries
+            .iter()
+            .map(|s| (s.sym, s.clone()))
+            .collect(),
+    );
     let model = cie_contract::obligations::evidenced_model(&model);
     snapshot.state_model = cie_contract::obligations::to_view(&model);
     use state_model_store::StateModelStoreExt;
@@ -786,10 +1013,19 @@ pub fn run_ingest_with_progress(
     let relations = navigation::remap_relations(&relations, &extracted.store, &snapshot);
     store.save_relations(rev, &relations)?;
     let revision_files = navigation::snapshot_files(&snapshot, &extracted.store.files);
-    cie_storage::artifacts::put(&store,rev,cie_storage::artifacts::Artifact::FileTable,&revision_files)?;
-    let unresolved_calls = navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
+    cie_storage::artifacts::put(
+        &store,
+        rev,
+        cie_storage::artifacts::Artifact::FileTable,
+        &revision_files,
+    )?;
+    let unresolved_calls =
+        navigation::remap_unresolved(&unresolved_calls, &extracted.store, &snapshot);
     navigation::save_unresolved(&store, rev, &unresolved_calls)?;
-    org_store::save(&store, &org_store::OrgMember::new(&snapshot, &unresolved_calls))?;
+    org_store::save(
+        &store,
+        &org_store::OrgMember::new(&snapshot, &unresolved_calls),
+    )?;
     // A5: the usecase-first projection rides with the artifact — computed
     // AFTER the purge (so its symbol ids speak the final, possibly
     // renumbered id space of THIS snapshot) and BEFORE the save (so the
@@ -810,7 +1046,11 @@ pub fn run_ingest_with_progress(
     // aborted run's rev id is simply reused by the next successful ingest.
     store.save_index(&index)?;
     store.commit_rev(rev)?;
-    progress("storage", "done", "Revision and derived views persisted by the storage module.");
+    progress(
+        "storage",
+        "done",
+        "Revision and derived views persisted by the storage module.",
+    );
 
     // Issue #10 companion: when the purge actually removed symbols it also
     // RENUMBERED the id space inside `snapshot` (id == index must hold on the
@@ -863,7 +1103,10 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
     let snapshot = store
         .load_snapshot(rev)?
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "snapshot missing"))?;
-    let mut sym_store = SymbolStore::build_with_files(snapshot.symbols.clone(), navigation::load_files(&store, &snapshot, project)?);
+    let mut sym_store = SymbolStore::build_with_files(
+        snapshot.symbols.clone(),
+        navigation::load_files(&store, &snapshot, project)?,
+    );
     sym_store.unresolved = navigation::load_unresolved(&store, rev)?.unwrap_or_default();
     let (reverse_deps, test_map, _) = rebuild_graphs(&sym_store, &snapshot.summaries);
     Ok(IngestOutcome {
@@ -893,8 +1136,11 @@ pub fn run_drift(
 
 /// Check docs against an already captured revision; never re-ingest.
 pub fn run_drift_from_outcome(
-    project: &Path, docs: &[(String,String)], raw: IngestOutcome,
-    verify_deadline_ns: Option<Ns>, inject_timeout: bool,
+    project: &Path,
+    docs: &[(String, String)],
+    raw: IngestOutcome,
+    verify_deadline_ns: Option<Ns>,
+    inject_timeout: bool,
 ) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
     run_drift_inner(project, docs, raw, verify_deadline_ns, inject_timeout, None)
 }
@@ -902,16 +1148,28 @@ pub fn run_drift_from_outcome(
 /// Bound the entire optional documentation pipeline, not only verification.
 /// Expiry never creates a completed cache entry or a clean drift result.
 pub fn run_drift_from_outcome_with_budget(
-    project: &Path, docs: &[(String, String)], raw: IngestOutcome,
+    project: &Path,
+    docs: &[(String, String)],
+    raw: IngestOutcome,
     budget: std::time::Duration,
 ) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
     let deadline = std::time::Instant::now() + budget;
     let verify_deadline = now_ns().saturating_add(budget.as_nanos().min(u64::MAX as u128) as u64);
-    run_drift_inner(project, docs, raw, Some(verify_deadline), false, Some(deadline))
+    run_drift_inner(
+        project,
+        docs,
+        raw,
+        Some(verify_deadline),
+        false,
+        Some(deadline),
+    )
 }
 fn run_drift_inner(
-    project: &Path, docs: &[(String, String)], raw: IngestOutcome,
-    verify_deadline_ns: Option<Ns>, inject_timeout: bool,
+    project: &Path,
+    docs: &[(String, String)],
+    raw: IngestOutcome,
+    verify_deadline_ns: Option<Ns>,
+    inject_timeout: bool,
     deadline: Option<std::time::Instant>,
 ) -> std::io::Result<(cie_claims::model::DriftReport, IngestOutcome)> {
     use cie_drift::pipeline::check_deadline;
@@ -974,13 +1232,18 @@ fn run_drift_inner(
         }
         drift_store.save_claim_store(&claim_store)?;
     }
-    let mappings = cie_drift::pipeline::map_claims_until(&claims, &outcome.store, &{
-        let mut m = BTreeMap::new();
-        for s in &outcome.snapshot.summaries {
-            m.insert(s.sym, s.clone());
-        }
-        m
-    }, deadline)?;
+    let mappings = cie_drift::pipeline::map_claims_until(
+        &claims,
+        &outcome.store,
+        &{
+            let mut m = BTreeMap::new();
+            for s in &outcome.snapshot.summaries {
+                m.insert(s.sym, s.clone());
+            }
+            m
+        },
+        deadline,
+    )?;
     check_deadline(deadline)?;
     let verifications = cie_drift::pipeline::verify_claims_until(
         &claims,
@@ -1002,7 +1265,9 @@ fn run_drift_inner(
         deadline,
     )?;
     check_deadline(deadline)?;
-    let complete = !verifications.iter().any(|v| v.reason.as_deref() == Some("verification_timeout"));
+    let complete = !verifications
+        .iter()
+        .any(|v| v.reason.as_deref() == Some("verification_timeout"));
     let report = cie_drift::pipeline::build_report_until(
         outcome.rev,
         &docs.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>(),
@@ -1066,7 +1331,8 @@ pub fn run_org_ingest(
             None => {
                 let mut outcome = materialize(raw)?;
                 navigation::ensure_navigation(repo, &mut outcome)?;
-                let member = org_store::OrgMember::new(&outcome.snapshot, &outcome.store.unresolved);
+                let member =
+                    org_store::OrgMember::new(&outcome.snapshot, &outcome.store.unresolved);
                 org_store::save(&store, &member)?;
                 member
             }
@@ -1074,10 +1340,19 @@ pub fn run_org_ingest(
         let repo_name = repo.to_string_lossy().to_string();
         org.repos.push(repo_name.clone());
         for node in &member.concepts {
-            if node.kind == cie_concepts::ConceptKind::UseCase
-                || node.kind == cie_concepts::ConceptKind::Aggregate
-                || node.kind == cie_concepts::ConceptKind::Entity
-            {
+            // The org lens merges same-label concepts across repos. Facets
+            // must join UseCase/Aggregate/Entity here: FCA groups are the
+            // label-bearing business concepts of a route-less repo, and
+            // demoting them to Facet (a shared attribute is never a business
+            // story WITHIN one repo) must not kill the org-level view where
+            // two repos sharing a concept is exactly the fact being claimed.
+            if matches!(
+                node.kind,
+                cie_concepts::ConceptKind::UseCase
+                    | cie_concepts::ConceptKind::Facet
+                    | cie_concepts::ConceptKind::Aggregate
+                    | cie_concepts::ConceptKind::Entity
+            ) {
                 label_index
                     .entry(node.label.to_ascii_lowercase())
                     .or_default()
@@ -1088,7 +1363,8 @@ pub fn run_org_ingest(
     }
     let mut merged_id = 0u32;
     for (label, sources) in label_index {
-        let distinct_repos: std::collections::BTreeSet<_> = sources.iter().map(|(repo, _)| repo).collect();
+        let distinct_repos: std::collections::BTreeSet<_> =
+            sources.iter().map(|(repo, _)| repo).collect();
         if distinct_repos.len() < 2 {
             continue; // multiple same-label nodes in ONE repo are not an org merge
         }
@@ -1115,7 +1391,10 @@ pub fn run_org_ingest(
     let mut exports: BTreeMap<&str, Vec<(usize, SymbolId)>> = BTreeMap::new();
     for (repo, (_, member)) in outcomes.iter().enumerate() {
         for symbol in &member.symbols {
-            exports.entry(&symbol.name).or_default().push((repo, symbol.id));
+            exports
+                .entry(&symbol.name)
+                .or_default()
+                .push((repo, symbol.id));
         }
     }
     let mut seen_edges = std::collections::BTreeSet::new();
@@ -1130,8 +1409,14 @@ pub fn run_org_ingest(
                 // per-repo: two different repos each exporting exactly
                 // one same-named symbol is still two candidates overall,
                 // and must resolve to neither (never a coin-flip guess).
-                let candidates: Vec<_> = exports.get(short_name).into_iter().flatten()
-                    .filter(|(repo, _)| *repo != i).take(2).copied().collect();
+                let candidates: Vec<_> = exports
+                    .get(short_name)
+                    .into_iter()
+                    .flatten()
+                    .filter(|(repo, _)| *repo != i)
+                    .take(2)
+                    .copied()
+                    .collect();
                 if let [(j, sym)] = candidates[..] {
                     if let Some(target_sym) = outcomes[j].1.symbols.iter().find(|s| s.id == sym) {
                         let edge = cie_store::ApiEdge {
@@ -1143,7 +1428,9 @@ pub fn run_org_ingest(
                             match_basis: Some("globally_unique_short_name; import binding and exported visibility unverified".into()),
                             claim_class: Some("inferred".into()),
                         };
-                        if seen_edges.insert((i, caller, j, sym)) { org.api_edges.push(edge); }
+                        if seen_edges.insert((i, caller, j, sym)) {
+                            org.api_edges.push(edge);
+                        }
                     }
                 }
                 // Zero or multiple candidates: stays unresolved, same as

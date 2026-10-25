@@ -1,5 +1,132 @@
 # Changelog
 
+## Unreleased — duplicates: jscpd era hardened; summary seeds extracted in phase 3 (2026-10-25)
+
+The jscpd migration's leftovers are removed, the two-detector contract is
+pinned by five scenario tests, and the FunctionSummary's file-local fields
+(incl. never-before-populated `inputs`/`outputs`) are now extracted once in
+the per-file pass that holds the tree.
+
+- **The local half of the FunctionSummary is extracted once, in step 3.** The
+  per-file pass already derived `LangFacts` from the parse tree; a new seed
+  builder (`cie_summary::seed::summary_seeds`) groups a file's OWN facts into
+  one `SummarySeed` per function-like symbol — declared parameters (inputs),
+  distinct return shapes (outputs — a field declared on FunctionSummary since
+  the start but never populated anywhere until now), non-handler raises,
+  branch conditions (bounded like the stage), loop/failure/constant-return
+  flags, `reads_input`/`entrypoint` evidence tags, and the callee texts
+  extraction could not resolve — and `put_file` persists it inside the file's
+  `CachedFacts` payload (serde default: older payloads simply fall back).
+- **The dead cosine engine's remnants are gone from duplicates.rs.** The
+  jscpd migration (commit 5267564) had left the old similarity machinery in
+  the file without callers: the `LOW_FLOOR`/`ABORT_SLACK` constants were
+  referenced nowhere at all, the dense `Bag`/`build`/`cosine` block survived
+  only inside one self-referential test (a dead engine tested against a dead
+  engine), and the `load_spans`/`load_kinds`/`load_ir_meta` loaders lived in
+  the lib but were consulted only by the test oracle — all three now sit in
+  the test module with their only consumer, the brute-force reference engine
+  that production-vs-oracle parity still needs. Production reads `ir_hash`
+  directly and never parses the `ir_vec` op-bag JSON.
+- **The cosine era's storage is retired for real.** `ir_meta` no longer
+  carries the `ir_vec` op-bag: the DDL drops the column for new stores, and
+  `create_ir_schema` self-migrates pre-jscpd stores in place
+  (`ALTER TABLE ir_meta DROP COLUMN ir_vec`; test
+  `ir_vec_carrier_self_migrates_from_pre_jscpd_stores` builds a real
+  old-shape store, verifies the column drop, row survival, and that
+  two-column inserts land). The writer stops serializing the bag (`ir_hash`
+  only, via `ir_hash_of`); the brute-force oracle in duplicates' test module
+  now RECOMPUTES the op-bag from the persisted `ir_instructions` +
+  `ir_edges` — independent of what the store carries — and the ingest dump
+  tool prints only hash rows. `duplicate_gaps` stays for now (its one
+  reader, `impact_duplicate_spec`, is load-bearing in the §23.1 spec shape);
+  its values remain honest structural zeros. PRD §15 step 5 and §23.2 carry
+  the retirement amendment (cosine ladder → jscpd token tiers, the three
+  tier rows re-expressed as fragment coverage), the implementation record
+  gains a slice-15 amendment row, and the impact-duplicate spec footer says
+  "ir-hash and jscpd token tiers (§23.2 as amended)".
+- **The two-detector contract is pinned by scenarios now.**
+  `cie-polyglot/tests/duplicate_detection_two_detectors.rs` runs five real
+  stores through the publisher's duplicate detection and pins which detector
+  claims each row: verbatim copies are `ir-hash-match` Fact rows even though
+  jscpd would also match them (canonical pairs are seeded first); a copy with
+  one extra guard branch (same tokens, different IR op sequence) falls to
+  jscpd's token-clone tiers and stays Inference; a pasted fragment inside two
+  different bodies is the low tier; same logic in java and python is a
+  cross-language Fact pair jscpd is structurally blind to (it compares within
+  one format only); and class×method containment is excluded before any
+  detector tier sees it.
+- **The summary stage consumes seeds instead of re-deriving.** Fresh symbols
+  (`behavior::compute_summaries_with_reuse`) prepopulate every file-local
+  field from the seed and skip the local derivation loops; everything that is
+  a property of the repository and not of a file stays with the stage as
+  before: resolved `callees` + the `callers` inversion (repo-wide resolution
+  ladder), reasoned `unresolved_callees`, receiver-gated db claims in
+  `reads`/`writes`/`effects`, call-site records, transitive absorption, and
+  `complete`. Seeds only exist for a file's own facts, so a single file can
+  never impersonate a sibling's call graph — the same scope bar as the stack
+  lens' capture. Old-payload stores take the unchanged fallback path — pinned
+  field-for-field by a parity test; `is_entrypoint_call_text` moved to
+  cie_summary so the seed builder and the fallback share one predicate.
+## Unreleased — the stack lens rides the reads it already paid for; reuse keys go identity-stable (2026-10-25)
+
+Two changes. One finishes the RFC-0019 §6.2 merge the codebase had already
+half-shipped; the other restores TASK-030's exact-invalidation contract that
+a fresh regression had broken, turning four pre-existing red tests green.
+
+- **The manifest/config half of "step 5 into step 3" is real now.** Ingest's
+  read phase already read every stack-input file (manifest, Dockerfile,
+  compose, application.*) to hash it — and threw the bytes away, so the stack
+  lens re-opened the same files from disk later. The walk now keeps the utf8
+  bodies (`Walked.stack_input_sources`, same ≤16 MB + utf8 gates as the walk
+  itself) and both stack-stage call sites hand them to
+  `cie_stack::stack_report_stage_with`. The lens consults the capture FIRST
+  (`CapturedInputs.read_input`) and falls back to disk for anything the walk
+  did not capture — the report is identical either way, only the I/O changes.
+  One scope bar enforced by the code, not caller discipline: the overlay can
+  replace reads of stack INPUTS only — code-file reads go through a separate
+  `read_code` that always hits disk, so no body can impersonate a source
+  file (tested). The standalone `cie stack <dir>` path is untouched; the
+  decorator half of the merge (frameworks::detect_file_tree off the live
+  tree in put_file) was already shipped.
+- **TASK-030 exact invalidation restored.** 9bce635 folded repo-global
+  material into the per-symbol local-fact hash (serialized bindings with
+  revision-local numeric owner ids, dep files' content hashes, repo-wide
+  declaration profiles), so one file's edit poisoned untouched files' keys —
+  four tests red (task_030 counters, acc27/task_084, US-004, US-045/US-094;
+  all bisect-verified pre-existing at HEAD, failing from 9bce635 onward,
+  green at a3b4ac4). The fix splits the key material the way the contract
+  intends: a symbol's local-fact hash carries only its own identity-stable
+  local facts (call rows name resolved callees by decl file + qual name,
+  never numeric ids; spans/lines dropped — a positional shift is not a fact
+  change; own bindings serialized without ids); file-level (file, dep-set)
+  keys keep content-based dep invalidation unchanged; and the declaration
+  basis (non-function symbols + class-scoped field bindings + type decls +
+  imports, all stably serialized) moved to its own persisted per-file hash
+  in `SummaryCacheEntry.decl_hash` — a changed basis poisons the file's
+  prior symbol keys, so the dirty worklist recomputes them and cascades to
+  transitive callers even when a caller's body is unchanged
+  (changing_declared_receiver_invalidates_an_unchanged_method_body still
+  passes). query_log seeds after store.py gains a line above; authorize
+  recomputes exactly when query_db's facts move.
+- **The four red tests, fixed at the seam 9bce635 actually intended.**
+  acc27/task_084 pinned the retired FCA-as-UseCase shape; they now pin the
+  new semantics honestly — business concepts are UseCase (source-backed,
+  provenance `api:declared-route-v1`) or Facet, and every UseCase cites its
+  route. US-004: the org-level merge lens had lost its label-bearers when
+  FCA groups demoted to Facet — `OrgMember::new` and `run_org_ingest` take
+  Facet beside UseCase/Aggregate/Entity (two repos sharing a concept is
+  exactly the fact the org view claims). US-045/US-094: BB4 retired the
+  naming-convention contract blocks; what survives structurally is the
+  caller-side precondition candidate — a money/destructive action whose
+  resolved callee is an auth-named primitive earns an InferredCandidate
+  obligation citing BOTH the guarded action and its guard (the guard call is
+  evidence, not a spelling).
+- Gates: cargo workspace **617 passed / 0 failed** (was 613/4); clippy clean
+  on touched lines; the new hand-off proofs live in
+  `cie-stack/tests/captured_inputs.rs` (capture consulted with files gone,
+  stale-copy preference over junk on disk, byte-parity with the disk-only
+  lens, no impersonation of code files).
+
 ## 1.6.1 — the canvas tells the truth again: one navigation layer, real lanes, charts that draw (2026-10-23)
 
 Three user-reported defects, root-caused and fixed at the seam where the

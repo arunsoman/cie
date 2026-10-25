@@ -61,18 +61,18 @@ pub fn overlap_matrix(
     let names: Vec<&String> = mappings.keys().collect();
     let mut pairs = Vec::new();
     for i in 0..names.len() {
+        let a = &mappings[names[i]];
         for j in (i + 1)..names.len() {
-            let a = mappings[names[i]].clone();
-            let b = mappings[names[j]].clone();
-            let shared: BTreeSet<SymbolId> = a.intersection(&b).copied().collect();
+            let b = &mappings[names[j]];
+            let shared: BTreeSet<SymbolId> = a.intersection(b).copied().collect();
             if shared.len() < min_shared {
                 continue;
             }
             pairs.push(Overlap {
                 a: names[i].clone(),
                 b: names[j].clone(),
-                only_a: a.difference(&b).copied().collect(),
-                only_b: b.difference(&a).copied().collect(),
+                only_a: a.difference(b).copied().collect(),
+                only_b: b.difference(a).copied().collect(),
                 shared,
             });
         }

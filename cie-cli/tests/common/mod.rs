@@ -420,10 +420,22 @@ pub mod scenarios {
         let dag = &outcome.snapshot.concepts;
 
         assert!(dag.nodes.len() > 3);
-        assert!(dag
-            .nodes
-            .iter()
-            .any(|n| n.kind == cie_concepts::ConceptKind::UseCase));
+        // Business concepts in the dag: since 9bce635's source-backed
+        // semantics, a UseCase claims a DECLARED route (provenance
+        // `api:declared-route-v1`) and never an FCA group — route-less repos
+        // carry their FCA groups as Facets instead. Either way the dag must
+        // hold at least one such concept.
+        assert!(dag.nodes.iter().any(|n| matches!(
+            n.kind,
+            cie_concepts::ConceptKind::UseCase | cie_concepts::ConceptKind::Facet
+        )));
+        assert!(
+            dag.nodes
+                .iter()
+                .filter(|n| n.kind == cie_concepts::ConceptKind::UseCase)
+                .all(|n| n.provenance == "api:declared-route-v1"),
+            "every UseCase is source-backed by a declared route"
+        );
         assert!(dag
             .nodes
             .iter()

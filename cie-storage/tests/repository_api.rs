@@ -35,12 +35,14 @@ fn submit(writer: &mut RepositoryWriter, path: &str, source: &str) {
         .unwrap();
     let tree = parser.parse(source, None).unwrap();
     let facts = adapter.extract_tree(path, source, &tree);
+    let seeds = cie_summary::summary_seeds(&facts);
     writer
         .put_file(FileSubmission {
             path,
             hash: cie_core::types::content_hash(source.as_bytes()),
             source,
             facts,
+            seeds,
             tree: Some(&tree),
         })
         .unwrap();
@@ -137,6 +139,7 @@ fn storage_validates_identity_and_owns_policy_limits() {
             hash: [0; 32],
             source,
             facts: facts.clone(),
+            seeds: vec![],
             tree: None
         })
         .is_err());
@@ -146,6 +149,7 @@ fn storage_validates_identity_and_owns_policy_limits() {
             hash: cie_core::types::content_hash(source.as_bytes()),
             source,
             facts,
+            seeds: vec![],
             tree: None
         })
         .is_err());
@@ -185,10 +189,13 @@ fn publication_lease_serializes_the_next_writer_until_head_publication_finishes(
 fn captured_file_scorecard_distinguishes_missing_from_zero_and_filters_before_paging() {
     use cie_storage::retrieval::*;
     use serde_json::json;
-    let f=Fixture::new();
-    let mut writer=RepositoryWriter::open(&f.0,StoragePolicy::default()).unwrap();
-    for file in ["high.py","zero.py","missing.py","generated/a.py"] {submit(&mut writer,file,"def run():\n    return 1\n");}
-    let graph=writer.materialize().unwrap();writer.commit(1,&graph,&json!({}),&[]).unwrap();
+    let f = Fixture::new();
+    let mut writer = RepositoryWriter::open(&f.0, StoragePolicy::default()).unwrap();
+    for file in ["high.py", "zero.py", "missing.py", "generated/a.py"] {
+        submit(&mut writer, file, "def run():\n    return 1\n");
+    }
+    let graph = writer.materialize().unwrap();
+    writer.commit(1, &graph, &json!({}), &[]).unwrap();
     cie_storage::artifacts::put_web_bundle(&f.0,1,&json!({"quality":{
         "project":"test","collected_at":"2026-10-25","honesty":"synthetic QA fixture","scopes":{},
         "coverage_heatmap":{"files":[{"file":"zero.py","percent":0},{"file":"high.py","percent":70}]},
@@ -197,15 +204,37 @@ fn captured_file_scorecard_distinguishes_missing_from_zero_and_filters_before_pa
         "duplication":{"pairs":[{"a_file":"high.py","b_file":"high.py"}],"scanned_files":["high.py","zero.py"]},
         "security":{"issues":[{"file":"high.py"}],"scanned_files":["high.py","zero.py"]}
     }})).unwrap();
-    let store=cie_store::Store::open(&f.0).unwrap();
-    store.write_json(&store.root().join("revs/1/snapshot.json"),&json!({"rev":1,"files":[],"symbols":[],"concepts":{"nodes":[]}})).unwrap();
+    let store = cie_store::Store::open(&f.0).unwrap();
+    store
+        .write_json(
+            &store.root().join("revs/1/snapshot.json"),
+            &json!({"rev":1,"files":[],"symbols":[],"concepts":{"nodes":[]}}),
+        )
+        .unwrap();
     store.commit_rev(1).unwrap();
-    let storage=Storage::open(&f.0,StoragePolicy::default()).unwrap();let reader=storage.open_revision(RevisionSelector::Latest).unwrap();
+    let storage = Storage::open(&f.0, StoragePolicy::default()).unwrap();
+    let reader = storage.open_revision(RevisionSelector::Latest).unwrap();
     let request=serde_json::from_value(json!({"api_version":1,"query":{"select":{"kind":"file","filter":{"field":{"field":"quality.excluded","op":"eq","value":false}}}},"outputs":[{"id":"rows","output":{"entities":{"fields":["path","quality"],"order":[{"field":"quality.hotspot_risk","direction":"desc"}],"page":{"limit":30}}}}]})).unwrap();
-    let result=serde_json::to_value(reader.retrieve(request).unwrap()).unwrap();
-    let rows=result["outputs"][0]["data"]["items"].as_array().unwrap();assert_eq!(rows.len(),3);assert_eq!(rows[0]["fields"]["path"],"high.py");
-    let find=|file:&str| rows.iter().find(|r|r["fields"]["path"]==file).unwrap()["fields"]["quality"].clone();
-    assert_eq!(find("zero.py")["coverage_percent"],0);assert_eq!(find("zero.py")["security_findings"],0);
-    assert_eq!(find("missing.py")["coverage_percent"],serde_json::Value::Null);assert_eq!(find("missing.py")["security_findings"],serde_json::Value::Null);
-    assert_eq!(find("high.py")["duplicate_pairs"],1,"a same-file pair counts once, not once per side");
+    let result = serde_json::to_value(reader.retrieve(request).unwrap()).unwrap();
+    let rows = result["outputs"][0]["data"]["items"].as_array().unwrap();
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[0]["fields"]["path"], "high.py");
+    let find = |file: &str| {
+        rows.iter().find(|r| r["fields"]["path"] == file).unwrap()["fields"]["quality"].clone()
+    };
+    assert_eq!(find("zero.py")["coverage_percent"], 0);
+    assert_eq!(find("zero.py")["security_findings"], 0);
+    assert_eq!(
+        find("missing.py")["coverage_percent"],
+        serde_json::Value::Null
+    );
+    assert_eq!(
+        find("missing.py")["security_findings"],
+        serde_json::Value::Null
+    );
+    assert_eq!(
+        find("high.py")["duplicate_pairs"],
+        1,
+        "a same-file pair counts once, not once per side"
+    );
 }

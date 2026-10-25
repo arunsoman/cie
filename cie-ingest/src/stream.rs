@@ -111,7 +111,11 @@ impl StreamSession {
         let total = paths.len();
         for (idx, path) in paths.into_iter().enumerate() {
             if idx % 50 == 0 {
-                progress("read", "running", &format!("Scanned {} of {} files…", idx, total));
+                progress(
+                    "read",
+                    "running",
+                    &format!("Scanned {} of {} files…", idx, total),
+                );
             }
             let rel = path
                 .strip_prefix(root)
@@ -145,6 +149,16 @@ impl StreamSession {
             let hash = content_hash(&bytes);
             if stack_input {
                 this.walked.stack_inputs.insert(rel.clone(), hash);
+                // §6.2 handoff: the read phase already paid for this file's
+                // bytes — keep the body so the stack stage reuses it instead
+                // of re-opening the file from disk. Non-utf8 bodies aren't
+                // retained: the lens' own read then fails on the disk file
+                // exactly as it does without the handoff.
+                if let Ok(text) = std::str::from_utf8(&bytes) {
+                    this.walked
+                        .stack_input_sources
+                        .insert(rel.clone(), text.into());
+                }
                 continue;
             }
             let adapter = adapter.unwrap();
@@ -196,11 +210,17 @@ impl StreamSession {
                         .push("syntax errors present — extraction is partial".into());
                 }
             }
+            // Summary seeds: the per-symbol local fields (params, return
+            // shapes, raises, guards, loop flags, …) grouped from this file's
+            // own facts while the tree is in hand — phase 3 owns their
+            // extraction; the join pass only completes the repo-global parts.
+            let seeds = cie_summary::summary_seeds(&file_facts);
             this.storage.put_file(FileSubmission {
                 path: &rel,
                 hash,
                 source: src,
                 facts: file_facts,
+                seeds,
                 tree: tree.as_ref(),
             })?;
             this.receipt.from_disk += 1;
@@ -234,7 +254,12 @@ impl StreamSession {
         graph: &ExtractedProject,
         progress: &dyn Fn(&str, &str, &str),
     ) -> io::Result<cie_storage::repository::PublishedRevision> {
-        self.storage
-            .commit_with_progress(rev, graph, &self.receipt, &self.receipt.skipped, progress)
+        self.storage.commit_with_progress(
+            rev,
+            graph,
+            &self.receipt,
+            &self.receipt.skipped,
+            progress,
+        )
     }
 }

@@ -93,8 +93,46 @@ fn skip_path(p: &str) -> bool {
     SKIP.iter().any(|s| p.contains(s)) || p.contains("src/test/") || p.starts_with("test/")
 }
 
+/// RFC-0019 §6.2: the ingest read phase already read every stack-input file
+/// to hash it. CapturedInputs hands those bodies back so the lens never
+/// re-opens what the walk captured — the manifest/config half of "the stack
+/// stage rides the reads already paid for". Anything the walk did NOT capture
+/// (standalone `cie stack`, non-utf8 bodies, files the walk skipped) reads
+/// from disk below — the same bytes either way, so the report never depends
+/// on which source answered. Keys are the walk's own normalization:
+/// repo-relative, no `./` prefix, `/` separators.
+pub struct CapturedInputs<'a> {
+    pub(crate) root: &'a Path,
+    bodies: Option<&'a BTreeMap<String, String>>,
+}
+
+impl CapturedInputs<'_> {
+    /// disk-only lens — the standalone `cie stack` path
+    pub(crate) fn disk(root: &Path) -> CapturedInputs<'_> {
+        CapturedInputs { root, bodies: None }
+    }
+
+    /// repo-rel path to a stack-lens INPUT (manifest/docker/config) → text:
+    /// the capture first — these are exactly the files the walk keeps — disk
+    /// otherwise
+    pub(crate) fn read_input(&self, rel: &str) -> Option<String> {
+        if let Some(body) = self.bodies.and_then(|m| m.get(rel)) {
+            return Some(body.clone());
+        }
+        fs::read_to_string(self.root.join(rel)).ok()
+    }
+
+    /// repo-rel path to a CODE source → text: always a disk read. Code files
+    /// are never walk-captured bodies — the capture names stack inputs only —
+    /// so a stray entry must never impersonate a source file.
+    pub(crate) fn read_code(&self, rel: &str) -> Option<String> {
+        fs::read_to_string(self.root.join(rel)).ok()
+    }
+}
+
 /// walk the tree, collect (rel path → text) for files the parsers want
-fn collect_sources(root: &Path, also: &dyn Fn(&str) -> bool) -> (std::collections::BTreeMap<String, String>, usize) {
+fn collect_sources(inputs: &CapturedInputs, also: &dyn Fn(&str) -> bool) -> (std::collections::BTreeMap<String, String>, usize) {
+    let root = inputs.root;
     let mut files: std::collections::BTreeMap<String, String> = BTreeMap::new();
     let mut seen: usize = 0;
     let mut stack = vec![root.to_path_buf()];
@@ -119,7 +157,7 @@ fn collect_sources(root: &Path, also: &dyn Fn(&str) -> bool) -> (std::collection
                 .strip_prefix(root)
                 .unwrap_or(&path)
                 .to_string_lossy()
-                .to_string();
+                .replace('\\', "/");
             if wants(&rel) || also(&rel) {
                 let meta = match entry.metadata() {
                     Ok(m) => m,
@@ -128,7 +166,14 @@ fn collect_sources(root: &Path, also: &dyn Fn(&str) -> bool) -> (std::collection
                 if meta.len() > MAX_FILE_BYTES {
                     continue;
                 }
-                if let Ok(src) = fs::read_to_string(&path) {
+                // §6.2: code reads stay disk reads; the capture replaces the
+                // reads it actually covers (docker/config/manifests via also)
+                let src = if wants(&rel) {
+                    inputs.read_code(&rel)
+                } else {
+                    inputs.read_input(&rel)
+                };
+                if let Some(src) = src {
                     seen += 1;
                     files.insert(rel, src);
                 }
@@ -148,16 +193,25 @@ fn is_ignored_dir(name: &str) -> bool {
 
 /// the entry point CIE's CLI calls: `cie stack <dir>` → a StackReport
 pub fn stack_report(root: &Path) -> types::StackReport {
+    stack_report_with(root, None)
+}
+
+/// RFC-0019 §6.1/§6.2: the same deterministic lens, over bodies the ingest
+/// read phase already captured. `bodies` (repo-rel path → text) replaces the
+/// disk read for exactly those files and leaves every other read untouched;
+/// the report is identical either way — only the I/O changes.
+pub fn stack_report_with(root: &Path, bodies: Option<&BTreeMap<String, String>>) -> types::StackReport {
+    let inputs = CapturedInputs { root, bodies };
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
     // ---- 1. detect from the manifests ----
-    let det = detect::detect(root);
+    let det = detect::detect_with(&inputs);
 
     // ---- 2. collect the sources (code for parsers + docker/config files too) ----
-    let (sources, files_seen) = collect_sources(root, &|rel: &str| {
+    let (sources, files_seen) = collect_sources(&inputs, &|rel: &str| {
         let base = rel.rsplit('/').next().unwrap_or(rel);
         docker::is_dockerfile(base)
             || matches!(
@@ -242,7 +296,7 @@ pub fn stack_report(root: &Path) -> types::StackReport {
 
     // docker
     let rels: Vec<String> = sources.keys().cloned().collect();
-    report.docker = docker::docker_info(root, &rels);
+    report.docker = docker::docker_info(&inputs, &rels);
     report.coverage.dockerfiles_read = report
         .docker
         .dockerfiles
@@ -490,20 +544,31 @@ pub fn to_json(report: &types::StackReport) -> String {
     serde_json::to_string_pretty(report).unwrap_or_else(|_| "{}".into())
 }
 
+/// disk-only wrapper — `cie stack <dir>` reads only from the tree itself
+pub fn stack_report_stage(root: &Path, budget_ms: Option<u64>) -> types::StackReport {
+    stack_report_stage_with(root, None, budget_ms)
+}
+
 /// RFC-0019 §6.1: the ingest-side entry point. Runs the same deterministic
 /// lens as [`stack_report`] — one walk, one parse, the factory's own honest
 /// caps (`MAX_FILES`, `MAX_DIRS`, `flow.rs` limits) bound the work — and
 /// hands the report to ingest for persistence as `revs/<N>/stack.json`.
 ///
-/// `budget_ms` is the caller's sub-deadline slice. The lens cannot abort
+/// `bodies` is the read phase's stack-input capture (§6.2): no stack-input
+/// file is ever opened twice in one ingest. `budget_ms` is the caller's
+/// sub-deadline slice. The lens cannot abort
 /// mid-parse (a half-walked report would read as authoritative when it is
 /// neither complete nor honest), so the budget is enforced as a POST-HOC
 /// disclosure: an overrun adds a note naming the measured wall time and the
 /// caps that bounded it. Measured sub-second on 5 apps / 36 files (the
 /// polyglot sample, release build); the caps keep the worst case bounded.
-pub fn stack_report_stage(root: &Path, budget_ms: Option<u64>) -> types::StackReport {
+pub fn stack_report_stage_with(
+    root: &Path,
+    bodies: Option<&BTreeMap<String, String>>,
+    budget_ms: Option<u64>,
+) -> types::StackReport {
     let t0 = std::time::Instant::now();
-    let mut report = stack_report(root);
+    let mut report = stack_report_with(root, bodies);
     if let Some(budget) = budget_ms {
         let wall_ms = t0.elapsed().as_millis() as u64;
         if wall_ms > budget {

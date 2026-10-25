@@ -4,10 +4,12 @@
 //! `complete = false` — never silently "no defect".
 
 use cie_core::types::{Ns, RevId, SymbolId};
-use cie_semantic::facts::{BuiltinKind, Callee, CallSite, LangFacts, RhsKind, SymbolFact, SymbolStore};
+use cie_semantic::facts::{
+    BuiltinKind, CallSite, Callee, LangFacts, RhsKind, SymbolFact, SymbolStore,
+};
 use cie_summary::{
-    builtin_effects, CallSiteRecord, CallSpan, EffectClaim, EffectKind, FunctionSummary,
-    LexicalHint,
+    builtin_effects, is_entrypoint_call_text, CallSiteRecord, CallSpan, EffectClaim, EffectKind,
+    FunctionSummary, LexicalHint,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -152,7 +154,7 @@ pub fn compute_summaries(
     rev: RevId,
     deadline_ns: Option<Ns>,
 ) -> BehaviorResult {
-    compute_summaries_with_reuse(store, per_file, rev, deadline_ns, None)
+    compute_summaries_with_reuse(store, per_file, rev, deadline_ns, None, None)
 }
 
 /// TASK-030: summary computation with per-file reuse. A file whose content
@@ -167,6 +169,7 @@ pub fn compute_summaries_with_reuse(
     rev: RevId,
     deadline_ns: Option<Ns>,
     reuse: Option<&ReusePlan>,
+    seeds: Option<&[Vec<cie_summary::SummarySeed>]>,
 ) -> BehaviorResult {
     let now = cie_core::types::now_ns();
     let mut summaries: BTreeMap<SymbolId, FunctionSummary> = BTreeMap::new();
@@ -192,7 +195,10 @@ pub fn compute_summaries_with_reuse(
         let sid = sym.id;
         let prior = reuse.and_then(|p| {
             // TASK-056: seeding is per-symbol via the dirty worklist.
-            let key = (store.files.path(sym.loc.file).to_string(), sym.qual_name.clone());
+            let key = (
+                store.files.path(sym.loc.file).to_string(),
+                sym.qual_name.clone(),
+            );
             if p.reusable_symbols.contains(&key) {
                 p.prior_summaries.get(&key)
             } else {
@@ -218,6 +224,21 @@ pub fn compute_summaries_with_reuse(
         // this symbol's call sites with their file facts, in source order
         // (empty for reused summaries — their records ride in the prior copy).
         let mut sym_calls: Vec<(&LangFacts, &CallSite)> = vec![];
+        // File-local summary fields: a seeded symbol consumes the seed the
+        // file-holding pass captured while the tree was in hand — never
+        // re-derived. Seeds only exist for fresh symbols' own file; symbol
+        // facts always live in the symbol's own file's LangFacts, so the
+        // per_file index == FileId == sym.loc.file.
+        let own_seed = if fresh {
+            seeds
+                .and_then(|ss| ss.get(sym.loc.file.0 as usize))
+                .and_then(|fs| fs.iter().find(|seed| seed.sym == sid))
+        } else {
+            None
+        };
+        if let Some(seed) = own_seed {
+            s.apply_seed(seed);
+        }
         if fresh {
             // ---- per-occurrence call-site records + receiver-aware effects ----
             for facts in per_file {
@@ -226,8 +247,11 @@ pub fn compute_summaries_with_reuse(
                 }
             }
             sym_calls.sort_by(|a, b| {
-                (a.1.span.1, std::cmp::Reverse(a.1.span.0), a.1.line)
-                    .cmp(&(b.1.span.1, std::cmp::Reverse(b.1.span.0), b.1.line))
+                (a.1.span.1, std::cmp::Reverse(a.1.span.0), a.1.line).cmp(&(
+                    b.1.span.1,
+                    std::cmp::Reverse(b.1.span.0),
+                    b.1.line,
+                ))
             });
             let mut statement_lines: Vec<u32> = sym_calls.iter().map(|(_, c)| c.line).collect();
             statement_lines.sort_unstable();
@@ -238,7 +262,9 @@ pub fn compute_summaries_with_reuse(
                 let rclass = call
                     .receiver
                     .as_deref()
-                    .map(|r| crate::receiver::resolve_receiver_project(store, facts, per_file, sid, r))
+                    .map(|r| {
+                        crate::receiver::resolve_receiver_project(store, facts, per_file, sid, r)
+                    })
                     .unwrap_or(crate::receiver::ReceiverClass::Unknown);
                 let method = call
                     .callee_text
@@ -279,12 +305,19 @@ pub fn compute_summaries_with_reuse(
                                     ("external", "exact", Some(identity.clone()))
                                 }
                                 crate::receiver::ReceiverClass::InTree { identity, symbol } => {
-                                    let declared = store
-                                        .children_of(*symbol)
-                                        .iter()
-                                        .any(|c| {
-                                            store.get(*c).map(|m| m.name == call.callee_text.rsplit('.').next().unwrap_or(&call.callee_text)).unwrap_or(false)
-                                        });
+                                    let declared = store.children_of(*symbol).iter().any(|c| {
+                                        store
+                                            .get(*c)
+                                            .map(|m| {
+                                                m.name
+                                                    == call
+                                                        .callee_text
+                                                        .rsplit('.')
+                                                        .next()
+                                                        .unwrap_or(&call.callee_text)
+                                            })
+                                            .unwrap_or(false)
+                                    });
                                     if declared {
                                         ("resolved", "candidate", Some(identity.clone()))
                                     } else {
@@ -308,34 +341,69 @@ pub fn compute_summaries_with_reuse(
                     Callee::Unresolved(reason) if reason == "reflective" => vec![],
                     _ => {
                         if let crate::receiver::ReceiverClass::InTree { symbol, .. } = &rclass {
-                            let name = call.callee_text.rsplit('.').next().unwrap_or(&call.callee_text);
-                            store.children_of(*symbol).iter().copied().filter(|id| {
-                                store.get(*id).map(|m| m.is_function_like() && m.name == name).unwrap_or(false)
-                            }).filter(|id| {
-                                let params = per_file.iter().flat_map(|f| &f.bindings)
-                                    .filter(|b| b.owner == *id && b.kind == cie_semantic::facts::BindingKind::Param).count();
-                                call.arguments.map(|n| params == n as usize).unwrap_or(true)
-                            }).collect()
-                        } else { vec![] }
+                            let name = call
+                                .callee_text
+                                .rsplit('.')
+                                .next()
+                                .unwrap_or(&call.callee_text);
+                            store
+                                .children_of(*symbol)
+                                .iter()
+                                .copied()
+                                .filter(|id| {
+                                    store
+                                        .get(*id)
+                                        .map(|m| m.is_function_like() && m.name == name)
+                                        .unwrap_or(false)
+                                })
+                                .filter(|id| {
+                                    let params = per_file
+                                        .iter()
+                                        .flat_map(|f| &f.bindings)
+                                        .filter(|b| {
+                                            b.owner == *id
+                                                && b.kind == cie_semantic::facts::BindingKind::Param
+                                        })
+                                        .count();
+                                    call.arguments.map(|n| params == n as usize).unwrap_or(true)
+                                })
+                                .collect()
+                        } else {
+                            vec![]
+                        }
                     }
                 };
-                let (declaration, dispatch, receiver_type) = if !target_symbols.is_empty() && !matches!(call.callee, Callee::Resolved(_)) {
-                    let identity = match &rclass { crate::receiver::ReceiverClass::InTree { identity, .. } => Some(identity.clone()), _ => receiver_type };
-                    (if target_symbols.len() == 1 { "resolved" } else { "ambiguous" }, "candidate", identity)
-                } else { (declaration, dispatch, receiver_type) };
+                let (declaration, dispatch, receiver_type) =
+                    if !target_symbols.is_empty() && !matches!(call.callee, Callee::Resolved(_)) {
+                        let identity = match &rclass {
+                            crate::receiver::ReceiverClass::InTree { identity, .. } => {
+                                Some(identity.clone())
+                            }
+                            _ => receiver_type,
+                        };
+                        (
+                            if target_symbols.len() == 1 {
+                                "resolved"
+                            } else {
+                                "ambiguous"
+                            },
+                            "candidate",
+                            identity,
+                        )
+                    } else {
+                        (declaration, dispatch, receiver_type)
+                    };
                 // ---- effects: receiver-gated, with provenance or demotion ----
                 let mut rec_effect: Option<EffectClaim> = None;
                 let mut rec_hint: Option<String> = None;
-                let mut db_labels = |s: &mut FunctionSummary, k: BuiltinKind| {
-                    match k {
-                        BuiltinKind::DbQuery => {
-                            s.reads.insert("db".into());
-                        }
-                        BuiltinKind::DbExecute => {
-                            s.writes.insert("db".into());
-                        }
-                        _ => {}
+                let mut db_labels = |s: &mut FunctionSummary, k: BuiltinKind| match k {
+                    BuiltinKind::DbQuery => {
+                        s.reads.insert("db".into());
                     }
+                    BuiltinKind::DbExecute => {
+                        s.writes.insert("db".into());
+                    }
+                    _ => {}
                 };
                 match &call.callee {
                     Callee::Builtin(b) => {
@@ -350,9 +418,7 @@ pub fn compute_summaries_with_reuse(
                                 // the receiver IS a database API: persistence-
                                 // shaped methods are db claims WITH provenance,
                                 // superseding the spelling classification.
-                                if let Some(k) =
-                                    cie_adapters::effects::persistence_kind(&method)
-                                {
+                                if let Some(k) = cie_adapters::effects::persistence_kind(&method) {
                                     let kind = if k == BuiltinKind::DbExecute {
                                         EffectKind::DbWrite
                                     } else {
@@ -472,54 +538,51 @@ pub fn compute_summaries_with_reuse(
                 });
             }
 
-            for facts in per_file {
-                for r in facts.returns.iter().filter(|r| r.symbol == sid) {
-                    if let Some(c) = &r.constant {
-                        s.returns_constants.insert(c.clone());
+            // File-local derivations: skipped for seeded symbols — the seed
+            // already carries everything these loops derive, in the same
+            // order and by the same predicates (parity is a test).
+            if own_seed.is_none() {
+                for facts in per_file {
+                    for r in facts.returns.iter().filter(|r| r.symbol == sid) {
+                        if let Some(c) = &r.constant {
+                            s.returns_constants.insert(c.clone());
+                        }
                     }
-                }
-                let returns: Vec<_> = facts.returns.iter().filter(|r| r.symbol == sid).collect();
-                if !returns.is_empty() {
-                    s.all_returns_constant = returns.iter().all(|r| r.constant.is_some());
-                }
-
-                for x in facts.exceptions.iter().filter(|x| x.symbol == sid) {
-                    if !x.in_handler {
-                        // raised exception = failure path
-                        s.exceptions.push(x.kind_text.clone());
-                        s.has_failure_path = true;
+                    let returns: Vec<_> =
+                        facts.returns.iter().filter(|r| r.symbol == sid).collect();
+                    if !returns.is_empty() {
+                        s.all_returns_constant = returns.iter().all(|r| r.constant.is_some());
                     }
-                }
 
-                if facts.loops.iter().any(|l| l.symbol == sid) {
-                    s.has_loops = true;
-                }
-
-                for a in facts.assignments.iter().filter(|a| a.symbol == sid) {
-                    if a.rhs_kind == RhsKind::Input {
-                        s.tags.insert("reads_input".into());
+                    for x in facts.exceptions.iter().filter(|x| x.symbol == sid) {
+                        if !x.in_handler {
+                            // raised exception = failure path
+                            s.exceptions.push(x.kind_text.clone());
+                            s.has_failure_path = true;
+                        }
                     }
-                }
 
-                // decorators like @app.route make it an entry point
-                for c in facts.calls.iter().filter(|c| c.caller == sid) {
-                    let t = c.callee_text.to_ascii_lowercase();
-                    if t.contains("route")
-                        || t.contains("app.get")
-                        || t.contains("app.post")
-                        || t.contains("app.put")
-                        || t.contains("app.delete")
-                        || t.contains("command")
-                        || t.contains("task")
-                        || t.contains("endpoint")
-                    {
-                        s.tags.insert("entrypoint".into());
+                    if facts.loops.iter().any(|l| l.symbol == sid) {
+                        s.has_loops = true;
                     }
-                }
 
-                // path conditions from branch conditions (bounded)
-                for i in facts.ifs.iter().filter(|i| i.symbol == sid).take(16) {
-                    s.path_conditions.push(i.cond.clone());
+                    for a in facts.assignments.iter().filter(|a| a.symbol == sid) {
+                        if a.rhs_kind == RhsKind::Input {
+                            s.tags.insert("reads_input".into());
+                        }
+                    }
+
+                    // decorators like @app.route make it an entry point
+                    for c in facts.calls.iter().filter(|c| c.caller == sid) {
+                        if is_entrypoint_call_text(&c.callee_text) {
+                            s.tags.insert("entrypoint".into());
+                        }
+                    }
+
+                    // path conditions from branch conditions (bounded)
+                    for i in facts.ifs.iter().filter(|i| i.symbol == sid).take(16) {
+                        s.path_conditions.push(i.cond.clone());
+                    }
                 }
             }
         }
@@ -590,9 +653,13 @@ pub fn compute_summaries_with_reuse(
             if !sym.is_function_like() {
                 continue;
             }
-            *path_total.entry(store.files.path(sym.loc.file)).or_default() += 1;
+            *path_total
+                .entry(store.files.path(sym.loc.file))
+                .or_default() += 1;
             if seeded.contains(&sym.id) {
-                *path_seeded.entry(store.files.path(sym.loc.file)).or_default() += 1;
+                *path_seeded
+                    .entry(store.files.path(sym.loc.file))
+                    .or_default() += 1;
             }
         }
         for path in reuse.map(|p| p.current_hashes.keys()).unwrap_or_default() {

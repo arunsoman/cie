@@ -320,7 +320,7 @@ pub fn run(
                 emit(
                     &mut findings,
                     Finding {
-                introduced: None,
+                        introduced: None,
                         id: String::new(),
                         kind: FindingKind::SwallowedException,
                         severity: FindingKind::SwallowedException.default_severity(),
@@ -367,7 +367,13 @@ pub fn run(
             "handler",
         ]
         .iter()
-        .any(|p| store.files.path(sym.loc.file).to_ascii_lowercase().contains(p));
+        .any(|p| {
+            store
+                .files
+                .path(sym.loc.file)
+                .to_ascii_lowercase()
+                .contains(p)
+        });
         if !ui_layer {
             continue;
         }
@@ -384,8 +390,16 @@ pub fn run(
             store
                 .get(*c)
                 .map(|cs| {
-                    store.files.path(cs.loc.file).to_ascii_lowercase().contains("db")
-                        || store.files.path(cs.loc.file).to_ascii_lowercase().contains("repo")
+                    store
+                        .files
+                        .path(cs.loc.file)
+                        .to_ascii_lowercase()
+                        .contains("db")
+                        || store
+                            .files
+                            .path(cs.loc.file)
+                            .to_ascii_lowercase()
+                            .contains("repo")
                 })
                 .unwrap_or(false)
         });
@@ -449,8 +463,8 @@ pub fn run(
             };
             if let Some(ob) = obligation {
                 contracts.push(Contract {
-                verified_by: vec![],
-                introduced: None,
+                    verified_by: vec![],
+                    introduced: None,
                     id: cid,
                     obligation: ob,
                     expr: line.trim().chars().take(200).collect(),
@@ -464,11 +478,51 @@ pub fn run(
     }
     // Naming-convention MustAuthorize contracts were RETIRED (behavioural-
     // evidence redesign): a function name is a lexical hint, never a
-    // normative authorization claim. The candidates now surface as typed
-    // `lexical_hints` on the function summaries (behavior.rs), so an auditor
-    // sees the same lead without the bundle asserting a security obligation
-    // the source never made. Docstring contracts above stay: they are
-    // explicitly authored.
+    // normative authorization claim about the function that OWNS the name —
+    // those candidates surface as typed `lexical_hints` on the summaries
+    // (behavior.rs). Docstring contracts above stay: they are explicitly
+    // authored.
+    // What survives structurally is the CALLER-side precondition candidate:
+    // a money/destructive action whose resolved callees include an
+    // auth-named primitive (the guard) carries an InferredCandidate
+    // obligation citing BOTH symbols — the guard call is evidence, not a
+    // spelling. Deterministic: callees iterated in source order.
+    for facts in per_file {
+        for c in &facts.calls {
+            let Some(guard_id) = (match &c.callee {
+                cie_semantic::facts::Callee::Resolved(id) => Some(*id),
+                _ => None,
+            }) else {
+                continue;
+            };
+            let Some(guard) = store.get(guard_id) else {
+                continue;
+            };
+            if !is_auth_name(&guard.name) {
+                continue;
+            }
+            let Some(caller) = store.get(c.caller) else {
+                continue;
+            };
+            if !is_money_name(&caller.name) && !is_destructive_name(&caller.name) {
+                continue;
+            }
+            contracts.push(Contract {
+                verified_by: vec![],
+                introduced: None,
+                id: cid,
+                obligation: ObligationKind::MustAuthorize,
+                expr: format!(
+                    "'{}' must be preceded by established authorization — it calls '{}' (resolved)",
+                    caller.name, guard.name
+                ),
+                authority: Authority::InferredCandidate,
+                symbols: vec![c.caller, guard_id],
+                source: ContractSource::NamingConvention,
+            });
+            cid += 1;
+        }
+    }
 
     // Ordering for deterministic output
     findings.sort_by(|a, b| (&a.kind, &a.symbol).cmp(&(&b.kind, &b.symbol)));
@@ -479,67 +533,189 @@ pub fn run(
     }
 }
 
-
 /// Bind only actual cited sites. Bounded history is optional and never changes
 /// authority. The name `introduced` is a compatibility label for Git blame.
-pub fn bind_history(root: &std::path::Path, store: &SymbolStore, contracts: &mut [Contract], findings: &mut [Finding]) {
-    let site = |id: SymbolId, line: Option<u32>| store.get(id).map(|s| (store.files.path(s.loc.file).to_string(), line.unwrap_or_else(||store.files.line(s.loc)) as u64));
-    let mut sites: Vec<_> = contracts.iter().flat_map(|c|c.symbols.iter()).filter_map(|s|site(*s,None)).collect();
-    sites.extend(findings.iter().flat_map(|f| {
-        if f.evidence_lines.is_empty() { vec![site(f.symbol,None)] }
-        else { f.evidence_lines.iter().map(|l|site(f.symbol,Some(*l))).collect() }
-    }).flatten());
-    let history=cie_history::cited_history(root,&sites);
-    let chain = |sites: Vec<(String,u64)>| {
-        let mut c: Vec<_> = sites.iter().flat_map(|(p,l)|cie_history::archaeology_chain(&history,p,*l)).collect();
-        c.sort_by(|a,b|(a.time,&a.id).cmp(&(b.time,&b.id))); c.dedup_by(|a,b|a.id==b.id);
+pub fn bind_history(
+    root: &std::path::Path,
+    store: &SymbolStore,
+    contracts: &mut [Contract],
+    findings: &mut [Finding],
+) {
+    let site = |id: SymbolId, line: Option<u32>| {
+        store.get(id).map(|s| {
+            (
+                store.files.path(s.loc.file).to_string(),
+                line.unwrap_or_else(|| store.files.line(s.loc)) as u64,
+            )
+        })
+    };
+    let mut sites: Vec<_> = contracts
+        .iter()
+        .flat_map(|c| c.symbols.iter())
+        .filter_map(|s| site(*s, None))
+        .collect();
+    sites.extend(
+        findings
+            .iter()
+            .flat_map(|f| {
+                if f.evidence_lines.is_empty() {
+                    vec![site(f.symbol, None)]
+                } else {
+                    f.evidence_lines
+                        .iter()
+                        .map(|l| site(f.symbol, Some(*l)))
+                        .collect()
+                }
+            })
+            .flatten(),
+    );
+    let history = cie_history::cited_history(root, &sites);
+    let chain = |sites: Vec<(String, u64)>| {
+        let mut c: Vec<_> = sites
+            .iter()
+            .flat_map(|(p, l)| cie_history::archaeology_chain(&history, p, *l))
+            .collect();
+        c.sort_by(|a, b| (a.time, &a.id).cmp(&(b.time, &b.id)));
+        c.dedup_by(|a, b| a.id == b.id);
         (!c.is_empty()).then_some(c)
     };
-    for c in contracts { c.introduced=chain(c.symbols.iter().filter_map(|s|site(*s,None)).collect()); }
-    for f in findings { f.introduced=chain(if f.evidence_lines.is_empty(){site(f.symbol,None).into_iter().collect()}else{f.evidence_lines.iter().filter_map(|l|site(f.symbol,Some(*l))).collect()}); }
+    for c in contracts {
+        c.introduced = chain(c.symbols.iter().filter_map(|s| site(*s, None)).collect());
+    }
+    for f in findings {
+        f.introduced = chain(if f.evidence_lines.is_empty() {
+            site(f.symbol, None).into_iter().collect()
+        } else {
+            f.evidence_lines
+                .iter()
+                .filter_map(|l| site(f.symbol, Some(*l)))
+                .collect()
+        });
+    }
 }
-
 
 pub const MAX_VERIFY_DEPTH: usize = 6;
 /// Build the reverse index once, then walk each obligation's bound symbols.
 /// This says a parsed test reaches a symbol, not that the rule was asserted.
-pub fn bind_verifying_tests(store: &SymbolStore, summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>, contracts: &mut [Contract]) {
+pub fn bind_verifying_tests(
+    store: &SymbolStore,
+    summaries: &BTreeMap<SymbolId, cie_summary::FunctionSummary>,
+    contracts: &mut [Contract],
+) {
     use std::collections::{BTreeSet, VecDeque};
-    let tests: BTreeSet<_> = store.symbols.iter().filter(|s|s.is_test()).map(|s|s.id).collect();
-    let mut callers: BTreeMap<SymbolId, BTreeSet<SymbolId>>=BTreeMap::new();
-    for (from,s) in summaries { for to in &s.callees { callers.entry(*to).or_default().insert(*from); } }
-    for contract in contracts {
-        let mut seen=BTreeSet::new(); let mut found=BTreeSet::new();
-        let mut queue: VecDeque<_> = contract.symbols.iter().map(|s|(*s,0)).collect();
-        while let Some((symbol,depth))=queue.pop_front() {
-            if !seen.insert(symbol) { continue; }
-            if tests.contains(&symbol) { found.insert(symbol); }
-            if depth>=MAX_VERIFY_DEPTH { continue; }
-            for caller in callers.get(&symbol).into_iter().flatten() { queue.push_back((*caller,depth+1)); }
+    let tests: BTreeSet<_> = store
+        .symbols
+        .iter()
+        .filter(|s| s.is_test())
+        .map(|s| s.id)
+        .collect();
+    let mut callers: BTreeMap<SymbolId, BTreeSet<SymbolId>> = BTreeMap::new();
+    for (from, s) in summaries {
+        for to in &s.callees {
+            callers.entry(*to).or_default().insert(*from);
         }
-        contract.verified_by=found.into_iter().collect();
+    }
+    for contract in contracts {
+        let mut seen = BTreeSet::new();
+        let mut found = BTreeSet::new();
+        let mut queue: VecDeque<_> = contract.symbols.iter().map(|s| (*s, 0)).collect();
+        while let Some((symbol, depth)) = queue.pop_front() {
+            if !seen.insert(symbol) {
+                continue;
+            }
+            if tests.contains(&symbol) {
+                found.insert(symbol);
+            }
+            if depth >= MAX_VERIFY_DEPTH {
+                continue;
+            }
+            for caller in callers.get(&symbol).into_iter().flatten() {
+                queue.push_back((*caller, depth + 1));
+            }
+        }
+        contract.verified_by = found.into_iter().collect();
     }
 }
 
 #[cfg(test)]
 mod reachability_tests {
     use super::*;
-    use cie_semantic::facts::{SymbolFact,SymbolKind};
-    fn symbol(id:u32,kind:SymbolKind)->SymbolFact { SymbolFact { annotations: Vec::new(), id:SymbolId(id),kind,name:format!("arbitrary_{id}"),qual_name:format!("arbitrary_{id}"),loc:cie_core::SourceLocation::span_bytes(cie_core::FileId(0),0,1),lang:cie_semantic::LangId::Java,parent:None,rev:1,doc:None } }
-    fn contract()->Contract { Contract { introduced:None,verified_by:vec![],id:0,obligation:ObligationKind::MustAuthorize,expr:"requires authorization".into(),authority:Authority::Explicit,symbols:vec![SymbolId(0)],source:ContractSource::Docstring } }
+    use cie_semantic::facts::{SymbolFact, SymbolKind};
+    fn symbol(id: u32, kind: SymbolKind) -> SymbolFact {
+        SymbolFact {
+            annotations: Vec::new(),
+            id: SymbolId(id),
+            kind,
+            name: format!("arbitrary_{id}"),
+            qual_name: format!("arbitrary_{id}"),
+            loc: cie_core::SourceLocation::span_bytes(cie_core::FileId(0), 0, 1),
+            lang: cie_semantic::LangId::Java,
+            parent: None,
+            rev: 1,
+            doc: None,
+        }
+    }
+    fn contract() -> Contract {
+        Contract {
+            introduced: None,
+            verified_by: vec![],
+            id: 0,
+            obligation: ObligationKind::MustAuthorize,
+            expr: "requires authorization".into(),
+            authority: Authority::Explicit,
+            symbols: vec![SymbolId(0)],
+            source: ContractSource::Docstring,
+        }
+    }
     #[test]
     fn direct_transitive_annotation_tests_depth_cap_and_cycles() {
-        let mut symbols:Vec<_>=(0..9).map(|id|symbol(id,if [1,6,7].contains(&id){SymbolKind::Test}else{SymbolKind::Function})).collect();
-        symbols.push(symbol(20,SymbolKind::Test));
-        let store=SymbolStore::build(symbols);
-        let mut summaries=BTreeMap::new();
-        for i in 1..9 { summaries.insert(SymbolId(i),cie_summary::FunctionSummary{sym:SymbolId(i),callees:vec![SymbolId(i-1)],..Default::default()}); }
-        summaries.insert(SymbolId(0),cie_summary::FunctionSummary{sym:SymbolId(0),callees:vec![SymbolId(1)],..Default::default()});
-        let mut contracts=vec![contract()];bind_verifying_tests(&store,&summaries,&mut contracts);
-        assert_eq!(contracts[0].verified_by,vec![SymbolId(1),SymbolId(6)]);
-        contracts[0].symbols=vec![SymbolId(20)];bind_verifying_tests(&store,&BTreeMap::new(),&mut contracts);assert_eq!(contracts[0].verified_by,vec![SymbolId(20)]);
-        contracts[0].symbols=vec![SymbolId(8)];bind_verifying_tests(&store,&summaries,&mut contracts);assert!(contracts[0].verified_by.is_empty());
-        let mut wire=serde_json::to_value(&contracts[0]).unwrap();wire.as_object_mut().unwrap().remove("verified_by");wire.as_object_mut().unwrap().remove("introduced");
-        let legacy:Contract=serde_json::from_value(wire).unwrap();assert!(legacy.verified_by.is_empty());assert!(legacy.introduced.is_none());
+        let mut symbols: Vec<_> = (0..9)
+            .map(|id| {
+                symbol(
+                    id,
+                    if [1, 6, 7].contains(&id) {
+                        SymbolKind::Test
+                    } else {
+                        SymbolKind::Function
+                    },
+                )
+            })
+            .collect();
+        symbols.push(symbol(20, SymbolKind::Test));
+        let store = SymbolStore::build(symbols);
+        let mut summaries = BTreeMap::new();
+        for i in 1..9 {
+            summaries.insert(
+                SymbolId(i),
+                cie_summary::FunctionSummary {
+                    sym: SymbolId(i),
+                    callees: vec![SymbolId(i - 1)],
+                    ..Default::default()
+                },
+            );
+        }
+        summaries.insert(
+            SymbolId(0),
+            cie_summary::FunctionSummary {
+                sym: SymbolId(0),
+                callees: vec![SymbolId(1)],
+                ..Default::default()
+            },
+        );
+        let mut contracts = vec![contract()];
+        bind_verifying_tests(&store, &summaries, &mut contracts);
+        assert_eq!(contracts[0].verified_by, vec![SymbolId(1), SymbolId(6)]);
+        contracts[0].symbols = vec![SymbolId(20)];
+        bind_verifying_tests(&store, &BTreeMap::new(), &mut contracts);
+        assert_eq!(contracts[0].verified_by, vec![SymbolId(20)]);
+        contracts[0].symbols = vec![SymbolId(8)];
+        bind_verifying_tests(&store, &summaries, &mut contracts);
+        assert!(contracts[0].verified_by.is_empty());
+        let mut wire = serde_json::to_value(&contracts[0]).unwrap();
+        wire.as_object_mut().unwrap().remove("verified_by");
+        wire.as_object_mut().unwrap().remove("introduced");
+        let legacy: Contract = serde_json::from_value(wire).unwrap();
+        assert!(legacy.verified_by.is_empty());
+        assert!(legacy.introduced.is_none());
     }
 }

@@ -14,6 +14,13 @@ pub struct SummaryCacheEntry {
     /// symbol-level dirty worklist.
     #[serde(default)]
     pub symbol_keys: std::collections::BTreeMap<String, [u8; 32]>,
+    /// The file's declaration basis when saved (blake3 over the file's
+    /// non-function symbols — classes/modules/interfaces). A changed basis
+    /// on the next run poisons the file's symbol keys: the dirty worklist
+    /// recomputes them and cascades to their transitive callers. None in
+    /// snapshots saved before the field existed (serde default).
+    #[serde(default)]
+    pub decl_hash: Option<[u8; 32]>,
 }
 
 /// Summary reuse counters (TASK-030).

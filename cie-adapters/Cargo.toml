@@ -19,3 +19,4 @@ tree-sitter-javascript = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-go = { workspace = true }
 tree-sitter-rust = { workspace = true }
+cie-summary = { version = "1.2.0", path = "../cie-summary" }

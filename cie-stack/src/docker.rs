@@ -1,25 +1,24 @@
 //! Docker-awareness — read the project's own container files as written.
 
 use crate::types::{ComposeFile, ComposeService, DockerInfo, Dockerfile};
-use std::fs;
-use std::path::Path;
+use crate::CapturedInputs;
 
-/// scan the tree for Dockerfile(s) + docker-compose files
-pub fn docker_info(root: &Path, rels: &[String]) -> DockerInfo {
+/// scan the tree for Dockerfile(s) + docker-compose files; the files' text
+/// comes from the capture when the ingest walk already read them, disk otherwise
+pub(crate) fn docker_info(inputs: &CapturedInputs, rels: &[String]) -> DockerInfo {
     let mut dockerfiles: Vec<Dockerfile> = Vec::new();
     let mut compose: Option<ComposeFile> = None;
     let mut read_names: Vec<String> = Vec::new();
 
     for rel in rels {
         let base = rel.rsplit('/').next().unwrap_or(rel);
-        let path = root.join(rel);
         if is_dockerfile(base) {
-            if let Ok(src) = fs::read_to_string(&path) {
+            if let Some(src) = inputs.read_input(rel) {
                 read_names.push(rel.clone());
                 dockerfiles.push(parse_dockerfile(rel, &src));
             }
         } else if is_compose(base) {
-            if let Ok(src) = fs::read_to_string(&path) {
+            if let Some(src) = inputs.read_input(rel) {
                 read_names.push(rel.clone());
                 compose = Some(parse_compose(rel, &src));
             }

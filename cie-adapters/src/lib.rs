@@ -21,13 +21,14 @@ pub trait LanguageAdapter: Send + Sync {
     fn extract(&self, path: &str, src: &str) -> LangFacts;
 
     /// Grammar owned by this adapter; text-only adapters return None.
-    fn grammar(&self, _path: &str) -> Option<tree_sitter::Language> { None }
+    fn grammar(&self, _path: &str) -> Option<tree_sitter::Language> {
+        None
+    }
 
     /// Extract from the coordinator's tree. Text-only adapters use source directly.
     fn extract_tree(&self, path: &str, src: &str, _tree: &tree_sitter::Tree) -> LangFacts {
         self.extract(path, src)
     }
-
 
     // ---- TASK-011 semantics tables (§16.1) — data on the adapter, so rules
     // consult tables instead of hardcoding language knowledge (FR-3, global
@@ -76,7 +77,9 @@ pub trait LanguageAdapter: Send + Sync {
 }
 
 /// Error/exception model (TASK-022, §16): the table row the guard reads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 pub enum ErrorModel {
     /// raise/throw/try/catch — a completed call ESTABLISHES its effect
     /// (Python, JS/TS, Java, C++, C#, PHP).
@@ -136,9 +139,14 @@ impl SemanticsGuard {
                 .find(|(p, _)| p.ends_with(&format!(".{ext}")))
                 .map(|(p, s)| (p.clone(), s.clone()))
             else {
-                ev.assumptions
-                    .push(format!("no fixture for {ext} — admission still recorded (FR-4)"));
-                out.push(Admission { lang, fired: false, evidence: ev });
+                ev.assumptions.push(format!(
+                    "no fixture for {ext} — admission still recorded (FR-4)"
+                ));
+                out.push(Admission {
+                    lang,
+                    fired: false,
+                    evidence: ev,
+                });
                 continue;
             };
             let mut facts = adapter.extract(&path, &src);
@@ -148,8 +156,10 @@ impl SemanticsGuard {
             {
                 let mut table = cie_core::types::FileTable::new();
                 table.intern_with_source(&path, src.as_bytes());
-                let store =
-                    cie_semantic::facts::SymbolStore::build_with_files(facts.symbols.clone(), table);
+                let store = cie_semantic::facts::SymbolStore::build_with_files(
+                    facts.symbols.clone(),
+                    table,
+                );
                 resolution::resolve_project(&store, std::slice::from_mut(&mut facts));
             }
             let model = adapter.error_model();
@@ -167,7 +177,11 @@ impl SemanticsGuard {
                         "rule admitted: Raise model + resolved call ({} vouches)",
                         adapter.analyzer()
                     ));
-                    out.push(Admission { lang, fired: true, evidence: ev });
+                    out.push(Admission {
+                        lang,
+                        fired: true,
+                        evidence: ev,
+                    });
                 }
                 ErrorModel::Raise => {
                     ev.assumptions.push(format!(
@@ -180,7 +194,11 @@ impl SemanticsGuard {
                                 .push(format!("{}: {}", c.callee_text, r.clone()));
                         }
                     }
-                    out.push(Admission { lang, fired: false, evidence: ev });
+                    out.push(Admission {
+                        lang,
+                        fired: false,
+                        evidence: ev,
+                    });
                 }
                 model => {
                     ev.assumptions.push(format!(
@@ -193,7 +211,11 @@ impl SemanticsGuard {
                                 .push(format!("{}: {}", c.callee_text, r.clone()));
                         }
                     }
-                    out.push(Admission { lang, fired: false, evidence: ev });
+                    out.push(Admission {
+                        lang,
+                        fired: false,
+                        evidence: ev,
+                    });
                 }
             }
         }
@@ -391,31 +413,49 @@ pub fn extract_project(
             map.insert(local, next_id);
             next_id = SymbolId(next_id.0 + 1);
         }
-        for sym in &mut facts.symbols { sym.parent = sym.parent.map(|p| map.get(&p).copied().unwrap_or(p)); }
+        for sym in &mut facts.symbols {
+            sym.parent = sym.parent.map(|p| map.get(&p).copied().unwrap_or(p));
+        }
         rewrite(&mut facts, &map);
         symbols.append(&mut facts.symbols);
         all_facts.push(facts);
     }
 
     let store = SymbolStore::build_with_files(symbols, table.clone());
+    // Per-symbol summary seeds are derived after the global rewrite, so they
+    // already carry global ids — extraction is one event, not two. They are
+    // derived before the resolution ladder runs, matching what the streaming
+    // pass captures at put_file time: pre-join evidence of unresolved sites.
+    let seeds: Vec<Vec<cie_summary::SummarySeed>> = all_facts
+        .iter()
+        .map(cie_summary::seed::summary_seeds)
+        .collect();
+
     resolution::resolve_project(&store, &mut all_facts);
 
     ExtractedProject {
         store,
+        seeds,
         per_file: all_facts,
         files: table,
     }
 }
 
 /// Assemble streamed local facts in path order, then resolve project references.
-/// Source buffers and syntax trees have already been released.
-pub fn assemble_facts(mut files: Vec<(LangFacts, Vec<u32>)>) -> ExtractedProject {
+/// Source buffers and syntax trees have already been released. `seeded` is the
+/// per-file summary seeds captured by the file-holding pass (still carrying
+/// local symbol ids); they are rewritten to global ids with the same map that
+/// rewrites the facts.
+pub fn assemble_facts(
+    mut files: Vec<(LangFacts, Vec<u32>, Vec<cie_summary::SummarySeed>)>,
+) -> ExtractedProject {
     files.sort_by(|a, b| a.0.path.cmp(&b.0.path));
     let mut table = FileTable::new();
     let mut symbols = Vec::new();
     let mut all_facts = Vec::new();
+    let mut seeds = Vec::new();
     let mut next_id = SymbolId(0);
-    for (mut facts, lines) in files {
+    for (mut facts, lines, mut file_seeds) in files {
         let fid = table.intern(facts.path.clone());
         table.line_starts[fid.0 as usize] = lines;
         let mut ids = BTreeMap::new();
@@ -425,18 +465,35 @@ pub fn assemble_facts(mut files: Vec<(LangFacts, Vec<u32>)>) -> ExtractedProject
             sym.loc.file = fid;
             next_id.0 += 1;
         }
-        for sym in &mut facts.symbols { sym.parent = sym.parent.map(|p| ids.get(&p).copied().unwrap_or(p)); }
+        for sym in &mut facts.symbols {
+            sym.parent = sym.parent.map(|p| ids.get(&p).copied().unwrap_or(p));
+        }
         rewrite(&mut facts, &ids);
+        for s in file_seeds.iter_mut() {
+            if let Some(global) = ids.get(&s.sym) {
+                s.sym = *global;
+            }
+        }
         symbols.append(&mut facts.symbols);
+        seeds.push(file_seeds);
         all_facts.push(facts);
     }
     let store = SymbolStore::build_with_files(symbols, table.clone());
     resolution::resolve_project(&store, &mut all_facts);
-    ExtractedProject { store, per_file: all_facts, files: table }
+    ExtractedProject {
+        store,
+        seeds,
+        per_file: all_facts,
+        files: table,
+    }
 }
 
 pub struct ExtractedProject {
     pub store: SymbolStore,
+    /// Per-file per-symbol summary seeds (global symbol ids), aligned with
+    /// `per_file` by index. Captured by the file-holding pass; consumed by
+    /// the summary stage for the file-local summary fields.
+    pub seeds: Vec<Vec<cie_summary::SummarySeed>>,
     pub per_file: Vec<LangFacts>,
     /// File table for the pass (path + line index per FileId).
     pub files: FileTable,

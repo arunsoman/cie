@@ -1,28 +1,28 @@
 //! cie-analysis — the L4 analysis layer: behavior, conformance, security,
 //! testing, concepts/hierarchy and drift, plus the orchestration engine.
 
-pub mod deps;
-pub mod beliefs;
-pub mod behavior;
-pub mod receiver;
 pub mod alternatives;
+pub mod behavior;
+pub mod beliefs;
 pub mod concurrency;
-pub mod focus;
+pub mod conformance;
+pub mod deps;
 pub mod endpoints;
+pub mod fca;
+pub mod focus;
 pub mod impact_dims;
-pub mod query;
 pub mod pathcond;
 pub mod predicates;
-pub mod conformance;
-pub mod fca;
+pub mod query;
+pub mod receiver;
 pub use cie_contract::findings;
+pub use pathcond::{Cmp, PathCond, PathCondExtraction, PathCondition, Pred};
 pub use steps::{transaction_walk, StepKind, TransactionStep, TransactionWalk};
-pub use pathcond::{PathCond, PathCondition, PathCondExtraction, Pred, Cmp};
 pub mod hierarchy;
 pub mod ifds;
 pub mod risk;
-pub mod steps;
 pub mod security;
+pub mod steps;
 pub mod testing;
 
 use crate::findings::Finding;
@@ -72,7 +72,7 @@ pub fn analyze(
     label_fn: hierarchy::LabelFn,
     reuse: Option<&behavior::ReusePlan>,
 ) -> AnalysisOutput {
-    analyze_with_history(store, per_file, rev, cfg, label_fn, reuse, None, None)
+    analyze_with_history(store, per_file, rev, cfg, label_fn, reuse, None, None, None)
 }
 
 pub fn analyze_with_history(
@@ -84,11 +84,15 @@ pub fn analyze_with_history(
     reuse: Option<&behavior::ReusePlan>,
     history_root: Option<&std::path::Path>,
     stack: Option<&cie_stack::types::StackReport>,
+    // Per-file per-symbol summary seeds from the file-holding pass, aligned
+    // with `per_file` by index. `None`/empty → fallback derivation.
+    seeds: Option<&[Vec<cie_summary::SummarySeed>]>,
 ) -> AnalysisOutput {
     let start = cie_core::types::now_ns();
 
     // L4 stage 1: behavior extraction (TASK-030: reuse where deps unchanged).
-    let beh = behavior::compute_summaries_with_reuse(store, per_file, rev, cfg.deadline_ns, reuse);
+    let beh =
+        behavior::compute_summaries_with_reuse(store, per_file, rev, cfg.deadline_ns, reuse, seeds);
     let callees_of: BTreeMap<SymbolId, Vec<SymbolId>> = beh
         .summaries
         .iter()
@@ -124,7 +128,7 @@ pub fn analyze_with_history(
             continue;
         }
         findings.push(Finding {
-                introduced: None,
+            introduced: None,
             id: format!("F-{rev}-D{:04}", findings.len() + 1),
             kind: crate::findings::FindingKind::DeadCode,
             severity: crate::findings::FindingKind::DeadCode.default_severity(),

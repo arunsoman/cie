@@ -3,6 +3,7 @@
 //! Every claim names the file that grounded it.
 
 use crate::types::BuildInfo;
+use crate::CapturedInputs;
 use regex::Regex;
 use std::fs;
 use std::path::Path;
@@ -42,7 +43,8 @@ pub struct AppDet {
 }
 
 /// walk the tree and collect every application manifest (bounded)
-fn find_apps(root: &Path) -> Vec<AppDet> {
+fn find_apps(inputs: &CapturedInputs) -> Vec<AppDet> {
+    let root = inputs.root;
     let mut out: Vec<AppDet> = vec![];
     let mut stack = vec![(root.to_path_buf(), String::new())];
     let mut visited = 0usize;
@@ -67,7 +69,7 @@ fn find_apps(root: &Path) -> Vec<AppDet> {
                 continue;
             }
             let rel_manifest = if rel_dir.is_empty() { name.clone() } else { format!("{rel_dir}/{name}") };
-            let app = app_from_manifest(&name, &rel_manifest, &path);
+            let app = app_from_manifest(&name, &rel_manifest, inputs);
             if let Some(app) = app {
                 out.push(app);
             }
@@ -77,8 +79,9 @@ fn find_apps(root: &Path) -> Vec<AppDet> {
     out
 }
 
-/// classify ONE manifest file into an app descriptor (or None)
-fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppDet> {
+/// classify ONE manifest file into an app descriptor (or None). The file's
+/// text comes from the capture when the walk already read it, disk otherwise.
+fn app_from_manifest(base: &str, rel_manifest: &str, inputs: &CapturedInputs) -> Option<AppDet> {
     let dir = std::path::Path::new(rel_manifest)
         .parent()
         .filter(|p| p.as_os_str() != ".")
@@ -86,10 +89,10 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
         .unwrap_or_default();
     match base {
         "pom.xml" | "build.gradle" | "build.gradle.kts" => {
-            let text = fs::read_to_string(path).ok()?;
+            let text = inputs.read_input(rel_manifest)?;
             let is_spring = text.contains("spring-boot-starter") || text.contains("springframework") || text.contains("spring-boot");
             let build = if base == "pom.xml" { "maven" } else { "gradle" }.to_string();
-            let name = crate::detect::manifest_name(&base, &rel_manifest, path, &text);
+            let name = crate::detect::manifest_name(base, rel_manifest, &text);
             Some(AppDet {
                 dir: dir.clone(),
                 name,
@@ -101,7 +104,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             })
         }
         "Cargo.toml" => {
-            let text = fs::read_to_string(path).ok()?;
+            let text = inputs.read_input(rel_manifest)?;
             let framework = if text.contains("axum") {
                 "axum"
             } else if text.contains("actix-web") {
@@ -113,7 +116,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             };
             Some(AppDet {
                 dir: dir.clone(),
-                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                name: crate::detect::manifest_name(base, rel_manifest, &text),
                 build: "cargo".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
@@ -126,7 +129,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             if rel_manifest.contains("node_modules") || rel_manifest.contains("dist/") {
                 return None;
             }
-            let text = fs::read_to_string(path).ok()?;
+            let text = inputs.read_input(rel_manifest)?;
             let framework = if text.contains(r#""express""#) {
                 "express"
             } else if text.contains(r#""fastify""#) {
@@ -136,7 +139,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             };
             Some(AppDet {
                 dir: dir.clone(),
-                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                name: crate::detect::manifest_name(base, rel_manifest, &text),
                 build: "npm".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
@@ -145,7 +148,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             })
         }
         "requirements.txt" | "pyproject.toml" => {
-            let text = fs::read_to_string(path).ok()?;
+            let text = inputs.read_input(rel_manifest)?;
             let framework = if text.contains("fastapi") {
                 "fastapi"
             } else if text.contains("flask") {
@@ -155,7 +158,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             };
             Some(AppDet {
                 dir: dir.clone(),
-                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                name: crate::detect::manifest_name(base, rel_manifest, &text),
                 build: "python".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
@@ -164,7 +167,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             })
         }
         "go.mod" => {
-            let text = fs::read_to_string(path).ok()?;
+            let text = inputs.read_input(rel_manifest)?;
             let framework = if text.contains("gin-gonic") {
                 "gin"
             } else if text.contains("echo") {
@@ -174,7 +177,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
             };
             Some(AppDet {
                 dir: dir.clone(),
-                name: crate::detect::manifest_name(&base, &rel_manifest, path, &text),
+                name: crate::detect::manifest_name(base, rel_manifest, &text),
                 build: "go".into(),
                 framework: framework.into(),
                 evidence: rel_manifest.to_string(),
@@ -187,7 +190,7 @@ fn app_from_manifest(base: &str, rel_manifest: &str, path: &Path) -> Option<AppD
 }
 
 /// the app name: artifact/name in the manifest, else the dir's own name
-fn manifest_name(_base: &str, rel_manifest: &str, _path: &Path, text: &str) -> String {
+fn manifest_name(_base: &str, rel_manifest: &str, text: &str) -> String {
     let art = Regex::new(r#"^\s*name\s*=\s*"([^"]+)""#).ok();
     if rel_manifest.ends_with("Cargo.toml") || rel_manifest.ends_with("pyproject.toml") {
         if let Some(re) = art {
@@ -254,10 +257,11 @@ fn merge_same_root(apps: Vec<AppDet>) -> Vec<AppDet> {
     out
 }
 
-/// what the build tool files at the project root say
-pub fn detect(root: &Path) -> Detect {
+/// what the build files say — over a capture when given, disk otherwise
+pub(crate) fn detect_with(inputs: &CapturedInputs) -> Detect {
+    let root = inputs.root;
     let mut d = Detect::default();
-    d.apps = merge_same_root(find_apps(root));
+    d.apps = merge_same_root(find_apps(inputs));
     // root-manifest spring gates on the REAL jvm files (is_jvm checks counts)
     for app in d.apps.iter_mut() {
         if app.framework == "spring" && !app.dir.is_empty() {
@@ -277,14 +281,10 @@ pub fn detect(root: &Path) -> Detect {
     let _ = dir_has_jvm("");
 
     let mut read = |name: &str| -> Option<String> {
-        let p = root.join(name);
-        match fs::read_to_string(&p) {
-            Ok(s) => {
-                d.manifests_read.push(name.to_string());
-                Some(s)
-            }
-            Err(_) => None,
-        }
+        inputs.read_input(name).map(|s| {
+            d.manifests_read.push(name.to_string());
+            s
+        })
     };
 
     let module_re = Regex::new(r"<module>([^<]+)</module>").unwrap();

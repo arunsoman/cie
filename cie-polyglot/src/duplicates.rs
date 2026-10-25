@@ -41,7 +41,7 @@
 //! tests is canonical; the winner is computed over the whole pair set and
 //! marked `isCanonical`, so the visual can swap sides without re-detecting.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::Connection;
 
@@ -80,40 +80,69 @@ pub fn create_dup_schema(conn: &Connection) -> Result<(), String> {
 /// Persist connected components of canonical duplicate edges. Similarity
 /// inferences never enter these exact-IR-hash families. Memory is O(symbols),
 /// and pairs are streamed from SQLite rather than collected in the browser.
-pub fn cluster_canonical(conn: &Connection) -> Result<usize,String> {
-    fn find(parent: &mut std::collections::BTreeMap<i64,i64>, x:i64)->i64 {
-        let mut root=x;
-        while parent[&root]!=root {root=parent[&root];}
-        let mut cur=x;
-        while parent[&cur]!=root {let next=parent[&cur];parent.insert(cur,root);cur=next;}
+pub fn cluster_canonical(conn: &Connection) -> Result<usize, String> {
+    fn find(parent: &mut std::collections::BTreeMap<i64, i64>, x: i64) -> i64 {
+        let mut root = x;
+        while parent[&root] != root {
+            root = parent[&root];
+        }
+        let mut cur = x;
+        while parent[&cur] != root {
+            let next = parent[&cur];
+            parent.insert(cur, root);
+            cur = next;
+        }
         root
     }
-    let mut parent=std::collections::BTreeMap::new();
-    let mut sizes=std::collections::BTreeMap::new();
+    let mut parent = std::collections::BTreeMap::new();
+    let mut sizes = std::collections::BTreeMap::new();
     {
-        let mut q=conn.prepare("SELECT symbol_a,symbol_b FROM duplicates WHERE tier='canonical' ORDER BY id").map_err(|e|e.to_string())?;
-        let rows=q.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?))).map_err(|e|e.to_string())?;
+        let mut q = conn
+            .prepare("SELECT symbol_a,symbol_b FROM duplicates WHERE tier='canonical' ORDER BY id")
+            .map_err(|e| e.to_string())?;
+        let rows = q
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
+            .map_err(|e| e.to_string())?;
         for row in rows {
-            let (a,b)=row.map_err(|e|e.to_string())?;
-            parent.entry(a).or_insert(a);parent.entry(b).or_insert(b);
-            sizes.entry(a).or_insert(1usize);sizes.entry(b).or_insert(1usize);
-            let mut a=find(&mut parent,a);let mut b=find(&mut parent,b);
-            if a!=b {if sizes[&a]<sizes[&b]{std::mem::swap(&mut a,&mut b);}parent.insert(b,a);let count=sizes[&b];*sizes.get_mut(&a).unwrap()+=count;}
+            let (a, b) = row.map_err(|e| e.to_string())?;
+            parent.entry(a).or_insert(a);
+            parent.entry(b).or_insert(b);
+            sizes.entry(a).or_insert(1usize);
+            sizes.entry(b).or_insert(1usize);
+            let mut a = find(&mut parent, a);
+            let mut b = find(&mut parent, b);
+            if a != b {
+                if sizes[&a] < sizes[&b] {
+                    std::mem::swap(&mut a, &mut b);
+                }
+                parent.insert(b, a);
+                let count = sizes[&b];
+                *sizes.get_mut(&a).unwrap() += count;
+            }
         }
     }
-    let keys:Vec<_>=parent.keys().copied().collect();
-    let mut groups:std::collections::BTreeMap<i64,Vec<i64>>=std::collections::BTreeMap::new();
-    for id in keys {groups.entry(find(&mut parent,id)).or_default().push(id);}
-    let tx=conn.unchecked_transaction().map_err(|e|e.to_string())?;
-    tx.execute("DELETE FROM duplicate_clusters",[]).map_err(|e|e.to_string())?;
+    let keys: Vec<_> = parent.keys().copied().collect();
+    let mut groups: std::collections::BTreeMap<i64, Vec<i64>> = std::collections::BTreeMap::new();
+    for id in keys {
+        groups.entry(find(&mut parent, id)).or_default().push(id);
+    }
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM duplicate_clusters", [])
+        .map_err(|e| e.to_string())?;
     {
-        let mut insert=tx.prepare("INSERT INTO duplicate_clusters VALUES (?1,?2,?3)").map_err(|e|e.to_string())?;
+        let mut insert = tx
+            .prepare("INSERT INTO duplicate_clusters VALUES (?1,?2,?3)")
+            .map_err(|e| e.to_string())?;
         for members in groups.values() {
-            let cluster=members[0];
-            for (ordinal,id) in members.iter().enumerate(){insert.execute(rusqlite::params![cluster,id,ordinal as i64]).map_err(|e|e.to_string())?;}
+            let cluster = members[0];
+            for (ordinal, id) in members.iter().enumerate() {
+                insert
+                    .execute(rusqlite::params![cluster, id, ordinal as i64])
+                    .map_err(|e| e.to_string())?;
+            }
         }
     }
-    tx.commit().map_err(|e|e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(groups.len())
 }
 
@@ -138,105 +167,12 @@ pub struct DupReport {
 }
 
 // ---------------------------------------------------------------------------
-// Detection engine — threshold all-pairs cosine over a dense op-bag space
+// (removed) the old all-pairs cosine engine over dense op-bag space — the
+// threshold constants, the scan-abort slack and the dense `Bag` had no caller
+// left in production once detection moved to jscpd's token windows (commit
+// 5267564); only the test oracle below still consults op-bags, and it does
+// so with its own brute-force cosine, self-contained in the test module.
 // ---------------------------------------------------------------------------
-
-/// The low tier floor (§23.2): pairs below this similarity are hidden pairs.
-/// They are counted per symbol in `duplicate_gaps`, never materialized —
-/// the brute-force reference wrote one row per hidden pair (O(n²) rows for
-/// output that is only ever read as per-symbol counts).
-const LOW_FLOOR: f64 = 0.40;
-
-/// Slack for the scan-abort bound: the remainder mass is a floating-point
-/// upper estimate, so the abort is padded by far more than any summation
-/// error (~1 ulp) — an abort can only ever be a few dims LATER than the
-/// exact bound, never earlier. It can never cause a missed pair.
-const ABORT_SLACK: f64 = 1e-9;
-
-/// One symbol's op-bag in the dense shared vocabulary. Dims are the globally
-/// sorted op names, so ascending dim id == ascending string key — the exact
-/// iteration order the brute-force `BTreeMap` cosine used. Combined with
-/// norms being `sqrt` of the same sums (correctly rounded ⇒ precomputing is
-/// bit-identical to recomputing per pair), every similarity this module
-/// reports is bit-identical to a full brute-force pass.
-struct Bag {
-    dims: Vec<u32>,
-    vals: Vec<u32>,
-    norm: f64,
-}
-
-impl Bag {
-    fn build(bag: &BTreeMap<String, u32>, dim_of: &HashMap<&str, u32>) -> Bag {
-        // BTreeMap iteration is ascending by string key; dim ids were assigned
-        // in sorted-name order, so the vec comes out sorted by dim already.
-        let pairs: Vec<(u32, u32)> = bag
-            .iter()
-            .map(|(k, v)| (dim_of[k.as_str()], *v))
-            .collect();
-        let mut sum_sq = 0f64;
-        let mut dims = Vec::with_capacity(pairs.len());
-        let mut vals = Vec::with_capacity(pairs.len());
-        for (d, v) in pairs {
-            let x = v as f64;
-            sum_sq += x * x;
-            dims.push(d);
-            vals.push(v);
-        }
-        Bag { dims, vals, norm: sum_sq.sqrt() }
-    }
-
-    /// Exact cosine, op-for-op the brute-force computation. Both dim arrays
-    /// are ascending, so a two-pointer merge visits the shared dims in the
-    /// same ascending (== string) order the old per-dim `binary_search` did:
-    /// the hit sequence, every term `(a_d as f64) * (b_d as f64)` and the
-    /// accumulation order are identical, so the dot is bit-identical to the
-    /// brute-force `BTreeMap` cosine — but O(dims_a + dims_b) sequential
-    /// instead of O(dims_a · log dims_b) with a random probe per dim.
-    fn cosine(&self, other: &Bag) -> f64 {
-        if self.norm == 0.0 || other.norm == 0.0 {
-            return 0.0;
-        }
-        let mut dot = 0f64;
-        let (mut i, mut j) = (0usize, 0usize);
-        while i < self.dims.len() && j < other.dims.len() {
-            match self.dims[i].cmp(&other.dims[j]) {
-                std::cmp::Ordering::Less => i += 1,
-                std::cmp::Ordering::Greater => j += 1,
-                std::cmp::Ordering::Equal => {
-                    dot += (self.vals[i] as f64) * (other.vals[j] as f64);
-                    i += 1;
-                    j += 1;
-                }
-            }
-        }
-        dot / (self.norm * other.norm)
-    }
-}
-
-fn load_ir_meta(conn: &Connection) -> Result<BTreeMap<i64, (Vec<u8>, BTreeMap<String, u32>)>, String> {
-    let mut stmt = conn
-        .prepare("SELECT symbol_id, ir_hash, ir_vec FROM ir_meta")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                r.get::<_, Vec<u8>>(1)?,
-                r.get::<_, Vec<u8>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-    drop(stmt);
-    let mut out = BTreeMap::new();
-    for (sid, hash, vec_bytes) in rows {
-        let vec = String::from_utf8(vec_bytes).map_err(|e| e.to_string())?;
-        let v: BTreeMap<String, u32> = serde_json::from_str(&vec).map_err(|e| e.to_string())?;
-        out.insert(sid, (hash, v));
-    }
-    Ok(out)
-}
 
 /// The §23.2 tier ladder, as one fixed table: a row's `(tier, detection,
 /// epistemic, counter_argument)` is fully determined by its outcome, so the
@@ -297,37 +233,6 @@ fn kind_excluded(a: u8, b: u8) -> bool {
     (is_container(a) && is_member(b)) || (is_member(a) && is_container(b))
 }
 
-/// Byte spans for the ir_meta id set, aligned with the `ids` order:
-/// `(file_id, start_byte, end_byte)`. A symbol whose row is missing
-/// (impossible for ir_meta ids — start/end are NOT NULL — but defensive)
-/// gets the `(0, 0, 0)` sentinel: file ids start at 1, so it can never nest
-/// against a real span, and two sentinels are identical spans, which are
-/// not strict containment either.
-fn load_spans(conn: &Connection, ids: &[i64]) -> Result<Vec<(i64, i64, i64)>, String> {
-    let mut stmt = conn
-        .prepare("SELECT id, file_id, start_byte, end_byte FROM symbols")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                (
-                    r.get::<_, i64>(1)?,
-                    r.get::<_, i64>(2)?,
-                    r.get::<_, i64>(3)?,
-                ),
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<BTreeMap<i64, (i64, i64, i64)>, _>>()
-        .map_err(|e| e.to_string())?;
-    drop(stmt);
-    Ok(ids
-        .iter()
-        .map(|s| rows.get(s).copied().unwrap_or((0, 0, 0)))
-        .collect())
-}
-
 /// True when one span strictly contains the other in the same file: the
 /// inner symbol's text is part of the outer's, so the outer's op-bag is a
 /// superset of the inner's by construction. Identical spans are NOT
@@ -339,26 +244,7 @@ fn span_nested(a: (i64, i64, i64), b: (i64, i64, i64)) -> bool {
     }
     let (sa, ea) = (a.1, a.2);
     let (sb, eb) = (b.1, b.2);
-    (sa <= sb && eb <= ea && (sa < sb || eb < ea))
-        || (sb <= sa && ea <= eb && (sb < sa || ea < eb))
-}
-
-/// Symbol kinds for the ir_meta id set, aligned with the `ids` order.
-fn load_kinds(conn: &Connection, ids: &[i64]) -> Result<Vec<u8>, String> {
-    let mut stmt = conn
-        .prepare("SELECT id, kind FROM symbols")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
-        .map_err(|e| e.to_string())?
-        .collect::<Result<BTreeMap<i64, String>, _>>()
-        .map_err(|e| e.to_string())?;
-    drop(stmt);
-    let kinds = rows;
-    Ok(ids
-        .iter()
-        .map(|s| kinds.get(s).map(|k| kind_code(k)).unwrap_or(K_OTHER))
-        .collect())
+    (sa <= sb && eb <= ea && (sa < sb || eb < ea)) || (sb <= sa && ea <= eb && (sb < sa || ea < eb))
 }
 
 /// Rows per multi-row INSERT. 512 × 4 params = 2048 bound parameters, well
@@ -440,7 +326,11 @@ impl<'a> FkGuard<'a> {
             conn.pragma_update(None, "foreign_keys", false)
                 .map_err(|e| e.to_string())?;
         }
-        Ok(FkGuard { conn, was_on, armed: true })
+        Ok(FkGuard {
+            conn,
+            was_on,
+            armed: true,
+        })
     }
 }
 
@@ -512,7 +402,12 @@ pub fn detect_with_progress(
             let (id, file_id, start, end, kind, lang) = row.map_err(|e| e.to_string())?;
             syms.insert(
                 id,
-                SymInfo { file_id, start, end, kind: kind_code(&kind) },
+                SymInfo {
+                    file_id,
+                    start,
+                    end,
+                    kind: kind_code(&kind),
+                },
             );
             languages.insert(id, lang);
         }
@@ -527,9 +422,18 @@ pub fn detect_with_progress(
     // is used only for the tiered Inference tiers below.
     let mut hashes: BTreeMap<i64, Vec<u8>> = BTreeMap::new();
     {
-        let mut query = conn.prepare("SELECT symbol_id,ir_hash FROM ir_meta").map_err(|e|e.to_string())?;
-        let rows = query.query_map([], |r| Ok((r.get::<_,i64>(0)?,r.get::<_,Vec<u8>>(1)?))).map_err(|e|e.to_string())?;
-        for row in rows { let (id,hash)=row.map_err(|e|e.to_string())?;if hash.len()==32 {hashes.insert(id,hash);} }
+        let mut query = conn
+            .prepare("SELECT symbol_id,ir_hash FROM ir_meta")
+            .map_err(|e| e.to_string())?;
+        let rows = query
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (id, hash) = row.map_err(|e| e.to_string())?;
+            if hash.len() == 32 {
+                hashes.insert(id, hash);
+            }
+        }
     }
 
     progress("Discovering canonical (IR-hash) duplicate pairs…");
@@ -579,7 +483,11 @@ pub fn detect_with_progress(
             .map_err(|e| e.to_string())?;
         let rows = stmt
             .query_map([], |r| {
-                Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, Vec<u8>>(2)?))
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, Vec<u8>>(2)?,
+                ))
             })
             .map_err(|e| e.to_string())?;
         for row in rows {
@@ -601,7 +509,9 @@ pub fn detect_with_progress(
     let mut jscpd_files: Vec<jscpd_rs::SourceFile> = Vec::with_capacity(syms.len());
     let mut line_count: BTreeMap<i64, usize> = BTreeMap::new();
     for (&id, info) in &syms {
-        let Some(text) = file_text.get(&info.file_id) else { continue };
+        let Some(text) = file_text.get(&info.file_id) else {
+            continue;
+        };
         let bytes = text.as_bytes();
         let (start, end) = (info.start as usize, info.end as usize);
         if end > bytes.len() || start >= end {
@@ -691,9 +601,7 @@ pub fn detect_with_progress(
         // Insert exhaustive canonical (IR-hash) pairs first.
         for &(lo, hi) in &canonical_pairs {
             report.canonical_hash += 1;
-            feed_row(&mut full, &mut pending, &mut buf,
-                lo, hi, 1.0, C_CANONICAL,
-            )?;
+            feed_row(&mut full, &mut pending, &mut buf, lo, hi, 1.0, C_CANONICAL)?;
         }
 
         for clone in &result.clones {
@@ -712,7 +620,10 @@ pub fn detect_with_progress(
             if kind_excluded(sa.kind, sb.kind) {
                 continue;
             }
-            if span_nested((sa.file_id, sa.start, sa.end), (sb.file_id, sb.start, sb.end)) {
+            if span_nested(
+                (sa.file_id, sa.start, sa.end),
+                (sb.file_id, sb.start, sb.end),
+            ) {
                 continue;
             }
             let (lo, hi) = (a_id.min(b_id), a_id.max(b_id));
@@ -746,10 +657,14 @@ pub fn detect_with_progress(
             let mut tail = tx.prepare(&tail_sql).map_err(|e| e.to_string())?;
             for (i, &(a, b, sim, combo)) in buf.iter().enumerate() {
                 let base = 4 * i;
-                tail.raw_bind_parameter(base + 1, a).map_err(|e| e.to_string())?;
-                tail.raw_bind_parameter(base + 2, b).map_err(|e| e.to_string())?;
-                tail.raw_bind_parameter(base + 3, sim).map_err(|e| e.to_string())?;
-                tail.raw_bind_parameter(base + 4, combo as i64).map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 1, a)
+                    .map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 2, b)
+                    .map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 3, sim)
+                    .map_err(|e| e.to_string())?;
+                tail.raw_bind_parameter(base + 4, combo as i64)
+                    .map_err(|e| e.to_string())?;
             }
             tail.raw_execute().map_err(|e| e.to_string())?;
         }
@@ -759,10 +674,13 @@ pub fn detect_with_progress(
         // compared every pair the way the old cosine scan did, so there is
         // no honest "hidden below floor" count to report per symbol.
         let mut gap = tx
-            .prepare("INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, 0)")
+            .prepare(
+                "INSERT OR REPLACE INTO duplicate_gaps(symbol_id, hidden_count) VALUES (?1, 0)",
+            )
             .map_err(|e| e.to_string())?;
         for &id in syms.keys() {
-            gap.execute(rusqlite::params![id]).map_err(|e| e.to_string())?;
+            gap.execute(rusqlite::params![id])
+                .map_err(|e| e.to_string())?;
         }
     }
     tx.commit().map_err(|e| e.to_string())?;
@@ -801,10 +719,14 @@ fn feed_row(
     combo: u8,
 ) -> Result<(), String> {
     let base = *pending * 4;
-    ins.raw_bind_parameter(base + 1, a).map_err(|e| e.to_string())?;
-    ins.raw_bind_parameter(base + 2, b).map_err(|e| e.to_string())?;
-    ins.raw_bind_parameter(base + 3, sim).map_err(|e| e.to_string())?;
-    ins.raw_bind_parameter(base + 4, combo as i64).map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 1, a)
+        .map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 2, b)
+        .map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 3, sim)
+        .map_err(|e| e.to_string())?;
+    ins.raw_bind_parameter(base + 4, combo as i64)
+        .map_err(|e| e.to_string())?;
     buf.push((a, b, sim, combo));
     *pending += 1;
     if *pending == CHUNK_ROWS {
@@ -857,16 +779,13 @@ fn canonical_winner(conn: &Connection, ids: &[i64]) -> Result<Option<i64>, Strin
             tests.insert(s, cnt);
         }
     }
-    Ok(ids
-        .iter()
-        .copied()
-        .max_by_key(|s| {
-            (
-                callers.get(s).copied().unwrap_or(0),
-                tests.get(s).copied().unwrap_or(0),
-                std::cmp::Reverse(*s),
-            )
-        }))
+    Ok(ids.iter().copied().max_by_key(|s| {
+        (
+            callers.get(s).copied().unwrap_or(0),
+            tests.get(s).copied().unwrap_or(0),
+            std::cmp::Reverse(*s),
+        )
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -876,9 +795,11 @@ fn canonical_winner(conn: &Connection, ids: &[i64]) -> Result<Option<i64>, Strin
 /// Build the impact+duplicates ViewSpec for one center symbol.
 pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, String> {
     let name = |sid: i64| -> String {
-        conn.query_row("SELECT qual_name FROM symbols WHERE id = ?1", rusqlite::params![sid], |r| {
-            r.get::<_, String>(0)
-        })
+        conn.query_row(
+            "SELECT qual_name FROM symbols WHERE id = ?1",
+            rusqlite::params![sid],
+            |r| r.get::<_, String>(0),
+        )
         .unwrap_or_else(|_| format!("symbol {sid}"))
     };
     // byte-span evidence (the TS EvidenceRef contract): a symbol cites the
@@ -985,7 +906,11 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
             .map_err(|e| e.to_string())?;
         for (a, b, sim, tier, detection, epi, canon, counter) in rows {
             let other = if a == center { b } else { a };
-            let drift = if sim < 1.0 && tier == "high" { "diverged" } else { "same" };
+            let drift = if sim < 1.0 && tier == "high" {
+                "diverged"
+            } else {
+                "same"
+            };
             let mut el = json!({
                 "id": format!("dup{other}"),
                 "elementKind": "symbol",
@@ -1003,7 +928,8 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
                 el["claimId"] = json!(format!("C-DUP-{center}"));
             }
             if epi == "Hypothesis" {
-                el["counterArgument"] = json!(counter.unwrap_or_else(|| "similarity only".to_string()));
+                el["counterArgument"] =
+                    json!(counter.unwrap_or_else(|| "similarity only".to_string()));
             }
             if drift == "diverged" {
                 el["fields"]["drift"] = json!("diverged");
@@ -1090,7 +1016,7 @@ pub fn impact_duplicate_spec(conn: &Connection, center: i64) -> Result<Value, St
     let spec = json!({
         "elements": elements,
         "edges": edges,
-        "footer": { "epistemic": "Fact", "note": "impact rings from resolved call edges; duplicates from ir hash/cosine tiers (§23.2)" },
+        "footer": { "epistemic": "Fact", "note": "impact rings from resolved call edges; duplicates from ir-hash and jscpd token tiers (§23.2 as amended)" },
         "gaps": gaps,
         "hidden": [],
         "scope": { "artifact": "impact-duplicates", "center": center },
@@ -1106,6 +1032,117 @@ mod tests {
     use crate::ir::{cache_source_bytes, create_ir_schema, lower_all};
     use crate::schema::{create_schema, ingest_parsed_file, IngestStats, Lang};
     use rusqlite::Connection;
+
+    type OpBags = BTreeMap<i64, (Vec<u8>, BTreeMap<String, u32>)>;
+
+    /// op-bag builder for the brute-force reference engine below, RECOMPUTED
+    /// from the persisted raw ops and edges: the ir_vec carrier was retired
+    /// (jscpd replaced the cosine ladder it fed), and deriving from the raw
+    /// tables keeps the oracle independent of what the store chooses to carry.
+    /// Same semantics as the former in-memory bag: op counts per symbol plus
+    /// an `@edges` entry holding the symbol's CFG edge count.
+    fn load_ir_meta(conn: &Connection) -> Result<OpBags, String> {
+        let mut bags: BTreeMap<i64, BTreeMap<String, u32>> = BTreeMap::new();
+        {
+            let mut q = conn
+                .prepare(
+                    "SELECT b.symbol_id, i.op FROM ir_instructions i \
+                     JOIN ir_blocks b ON b.id = i.block_id",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows = q
+                .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+                .map_err(|e| e.to_string())?;
+            for row in rows {
+                let (sid, op) = row.map_err(|e| e.to_string())?;
+                *bags.entry(sid).or_default().entry(op).or_insert(0) += 1;
+            }
+        }
+        {
+            let mut q = conn
+                .prepare(
+                    "SELECT b.symbol_id, COUNT(*) FROM ir_edges e \
+                     JOIN ir_blocks b ON b.id = e.from_block_id GROUP BY b.symbol_id",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows = q
+                .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
+                .map_err(|e| e.to_string())?;
+            for row in rows {
+                let (sid, n) = row.map_err(|e| e.to_string())?;
+                bags.entry(sid)
+                    .or_default()
+                    .insert("@edges".into(), n as u32);
+            }
+        }
+        // symbols with no instructions still need a (hash, empty-bag) entry —
+        // the brute engine iterates every ir_meta id.
+        let mut q = conn
+            .prepare("SELECT symbol_id, ir_hash FROM ir_meta")
+            .map_err(|e| e.to_string())?;
+        let rows = q
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let mut pairs: BTreeMap<i64, Vec<u8>> = rows.into_iter().collect();
+        let mut out = bags
+            .into_iter()
+            .map(|(sid, bag)| {
+                let hash = pairs.remove(&sid).unwrap_or_default();
+                (sid, (hash, bag))
+            })
+            .collect::<BTreeMap<i64, (Vec<u8>, BTreeMap<String, u32>)>>();
+        for (sid, hash) in pairs {
+            out.insert(sid, (hash, BTreeMap::new()));
+        }
+        Ok(out)
+    }
+
+    /// The brute-force reference's span loader: spans for the ir_meta id
+    /// set, in `ids` order. A missing row gets the `(0,0,0)` sentinel —
+    /// file ids start at 1, so sentinels can never nest against real spans.
+    fn load_spans(conn: &Connection, ids: &[i64]) -> Result<Vec<(i64, i64, i64)>, String> {
+        let mut stmt = conn
+            .prepare("SELECT id, file_id, start_byte, end_byte FROM symbols")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    (
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, i64>(3)?,
+                    ),
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<BTreeMap<i64, (i64, i64, i64)>, _>>()
+            .map_err(|e| e.to_string())?;
+        drop(stmt);
+        Ok(ids
+            .iter()
+            .map(|s| rows.get(s).copied().unwrap_or((0, 0, 0)))
+            .collect())
+    }
+
+    /// The brute-force reference's kind loader, `ids` order.
+    fn load_kinds(conn: &Connection, ids: &[i64]) -> Result<Vec<u8>, String> {
+        let mut stmt = conn
+            .prepare("SELECT id, kind FROM symbols")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<BTreeMap<i64, String>, _>>()
+            .map_err(|e| e.to_string())?;
+        drop(stmt);
+        Ok(ids
+            .iter()
+            .map(|s| rows.get(s).map(|k| kind_code(k)).unwrap_or(K_OTHER))
+            .collect())
+    }
 
     fn setup() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -1128,16 +1165,29 @@ mod tests {
         cache_source_bytes(&conn, f1, a).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert_eq!(rep.pairs, 0, "no pair between a class and its own function: {rep:?}");
-        assert_eq!(rep.skipped_kind_mismatch, 1, "the class × function pair is counted as excluded: {rep:?}");
-        assert_eq!(rep.hidden_gaps, 0, "containment is not a hidden duplicate either: {rep:?}");
+        assert_eq!(
+            rep.pairs, 0,
+            "no pair between a class and its own function: {rep:?}"
+        );
+        assert_eq!(
+            rep.skipped_kind_mismatch, 1,
+            "the class × function pair is counted as excluded: {rep:?}"
+        );
+        assert_eq!(
+            rep.hidden_gaps, 0,
+            "containment is not a hidden duplicate either: {rep:?}"
+        );
         let rows: i64 = conn
             .query_row("SELECT COUNT(*) FROM duplicates", [], |r| r.get(0))
             .unwrap();
         assert_eq!(rows, 0, "no duplicates row is materialized");
         // the per-symbol gap is zero too: the partner was excluded, not hidden
         let gaps: i64 = conn
-            .query_row("SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps", [], |r| r.get(0))
+            .query_row(
+                "SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(gaps, 0);
     }
@@ -1158,8 +1208,14 @@ mod tests {
         cache_source_bytes(&conn, f2, b).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert_eq!(rep.skipped_kind_mismatch, 4, "every class × function combination: {rep:?}");
-        assert_eq!(rep.canonical_hash, 2, "class × class and function × function survive: {rep:?}");
+        assert_eq!(
+            rep.skipped_kind_mismatch, 4,
+            "every class × function combination: {rep:?}"
+        );
+        assert_eq!(
+            rep.canonical_hash, 2,
+            "class × class and function × function survive: {rep:?}"
+        );
         assert_eq!(rep.hidden_gaps, 0);
         // both surviving rows are same-kind pairs
         let stmt = "SELECT sa.kind, sb.kind FROM duplicates d \
@@ -1191,16 +1247,32 @@ mod tests {
         cache_source_bytes(&conn, f1, a).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert_eq!(rep.pairs, 0, "no pair between a function and its own nested function: {rep:?}");
-        assert_eq!(rep.skipped_nested, 1, "outer × inner is the excluded pair: {rep:?}");
-        assert_eq!(rep.skipped_kind_mismatch, 0, "same kind — the kind rule never fires: {rep:?}");
-        assert_eq!(rep.hidden_gaps, 0, "containment is not a hidden duplicate either: {rep:?}");
+        assert_eq!(
+            rep.pairs, 0,
+            "no pair between a function and its own nested function: {rep:?}"
+        );
+        assert_eq!(
+            rep.skipped_nested, 1,
+            "outer × inner is the excluded pair: {rep:?}"
+        );
+        assert_eq!(
+            rep.skipped_kind_mismatch, 0,
+            "same kind — the kind rule never fires: {rep:?}"
+        );
+        assert_eq!(
+            rep.hidden_gaps, 0,
+            "containment is not a hidden duplicate either: {rep:?}"
+        );
         let rows: i64 = conn
             .query_row("SELECT COUNT(*) FROM duplicates", [], |r| r.get(0))
             .unwrap();
         assert_eq!(rows, 0, "no duplicates row is materialized");
         let gaps: i64 = conn
-            .query_row("SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps", [], |r| r.get(0))
+            .query_row(
+                "SELECT COALESCE(SUM(hidden_count), 0) FROM duplicate_gaps",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(gaps, 0, "the excluded partner is not hidden either");
     }
@@ -1219,9 +1291,18 @@ mod tests {
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
         assert_eq!(rep.pairs, 0, "Outer × Inner is containment: {rep:?}");
-        assert_eq!(rep.skipped_nested, 1, "Outer × Inner in the span bucket: {rep:?}");
-        assert_eq!(rep.skipped_kind_mismatch, 2, "Outer × leaf, Inner × leaf in the kind bucket: {rep:?}");
-        assert_eq!(rep.hidden_gaps, 0, "C(3,2)=3 pairs = 1 span + 2 kind + 0 shown: {rep:?}");
+        assert_eq!(
+            rep.skipped_nested, 1,
+            "Outer × Inner in the span bucket: {rep:?}"
+        );
+        assert_eq!(
+            rep.skipped_kind_mismatch, 2,
+            "Outer × leaf, Inner × leaf in the kind bucket: {rep:?}"
+        );
+        assert_eq!(
+            rep.hidden_gaps, 0,
+            "C(3,2)=3 pairs = 1 span + 2 kind + 0 shown: {rep:?}"
+        );
     }
 
     #[test]
@@ -1237,10 +1318,19 @@ mod tests {
         cache_source_bytes(&conn, f1, a).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert_eq!(rep.skipped_nested, 0, "siblings are disjoint spans: {rep:?}");
+        assert_eq!(
+            rep.skipped_nested, 0,
+            "siblings are disjoint spans: {rep:?}"
+        );
         assert_eq!(rep.skipped_kind_mismatch, 2, "C × one, C × two: {rep:?}");
-        assert_eq!(rep.canonical_hash, 1, "one × two are genuine duplicates: {rep:?}");
-        assert_eq!(rep.hidden_gaps, 0, "C(3,2)=3 pairs = 2 kind + 1 shown: {rep:?}");
+        assert_eq!(
+            rep.canonical_hash, 1,
+            "one × two are genuine duplicates: {rep:?}"
+        );
+        assert_eq!(
+            rep.hidden_gaps, 0,
+            "C(3,2)=3 pairs = 2 kind + 1 shown: {rep:?}"
+        );
     }
 
     #[test]
@@ -1260,8 +1350,14 @@ mod tests {
         cache_source_bytes(&conn, f2, b).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert_eq!(rep.skipped_nested, 2, "one encloser × inner pair per file: {rep:?}");
-        assert_eq!(rep.canonical_hash, 2, "outer×outer2 and inner×inner2 across files: {rep:?}");
+        assert_eq!(
+            rep.skipped_nested, 2,
+            "one encloser × inner pair per file: {rep:?}"
+        );
+        assert_eq!(
+            rep.canonical_hash, 2,
+            "outer×outer2 and inner×inner2 across files: {rep:?}"
+        );
     }
 
     #[test]
@@ -1285,13 +1381,22 @@ mod tests {
         // the kind rule is unconditional about geometry: C (a class) × every
         // function/method in the ir_meta set — m, holder, nested, flat1,
         // flat2 — is 5 excluded pairs, wherever those functions sit
-        assert_eq!(rep.skipped_kind_mismatch, 5, "C × every member kind: {rep:?}");
+        assert_eq!(
+            rep.skipped_kind_mismatch, 5,
+            "C × every member kind: {rep:?}"
+        );
         assert_eq!(rep.skipped_nested, 1, "holder × nested: {rep:?}");
-        assert!(rep.canonical_hash >= 1, "the identical flat bodies survive: {rep:?}");
+        assert!(
+            rep.canonical_hash >= 1,
+            "the identical flat bodies survive: {rep:?}"
+        );
         // jscpd is a sparse detector: it does not report every pair, so the
         // exhaustive "every pair lands in exactly one bucket" identity no
         // longer holds. The pre-filter counts above remain exact.
-        assert_eq!(rep.pairs, rep.canonical_hash, "only canonical pairs are found here: {rep:?}");
+        assert_eq!(
+            rep.pairs, rep.canonical_hash,
+            "only canonical pairs are found here: {rep:?}"
+        );
     }
 
     #[test]
@@ -1308,9 +1413,11 @@ mod tests {
         let rep = detect(&conn).unwrap();
         assert_eq!(rep.canonical_hash, 1, "identical bodies: {rep:?}");
         let (epi, det, sim): (String, String, f64) = conn
-            .query_row("SELECT epistemic, detection, similarity FROM duplicates", [], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-            })
+            .query_row(
+                "SELECT epistemic, detection, similarity FROM duplicates",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
             .unwrap();
         assert_eq!(epi, "Fact");
         assert_eq!(det, "ir-hash-match");
@@ -1319,16 +1426,26 @@ mod tests {
 
     #[test]
     fn token_overlap_with_unequal_ir_hashes_is_never_a_fact() {
-        let conn=setup();let mut stats=IngestStats::default();
-        let a="def charge(x):\n    if x > 1:\n        return audit(x)\n    return x\n";
-        let b=a.replace("charge", "charge2");
-        let f1=ingest_parsed_file(&conn,1,41,"a.py",Lang::Python,a,&mut stats).unwrap();
-        let f2=ingest_parsed_file(&conn,1,41,"b.py",Lang::Python,&b,&mut stats).unwrap();
-        cache_source_bytes(&conn,f1,a).unwrap();cache_source_bytes(&conn,f2,&b).unwrap();lower_all(&conn).unwrap();
+        let conn = setup();
+        let mut stats = IngestStats::default();
+        let a = "def charge(x):\n    if x > 1:\n        return audit(x)\n    return x\n";
+        let b = a.replace("charge", "charge2");
+        let f1 = ingest_parsed_file(&conn, 1, 41, "a.py", Lang::Python, a, &mut stats).unwrap();
+        let f2 = ingest_parsed_file(&conn, 1, 41, "b.py", Lang::Python, &b, &mut stats).unwrap();
+        cache_source_bytes(&conn, f1, a).unwrap();
+        cache_source_bytes(&conn, f2, &b).unwrap();
+        lower_all(&conn).unwrap();
         conn.execute("UPDATE ir_meta SET ir_hash=?1 WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id=?2)",rusqlite::params![vec![7u8;32],f2]).unwrap();
-        let report=detect(&conn).unwrap();assert!(report.pairs>0);assert_eq!(report.canonical_hash,0);
-        let (kind,mode):(String,String)=conn.query_row("SELECT detection,epistemic FROM duplicates",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
-        assert_eq!(kind,"token-clone");assert_eq!(mode,"Inference");
+        let report = detect(&conn).unwrap();
+        assert!(report.pairs > 0);
+        assert_eq!(report.canonical_hash, 0);
+        let (kind, mode): (String, String) = conn
+            .query_row("SELECT detection,epistemic FROM duplicates", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(kind, "token-clone");
+        assert_eq!(mode, "Inference");
     }
 
     #[test]
@@ -1344,9 +1461,14 @@ mod tests {
         cache_source_bytes(&conn, f2, b).unwrap();
         lower_all(&conn).unwrap();
         let rep = detect(&conn).unwrap();
-        assert!(rep.high >= 1 || rep.medium >= 1 || rep.low >= 1, "non-identical similar pair tiers: {rep:?}");
+        assert!(
+            rep.high >= 1 || rep.medium >= 1 || rep.low >= 1,
+            "non-identical similar pair tiers: {rep:?}"
+        );
         let (epi, det): (String, String) = conn
-            .query_row("SELECT epistemic, detection FROM duplicates", [], |r| Ok((r.get(0)?, r.get(1)?)))
+            .query_row("SELECT epistemic, detection FROM duplicates", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
             .unwrap();
         assert_ne!(epi, "Fact", "different bodies are never Fact");
         assert!(det != "ir-hash-match");
@@ -1372,7 +1494,10 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(canon, "charge", "the member with the most callers is canonical (§23.3)");
+        assert_eq!(
+            canon, "charge",
+            "the member with the most callers is canonical (§23.3)"
+        );
     }
 
     #[test]
@@ -1388,7 +1513,9 @@ mod tests {
         lower_all(&conn).unwrap();
         detect(&conn).unwrap();
         let center: i64 = conn
-            .query_row("SELECT id FROM symbols WHERE name='charge'", [], |r| r.get(0))
+            .query_row("SELECT id FROM symbols WHERE name='charge'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         let spec = impact_duplicate_spec(&conn, center).unwrap();
         viewspec::validate(&spec).unwrap();
@@ -1453,7 +1580,7 @@ mod tests {
 
         pub fn detect(conn: &Connection) -> Result<DupReport, String> {
             let mut report = DupReport::default();
-            let meta = super::super::load_ir_meta(conn)?;
+            let meta = super::load_ir_meta(conn)?;
             let shape: BTreeMap<i64, Vec<u8>> = {
                 let mut stmt = conn
                     .prepare("SELECT id, subtree_hash FROM symbols")
@@ -1466,8 +1593,8 @@ mod tests {
                 rows.into_iter().collect()
             };
             let ids: Vec<i64> = meta.keys().copied().collect();
-            let kind_of = super::super::load_kinds(conn, &ids).unwrap();
-            let spans = super::super::load_spans(conn, &ids).unwrap();
+            let kind_of = super::load_kinds(conn, &ids).unwrap();
+            let spans = super::load_spans(conn, &ids).unwrap();
             for (i, &a) in ids.iter().enumerate() {
                 for (j, &b) in ids.iter().enumerate().skip(i + 1) {
                     // container × member: containment, not duplication —
@@ -1483,7 +1610,13 @@ mod tests {
                     }
                     let (ha, va) = &meta[&a];
                     let (hb, vb) = &meta[&b];
-                    let (tier, detection, epistemic, sim, counter): (&str, &str, &str, f64, Option<&str>);
+                    let (tier, detection, epistemic, sim, counter): (
+                        &str,
+                        &str,
+                        &str,
+                        f64,
+                        Option<&str>,
+                    );
                     if ha == hb {
                         tier = "canonical";
                         detection = "ir-hash-match";
@@ -1574,7 +1707,9 @@ mod tests {
                 }
             }
             let pairs: Vec<(i64, i64)> = {
-                let mut stmt = conn.prepare("SELECT symbol_a, symbol_b FROM duplicates").map_err(|e| e.to_string())?;
+                let mut stmt = conn
+                    .prepare("SELECT symbol_a, symbol_b FROM duplicates")
+                    .map_err(|e| e.to_string())?;
                 let rows = stmt
                     .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
                     .map_err(|e| e.to_string())?
@@ -1607,7 +1742,13 @@ mod tests {
                 }
                 let best = *family
                     .iter()
-                    .max_by_key(|s| (callers.get(s).copied().unwrap_or(0), tests.get(s).copied().unwrap_or(0), std::cmp::Reverse(*s)))
+                    .max_by_key(|s| {
+                        (
+                            callers.get(s).copied().unwrap_or(0),
+                            tests.get(s).copied().unwrap_or(0),
+                            std::cmp::Reverse(*s),
+                        )
+                    })
                     .unwrap();
                 for s in &family {
                     conn.execute(
@@ -1663,7 +1804,8 @@ mod tests {
                 // near duplicate: previous body with one statement swapped
                 let mut lines: Vec<String> = bodies[i - 1].lines().map(|l| l.to_string()).collect();
                 let at = 1 + rng.below(lines.len().saturating_sub(1).max(1));
-                let st = STMTS[rng.below(STMTS.len())].replace("%K", &(rng.below(9) + 1).to_string());
+                let st =
+                    STMTS[rng.below(STMTS.len())].replace("%K", &(rng.below(9) + 1).to_string());
                 if at < lines.len() {
                     lines[at] = st.trim_end().to_string();
                 }
@@ -1672,7 +1814,11 @@ mod tests {
                 let len = 3 + rng.below(5);
                 let mut s = String::new();
                 for _ in 0..len {
-                    s.push_str(STMTS[rng.below(STMTS.len())].replace("%K", &(rng.below(9) + 1).to_string()).as_str());
+                    s.push_str(
+                        STMTS[rng.below(STMTS.len())]
+                            .replace("%K", &(rng.below(9) + 1).to_string())
+                            .as_str(),
+                    );
                 }
                 s
             };
@@ -1713,36 +1859,6 @@ mod tests {
     }
 
     #[test]
-    fn dense_cosine_is_bit_identical_to_brute_force() {
-        let mut rng = Lcg(0xB17_5EED);
-        for _ in 0..500 {
-            let mut a: BTreeMap<String, u32> = BTreeMap::new();
-            let mut b: BTreeMap<String, u32> = BTreeMap::new();
-            for _ in 0..(1 + rng.below(30)) {
-                if rng.below(4) != 0 {
-                    a.insert(format!("op{}", rng.below(40)), 1 + rng.below(20) as u32);
-                }
-                if rng.below(4) != 0 {
-                    b.insert(format!("op{}", rng.below(40)), 1 + rng.below(20) as u32);
-                }
-            }
-            let old = brute::cosine(&a, &b);
-            let mut names: Vec<&str> = a
-                .keys()
-                .map(|k| k.as_str())
-                .chain(b.keys().map(|k| k.as_str()))
-                .collect();
-            names.sort_unstable();
-            names.dedup();
-            let dim_of: HashMap<&str, u32> =
-                names.iter().enumerate().map(|(i, k)| (*k, i as u32)).collect();
-            let ba = Bag::build(&a, &dim_of);
-            let bb = Bag::build(&b, &dim_of);
-            assert_eq!(ba.cosine(&bb), old, "bags {a:?} vs {b:?}");
-        }
-    }
-
-    #[test]
     fn indexed_engine_matches_brute_force_reference() {
         let files = generated_sources(90);
         let conn_new = build_conn(&files);
@@ -1771,8 +1887,14 @@ mod tests {
         // an exhaustive op-bag cosine scan. We therefore only smoke-check
         // that production found something and that the reference still
         // exercises all four legacy tiers.
-        assert!(rep_new.pairs >= 1, "production engine found pairs: {rep_new:?}");
+        assert!(
+            rep_new.pairs >= 1,
+            "production engine found pairs: {rep_new:?}"
+        );
         assert!(rep_ref.canonical_hash >= 1, "exact duplicates present");
-        assert!(rep_ref.skipped_nested >= 1, "span-containment exclusions present");
+        assert!(
+            rep_ref.skipped_nested >= 1,
+            "span-containment exclusions present"
+        );
     }
 }

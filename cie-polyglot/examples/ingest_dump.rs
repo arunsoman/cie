@@ -16,9 +16,15 @@ fn hex(b: &[u8]) -> String {
 }
 
 fn main() {
-    let raw = std::env::args().nth(1).expect("usage: ingest_dump <path> <db>");
-    let path = std::path::Path::new(&raw).canonicalize().expect("canonicalize");
-    let db = std::env::args().nth(2).expect("usage: ingest_dump <path> <db>");
+    let raw = std::env::args()
+        .nth(1)
+        .expect("usage: ingest_dump <path> <db>");
+    let path = std::path::Path::new(&raw)
+        .canonicalize()
+        .expect("canonicalize");
+    let db = std::env::args()
+        .nth(2)
+        .expect("usage: ingest_dump <path> <db>");
     let _ = std::fs::remove_file(&db);
 
     let conn = cie_polyglot::schema::open_db(std::path::Path::new(&db)).expect("open db");
@@ -94,7 +100,9 @@ fn dump_tables(conn: &rusqlite::Connection, out: &mut dyn std::io::Write) {
     }
 
     let mut s = conn
-        .prepare("SELECT ast_kind_id, uast_kind_id, confidence, provenance FROM uast_map ORDER BY id")
+        .prepare(
+            "SELECT ast_kind_id, uast_kind_id, confidence, provenance FROM uast_map ORDER BY id",
+        )
         .unwrap();
     let mut q = s.query([]).unwrap();
     while let Some(r) = q.next().unwrap() {
@@ -150,7 +158,9 @@ fn dump_tables(conn: &rusqlite::Connection, out: &mut dyn std::io::Write) {
             r.get::<_, i64>(12).unwrap(),
             r.get::<_, i64>(13).unwrap(),
             r.get::<_, Option<i64>>(14).unwrap().map_or(-1, |v| v),
-            r.get::<_, Option<Vec<u8>>>(15).unwrap().map_or(String::new(), |b| hex(&b)),
+            r.get::<_, Option<Vec<u8>>>(15)
+                .unwrap()
+                .map_or(String::new(), |b| hex(&b)),
             r.get::<_, Option<i64>>(16).unwrap().map_or(-1, |v| v)
         );
     }
@@ -260,22 +270,23 @@ fn dump_tables(conn: &rusqlite::Connection, out: &mut dyn std::io::Write) {
             r.get::<_, i64>(7).unwrap(),
             r.get::<_, Option<i64>>(8).unwrap().map_or(-1, |v| v),
             r.get::<_, String>(9).unwrap(),
-            r.get::<_, Option<Vec<u8>>>(10).unwrap().map_or(String::new(), |b| hex(&b)),
+            r.get::<_, Option<Vec<u8>>>(10)
+                .unwrap()
+                .map_or(String::new(), |b| hex(&b)),
             r.get::<_, Option<String>>(11).unwrap().unwrap_or_default()
         );
     }
 
     let mut s = conn
-        .prepare("SELECT symbol_id, ir_hash, ir_vec FROM ir_meta ORDER BY symbol_id")
+        .prepare("SELECT symbol_id, ir_hash FROM ir_meta ORDER BY symbol_id")
         .unwrap();
     let mut q = s.query([]).unwrap();
     while let Some(r) = q.next().unwrap() {
         let _ = writeln!(
             out,
-            "ir_meta\t{}\t{}\t{}",
+            "ir_meta\t{}\t{}",
             r.get::<_, i64>(0).unwrap(),
-            hex(&r.get::<_, Vec<u8>>(1).unwrap()),
-            String::from_utf8(r.get::<_, Vec<u8>>(2).unwrap()).unwrap()
+            hex(&r.get::<_, Vec<u8>>(1).unwrap())
         );
     }
 }

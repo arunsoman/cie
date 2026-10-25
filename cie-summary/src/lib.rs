@@ -3,8 +3,10 @@
 use cie_core::types::{Ns, RevId, SymbolId};
 use serde::{Deserialize, Serialize};
 pub mod cache;
+pub mod seed;
 
 pub use cache::{ReuseStats, SummaryCacheEntry};
+pub use seed::{is_entrypoint_call_text, summary_seeds, SummarySeed};
 
 use std::collections::BTreeSet;
 
@@ -253,6 +255,30 @@ impl FunctionSummary {
         }
         for b in &callee.resolution_basis {
             self.resolution_basis.insert(b.clone());
+        }
+    }
+
+    /// Populate the file-local summary fields from the per-symbol seed
+    /// captured in the file-holding pass (`summary_seeds`). These are the
+    /// derivations that never needed the repo-wide join; the join-owned
+    /// fields (callees, reasoned unresolved callees, callers, receiver-gated
+    /// db claims, call-site records, `complete`) are filled by the summary
+    /// stage exactly as before. Idempotent w.r.t. the stage's own call-loop
+    /// claims: effect and tag inserts are set unions and cannot double-count.
+    pub fn apply_seed(&mut self, seed: &seed::SummarySeed) {
+        self.inputs = seed.inputs.clone();
+        self.outputs = seed.outputs.clone();
+        self.exceptions = seed.exceptions.clone();
+        self.path_conditions = seed.path_conditions.clone();
+        self.returns_constants = seed.returns_constants.clone();
+        self.all_returns_constant = seed.all_returns_constant;
+        self.has_failure_path = seed.has_failure_path;
+        self.has_loops = seed.has_loops;
+        for t in &seed.tags {
+            self.tags.insert(t.clone());
+        }
+        for e in &seed.effects {
+            self.effects.insert(*e);
         }
     }
 

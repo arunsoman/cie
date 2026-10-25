@@ -43,9 +43,16 @@ impl OrgMember {
                 .nodes
                 .iter()
                 .filter(|n| {
+                    // Facet rides with UseCase/Aggregate/Entity: FCA groups are
+                    // the label-bearing business concepts of a route-less repo,
+                    // and the org-level merge lens needs them to see two repos
+                    // sharing a concept. (Whether a FcaSubsumption group may
+                    // claim UseCase INSIDE one repo is decided by the dag —
+                    // there a shared attribute is never a business story.)
                     matches!(
                         n.kind,
                         cie_concepts::ConceptKind::UseCase
+                            | cie_concepts::ConceptKind::Facet
                             | cie_concepts::ConceptKind::Aggregate
                             | cie_concepts::ConceptKind::Entity
                     )

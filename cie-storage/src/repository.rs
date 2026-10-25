@@ -4,6 +4,7 @@ use crate::StoragePolicy;
 use cie_adapters::{assemble_facts, ExtractedProject};
 use cie_core::types::Hash;
 use cie_semantic::facts::LangFacts;
+use cie_summary::SummarySeed;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,6 +16,11 @@ const FORMAT: &str = "stream-facts-v5";
 struct CachedFacts {
     facts: LangFacts,
     lines: Vec<u32>,
+    /// Per-symbol summary seeds captured by the file-holding pass.
+    /// Serde default keeps pre-existing payloads loadable; their summaries
+    /// take the fallback derivation path in the summary stage.
+    #[serde(default)]
+    seeds: Vec<SummarySeed>,
 }
 
 pub struct FileSubmission<'a> {
@@ -23,6 +29,10 @@ pub struct FileSubmission<'a> {
     pub source: &'a str,
     pub facts: LangFacts,
     pub tree: Option<&'a tree_sitter::Tree>,
+    /// Per-symbol summary seeds extracted while the tree was in hand
+    /// (`cie_summary::summary_seeds`). Persisted beside the facts so the
+    /// summary stage consumes them without re-deriving.
+    pub seeds: Vec<SummarySeed>,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct CachedFile {
@@ -136,6 +146,7 @@ impl RepositoryWriter {
         let src = file.source;
         let tree = file.tree;
         let file_facts = file.facts;
+        let seeds = file.seeds;
         let bytes = src.as_bytes();
         self.conn.execute("INSERT OR REPLACE INTO captured_sources(path,content_hash,size_bytes,zstd_bytes) VALUES(?1,?2,?3,?4)",params![rel,blake3::hash(bytes).to_hex().to_string(),bytes.len(),zstd::bulk::compress(bytes,self.policy.compression_level).map_err(err)?]).map_err(err)?;
         // The existing polyglot grammar set owns AST/IR derivation. Other
@@ -187,6 +198,7 @@ impl RepositoryWriter {
         let payload = serde_json::to_vec(&CachedFacts {
             facts: file_facts.clone(),
             lines: lines.clone(),
+            seeds,
         })
         .map_err(err)?;
         self.conn
@@ -269,7 +281,7 @@ impl RepositoryWriter {
         for row in rows {
             let payload = row.map_err(err)?;
             let cached: CachedFacts = serde_json::from_slice(&payload).map_err(err)?;
-            facts.push((cached.facts, cached.lines));
+            facts.push((cached.facts, cached.lines, cached.seeds));
         }
         Ok(assemble_facts(facts))
     }
@@ -440,7 +452,14 @@ impl RepositoryWriter {
             for call in &facts.calls {
                 call_heartbeat += 1;
                 if call_heartbeat % 1000 == 0 {
-                    progress("storage", "running", &format!("Resolving polyglot call targets… ({} processed)", call_heartbeat));
+                    progress(
+                        "storage",
+                        "running",
+                        &format!(
+                            "Resolving polyglot call targets… ({} processed)",
+                            call_heartbeat
+                        ),
+                    );
                 }
                 let caller = extracted.store.get(call.caller);
                 let callee = match call.callee {
@@ -463,14 +482,20 @@ impl RepositoryWriter {
                                 ))
                             })
                             .copied();
-                        update.execute(params![
-                            target,
-                            if target.is_some() { "RESOLVED" } else { "UNRESOLVED" },
-                            cid,
-                            call.callee_text,
-                            call.span.0,
-                            call.span.1,
-                        ]).map_err(err)?;
+                        update
+                            .execute(params![
+                                target,
+                                if target.is_some() {
+                                    "RESOLVED"
+                                } else {
+                                    "UNRESOLVED"
+                                },
+                                cid,
+                                call.callee_text,
+                                call.span.0,
+                                call.span.1,
+                            ])
+                            .map_err(err)?;
                     }
                 }
             }
@@ -531,40 +556,114 @@ impl RepositoryWriter {
             ($name:literal, $expr:expr) => {{
                 let __t0 = std::time::Instant::now();
                 let __r = $expr;
-                eprintln!("CIE_STAGE_TIMING {{\"stage\":{:?},\"ms\":{}}}", $name, __t0.elapsed().as_millis());
+                eprintln!(
+                    "CIE_STAGE_TIMING {{\"stage\":{:?},\"ms\":{}}}",
+                    $name,
+                    __t0.elapsed().as_millis()
+                );
                 __r
             }};
         }
-        self.record_stage("uast", timed!("uast", stage!("uast", cie_polyglot::uast::normalize(&self.conn))))?;
+        self.record_stage(
+            "uast",
+            timed!(
+                "uast",
+                stage!("uast", cie_polyglot::uast::normalize(&self.conn))
+            ),
+        )?;
         self.record_stage(
             "framework_registry",
-            timed!("framework_registry", stage!("framework_registry", cie_polyglot::frameworks::install_registry(&self.conn))),
+            timed!(
+                "framework_registry",
+                stage!(
+                    "framework_registry",
+                    cie_polyglot::frameworks::install_registry(&self.conn)
+                )
+            ),
         )?;
         self.record_stage(
             "frameworks",
-            timed!("frameworks", stage!("frameworks", cie_polyglot::frameworks::link_clients(&self.conn))),
+            timed!(
+                "frameworks",
+                stage!(
+                    "frameworks",
+                    cie_polyglot::frameworks::link_clients(&self.conn)
+                )
+            ),
         )?;
         self.record_stage(
             "c4",
-            timed!("c4", stage!("c4", cie_polyglot::c4::detect_c4_with_progress(&self.conn, &root, rev as i64,
-                &|detail| progress("storage", "running", &format!("Building view: c4: {detail}"))
-            ))),
+            timed!(
+                "c4",
+                stage!(
+                    "c4",
+                    cie_polyglot::c4::detect_c4_with_progress(
+                        &self.conn,
+                        &root,
+                        rev as i64,
+                        &|detail| progress(
+                            "storage",
+                            "running",
+                            &format!("Building view: c4: {detail}")
+                        )
+                    )
+                )
+            ),
         )?;
         self.record_stage(
             "state_machines",
-            timed!("state_machines", stage!("state_machines", cie_polyglot::statemachines::detect_t3(&self.conn, &mut Default::default()))),
+            timed!(
+                "state_machines",
+                stage!(
+                    "state_machines",
+                    cie_polyglot::statemachines::detect_t3(&self.conn, &mut Default::default())
+                )
+            ),
         )?;
-        self.record_stage("workflows", timed!("workflows", stage!("workflows", cie_polyglot::workflows::detect(&self.conn))))?;
-        self.record_stage("duplicates", timed!("duplicates", stage!("duplicates", cie_polyglot::duplicates::detect_with_progress(&self.conn,
-            &|detail| progress("storage", "running", &format!("Building view: duplicates: {detail}"))
-        ))))?;
+        self.record_stage(
+            "workflows",
+            timed!(
+                "workflows",
+                stage!("workflows", cie_polyglot::workflows::detect(&self.conn))
+            ),
+        )?;
+        self.record_stage(
+            "duplicates",
+            timed!(
+                "duplicates",
+                stage!(
+                    "duplicates",
+                    cie_polyglot::duplicates::detect_with_progress(&self.conn, &|detail| progress(
+                        "storage",
+                        "running",
+                        &format!("Building view: duplicates: {detail}")
+                    ))
+                )
+            ),
+        )?;
         self.record_stage(
             "duplicate_clusters",
-            timed!("duplicate_clusters", stage!("duplicate_clusters", cie_polyglot::duplicates::cluster_canonical(&self.conn))),
+            timed!(
+                "duplicate_clusters",
+                stage!(
+                    "duplicate_clusters",
+                    cie_polyglot::duplicates::cluster_canonical(&self.conn)
+                )
+            ),
         )?;
-        let bundle = match timed!("viewspec", stage!("viewspec", cie_polyglot::viewspec::produce_bundle_with_progress(&self.conn,
-            &|detail| progress("storage", "running", &format!("Building view: viewspec: {detail}"))
-        ))) {
+        let bundle = match timed!(
+            "viewspec",
+            stage!(
+                "viewspec",
+                cie_polyglot::viewspec::produce_bundle_with_progress(&self.conn, &|detail| {
+                    progress(
+                        "storage",
+                        "running",
+                        &format!("Building view: viewspec: {detail}"),
+                    )
+                })
+            )
+        ) {
             Ok(bundle) => bundle,
             Err(e) => {
                 self.record_stage::<()>("viewspec", Err(e))?;

@@ -23,14 +23,18 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 use crate::schema::Lang;
 use crate::uast;
 
 // ---------------------------------------------------------------------------
 // DDL — §11.4 calls (with all six sequence-diagram fields), §11.5 IR,
-// §11.10 source cache, plus the ir_meta carrier for ir_hash/ir_vec.
+// §11.10 source cache. ir_meta carries only ir_hash: the §15 ir_vec op-bag
+// (the cosine era's carrier) had no production reader once detection moved
+// to jscpd's token tiers — a pre-existing store self-migrates in
+// `create_ir_schema`.
+// §11.10 source cache plus the ir_meta carrier (ir_hash only).
 // ---------------------------------------------------------------------------
 
 pub const DDL_IR: &str = r#"
@@ -88,13 +92,29 @@ CREATE TABLE IF NOT EXISTS file_source_cache (
 
 CREATE TABLE IF NOT EXISTS ir_meta (
     symbol_id INTEGER PRIMARY KEY REFERENCES symbols(id),
-    ir_hash   BLOB NOT NULL,
-    ir_vec    BLOB NOT NULL
+    ir_hash   BLOB NOT NULL
 );
 "#;
 
 pub fn create_ir_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(DDL_IR).map_err(|e| e.to_string())
+    conn.execute_batch(DDL_IR).map_err(|e| e.to_string())?;
+    // Retired carrier: stores written before the jscpd migration still carry
+    // the §15 ir_vec op-bag column (BLOB NOT NULL). New stores (above) don't;
+    // opening an old store drops the column so the two-column insert below
+    // keeps working against it.
+    let has_vec: Option<i64> = conn
+        .query_row(
+            "SELECT 1 FROM pragma_table_info('ir_meta') WHERE name = 'ir_vec'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if has_vec.is_some() {
+        conn.execute_batch("ALTER TABLE ir_meta DROP COLUMN ir_vec;")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -160,12 +180,22 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
         },
         Lang::JavaScript | Lang::TypeScript | Lang::Tsx => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
-            loop_kinds: &["for_statement", "for_in_statement", "for_of_statement", "while_statement", "do_statement"],
+            loop_kinds: &[
+                "for_statement",
+                "for_in_statement",
+                "for_of_statement",
+                "while_statement",
+                "do_statement",
+            ],
             return_kinds: &["return_statement"],
             throw_kinds: &["throw_statement"],
             await_kinds: &["await_expression"],
             spawn_kinds: &[],
-            lambda_kinds: &["arrow_function", "function_expression", "generator_function"],
+            lambda_kinds: &[
+                "arrow_function",
+                "function_expression",
+                "generator_function",
+            ],
             cond_field: "condition",
             then_field: "consequence",
             else_field: "alternative",
@@ -173,7 +203,12 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
         },
         Lang::Java => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
-            loop_kinds: &["for_statement", "enhanced_for_statement", "while_statement", "do_statement"],
+            loop_kinds: &[
+                "for_statement",
+                "enhanced_for_statement",
+                "while_statement",
+                "do_statement",
+            ],
             return_kinds: &["return_statement"],
             throw_kinds: &["throw_statement"],
             await_kinds: &[],
@@ -188,10 +223,18 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
             loop_kinds: &["for_statement", "while_statement", "do_statement"],
             return_kinds: &["return_statement"],
-            throw_kinds: if matches!(lang, Lang::Cpp) { &["throw_expression"] } else { &[] },
+            throw_kinds: if matches!(lang, Lang::Cpp) {
+                &["throw_expression"]
+            } else {
+                &[]
+            },
             await_kinds: &[],
             spawn_kinds: &[],
-            lambda_kinds: if matches!(lang, Lang::Cpp) { &["lambda_expression"] } else { &[] },
+            lambda_kinds: if matches!(lang, Lang::Cpp) {
+                &["lambda_expression"]
+            } else {
+                &[]
+            },
             cond_field: "condition",
             then_field: "consequence",
             else_field: "alternative",
@@ -199,7 +242,12 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
         },
         Lang::CSharp => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
-            loop_kinds: &["for_statement", "foreach_statement", "while_statement", "do_statement"],
+            loop_kinds: &[
+                "for_statement",
+                "foreach_statement",
+                "while_statement",
+                "do_statement",
+            ],
             return_kinds: &["return_statement"],
             throw_kinds: &["throw_statement"],
             await_kinds: &["await_expression"],
@@ -211,18 +259,39 @@ pub fn cf_seed(lang: Lang) -> CfSeed {
             block_kinds: &["block"],
         },
         Lang::Kotlin => CfSeed {
-            if_kinds: &["if_expression"], loop_kinds: &["for_statement", "while_statement", "do_while_statement"],
-            return_kinds: &["jump_expression"], throw_kinds: &[], await_kinds: &[], spawn_kinds: &[],
-            lambda_kinds: &["lambda_literal"], cond_field: "condition", then_field: "consequence", else_field: "alternative", block_kinds: &["block", "statements"],
+            if_kinds: &["if_expression"],
+            loop_kinds: &["for_statement", "while_statement", "do_while_statement"],
+            return_kinds: &["jump_expression"],
+            throw_kinds: &[],
+            await_kinds: &[],
+            spawn_kinds: &[],
+            lambda_kinds: &["lambda_literal"],
+            cond_field: "condition",
+            then_field: "consequence",
+            else_field: "alternative",
+            block_kinds: &["block", "statements"],
         },
         Lang::Lua => CfSeed {
-            if_kinds: &["if_statement", "elseif_statement"], loop_kinds: &["for_statement", "while_statement", "repeat_statement"],
-            return_kinds: &["return_statement"], throw_kinds: &[], await_kinds: &[], spawn_kinds: &[],
-            lambda_kinds: &["function_definition"], cond_field: "condition", then_field: "body", else_field: "alternative", block_kinds: &["block"],
+            if_kinds: &["if_statement", "elseif_statement"],
+            loop_kinds: &["for_statement", "while_statement", "repeat_statement"],
+            return_kinds: &["return_statement"],
+            throw_kinds: &[],
+            await_kinds: &[],
+            spawn_kinds: &[],
+            lambda_kinds: &["function_definition"],
+            cond_field: "condition",
+            then_field: "body",
+            else_field: "alternative",
+            block_kinds: &["block"],
         },
         Lang::Php => CfSeed {
             if_kinds: &["if_statement", "conditional_expression"],
-            loop_kinds: &["for_statement", "foreach_statement", "while_statement", "do_statement"],
+            loop_kinds: &[
+                "for_statement",
+                "foreach_statement",
+                "while_statement",
+                "do_statement",
+            ],
             return_kinds: &["return_statement"],
             throw_kinds: &["throw_statement"],
             await_kinds: &[],
@@ -262,10 +331,19 @@ struct Cfg {
 
 impl Cfg {
     fn new_block(&mut self, kind: &'static str) -> usize {
-        self.blocks.push(Block { kind, instrs: vec![] });
+        self.blocks.push(Block {
+            kind,
+            instrs: vec![],
+        });
         self.blocks.len() - 1
     }
-    fn emit(&mut self, block: usize, op: &'static str, node: tree_sitter::Node, ast_id: Option<i64>) {
+    fn emit(
+        &mut self,
+        block: usize,
+        op: &'static str,
+        node: tree_sitter::Node,
+        ast_id: Option<i64>,
+    ) {
         self.blocks[block].instrs.push(Instr {
             op,
             operands: vec![],
@@ -412,7 +490,10 @@ impl<'a> LowerCtx<'a> {
                     let mut ec = e.walk();
                     let container = e
                         .children(&mut ec)
-                        .find(|c| self.seed.block_kinds.contains(&c.kind()) || self.seed.if_kinds.contains(&c.kind()))
+                        .find(|c| {
+                            self.seed.block_kinds.contains(&c.kind())
+                                || self.seed.if_kinds.contains(&c.kind())
+                        })
                         .unwrap_or(e);
                     drop(ec);
                     container
@@ -486,7 +567,9 @@ impl<'a> LowerCtx<'a> {
                 stack.push((n, true));
                 let mut cursor = n.walk();
                 let children: Vec<_> = n.named_children(&mut cursor).collect();
-                for child in children.into_iter().rev() { stack.push((child, false)); }
+                for child in children.into_iter().rev() {
+                    stack.push((child, false));
+                }
                 continue;
             }
             if self.seed.await_kinds.contains(&k) {
@@ -511,10 +594,20 @@ impl<'a> LowerCtx<'a> {
         }
     }
 
-    fn record_call(&mut self, call: tree_sitter::Node<'a>, block: usize, call_kind: &'static str, ast_map: &AstIdMap) {
+    fn record_call(
+        &mut self,
+        call: tree_sitter::Node<'a>,
+        block: usize,
+        call_kind: &'static str,
+        ast_map: &AstIdMap,
+    ) {
         let stmt_index = self.calls.len();
         self.cfg.emit(block, "Call", call, ast_map.id_of(call));
-        let guard = self.guards.last().filter(|g| g.as_str() != "<else>").cloned();
+        let guard = self
+            .guards
+            .last()
+            .filter(|g| g.as_str() != "<else>")
+            .cloned();
         let callee_text = callee_text_of(call, self.src);
         self.calls.push(LoweredCall {
             span: (call.start_byte(), call.end_byte()),
@@ -531,7 +624,11 @@ fn is_noise(n: tree_sitter::Node, src: &[u8]) -> bool {
     if n.kind() == "comment" {
         return true;
     }
-    n.child_count() == 0 && !n.is_named() && n.utf8_text(src).map(|t| t.trim().is_empty()).unwrap_or(false)
+    n.child_count() == 0
+        && !n.is_named()
+        && n.utf8_text(src)
+            .map(|t| t.trim().is_empty())
+            .unwrap_or(false)
 }
 
 fn first_named_child(n: tree_sitter::Node) -> Option<tree_sitter::Node> {
@@ -581,9 +678,10 @@ fn classify_call(call: tree_sitter::Node, seed: &CfSeed) -> &'static str {
             break;
         }
     }
-    let args = call
-        .child_by_field_name("arguments")
-        .or_else(|| call.children(&mut call.walk()).find(|c| c.kind().contains("argument")));
+    let args = call.child_by_field_name("arguments").or_else(|| {
+        call.children(&mut call.walk())
+            .find(|c| c.kind().contains("argument"))
+    });
     if let Some(args) = args {
         for a in args.children(&mut args.walk()) {
             if seed.lambda_kinds.contains(&a.kind()) {
@@ -700,7 +798,10 @@ pub fn cache_source_bytes(conn: &Connection, file_id: i64, src: &str) -> Result<
     conn.execute(
         "INSERT OR REPLACE INTO file_source_cache(file_id, zstd_bytes, revision)
          SELECT ?1, ?2, revision FROM files WHERE id = ?1",
-        rusqlite::params![file_id, zstd::bulk::compress(src.as_bytes(), 3).map_err(|e| e.to_string())?],
+        rusqlite::params![
+            file_id,
+            zstd::bulk::compress(src.as_bytes(), 3).map_err(|e| e.to_string())?
+        ],
     )
     .map(|_| ())
     .map_err(|e| e.to_string())
@@ -759,7 +860,9 @@ pub fn lower_all(conn: &Connection) -> Result<LowerReport, String> {
         m
     };
     for (file_id, path) in files {
-        let Some(lang) = Lang::from_path(&path) else { continue };
+        let Some(lang) = Lang::from_path(&path) else {
+            continue;
+        };
         let compressed: Vec<u8> = tx
             .query_row(
                 "SELECT zstd_bytes FROM file_source_cache WHERE file_id = ?1",
@@ -792,8 +895,13 @@ pub fn lower_file(
 
 /// Lower the shared parse tree; caller controls the file transaction.
 pub fn lower_tree(
-    conn: &Connection, file_id: i64, lang: Lang, src: &[u8], tree: &tree_sitter::Tree,
-    name_ids: &BTreeMap<String, i64>, report: &mut LowerReport,
+    conn: &Connection,
+    file_id: i64,
+    lang: Lang,
+    src: &[u8],
+    tree: &tree_sitter::Tree,
+    name_ids: &BTreeMap<String, i64>,
+    report: &mut LowerReport,
 ) -> Result<(), String> {
     let root = tree.root_node();
     let ast_map = AstIdMap::build(conn, file_id)?;
@@ -806,7 +914,11 @@ pub fn lower_tree(
             .map_err(|e| e.to_string())?;
         let rows = stmt
             .query_map(rusqlite::params![file_id], |r| {
-                Ok((r.get(0)?, r.get::<_, i64>(1)? as usize, r.get::<_, i64>(2)? as usize))
+                Ok((
+                    r.get(0)?,
+                    r.get::<_, i64>(1)? as usize,
+                    r.get::<_, i64>(2)? as usize,
+                ))
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
@@ -849,7 +961,11 @@ pub fn lower_tree(
                 .as_deref()
                 .and_then(last_name_segment)
                 .and_then(|n| name_ids.get(n).copied());
-            let resolution = if callee_id.is_some() { "RESOLVED" } else { "UNRESOLVED" };
+            let resolution = if callee_id.is_some() {
+                "RESOLVED"
+            } else {
+                "UNRESOLVED"
+            };
             let call_node = span_index.get(&c.span).copied().unwrap_or(root);
             call_ins
                 .execute(rusqlite::params![
@@ -929,7 +1045,9 @@ fn write_cfg(
         // prepared once and reused across every block/instruction/edge —
         // these loops were the hottest write path in the store
         let mut block_ins = conn
-            .prepare_cached("INSERT INTO ir_blocks(symbol_id, block_index, kind) VALUES (?1, ?2, ?3)")
+            .prepare_cached(
+                "INSERT INTO ir_blocks(symbol_id, block_index, kind) VALUES (?1, ?2, ?3)",
+            )
             .map_err(|e| e.to_string())?;
         let mut instr_ins = conn
             .prepare_cached(
@@ -980,34 +1098,27 @@ fn write_cfg(
             report.edges += 1;
         }
     }
-    // ANL-05 rename-stable hash + §15 ir_vec (op bag + edge count), stored
-    // in ir_meta for the duplicates slice to consume.
-    let (hash, vec) = ir_hash_vec(ctx);
-    conn.prepare_cached(
-        "INSERT OR REPLACE INTO ir_meta(symbol_id, ir_hash, ir_vec) VALUES (?1, ?2, ?3)",
-    )
-    .map_err(|e| e.to_string())?
-    .execute(rusqlite::params![
-        sym_id,
-        hash,
-        serde_json::to_vec(&vec).map_err(|e| e.to_string())?
-    ])
-    .map_err(|e| e.to_string())?;
+    // ANL-05 rename-stable hash. (The §15 ir_vec op-bag — the cosine era's
+    // carrier — stopped being written once jscpd replaced the §23.2 similarity
+    // ladder: no production reader remained. The bag stays derivable from
+    // ir_instructions + ir_edges on demand.)
+    let hash = ir_hash_of(ctx);
+    conn.prepare_cached("INSERT OR REPLACE INTO ir_meta(symbol_id, ir_hash) VALUES (?1, ?2)")
+        .map_err(|e| e.to_string())?
+        .execute(rusqlite::params![sym_id, hash])
+        .map_err(|e| e.to_string())?;
     Ok(block_rows)
 }
 
-fn ir_hash_vec(ctx: &LowerCtx) -> (Vec<u8>, BTreeMap<String, u32>) {
+fn ir_hash_of(ctx: &LowerCtx) -> Vec<u8> {
     let mut stream = String::new();
-    let mut vec: BTreeMap<String, u32> = BTreeMap::new();
     for b in &ctx.cfg.blocks {
         for ins in &b.instrs {
             stream.push_str(ins.op);
             stream.push('\u{1}');
-            *vec.entry(ins.op.to_string()).or_insert(0) += 1;
         }
     }
-    *vec.entry("@edges".into()).or_insert(0) = ctx.cfg.edges.len() as u32;
-    (blake3::hash(stream.as_bytes()).as_bytes().to_vec(), vec)
+    blake3::hash(stream.as_bytes()).as_bytes().to_vec()
 }
 
 /// Ingest a folder into an existing polyglot store, cache sources, lower.
@@ -1066,6 +1177,51 @@ mod tests {
     use crate::schema::{create_schema, ingest_parsed_file, IngestStats, Lang};
     use rusqlite::Connection;
 
+    #[test]
+    fn ir_vec_carrier_self_migrates_from_pre_jscpd_stores() {
+        // FKs stay off for the hand-seeded fake rows — the migration's
+        // semantics (drop the column, keep the rows) don't depend on FK
+        // integrity, and the real ingest path only ever inserts real ids.
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        create_schema(&conn).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE ir_meta (
+                symbol_id INTEGER PRIMARY KEY REFERENCES symbols(id),
+                ir_hash   BLOB NOT NULL,
+                ir_vec    BLOB NOT NULL
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO ir_meta VALUES (7, x'0123', x'7b226f3a317d')", // {"o":1}
+            [],
+        )
+        .unwrap();
+
+        // ensuring schemas on the old store drops the retired column in place
+        create_ir_schema(&conn).unwrap();
+        let still_has: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('ir_meta') WHERE name = 'ir_vec'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(still_has, 0, "ir_vec column dropped: ");
+        // the pre-existing row survives (its bag bytes are simply gone), and
+        // new two-column inserts work against the migrated table
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM ir_meta", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 1);
+        conn.execute(
+            "INSERT INTO ir_meta(symbol_id, ir_hash) VALUES (8, x'4567')",
+            [],
+        )
+        .unwrap();
+    }
+
     fn setup() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
         create_schema(&conn).unwrap();
@@ -1108,7 +1264,10 @@ def charge(user, amount):
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .unwrap();
-        assert!(n_cmp >= 1 && n_bt >= 1 && n_bf >= 1, "cmp={n_cmp} bt={n_bt} bf={n_bf}");
+        assert!(
+            n_cmp >= 1 && n_bt >= 1 && n_bf >= 1,
+            "cmp={n_cmp} bt={n_bt} bf={n_bf}"
+        );
         assert_eq!(n_ex, 0, "no throws in this source");
 
         // guard_summary carries the enclosing branch condition (§11.4)
@@ -1121,10 +1280,17 @@ def charge(user, amount):
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap()
         };
-        assert!(guards.iter().any(|g| g.contains("amount > 100")), "guards: {guards:?}");
+        assert!(
+            guards.iter().any(|g| g.contains("amount > 100")),
+            "guards: {guards:?}"
+        );
         // else-guarded call is recorded without the then-guard
         let n_else_guarded: i64 = conn
-            .query_row("SELECT COUNT(*) FROM calls WHERE guard_summary = '<else>'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM calls WHERE guard_summary = '<else>'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(n_else_guarded, 0, "'<else>' never leaks into guard_summary");
     }
@@ -1144,12 +1310,20 @@ def charge(user, amount):
         assert_eq!(n, n_block, "every call carries its block_id");
         assert_eq!(n, n_kind, "every call carries a call_kind");
         let syncs: i64 = conn
-            .query_row("SELECT COUNT(*) FROM calls WHERE call_kind='sync'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM calls WHERE call_kind='sync'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(syncs, n, "plain calls are sync");
         // throws_set honest NULL — the callees here are unresolved externals
         let with_throws: i64 = conn
-            .query_row("SELECT COUNT(*) FROM calls WHERE throws_set IS NOT NULL", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM calls WHERE throws_set IS NOT NULL",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(with_throws, 0);
     }
@@ -1179,7 +1353,11 @@ def charge(user, amount):
             "def helper():\n    return 1\n\ndef caller():\n    return helper()\n",
         );
         let resolved: i64 = conn2
-            .query_row("SELECT COUNT(*) FROM calls WHERE resolution='RESOLVED'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM calls WHERE resolution='RESOLVED'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(resolved, 1);
     }
@@ -1219,7 +1397,12 @@ def charge(user, amount):
     #[test]
     fn rust_await_classified_async_await() {
         let conn = setup();
-        ingest_lower(&conn, "a.rs", Lang::Rust, "async fn go() {\n    db().await;\n}\n");
+        ingest_lower(
+            &conn,
+            "a.rs",
+            Lang::Rust,
+            "async fn go() {\n    db().await;\n}\n",
+        );
         let k: String = conn
             .query_row("SELECT call_kind FROM calls LIMIT 1", [], |r| r.get(0))
             .unwrap();
@@ -1236,7 +1419,11 @@ def charge(user, amount):
             "function run() {\n    items.map(x => wrap(x));\n}\n",
         );
         let k: String = conn
-            .query_row("SELECT call_kind FROM calls WHERE callee_text='items.map'", [], |r| r.get(0))
+            .query_row(
+                "SELECT call_kind FROM calls WHERE callee_text='items.map'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(k, "callback");
     }
@@ -1254,7 +1441,10 @@ def charge(user, amount):
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(unbacked, 0, "structured ops must carry their evidence pointer");
+        assert_eq!(
+            unbacked, 0,
+            "structured ops must carry their evidence pointer"
+        );
     }
 
     #[test]
@@ -1280,6 +1470,9 @@ def charge(user, amount):
             .unwrap();
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].3, "charge");
-        assert!(rows.iter().all(|r| r.4.is_none()), "unresolved callees stay NULL, never guessed");
+        assert!(
+            rows.iter().all(|r| r.4.is_none()),
+            "unresolved callees stay NULL, never guessed"
+        );
     }
 }

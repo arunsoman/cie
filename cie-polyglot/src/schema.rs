@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS ast_nodes (
     uast_kind_id INTEGER REFERENCES uast_kinds(id)
 );
 CREATE INDEX IF NOT EXISTS idx_ast_span ON ast_nodes(file_id, start_byte, end_byte);
+CREATE INDEX IF NOT EXISTS idx_ast_span_no_file ON ast_nodes(start_byte, end_byte);
 CREATE INDEX IF NOT EXISTS idx_ast_children ON ast_nodes(parent_id, child_index);
 CREATE INDEX IF NOT EXISTS idx_ast_kind ON ast_nodes(file_id, kind_id);
 CREATE INDEX IF NOT EXISTS idx_ast_errors ON ast_nodes(file_id, is_error, is_missing);

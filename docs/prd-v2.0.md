@@ -540,7 +540,7 @@ Per symbol, after UAST:
 2. Emit `ir_blocks`, `ir_instructions`, `ir_edges`
 3. Populate `calls.block_id`, `calls.call_kind`, `calls.throws_set`, `calls.guard_summary` during the same pass
 4. Compute `ir_hash` (ANL-05): rename-of-locals-stable
-5. Compute `ir_vec` (sparse embedding for cosine similarity)
+5. ~~Compute `ir_vec` (sparse embedding for cosine similarity)~~ — RETIRED: the op-bag carrier is not written since the jscpd migration (the §23.2 similarity tiers it fed were replaced by jscpd token tiers); the bag stays derivable from `ir_instructions` + `ir_edges` on demand
 
 ### 15.1 The lowering algorithm
 
@@ -833,10 +833,20 @@ The visual with shared center, callers on the left by ring, duplicates on the ri
 | Tier | Method | Confidence |
 |---|---|---|
 | Canonical duplicate | `ir_hash` exact match | Fact |
-| High-similarity duplicate | `ir_vec` cosine ≥ 0.85 | Inference |
-| Medium-similarity duplicate | `ir_vec` cosine 0.60–0.85 + shape hash match | Inference |
-| Low-similarity candidate | `ir_vec` cosine 0.40–0.60 | Hypothesis (with counter-argument) |
-| Below threshold | Hidden, counted in gaps | — |
+| High fragment overlap | jscpd token coverage ≥ 0.85 of the smaller symbol | Inference (`token-clone`) |
+| Medium fragment overlap | jscpd token coverage 0.60–0.85 | Inference (`token-clone`) |
+| Low fragment overlap | jscpd token coverage below 0.60 (above the detector's own `min_tokens` floor) | Inference (`token-clone`) |
+| Below the token floor | Not discovered by the sparse detector — absence is not proof of uniqueness; `_gaps` rows carry structural zeros, not honest hidden counts | — |
+
+> Amendment: the original ladder scored `ir_vec` cosine (0.85 / 0.60–0.85 /
+> 0.40–0.60). Detection moved to the jscpd-rs token matcher in commit
+> `5267564` — a match either clears the token floor or does not exist, so the
+> three Inference tiers bucket **fragment line coverage** and the old
+> "hidden below threshold" accounting became structural (an exhaustive
+> hidden-residual count is impossible for a sparse detector). The `ir_vec`
+> column was retired from `ir_meta` accordingly. The kind rule (container ×
+> member) and the span rule (same-file nesting) exclude containment
+> geometry before any tier.
 
 ### 23.3 Canonical detection
 

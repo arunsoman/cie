@@ -560,6 +560,7 @@ version = "1.2.0"
 dependencies = [
  "cie-core",
  "cie-semantic",
+ "cie-summary",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -920,6 +921,7 @@ dependencies = [
  "cie-semantic",
  "cie-stack",
  "cie-store",
+ "cie-summary",
  "cie-viz",
  "rusqlite",
  "schemars",

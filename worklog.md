@@ -1256,3 +1256,82 @@ Work Log:
 
 Stage Summary:
 - QA-BEHAVIOUR-BASELINE-GREEN is ON ORIGIN: local == origin/main == a3b4ac4. The six SMPP behavioural expectations pass 6/0/0 on a fresh real capture; the defect baseline (0/6/0) is reproducible from the rev-1 fixture in history. Suite state: cargo 457 passed + 8 pre-existing jscpd duplicates failures (parallel-agent debt, proven on clean baseline); web 113/113. NEXT per the design doc: stage 2 semantic producers, stage 3 storage projections, stage 4 diagram/navigation rewrites onto the new records; the duplicates test debt belongs to the jscpd owner.
+
+---
+Task ID: STACK-INPUT-HANDOFF-AND-REUSE-KEYS-GREEN
+Agent: main (Z.ai)
+Task: Merge step 5's manifest/config half into step 3's reads (RFC-0019 §6.2); turn the four pre-existing red tests green by fixing the seam 9bce635 intended.
+
+Work Log:
+- Verified the starting claims against code first: put_file already calls cie_polyglot::frameworks::detect_file_tree with the live tree (the decorator half of the merge was shipped); the real gap was the walk reading every stack-input file to hash it and discarding the bytes while stack_report re-opened them from disk. Confirmed at cie-ingest/src/stream.rs (the stack_input continue), cie-stack/detect.rs+docker.rs+lib.rs (fs::read_to_string sites), both stack-stage call sites in run_ingest.
+- Handoff: Walked gains stack_input_sources (utf8 bodies, ≤MAX_FILE_BYTES — the walk's own gates); stream.rs and walk_and_hash capture them; both stack-stage call sites pass Some(&stream.walked.stack_input_sources). cie-stack grows CapturedInputs{root, bodies} with read_input (capture→disk, stack inputs) vs read_code (disk only, sources) — the scope bar is enforced by the type, not caller discipline; collect_sources/detect/docker thread the split; stack_report_with/stack_report_stage_with are the body-feeding entry points, stack_report/stack_report_stage stay disk-only wrappers for the standalone CLI.
+- New proofs in cie-stack/tests/captured_inputs.rs: capture feeds the lens with the manifest file GONE from disk (manifest reads are name-keyed); stale-copy preference (junk written to disk after capture — the report still describes the captured bytes, the same ones the §6.2 hash covers); byte-parity between capture and disk paths (serde_json equality modulo generatedAt); the capture can never impersonate a code file.
+- Four red tests (acc27, task_084, task_030 counters, cie-stories all_deep_checks) — all proven pre-existing first (stash + clean-HEAD run; US-045/US-094 already red at a3b4ac4, the other three green at a3b4ac4). Bisected each in a worktree: acc27/task_084/US-004/task_030 all break at 9bce635 ("Fix source-backed behaviour navigation and shared Atlas scope").
+- task_030 root cause (instrumented reuse gates): 9bce635 folded repo-global material into the per-symbol local-fact hash — bindings serialized with revision-local numeric owner ids, repo-wide declaration profiles, dep files' CONTENT hashes. One file's edit (or one new symbol shifting ids) poisoned untouched files' keys. Fix per the contract's own shape: per-symbol hash = identity-stable local facts only (resolved callees named by decl file + qual, spans/lines dropped, own bindings stably serialized); file-level (file, dep-set) keys keep content-based dep invalidation; the declaration basis (non-function symbols + Field bindings + type_decls + imports, stable serialization) now stands alone as current_decl, persisted in SummaryCacheEntry.decl_hash (serde default — older snapshots skip), and a changed basis poisons the file's prior symbol keys so symbol_dirty_worklist recomputes them and cascades callers — changing_declared_receiver_invalidates_an_unchanged_method_body still green, query_log seeds after store.py gains a line, authorize recomputes exactly when query_db's facts move.
+- acc27/task_084: the assertion pinned the retired FCA-as-UseCase shape; updated to the 9bce635 semantics (business concepts = UseCase|Facet; every UseCase provenance api:declared-route-v1 — source-backed, never a shared attribute).
+- US-004: the org lens lost its label-bearers when FCA groups demoted — OrgMember::new and run_org_ingest now take Facet beside UseCase/Aggregate/Entity (debug-dumped the org member first: concepts were empty pre-fix despite 5 dag nodes). merged=[("authorization & money movement", 2)] on the fixture.
+- US-045/US-094: BB4 retired the naming-convention contract blocks, so the route-less python fixture had no obligation contracts at all. The structural survivor: a money/destructive caller whose RESOLVED callee is auth-named earns an InferredCandidate MustAuthorize precondition citing BOTH symbols (guard call = evidence, not spelling); conformance.rs carries the rule with the retirement rationale next to it.
+- Clippy: needless-borrow nit introduced by the manifest_name signature cleanup fixed (detect.rs).
+
+Stage Summary:
+- cargo workspace 617 passed / 0 failed (was 613/4 with all four verified pre-existing at HEAD); clippy clean on touched lines; no debug instrumentation left behind. The §6.2 manifest/config half now rides step 3's reads end-to-end — the lens never re-opens a stack-input file the walk captured, and its report is byte-identical either way. The remaining (documented, not taken) step-5-into-3 opportunity: the lens' code-file reads still hit disk — serving them from the store's cached sources would complete single-read purity, but needs a source-read API on the writer plus the lens' own caps interplay, so it stays a follow-up. NEXT: the summary-seed layer now holds stable identities end to end, which is the prerequisite the user's stated objective rides on — extract everything about a file's AST once (symbols, facts, roles, summary seeds), then only graph joins downstream, never re-extraction.
+
+---
+Task ID: PHASE3-SUMMARY-SEEDS-EXTRACT-ONCE
+Agent: main (Z.ai)
+Task: Populate the per-symbol FunctionSummary's file-local fields in phase 3 (put_file, tree in hand) per the user's extract-once objective; inputs/outputs populated for the first time ever.
+
+Work Log:
+- Audited the resolve stage first (phase 4 in the conversation's numbering: materialize → assemble_facts → resolve_project). Found: reads only the persisted semantic_files payloads (zero disk, zero re-parse); creates exactly one new knowledge kind (cross-file call identity + reasoned negatives via the 7-rung resolution ladder, ambiguity never guessed — resolve_unique_name is exactly-one-or-nothing); the SQL calls table is REPLAY of phase-4 verdicts keyed by (path, start, end) spans, not a second resolver; inputs/outputs on FunctionSummary declared but never populated anywhere; callers documented as "Derived, not extracted".
+- New cie-summary/src/seed.rs: SummarySeed (sym + inputs + outputs + effects + exceptions + path_conditions + returns_constants + all_returns_constant + has_failure_path + has_loops + tags + pending_callees) and summary_seeds(&LangFacts) — pure per-file grouping (params sorted by line, distinct return shapes, non-handler raises, take(16) guarded conditions, reads_input from RhsKind::Input, entrypoint from decorator texts, non-db builtin effect claims, unresolved-at-extraction callee texts). Deliberately NOT in the seed: callees/callers (repo-wide ladder + inversion), reasoned unresolved strings, receiver-gated db verdicts, complete (closure property) — documented in the module header.
+- FunctionSummary::apply_seed populates the file-local fields; behavior::compute_summaries_with_reuse gains seeds: Option<&[Vec<SummarySeed>]> aligned with per_file (FileId == index by construction in both builders); fresh symbols with a seed consume it and skip the local loops; without a seed the unchanged fallback loops run (old payloads, serde default).
+- extract_project derives seeds AFTER the global rewewrite but BEFORE resolve_project (extraction-time pending evidence, matching put_file); assemble_facts takes (facts, lines, seeds) triples and remaps seed syms with the SAME ids map as the facts — consumers only ever see global ids. is_entrypoint_call_text moved to cie_summary (single source for seed + fallback predicate).
+- Tests: cie-summary/tests/seed_extraction.rs (3: every field pinned incl. param type text + ordering, false-everywhere seed, shared entrypoint predicate); cie-analysis/tests/seed_parity.rs (2: seeded vs fallback summaries equal after zeroing compute_ns and the never-populated-before inputs/outputs; inputs/outputs actually populated and param-typed).
+- Stage summary: workspace 622 passed / 0 failed (was 617; +5 new); clippy clean on cie-summary/adapters/storage/analysis/ingest; the only remaining warnings are pre-existing in untouched files (cie-semantic/families.rs FileId, cie-adapters/effects.rs + light_engine.rs, adapter-php/cpp).
+
+---
+Task ID: DUPLICATE-DETECTION-EXPLAINED-PINNED
+Agent: main (Z.ai)
+Task: Locate duplicate detection in the pipeline (user Q); explain jscpd vs the in-house layers with REAL run output (user Q), pinning the five scenarios as an assertion test.
+
+Work Log:
+- Located: the storage band of commit_with_progress (repository.rs:636 detect_with_progress + cluster_canonical; invalidated/rebuilt by invalidate_derived each dirty commit) — the 5th pipeline stage per docs/ingest-polyglot-architecture.md.
+- Traced the jscpd decision to its commit (5267564 "Replace duplicate detection with jscpd-rs clone detector"; the cosine engine is GONE) — but the engine kept the ir_hash Fact tier, kind/span exclusion rules, tier bucketing (jscpd has no score), canonical winner (§23.3), and union-find clusters, because jscpd cannot produce any of those claims. Read jscpd-rs 0.1.12's vendored source for the algorithm ground truth: per-format grouping (source_indices_by_format → detect_format), polynomial rolling hash over min_tokens token windows bucketed into FxHashMap, contiguous repeats merged into CloneMatch fragments.
+- Flagged doc drift: prd-v2.0.md §23.2 still describes the Inference tiers as ir_vec cosine (0.85/0.60–0.85/0.40–0.60) — the code buckets on jscpd fragment coverage instead; also the "below threshold → hidden gaps" row lost its meaning (hidden_gaps is structurally 0 with jscpd's floor semantics; detect() documents it).
+- Built the five-scenario demo as REAL runs, then converted to assertions: cie-polyglot/tests/duplicate_detection_two_detectors.rs — (1) verbatim copy → canonical/ir-hash-match/Fact, token tier does not double-book; (2) copy+extra guard branch (tokens same, IR differs) → high/token-clone/Inference, jscpd-only discovery; (3) pasted fragment in different bodies → low/token-clone/Inference; (4) java×python same logic → cross-language canonical Fact, ZERO token rows (jscpd is within-format only); (5) class×own method → pairs=0, skipped_kind_mismatch=1.
+- Demo fixtures revealed the op-bag is name-blind (ship vs load calls hash equal) — recorded in the T2 comment; only shape changes split the tier.
+
+Stage Summary:
+- cargo workspace 627 passed / 0 failed (622 + 5 new pinned scenarios); clippy clean on the new test (remaining cie-polyglot warnings pre-exist in schema/statemachines/runtime/viewspec). CHANGELOG bullet added. PRD §23.2 doc-drift correction remains open for its doc owner.
+
+---
+Task ID: JSCPD-REPLACEMENT-BOUNDARY-PINNED-DEAD-COSINE-REMOVED
+Agent: main (Z.ai)
+Task: Answer "can every duplication logic be replaced by jscpd?" honestly; remove what jscpd already displaced.
+
+Work Log:
+- Read the jscpd decision's ground truth (commit 5267564 + crate source): production detection is jscpd-rs token windows (per-format grouped, polynomial rolling hashes, FxHashMap bucketing, fragment merges); the cosine engine has NO production caller since that commit.
+- Established the boundary with the previous turn's five run-proven scenarios: jscpd cannot make the Fact tier (ir_hash semantic equality), cannot see cross-language twins (within-format matching only), cannot exclude containment geometry (it reports class×own-method), has no continuous score (the 3 tier buckets are ours), and does no canonical winner/clustering — the surviving custom layer is the CLAIM SYSTEM, not duplicated detection.
+- Found and removed the dead leftovers the migration stranded in duplicates.rs: LOW_FLOOR + ABORT_SLACK (referenced nowhere), the dense Bag/build/cosine block (survived only in dense_cosine_is_bit_identical_to_brute_force — a dead engine proven equal to its own brute-force copy, test deleted with it), and load_ir_meta/load_spans/load_kinds — lib fns whose ONLY consumer is the test oracle; all three now live in the test module beside brute::detect (production reads ir_hash directly, never parses the ir_vec bag JSON).
+- Flagged the two decision items this leaves: ir_vec is still WRITTEN per ingest (ir.rs:983-987, schema col NOT NULL) with zero production readers (schema surgery + store-compat work), and duplicate_gaps is written all-zeros with one reader (impact_duplicate_spec) — a product/PRD decision (the "hidden below floor" tier is jscpd-moot), to be co-committed with the PRD §23.2 cosine→token wording fix.
+- Diff hygiene: my cargo fmt runs had reformatted whole crates; reverted every fmt-only file back to HEAD (~45 files), preserving all semantic files of this session, the oracle moves, and the user's in-flight changes (overlap.rs borrow/clone perf edit; schema.rs idx_ast_span_no_file re-applied after revert).
+
+Stage Summary:
+- cargo workspace 626 passed / 0 failed (627 + 5 new two-detector scenarios − 1 deleted dead-engine test); clippy clean on touched crates (the 2 remaining cie-adapters warnings exist at HEAD, pre-session). duplicates.rs now contains exactly: jscpd integration, the claim table/insert, exclusions, canonical winner, clusters, the spec reader — and nothing else.
+
+---
+Task ID: IR-VEC-CARRIER-RETIRED-SCHEMA-SURGERY
+Agent: main (Z.ai)
+Task: Execute the ir_vec schema surgery (user approval): writer, in-place migration, oracle recompute, dev tool, PRD/implementation-doc amendment.
+
+Work Log:
+- DDL: ir_meta (ir.rs DDL_IR) no longer declares ir_vec; new stores carry ir_hash only.
+- Migration: create_ir_schema checks pragma_table_info('ir_meta') for ir_vec and runs ALTER TABLE ir_meta DROP COLUMN ir_vec when present — old promoted stores self-migrate on next open; sqlite bundled (libsqlite3-sys 0.30.1) supports DROP COLUMN. Test: ir.rs tests::ir_vec_carrier_self_migrates_from_pre_jscpd_stores (old-shape store: column dropped, row survives with its bag bytes gone, two-column INSERT works; FKs off only for the hand-seeded fake rows).
+- Writer: ir_hash_vec → ir_hash_of, returns the blake3 hash alone; INSERT OR REPLACE loses the third parameter; the "for the duplicates slice to consume" comment replaced by the retirement rationale (bag derivable from ir_instructions + ir_edges on demand).
+- Oracle (duplicates.rs test mod): load_ir_meta RECOMPUTES the op-bag from persisted ir_instructions (op counts) + ir_edges (@edges = CFG edge count per symbol) and pairs it with the stored ir_hash — the reference engine no longer trusts a carrier the store stopped writing; it validates MORE (derives from raw ops). ingest_dump example prints hash-only rows.
+- duplicate_gaps: left standing deliberately — impact_duplicate_spec's hidden_count read is load-bearing in the §23.1 spec shape (retiring it would cascade into the viewspec contract + the TS gate mirror); values stay honest structural zeros; documented as the remaining decision item.
+- Docs: PRD §15 step 5 marked RETIRED with the derivable-on-demand note; §23.2 ladder re-expressed as the shipped jscpd reality with an amendment block (cosine → fragment-coverage buckets; the hidden row becomes the not-discovered honesty note); implementation record gains a "15 (amended)" row + the deviations paragraph says ir_vec is the one named-and-retired carrier; impact-duplicate footer → "ir-hash and jscpd token tiers (§23.2 as amended)".
+- Diff hygiene: the workspace-wide cargo fmt runs kept re-diverging fmt-only files; re-reverted cie-polyglot's non-semantic files to HEAD and re-applied the user's schema.rs index line; the working tree now carries only semantically-attributed files.
+
+Stage Summary:
+- FINAL gate: cargo workspace 627 passed / 0 failed; clippy: cie-polyglot's ir.rs/duplicates.rs only pre-existing-at-HEAD type_complexity nits (verified identical count on a stash of HEAD). The cosine era's last storage artifact is gone; the store contract now says only what is read.

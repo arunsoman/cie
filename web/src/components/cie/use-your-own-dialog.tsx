@@ -440,6 +440,14 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
   const scanReq = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollMisses = useRef(0);
+  // First-seen "running" timestamp per step key, so the panel can show a
+  // live elapsed timer while a step is in flight — not just after it's
+  // done. Long stages (storage) now emit many detail-text heartbeats per
+  // run; a ticking timer makes "still alive, still working" visible even
+  // between heartbeats, instead of relying on the text alone to not look
+  // frozen.
+  const runningSince = useRef<Record<string, number>>({});
+  const [, setTick] = useState(0);
 
   // switching sources invalidates any picked branch
   useEffect(() => {
@@ -586,6 +594,26 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
 
   useEffect(() => stopPolling, [stopPolling]);
 
+  // Record the first moment each step is seen "running", so elapsed time
+  // can be computed against a stable start, not re-derived from `tick`.
+  useEffect(() => {
+    if (!status) return;
+    for (const s of status.steps) {
+      if (s.state === "running" && !(s.key in runningSince.current)) {
+        runningSince.current[s.key] = Date.now();
+      }
+    }
+  }, [status]);
+
+  // Drive the live elapsed-time display with a 1s tick while any step is
+  // actually running — stops itself once the job settles.
+  useEffect(() => {
+    const anyRunning = status?.steps.some((s) => s.state === "running") ?? false;
+    if (!anyRunning) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [status]);
+
   const start = async () => {
     setStartError("");
     setStarting(true);
@@ -614,6 +642,7 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
   const resetJob = () => {
     stopPolling();
     pollMisses.current = 0;
+    runningSince.current = {};
     setJobId(null);
     setStatus(null);
     setStartError("");
@@ -868,7 +897,18 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
                     <span className="text-stone-400 mr-1.5">{i + 1}.</span>
                     {s.label}
                     {s.state === "skipped" && <span className="text-stone-500 font-normal"> — skipped</span>}
-                    {s.state === "running" && <span className="text-emerald-700 font-normal"> — working…</span>}
+                    {s.state === "running" && (
+                      <span className="text-emerald-700 font-normal">
+                        {" "}
+                        — working…
+                        {runningSince.current[s.key] !== undefined && (
+                          <span className="text-emerald-700/70 font-normal text-xs">
+                            {" "}
+                            ({Math.max(0, Math.round((Date.now() - runningSince.current[s.key]) / 1000))}s)
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {s.ms !== undefined && s.state === "done" && <span className="text-stone-400 font-normal text-xs"> · {(s.ms / 1000).toFixed(1)}s</span>}
                   </p>
                   {(s.state !== "pending" && s.detail) && (
