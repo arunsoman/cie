@@ -1,5 +1,5 @@
 import type { AtlasQuery, AtlasItemRef } from './atlas-types';
-export type EntityKind = 'symbol' | 'file' | 'concept' | 'entry_point' | 'route' | 'finding' | 'contract' | 'summary' | 'component' | 'dependency' | 'cluster' | 'duplicate_pair' | 'workflow' | 'state_machine' | 'state' | 'framework' | 'evidence';
+export type EntityKind = 'symbol' | 'file' | 'concept' | 'entry_point' | 'route' | 'finding' | 'contract' | 'summary' | 'component' | 'container' | 'dependency' | 'cluster' | 'duplicate_pair' | 'workflow' | 'state_machine' | 'state' | 'framework' | 'evidence';
 export interface PopulationMapping {
     from: EntityKind;
     to: EntityKind;
@@ -8,6 +8,9 @@ export interface PopulationMapping {
 }
 /** Only declared storage relations may bridge universes. No path/name guesses. */
 export const storageMappings: PopulationMapping[] = [
+    { from: 'symbol', to: 'container', relation: 'member_of_container' }, { from: 'container', to: 'symbol', relation: 'member_of_container', incoming: true },
+    { from: 'file', to: 'container', relation: 'member_of_container' }, { from: 'container', to: 'file', relation: 'member_of_container', incoming: true },
+
     { from: 'route', to: 'symbol', relation: 'source_symbol' }, { from: 'symbol', to: 'route', relation: 'source_symbol', incoming: true },
     { from: 'entry_point', to: 'symbol', relation: 'source_symbol' }, { from: 'symbol', to: 'entry_point', relation: 'source_symbol', incoming: true },
 

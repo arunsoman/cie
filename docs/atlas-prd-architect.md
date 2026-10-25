@@ -17,6 +17,17 @@
 **Shares a panel with:** `atlas-prd-reviewer.md` §5.2 `driftboard` (reused by id, not redefined)
 **Builds on:** `atlas-charter.md` §6, `atlas-ux-spec.md` §7
 
+## Current delivery boundary (2026-10-25)
+
+Architect now routes through `ArchitectAtlas` and the shared core using
+`architect.orientation`. It provides typed C4 application containers, framework and
+generated component interpretation, file/symbol/API charts and captured call views.
+This is the C4 orientation increment, not the dependency/duplication/drift hero
+specified below. Twelve registered core charts remain placeable in any slot and
+participate in the shared selection. See the [migration matrix](atlas-migration-matrix.md)
+for remaining producer and evidence gaps. Legacy Architect layout descriptions
+below are requirements, not claims about the delivered orientation slice.
+
 ## 1. Problem
 
 `atlas-presets.ts` ships `hero: "containers"` for the architect preset; the charter names the hero for

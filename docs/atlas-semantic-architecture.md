@@ -100,7 +100,7 @@ ship in Atlas until it passes this contract.
 | Contract | Owns | Does not own |
 | --- | --- | --- |
 | PopulationSpec | repository/revision, expression, universe, version, matches, coverage | pixels or chart geometry |
-| SemanticViewSpec | dependency/hierarchy/control-flow/sequence/data-flow/metric/table structures and provenance | engine options or SVG paths |
+| SemanticViewSpec | typed C4 architecture/dependency/hierarchy/control-flow/sequence/data-flow/metric/table structures and provenance | engine options or SVG paths |
 | PresentationSpec | profile, layout intent, detail, label and capability requirements | facts, query identity or selection algebra |
 | RenderHandle | physical gestures, focus, camera, highlighting, export and disposal | independent filtering or source resolution |
 

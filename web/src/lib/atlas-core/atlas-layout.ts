@@ -86,3 +86,10 @@ for (const layout of [reviewerLayout, fresherLayout]) {
     layout.areasBase.splice(3, 0, 'entry', 'routes');
     layout.slots.splice(2, 0, {viewId: 'entries', area: 'entry', minHeightPx: 220, chrome: 'table-dense'}, {viewId: 'routes', area: 'routes', minHeightPx: 220, chrome: 'table-dense'});
 }
+
+/** Architecture orientation slice; dependency, drift and scorecard producers remain pending. */
+export const architectLayout: AtlasLayout = {
+    ...reviewerLayout, id: 'architect.orientation',
+    areas: [...reviewerLayout.areas], areasMd: [...reviewerLayout.areasMd], areasBase: [...reviewerLayout.areasBase],
+    slots: reviewerLayout.slots.map(slot => ({...slot, viewId: slot.area === 'hero' ? 'containers' : slot.area === 'tree' ? 'components' : slot.area === 'files' ? 'symbols' : slot.area === 'kinds' ? 'files' : slot.viewId})),
+};

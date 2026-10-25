@@ -21,9 +21,16 @@ export function validateSemantic(model: SemanticViewSpec) {
     }
     const endpoints = (from: string, to: string, allowed: Set<string>) => { if (!allowed.has(from) || !allowed.has(to))
         throw new Error('Dangling semantic relation'); };
-    if (model.kind === 'dependency' || model.kind === 'data-flow') {
+    if (model.kind === 'architecture' || model.kind === 'dependency' || model.kind === 'data-flow') {
         const nodes = new Set(model.nodes.map(n => n.visualId));
         model.relations.forEach(e => endpoints(e.from, e.to, nodes));
+    }
+    if (model.kind === 'architecture') {
+        if (!['container', 'component'].includes(model.level)) throw new Error('Invalid C4 level');
+        for (const node of model.nodes) {
+            if (!['system', 'container', 'component'].includes(node.boundaryRole) || (model.level === 'container' && node.boundaryRole === 'component'))
+                throw new Error('C4 node role does not match its level');
+        }
     }
     if (model.kind === 'hierarchy') {
         const nodes = new Map(model.nodes.map(n => [n.visualId, n]));

@@ -30,6 +30,7 @@ export class PresentationRegistry {
 }
 export const presentations = new PresentationRegistry();
 for (const [kind, host, family, required] of [
+    ['architecture', 'viz-adapter', 'layered', ['selection', 'directed-edges']],
     ['dependency', 'viz-adapter', 'layered', ['selection', 'directed-edges']], ['hierarchy', 'viz-adapter', 'tree', ['selection', 'containment']],
     ['control-flow', 'viz-adapter', 'layered', ['selection', 'control-flow']], ['sequence', 'viz-adapter', 'sequence', ['selection', 'sequence-order', 'self-calls']],
     ['data-flow', 'viz-adapter', 'layered', ['selection', 'directed-edges']], ['metric', 'metric', 'grid', ['selection', 'metrics']], ['table', 'table', 'grid', ['selection', 'table']],

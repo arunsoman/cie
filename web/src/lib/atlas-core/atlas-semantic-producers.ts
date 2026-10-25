@@ -19,6 +19,7 @@ export function semanticEnvelope(model: SemanticViewSpec): AtlasViewSpec {
         to: string;
     } & ReturnType<typeof binding>)[] = [];
     switch (model.kind) {
+        case 'architecture':
         case 'dependency':
         case 'data-flow':
             nodes = model.nodes;

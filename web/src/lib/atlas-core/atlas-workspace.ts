@@ -12,6 +12,7 @@ export interface CubeControls {
 }
 export interface AtlasWorkspace {
     placements?: Record<string, string>;
+    layoutPlacements?: Record<string, Record<string, string>>;
     layoutId: string;
     expandedPanel: string | null;
     dockOpen: boolean;

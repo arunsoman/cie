@@ -6,9 +6,9 @@ Code inventory: 2026-10-25. Governing rule: [any chart, anywhere](atlas-semantic
 
 | Persona | Current route | Delivered slice | Remaining objective gaps |
 |---|---|---|---|
-| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | Containers, unresolved entry coverage, data flow, automated tour and start-point ranking |
+| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | External systems, unresolved entry coverage, data flow, automated tour and start-point ranking |
 | Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Full unresolved-entry coverage, read/write effects, findings and change-specific review |
-| Architect | `LegacyAtlasView` | Legacy charts; not core conformant | Register container/component/concept and boundary producers, then compose its layout |
+| Architect | `ArchitectAtlas` → shared core | Typed C4 containers/components, shared selection and source; dedicated orientation layout | Dependency hero, external systems, complete component interactions, duplication, drift, timelines, risk and quality scorecards |
 | Auditor | `LegacyAtlasView` | Legacy facts preference; core has locked facts policy but this screen is not migrated | Evidence-backed routes, externals, findings, boundary writes and locked policy in rendered UI |
 | Consultant | `LegacyAtlasView` | Legacy scoped exploration | Shared producers, busiest-container evidence and change-context composition |
 | Performance | No selectable persona in `PERSONA_ORDER` | PRD and foundation plan only | Measurements, performance semantic producers and an explicitly supported UI route |
@@ -21,10 +21,10 @@ Legacy panel membership: F=Fresher, R=Reviewer, A=Architect, U=Auditor, C=Consul
 
 | Legacy analytical item | Personas | Existing source | Core status and required work |
 |---|---|---|---|
-| Containers / C4 | F A U C | `buildC4Spec`, stack apps/externals + report | Missing; register build-evidence entities and contributor mapping. Never relabel declaration hierarchy as C4. |
+| Containers / C4 | F A U C | `buildC4Spec`, stack apps/externals + report | Registered as `containers`: captured build application identities, unique longest-directory ownership, captured cross-service matches. Architectural grouping remains Inference; deployment and external systems remain unverified. |
 | Application entries | F R C | stack mains | Registered as `entries` for uniquely resolved captured bootstrap targets; class identity remains a class, unsupported listen/inline entries remain unresolved |
 | Service entries | F R U | stack routes | Registered as `routes` with exact captured handler links; nested declared calls expand up to eight levels; ambiguous/unsupported handlers are excluded from symbol-bound scope |
-| Components | F R A U C | `buildComponentSpec`, concepts/report | Concept DAG producer is registered; component-specific producer still missing; preserve fallback disclosure |
+| Components | F R A U C | `buildComponentSpec`, concepts/report | Registered as `components`: captured framework classes plus stored generated groupings, with recorded symbol membership and container context. Complete component dependency mapping remains pending. |
 | Concept hierarchy | F R A U C | `buildConceptTreeSpec`, concepts | Registered as `concepts`: generated interpretations, primary + extra parent edges, descendant selection, representative member evidence. Concept label correctness still requires domain review. `hierarchy` remains declarations. |
 | Flow | F R A U C | `buildFlowSpec`, report/selection | Native function CFG exists in core; aggregate component/API flow not yet migrated |
 | Sequence | R A | `callSiteSequence`, report graph | Typed static sequence exists in core; occurrence order, dispatch uncertainty, depth limits disclosed; not runtime proof |
@@ -45,6 +45,8 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 | symbols | Selected symbol table with pagination | Stable symbol IDs; declaration span and file |
 | kinds | Selected symbols grouped by kind | Aggregate contributor descriptor; source only where supplied |
 | hierarchy | Captured file/declaration parent structure | Entity contributors and recorded parent evidence |
+| containers | C4 L2 application boundaries | Captured app ownership; typed container contributors and representative member source; no deployment proof |
+| components | C4 L3 component interpretation | Captured framework roles and generated groups; class/method contributors and parent/container context |
 | entries | Captured application bootstrap entries | Unique recorded symbol target; bootstrap classes do not imply function IR |
 | routes | Captured service routes | Exact handler selection; API double-click opens that handler, file cells select file contributors |
 | concepts | Generated concept DAG with recorded parent edges | Typed concept-to-symbol contributor mapping; recorded descendants up to eight levels; representative member source; never upgraded to Fact |
@@ -56,7 +58,7 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 
 For each migrated persona: select a file, select a function, remove just the function, remove the file; verify every analytical view population. Double-click must open captured evidence without toggling selection. Duplicate or move a chart while selected; scope must survive. Switch personas and back; scope must survive. Validate semantic chart shape separately from the shared-set invariant.
 
-Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders yet: Architect, Auditor and Consultant still depend on them. Retire each producer only after all callers have migrated. Ask CIE/MCP still need explicit shared-context integration.
+Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders yet: Auditor and Consultant still depend on them. Retire each producer only after all callers have migrated. Ask CIE/MCP still need explicit shared-context integration.
 
 ## Validation receipt — Fresher checkpoint
 
@@ -78,3 +80,11 @@ Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders
 - 24 Rust tests passed across storage and Java extraction; CLI and native storage module rebuilt. Java private/static/final helper discovery is order-independent and class-scoped, with overloaded names excluded from direct classification.
 - TypeScript and production build passed. 26 production browser checks passed with zero browser errors, covering API selection, exact handler CFG/source, double-click preserving scope, API toggle and file-cell contributor selection, in addition to existing shared-selection checks.
 - Bootstrap classes retain Class semantics. Unknown virtual calls are withheld by Facts-only and remain unknown when interpretations are enabled. Unresolved and ambiguous entries are stored and inspectable via retrieval, but the current symbol-bound entry tables exclude them and disclose this coverage gap. No claim of complete interprocedural runtime flow is made.
+
+## Validation receipt — C4 and Architect orientation
+
+- 183 application tests passed. Native storage tests verify nested application ownership against an independent captured-file symbol oracle, framework component/class membership, representative source, selection retention, and per-layout chart placement export/restore and rejection of invalid saved slots.
+- 23 Rust storage tests passed; native module rebuilt. The new projection operates over captured stack records and declaration identities. No ingestion responsibilities or processes were added.
+- TypeScript and production build passed. All 32 production-browser checks passed with zero browser errors, covering Architect core routing, shared file/container/component selection, captured component source, duplication, persona switching, and replacement canvas readiness.
+- Architect screenshot reviewed at 1550 × 1000. QA exposed and fixed an asynchronous canvas replacement race: each render now owns an isolated DOM host, stale events are ignored, and the canvas stays hidden until the current semantic render is ready. Old renders cannot repaint the next chart's host.
+- This is not the full Architect PRD. Deployment, captured external-image system projection, complete component dependencies, duplication/drift/risk scorecards, large-repository readability and `smpp-mls` domain acceptance remain pending. Auditor and Consultant retain legacy screen dependencies, so their shared legacy builders have not been deleted.

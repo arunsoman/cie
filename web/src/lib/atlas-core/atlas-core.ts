@@ -216,10 +216,13 @@ export function createAtlasCore(options: {
             publish({ ...state, persona });
             return;
         }
-        const plan = options.plans.resolve(persona, !!state.changeContext), next = registry.viewsFor([...new Set([...plan.views, ...Object.values(state.workspace.placements ?? {})])]);
+        const plan = options.plans.resolve(persona, !!state.changeContext);
+        const layoutPlacements = { ...state.workspace.layoutPlacements, [state.workspace.layoutId]: state.workspace.placements ?? {} };
+        const placements = layoutPlacements[plan.layout.id] ?? {};
+        const next = registry.viewsFor([...new Set([...plan.views, ...Object.values(placements)])]);
         definitions.clear();
         next.forEach(v => definitions.set(v.id, v));
-        publish({ ...state, persona, policy: plan.policy, workspace: { ...state.workspace, layoutId: plan.layout.id }, version: state.version + 1 });
+        publish({ ...state, persona, policy: plan.policy, workspace: { ...state.workspace, layoutId: plan.layout.id, placements, layoutPlacements, expandedPanel: state.workspace.layoutId === plan.layout.id ? state.workspace.expandedPanel : null }, version: state.version + 1 });
         void refresh(true);
     }
     const core = {
@@ -411,6 +414,14 @@ export function createAtlasCore(options: {
                 throw new Error('Saved change context is stale');
             const plan = options.plans?.resolve(session.persona, !!session.changeContext);
             if (plan) {
+                if (session.workspace && session.workspace.layoutId !== plan.layout.id) throw new Error('Saved layout does not match persona');
+                for (const [layoutId, placements] of Object.entries(session.workspace?.layoutPlacements ?? {})) {
+                    const layout = options.plans!.layout(layoutId);
+                    if (!placements || typeof placements !== 'object' || Array.isArray(placements)) throw new Error('Invalid saved placements');
+                    for (const [area, id] of Object.entries(placements)) {
+                        if (!layout.slots.some(s => s.area === area) || registry.view(id).purpose === 'navigation') throw new Error('Saved layout placement is invalid');
+                    }
+                }
                 for (const area of Object.keys(session.workspace?.placements ?? {}))
                     if (!plan.layout.slots.some(s => s.area === area))
                         throw new Error('Saved layout slot is invalid');

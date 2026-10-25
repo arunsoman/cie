@@ -19,7 +19,7 @@
 
 ## Current delivery boundary (2026-10-25)
 
-`FresherAtlas` now routes through the shared Atlas core with `fresher.guided` layout and guided file → symbol → function exploration. All ten registered core charts are placeable in any slot. These are not substitutions for the original containers or data-flow requirements below: those producers remain pending. Entry tables now cover uniquely resolved captured targets; ambiguous and unsupported entries remain an explicit coverage gap. The generated concept DAG is now registered with interpretation labels, multiple parents, shared selection and representative member evidence, as recorded in the [migration matrix](atlas-migration-matrix.md). No full persona-completion claim is made by this checkpoint.
+`FresherAtlas` now routes through the shared Atlas core with `fresher.guided` layout and guided file → symbol → function exploration. All twelve registered core charts are placeable in any slot. These are not substitutions for the full onboarding or data-flow requirements below. C4 application/container and component producers are now available from Chart menus; the guided C4 tour and data-flow producer remain pending. Entry tables now cover uniquely resolved captured targets; ambiguous and unsupported entries remain an explicit coverage gap. The generated concept DAG is now registered with interpretation labels, multiple parents, shared selection and representative member evidence, as recorded in the [migration matrix](atlas-migration-matrix.md). No full persona-completion claim is made by this checkpoint.
 
 ## 1. Problem
 

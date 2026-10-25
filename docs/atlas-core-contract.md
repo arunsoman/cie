@@ -25,7 +25,7 @@ the file chart is filtered too; it is not an exception to the rule.
 | Boundary | Contract | Implementation |
 | --- | --- | --- |
 | Selected data | PopulationSpec | selection algebra, registered relation mappings, pinned/versioned storage query |
-| Meaning | SemanticViewSpec | dependency, hierarchy, control-flow, sequence, data-flow, metric, table |
+| Meaning | SemanticViewSpec | typed C4 architecture, dependency, hierarchy, control-flow, sequence, data-flow, metric, table |
 | Presentation | PresentationSpec | registered profiles, layout intent, capability requirements and detail |
 | Engine | RenderHandle | existing visualization negotiator/G6 host, shared gestures, camera and export |
 
@@ -114,7 +114,7 @@ use the URL fragment and contain references, not captured source contents.
 | Source identity guards and recorded/aggregate evidence | Implemented |
 | Named layouts, search, workspace serialization, revision/change context services | Implemented reference infrastructure; not a completed persona product |
 | Reviewer screen | Shared-core reference composition, not the complete Reviewer impact/drift/test-confidence PRD |
-| Other persona screens | Legacy panels remain; foundations plans do not certify those panels |
+| Other persona screens | Fresher and Architect compose shared-core orientation slices; Auditor and Consultant remain legacy, Performance has no selectable UI |
 | Existing chart inventory | Only registered/migrated producers are covered; each remaining chart needs contributor/projection conformance |
 | Ask-CIE and MCP selection integration | Not migrated; Reviewer discloses its separate chat context |
 | Runtime trace reconstruction, exhaustive exception/async analysis | Producer limitations; not claimed |
@@ -180,3 +180,44 @@ Neither is a complete runtime execution trace. Generated or overridable dispatch
 is not promoted to Fact. Java discovery of uniquely named private/static/final
 helpers is now independent of declaration order and isolated to each class;
 overloads and virtual calls remain unresolved rather than guessed.
+
+## Typed C4 and Architect orientation checkpoint
+
+`ArchitectureView` adds an explicit C4 level (`container` or `component`) and typed
+system/container/component roles. The existing renderer compiler preserves these
+roles as domain/container/component render elements and records C4 metadata; a
+relabelled dependency graph is not accepted as this model. Facts-only filters both
+the semantic architecture and its envelope. Architectural boundary classifications
+remain Inference, even when their underlying captured build/annotation record is
+real. No runtime deployment guarantee is made.
+
+Storage projects captured `stack.apps` as `container` entities and records
+`member_of_container` ownership by the unique longest application directory,
+respecting segment boundaries and excluding ambiguous duplicate roots. Captured
+framework classes become component identities with their actual declaration
+children as contributors; existing stored generated components remain available.
+`component_in_container` records context, and `communicates_with` exposes uniquely
+matched captured cross-service records. Projection reads the captured revision,
+not the working tree; ingestion remains unchanged.
+
+The component view currently displays stored parent/container relationships,
+not a complete component dependency map. External Docker/image systems are not
+invented as symbol-owning containers. Representative source belongs to a recorded
+member, not necessarily a captured deployment manifest. Empty and bounded results
+are disclosed. `ArchitectAtlas` composes these registered charts with the same
+selection, layout, policy and source services as Reviewer/Fresher. Its orientation
+layout is partial PRD delivery, not completion of dependency/drift/risk analysis.
+
+Chart placements are now saved per layout in `workspace.layoutPlacements` while
+`workspace.placements` remains the active layout's override map. Persona switching
+archives/restores that layout's choices without changing shared selection; it
+closes an expanded panel when the layout changes. Saved layout maps validate every
+slot and view before use. This prevents a Fresher chart replacement from silently
+replacing Architect's same-named slot. Existing schema-2 sessions without placement
+history still restore their active layout and acquire history when switched.
+
+Canvas rendering is now isolated per asynchronous render host. The displayed
+render state is keyed by the current render hash, stale interactions are ignored,
+and each cleanup disposes only its own graph/DOM host. This prevents an old chart
+from briefly appearing beneath a replacement chart's title. The shared source and
+selection services remain independent of this rendering lifecycle.

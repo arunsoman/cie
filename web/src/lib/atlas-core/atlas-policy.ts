@@ -5,6 +5,10 @@ function filterModel(model: SemanticViewSpec, allowed: Set<string>): SemanticVie
         visualId: string;
     }) => allowed.has(b.visualId);
     switch (model.kind) {
+        case 'architecture': {
+            const nodes = model.nodes.filter(keep), ids = new Set(nodes.map(n => n.visualId));
+            return { ...model, nodes, relations: model.relations.filter(e => keep(e) && ids.has(e.from) && ids.has(e.to)) };
+        }
         case 'dependency': {
             const nodes = model.nodes.filter(keep), ids = new Set(nodes.map(n => n.visualId));
             return { ...model, nodes, relations: model.relations.filter(e => keep(e) && ids.has(e.from) && ids.has(e.to)) };

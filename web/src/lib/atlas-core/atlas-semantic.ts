@@ -57,6 +57,12 @@ interface SemanticBase {
     title: string;
     gaps: string[];
 }
+export interface ArchitectureView extends SemanticBase {
+    kind: 'architecture';
+    level: 'container' | 'component';
+    nodes: (SemanticNode & { boundaryRole: 'system' | 'container' | 'component'; technology?: string })[];
+    relations: SemanticRelation[];
+}
 export interface DependencyView extends SemanticBase {
     kind: 'dependency';
     nodes: SemanticNode[];
@@ -144,11 +150,12 @@ export interface TableView extends SemanticBase {
         cellBindings?: Record<string, VisualBinding>;
     })[];
 }
-export type SemanticViewSpec = DependencyView | HierarchyView | ControlFlowView | SequenceView | DataFlowView | MetricView | TableView;
+export type SemanticViewSpec = ArchitectureView | DependencyView | HierarchyView | ControlFlowView | SequenceView | DataFlowView | MetricView | TableView;
 export type SemanticKind = SemanticViewSpec['kind'];
 export function sourceEvidence(ref: AtlasItemRef): SemanticEvidence[] { return [...(ref.provenance ?? []), ...ref.evidence.flatMap(e => e.startByte != null && e.endByte != null ? [{ kind: e.role === 'document' ? 'document' as const : 'source' as const, pin: e.pin ?? ref.pin, file: e.file, start: e.startByte, end: e.endByte, contentHash: e.contentHash }] : [])]; }
 export function binding(visualId: string, label: string, ref: AtlasItemRef, authority: AtlasAuthority = 'Unknown', membership: 'member' | 'context' = 'member'): VisualBinding { return { subject: ref.entityKind ? { id: ref.id, kind: ref.entityKind, pin: ref.pin } : undefined, visualId, label, ref, authority, membership, evidence: sourceEvidence(ref) }; }
 export function semanticBindings(model: SemanticViewSpec): VisualBinding[] { switch (model.kind) {
+    case 'architecture':
     case 'dependency':
     case 'data-flow': return [...model.nodes, ...model.relations];
     case 'hierarchy': return model.nodes;

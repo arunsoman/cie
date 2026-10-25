@@ -40,6 +40,10 @@ export function compileSemanticView(model: SemanticViewSpec, request?: Presentat
     const link = (b: VisualBinding, from: string, to: string, kind: string) => { const ev = evidence(b); if (!ev || !elements.some(e => e.id === from) || !elements.some(e => e.id === to))
         return; edges.push({ id: b.visualId, source: from, target: to, edgeKind: kind, displayMode: mode(b), evidence: ev, fields: { atlasItemId: b.ref.id } }); };
     switch (model.kind) {
+        case 'architecture':
+            model.nodes.forEach(n => add(n, n.boundaryRole === 'system' ? 'domain' : n.boundaryRole, { architecture: {level: model.level, role: n.boundaryRole, technology: n.technology} }, n.parentId));
+            model.relations.forEach(e => link(e, e.from, e.to, e.label));
+            break;
         case 'dependency':
         case 'data-flow':
             model.nodes.forEach(n => add(n, 'symbol', {}, n.parentId));
