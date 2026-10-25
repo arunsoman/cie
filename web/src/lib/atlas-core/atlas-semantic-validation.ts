@@ -61,6 +61,15 @@ export function validateSemantic(model: SemanticViewSpec) {
             if (!f.evidence.length || f.messages.some(id => !model.messages.some(m => m.visualId === id)))
                 throw new Error('Unsupported sequence fragment');
     }
+    if (model.kind === 'table') {
+        for (const row of model.rows)
+            for (const [column, cell] of Object.entries(row.cellBindings ?? {})) {
+                if (!model.columns.some(c => c.id === column))
+                    throw new Error('Semantic cell binding must name a declared column');
+                if (cell.authority !== row.authority)
+                    throw new Error('Table cells must share their row authority');
+            }
+    }
     if (model.kind === 'metric') {
         for (const c of model.cells)
             for (const value of Object.values(c.measures))

@@ -25,6 +25,11 @@ export function assertView(spec: AtlasViewSpec, pin: AtlasPin) {
         assertItem(item.ref, pin);
         if (item.detailRef)
             assertItem(item.detailRef, pin);
+        for (const [column, ref] of Object.entries(item.cellRefs ?? {})) {
+            if (!spec.columns?.some(c => c.id === column))
+                throw new Error('Cell reference must name a declared column');
+            assertItem(ref, pin);
+        }
         if (!['member', 'context'].includes(item.role))
             throw new Error('Missing membership role');
     }

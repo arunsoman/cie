@@ -7,6 +7,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await fs.mkdir(subject,{recursive:true});await fs.mkdir(job,{recursive:true});
   await fs.writeFile(path.join(subject,'a.py'),'def save(x):\n    return x + 1\n\ndef pay(x):\n    return save(x)\n'+Array.from({length:40},(_,i)=>`\ndef f${i}(x):\n    return pay(x)\n`).join(''));
   await fs.writeFile(path.join(subject,'b.py'),'def refund(x):\n    return x - 1\n');
+  await require('./helpers/atlas-api-fixture.cjs')(subject);
   const cli=path.resolve(__dirname,'../../target/debug/cie'),run=spawnSync(cli,['ingest-polyglot',subject,'--web-out',path.join(root,'capture.json')],{encoding:'utf8'});assert.equal(run.status,0,run.stderr);
   await fs.writeFile(path.join(job,'result.json'),JSON.stringify({revision:'1',label:'Atlas core QA',sourceRoot:null,storageRoot:subject}));
   const port=process.env.ATLAS_PORT??'4402';server=spawn(process.execPath,['scripts/start-standalone.cjs'],{cwd:path.resolve(__dirname,'..'),env:{...process.env,PORT:port,HOSTNAME:'127.0.0.1',CIE_BIN:cli,CIE_JOBS_ROOT:path.join(root,'jobs')},stdio:['ignore','pipe','pipe']});
@@ -77,6 +78,21 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await symbols.getByRole('button',{name:'a.pay',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[aria-label="Selected symbols"]')?.textContent.includes('43 matching symbols')&&document.querySelector('[aria-label="Selected symbols"]')?.getAttribute('aria-busy')==='false');
   check('function toggle restores file selection everywhere',await files.getByRole('button',{name:/a.py · 43$/}).count()===1);
+  await page.getByRole('button',{name:'Remove a.py',exact:true}).click();
+  const apiRoutes=page.getByRole('region',{name:'Service entry points',exact:true});
+  const api=apiRoutes.getByRole('button',{name:'POST /pay',exact:true});await api.waitFor();await api.click();
+  await page.getByRole('button',{name:'Remove POST /pay',exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('[aria-label="Selected symbols"]')?.textContent.includes('1 matching symbols')&&document.querySelector('[aria-label="Selected symbols"]')?.getAttribute('aria-busy')==='false');
+  check('API selection excludes other methods in the same controller',!(await symbols.locator('tbody').innerText()).includes('refund'));
+  check('API scope shows the exact captured handler CFG',await page.getByRole('region',{name:'Control flow — Payments.pay',exact:true}).count()===1);
+  await api.dblclick();await page.getByRole('region',{name:'Captured evidence',exact:true}).getByText(/int pay/).waitFor();
+  check('API double click opens its handler and preserves scope',await page.getByRole('button',{name:'Remove POST /pay',exact:true}).isVisible());
+  await page.getByRole('button',{name:'Close evidence',exact:true}).click();
+  await api.click();await page.getByRole('button',{name:'Remove POST /pay',exact:true}).waitFor({state:'hidden'});
+  await apiRoutes.getByRole('button',{name:'Payments.java',exact:true}).first().click();
+  await page.getByRole('button',{name:'Remove Payments.java',exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('[aria-label="Selected symbols"]')?.getAttribute('aria-busy')==='false');
+  check('API table file cell selects the file contributor set', (await symbols.locator('tbody').innerText()).includes('refund'));
   const out=process.env.ATLAS_QA_OUT??root;await fs.mkdir(out,{recursive:true});await page.screenshot({path:path.join(out,'atlas-core-reviewer.png'),fullPage:true});check('no browser errors',errors.length===0);await fs.writeFile(path.join(out,'checks.json'),JSON.stringify({checks,errors},null,2));console.log(JSON.stringify({checks,output:out},null,2));
  }finally{await browser?.close();server?.kill();if(!process.env.ATLAS_KEEP_FIXTURE)await fs.rm(root,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1});

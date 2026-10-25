@@ -78,3 +78,11 @@ export const fresherLayout: AtlasLayout = {
         {viewId: 'calls', area: 'calls', minHeightPx: 330, chrome: 'canvas'},
     ], dock: {defaultOpen: true, widthPx: 280},
 };
+
+// Compose entry tables into the same layout system; they have no local selection.
+for (const layout of [reviewerLayout, fresherLayout]) {
+    layout.areas.splice(4, 0, 'entry entry entry entry routes routes routes routes', 'entry entry entry entry routes routes routes routes');
+    layout.areasMd.splice(3, 0, 'entry routes', 'entry routes');
+    layout.areasBase.splice(3, 0, 'entry', 'routes');
+    layout.slots.splice(2, 0, {viewId: 'entries', area: 'entry', minHeightPx: 220, chrome: 'table-dense'}, {viewId: 'routes', area: 'routes', minHeightPx: 220, chrome: 'table-dense'});
+}

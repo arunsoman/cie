@@ -6,8 +6,8 @@ Code inventory: 2026-10-25. Governing rule: [any chart, anywhere](atlas-semantic
 
 | Persona | Current route | Delivered slice | Remaining objective gaps |
 |---|---|---|---|
-| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | Containers, boot/service entries, data flow, automated tour and start-point ranking |
-| Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Entry/route-led review, read/write effects, findings and change-specific review |
+| Fresher | `FresherAtlas` → shared core | Guided file → declaration → function exploration; distinct onboarding layout; shared filtering and evidence | Containers, unresolved entry coverage, data flow, automated tour and start-point ranking |
+| Reviewer | `ReviewerAtlas` → shared core | Symbol, file, kind, declaration, native CFG and static call views | Full unresolved-entry coverage, read/write effects, findings and change-specific review |
 | Architect | `LegacyAtlasView` | Legacy charts; not core conformant | Register container/component/concept and boundary producers, then compose its layout |
 | Auditor | `LegacyAtlasView` | Legacy facts preference; core has locked facts policy but this screen is not migrated | Evidence-backed routes, externals, findings, boundary writes and locked policy in rendered UI |
 | Consultant | `LegacyAtlasView` | Legacy scoped exploration | Shared producers, busiest-container evidence and change-context composition |
@@ -22,8 +22,8 @@ Legacy panel membership: F=Fresher, R=Reviewer, A=Architect, U=Auditor, C=Consul
 | Legacy analytical item | Personas | Existing source | Core status and required work |
 |---|---|---|---|
 | Containers / C4 | F A U C | `buildC4Spec`, stack apps/externals + report | Missing; register build-evidence entities and contributor mapping. Never relabel declaration hierarchy as C4. |
-| Application entries | F R C | stack mains | Missing producer, exact symbol resolution and file fallback evidence |
-| Service entries | F R U | stack routes | Missing producer, route → handler mapping and API-root call expansion |
+| Application entries | F R C | stack mains | Registered as `entries` for uniquely resolved captured bootstrap targets; class identity remains a class, unsupported listen/inline entries remain unresolved |
+| Service entries | F R U | stack routes | Registered as `routes` with exact captured handler links; nested declared calls expand up to eight levels; ambiguous/unsupported handlers are excluded from symbol-bound scope |
 | Components | F R A U C | `buildComponentSpec`, concepts/report | Concept DAG producer is registered; component-specific producer still missing; preserve fallback disclosure |
 | Concept hierarchy | F R A U C | `buildConceptTreeSpec`, concepts | Registered as `concepts`: generated interpretations, primary + extra parent edges, descendant selection, representative member evidence. Concept label correctness still requires domain review. `hierarchy` remains declarations. |
 | Flow | F R A U C | `buildFlowSpec`, report/selection | Native function CFG exists in core; aggregate component/API flow not yet migrated |
@@ -45,6 +45,8 @@ All legacy quality charts render through `QualityPanel`; their existing click be
 | symbols | Selected symbol table with pagination | Stable symbol IDs; declaration span and file |
 | kinds | Selected symbols grouped by kind | Aggregate contributor descriptor; source only where supplied |
 | hierarchy | Captured file/declaration parent structure | Entity contributors and recorded parent evidence |
+| entries | Captured application bootstrap entries | Unique recorded symbol target; bootstrap classes do not imply function IR |
+| routes | Captured service routes | Exact handler selection; API double-click opens that handler, file cells select file contributors |
 | concepts | Generated concept DAG with recorded parent edges | Typed concept-to-symbol contributor mapping; recorded descendants up to eight levels; representative member source; never upgraded to Fact |
 | controlflow | Native IR for one selected function | Blocks/branches point to captured code; unavailable IR is explicit |
 | sequence | Structured static call occurrences | Symbols, call evidence and disclosed unresolved boundaries |
@@ -69,3 +71,10 @@ Do not delete `LegacyAtlasView`, the legacy preset vocabulary or shared builders
 - All 20 Rust storage tests passed; the native Node module was rebuilt. The type checker now permits explicit typed intersection narrowing of polymorphic traversals. Disjoint typed intersections and mixed-kind unions remain rejected. This avoids the work-limit failure reproduced by nested reverse relation predicates; no storage budget was increased.
 - TypeScript and production build passed. 22 production-browser checks passed with zero browser errors, including adding and removing a concept while a file constraint remains active. Fresher's default graph is now `concepts`; declaration hierarchy stays available through the chart menu.
 - Concept labels are preserved from ingestion, not validated as business truth by this test. Multiple parent edges, low/missing confidence, incomplete coverage and bounded graph/source evidence are disclosed. The representative captured member preview does not prove concept naming quality. Full `smpp-mls` domain review and all-persona readability acceptance remain outstanding.
+
+## Validation receipt — captured entries and API scope
+
+- 178 application tests passed, including a native Spring fixture with two uniquely linked routes, one ambiguous overloaded route, a bootstrap class, a private helper chain and an overridable virtual-call boundary.
+- 24 Rust tests passed across storage and Java extraction; CLI and native storage module rebuilt. Java private/static/final helper discovery is order-independent and class-scoped, with overloaded names excluded from direct classification.
+- TypeScript and production build passed. 26 production browser checks passed with zero browser errors, covering API selection, exact handler CFG/source, double-click preserving scope, API toggle and file-cell contributor selection, in addition to existing shared-selection checks.
+- Bootstrap classes retain Class semantics. Unknown virtual calls are withheld by Facts-only and remain unknown when interpretations are enabled. Unresolved and ambiguous entries are stored and inspectable via retrieval, but the current symbol-bound entry tables exclude them and disclose this coverage gap. No claim of complete interprocedural runtime flow is made.

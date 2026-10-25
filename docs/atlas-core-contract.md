@@ -154,3 +154,29 @@ these interpretations in both the semantic model and render envelope.
 Storage intersection narrowing is required for polymorphic concept membership;
 see the retrieval API specification. No new process or persistence responsibility
 has been added to ingestion.
+
+## Entry-point and API checkpoint
+
+`entries` and `routes` are registered selection-bound tables. Storage exposes
+`entry_point` entities from captured `stack.mains` and extends `source_symbol` to
+uniquely resolved application/route targets. Resolution uses captured file and
+recorded name/owner, never a whole-file fallback. Duplicate/overloaded targets
+remain ambiguous. Source relations are absent when resolution is unsupported.
+The current symbol-bound tables therefore include only uniquely resolved entries;
+this partial coverage is disclosed in each table. The full captured records,
+including unresolved/ambiguous statuses, remain retrievable from storage.
+
+API cells select their handler symbol. File cells carry separate contributor
+references and select the file; double-click opens the evidence represented by
+that cell. `TableView.rows[].cellBindings` preserves those identities in semantic
+exports. Cell bindings use the row's authority, declared column IDs and pinned
+revision, and are validated before rendering. Facts-only retains Fact row/cell
+bindings together and removes inferred rows together.
+
+The declared call graph expands to eight levels with a 100-node / 300-edge cap;
+the sequence retains its existing occurrence and depth limits. Function IR stays
+local to the selected handler; the call graph/sequence show interprocedural calls.
+Neither is a complete runtime execution trace. Generated or overridable dispatch
+is not promoted to Fact. Java discovery of uniquely named private/static/final
+helpers is now independent of declaration order and isolated to each class;
+overloads and virtual calls remain unresolved rather than guessed.

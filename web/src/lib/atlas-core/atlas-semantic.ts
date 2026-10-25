@@ -141,6 +141,7 @@ export interface TableView extends SemanticBase {
     }[];
     rows: (VisualBinding & {
         values: Record<string, CellValue>;
+        cellBindings?: Record<string, VisualBinding>;
     })[];
 }
 export type SemanticViewSpec = DependencyView | HierarchyView | ControlFlowView | SequenceView | DataFlowView | MetricView | TableView;
@@ -154,7 +155,7 @@ export function semanticBindings(model: SemanticViewSpec): VisualBinding[] { swi
     case 'control-flow': return [...model.blocks, ...model.blocks.flatMap(b => b.statements), ...model.branches];
     case 'sequence': return [...model.participants, ...model.messages];
     case 'metric': return model.cells;
-    case 'table': return model.rows;
+    case 'table': return model.rows.flatMap(row => [row, ...Object.values(row.cellBindings ?? {})]);
 } }
 /** Compatibility is deliberately limited. No generic graph→flow/sequence conversion. */
 export function semanticProjection(spec: AtlasViewSpec, c: ProjectionContext, r: AtlasResponse): SemanticViewSpec {
@@ -163,7 +164,7 @@ export function semanticProjection(spec: AtlasViewSpec, c: ProjectionContext, r:
     if (spec.kind === 'graph')
         return { ...common, kind: 'dependency', nodes, relations: (spec.links ?? []).map(e => ({ ...binding(e.key, e.label, e.ref, e.authority), from: e.from, to: e.to, relation: e.label })) };
     if (spec.kind === 'table' || spec.kind === 'pivot')
-        return { ...common, kind: 'table', columns: spec.columns ?? [{ id: 'label', label: 'Symbol' }, { id: 'detail', label: 'File' }], rows: nodes.map((n, i) => ({ ...n, values: { label: n.label, detail: spec.items[i].detail ?? null, ...spec.items[i].fields as Record<string, CellValue> } })) };
+        return { ...common, kind: 'table', columns: spec.columns ?? [{ id: 'label', label: 'Symbol' }, { id: 'detail', label: 'File' }], rows: nodes.map((n, i) => ({ ...n, cellBindings: Object.fromEntries(Object.entries(spec.items[i].cellRefs ?? {}).map(([column, ref]) => [column, binding(`${n.visualId}:cell:${column}`, String(spec.items[i].fields?.[column] ?? column), ref, n.authority, n.membership)])), values: { label: n.label, detail: spec.items[i].detail ?? null, ...spec.items[i].fields as Record<string, CellValue> } })) };
     if (spec.kind === 'bars')
         return { ...common, kind: 'metric', dimensions: [{ id: 'group', label: 'Group' }], measures: [{ id: 'count', label: 'Count', unit: 'entities' }], cells: nodes.map((n, i) => ({ ...n, members: { group: n.label }, measures: { count: spec.items[i].value ?? null } })) };
     throw new Error(`A typed semantic model is required for ${spec.kind}`);

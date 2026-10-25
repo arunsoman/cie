@@ -14,7 +14,7 @@ export function FresherAtlas() {
         <details className="text-xs text-stone-600 rounded border p-2">
             <summary>What this onboarding view covers</summary>
             <p>Files, generated concepts, declaration hierarchy, symbols, symbol counts, native function control flow, and static calls share one storage-backed selection. Concept interpretations are separate from captured declaration structure. Static calls do not prove runtime execution.</p>
-            <p>C4 containers, application and service entry tables, and read/write data flow still need core producers. These legacy panels are not included in this slice. Ask CIE currently uses its separate chat context.</p>
+            <p>Application and service entry tables show uniquely resolved captured targets; unsupported or ambiguous entries remain excluded from analytical scope. C4 containers and read/write data flow still need core producers. These legacy panels are not included in this slice. Ask CIE currently uses its separate chat context.</p>
         </details>
         <AtlasWorkspaceControls />
         <AtlasLayoutView />

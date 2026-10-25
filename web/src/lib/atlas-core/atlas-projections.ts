@@ -71,7 +71,7 @@ export function metricBars(id: string, field: string, title: string, binding: 's
 }
 export const callGraph: AtlasViewDefinition = {
     id: 'calls', binding: 'selection',
-    outputs: () => [{ id: 'graph', output: { graph: { max_nodes: 24, max_edges: 60, expansion: { relations: ['declared_calls'], max_depth: 1 } } } }],
+    outputs: () => [{ id: 'graph', output: { graph: { max_nodes: 100, max_edges: 300, expansion: { relations: ['declared_calls'], max_depth: 8 } } } }],
     project(r, c) {
         const graph = data<{
             nodes: Entity[];
@@ -95,7 +95,7 @@ export const callGraph: AtlasViewDefinition = {
                 const a = items.find(n => n.key === e.source)!, b = items.find(n => n.key === e.target)!;
                 const key = `edge:${e.source}:${e.relation}:${e.target}`;
                 return { key, from: e.source, to: e.target, label: 'Declared call', authority: 'Inference', ref: { id: key, label: `${a.label} → ${b.label}`, pin: c.pin, group: 'relationship', operand: ids([e.source, e.target]), evidence: [...a.ref.evidence, ...b.ref.evidence].filter((v, i, all) => all.findIndex(w => JSON.stringify(w) === JSON.stringify(v)) === i) } };
-            }), total: r.matches, continuation: null, gaps: [...(graph.truncated ? ['Graph limited to 24 nodes / 60 edges.'] : []), ...(membership.truncated ? ['Membership page limited; additional displayed nodes are conservatively labelled context.'] : [])] };
+            }), total: r.matches, continuation: null, gaps: [...(graph.truncated ? ['Graph limited to 100 nodes / 300 edges and eight call levels.'] : []), ...(membership.truncated ? ['Membership page limited; additional displayed nodes are conservatively labelled context.'] : [])] };
     },
 };
 // Page membership uses the same population and request as graph expansion.

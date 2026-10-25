@@ -154,6 +154,7 @@ export interface AtlasDatum {
     fields?: Record<string, unknown>;
     detail?: string;
     detailRef?: AtlasItemRef;
+    cellRefs?: Record<string, AtlasItemRef>;
     ref: AtlasItemRef;
     role: 'member' | 'context';
 }
