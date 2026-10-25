@@ -968,3 +968,13 @@ it requires an explicitly enabled application mode and bounded redaction policy.
 
 This section specifies the model-facing adapter, not model accuracy guarantees.
 End-to-end answer quality requires evaluating the calling assistant separately.
+
+### Typed intersection narrowing
+
+A typed intersection may narrow a polymorphic relation traversal: for example,
+`select(symbol) ∩ follow(concept, member_of_concept, incoming=true)` yields only
+symbol contributors even though the relation also allows file endpoints. The
+narrowed kind propagates into enclosing set operations. Disjoint explicit kinds
+remain invalid; unions still require compatible homogeneous operand kinds.
+This does not permit a mixed file/symbol union. Atlas uses this bounded traversal
+rather than repeatedly evaluating nested reverse-related predicates per entity.

@@ -496,21 +496,42 @@ impl RevisionReader {
                 if qs.is_empty() {
                     return Err(StorageError::new("InvalidRequest", "Empty set expression"));
                 }
-                let expected = kinds_of(&qs[0], ds, depth + 1)?;
+                let mut expected = kinds_of(&qs[0], ds, depth + 1)?;
+                let is_union = matches!(q, Query::Union(_));
                 for operand in &qs[1..] {
                     let actual = kinds_of(operand, ds, depth + 1)?;
-                    if !expected.is_empty() && !actual.is_empty() && expected != actual {
+                    // Intersections can narrow a polymorphic traversal to an explicit
+                    // entity kind. Union still requires identical kind domains.
+                    if !expected.is_empty()
+                        && !actual.is_empty()
+                        && (if is_union {
+                            expected != actual
+                        } else {
+                            expected.is_disjoint(&actual)
+                        })
+                    {
                         return Err(StorageError::new(
                             "InvalidRequest",
                             "Set operands must have compatible entity kinds",
                         ));
                     }
+                    if !actual.is_empty() {
+                        expected = if expected.is_empty() {
+                            actual
+                        } else if is_union {
+                            expected
+                        } else {
+                            expected.intersection(&actual).copied().collect()
+                        };
+                    }
                 }
                 let mut result = self.evaluate(&qs[0], ds, ex, depth + 1)?;
                 for operand in &qs[1..] {
                     let next = self.evaluate(operand, ds, ex, depth + 1)?;
-                    self.compatible_sets(&result, &next, ds)?;
-                    result = if matches!(q, Query::Union(_)) {
+                    if is_union {
+                        self.compatible_sets(&result, &next, ds)?;
+                    }
+                    result = if is_union {
                         result.union(&next).cloned().collect()
                     } else {
                         result.intersection(&next).cloned().collect()
@@ -947,12 +968,26 @@ pub(crate) fn kinds_of(q: &Query, ds: &Dataset, depth: usize) -> Result<BTreeSet
     }
     Ok(match q {
         Query::Select { kind, .. } => [*kind].into_iter().collect(),
-        Query::Union(qs) | Query::Intersect(qs) => {
+        Query::Union(qs) => {
             let mut kinds = BTreeSet::new();
             for q in qs {
                 kinds.extend(kinds_of(q, ds, depth + 1)?);
             }
             kinds
+        }
+        Query::Intersect(qs) => {
+            let mut result: Option<BTreeSet<EntityKind>> = None;
+            for q in qs {
+                let kinds = kinds_of(q, ds, depth + 1)?;
+                if kinds.is_empty() {
+                    continue;
+                } // Opaque contributor kind is unknown.
+                result = Some(match result {
+                    None => kinds,
+                    Some(previous) => previous.intersection(&kinds).copied().collect(),
+                });
+            }
+            result.unwrap_or_default()
         }
         Query::Difference { left, .. } => kinds_of(left, ds, depth + 1)?,
         Query::Follow {
@@ -1317,4 +1352,29 @@ pub(crate) fn dataset_needs(request: &Request) -> Result<(bool, bool)> {
         }
     }
     Ok(needs)
+}
+
+#[cfg(test)]
+mod kind_narrowing_tests {
+    use super::*;
+    #[test]
+    fn typed_intersection_narrows_polymorphic_follow_and_union_keeps_kind_domain() {
+        let dataset = Dataset {
+            entities: BTreeMap::new(),
+            edges: vec![],
+        };
+        let query: Query = serde_json::from_value(json!({"intersect":[
+            {"select":{"kind":"symbol"}},
+            {"follow":{"input":{"select":{"kind":"concept"}},"relation":"member_of_concept","incoming":true,"max_depth":1}}
+        ]})).unwrap();
+        assert_eq!(
+            kinds_of(&query, &dataset, 0).unwrap(),
+            [EntityKind::Symbol].into_iter().collect()
+        );
+        let broad: Query = serde_json::from_value(json!({"follow":{"input":{"select":{"kind":"concept"}},"relation":"member_of_concept","incoming":true,"max_depth":1}})).unwrap();
+        assert_eq!(
+            kinds_of(&broad, &dataset, 0).unwrap(),
+            [EntityKind::Symbol, EntityKind::File].into_iter().collect()
+        );
+    }
 }

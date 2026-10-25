@@ -32,7 +32,7 @@ export function mapPopulation(query: AtlasQuery, from: EntityKind, to: EntityKin
             if (seen.has(m.to))
                 continue;
             const next: AtlasQuery = { follow: { input: q, relation: m.relation, incoming: m.incoming ?? false, max_depth: 1 } };
-            // A relation may have several endpoint kinds; constrain the target explicitly.
+            // Storage narrows polymorphic traversals before composing homogeneous sets.
             const typed: AtlasQuery = { intersect: [{ select: { kind: m.to } }, next] };
             if (m.to === to)
                 return typed;
