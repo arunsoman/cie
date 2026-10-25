@@ -1,5 +1,17 @@
 # PRD — Atlas for the Architect / Long-Term Maintainer
 
+> **Any chart, anywhere:** every analytical chart sends and receives the shared
+> selection. Placement never changes filtering. The [SmsController.java → submitSms() example](atlas-semantic-architecture.md#worked-example-smscontrollerjava--submitsms)
+> is mandatory acceptance coverage for this persona too.
+
+
+> **Implementation boundary:** follow [Atlas semantic architecture](atlas-semantic-architecture.md).
+> This persona composes producers + presentation profiles + layout slots. Every
+> data element selects/deselects contributors; double-click opens evidence. Legacy
+> POPUP-on-click and filtering opt-outs below are superseded. Producer gaps and
+> unavailable rendering remain explicit; changing layout never changes meaning.
+
+
 **Date:** 2026-10-24 · **Status:** ready for implementation · **Persona:** `architect`
 **Reads first:** `atlas-persona-prd-foundations.md` (`LAYOUT-*`, `REG-04/05/06/03/13/14/15/16`, `ENG-01/02/03`)
 **Shares a panel with:** `atlas-prd-reviewer.md` §5.2 `driftboard` (reused by id, not redefined)

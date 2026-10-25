@@ -1,5 +1,18 @@
 # Atlas persona PRDs — shared foundations (grid engine + persona cube)
 
+> **Universal cross-filter rule:** any chart may occupy any Atlas slot. Clicking
+> any data element updates the shared selection and every analytical chart;
+> clicking it again removes that constraint. Moving charts never changes scope.
+> See the [SmsController.java → submitSms() worked example](atlas-semantic-architecture.md#worked-example-smscontrollerjava--submitsms).
+
+
+> **Governing architecture (2026-10-25):** [Atlas semantic architecture](atlas-semantic-architecture.md).
+> Core accepts typed semantic data and contributor references; G6 owns graph
+> geometry and interaction hosting. SVG is an export/render format. The new
+> architecture overrides conflicting generic-graph, gesture and persona opt-out
+> language below. Historical requirements are not implementation status.
+
+
 > **Mandatory implementation contract:** [Atlas core contract](atlas-core-contract.md)
 > governs shared selection, set algebra, source gestures, contributor identity and
 > conformance. It overrides conflicting single-click popup, single-filter,

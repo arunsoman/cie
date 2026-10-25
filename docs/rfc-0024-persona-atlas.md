@@ -1,5 +1,12 @@
 # RFC-0024: The persona Atlas — implementing UX-spec rev 2 (presets, chips, popup, selected-context charts)
 
+> **Governing architecture (2026-10-25):** [Atlas semantic architecture](atlas-semantic-architecture.md).
+> Core accepts typed semantic data and contributor references; G6 owns graph
+> geometry and interaction hosting. SVG is an export/render format. The new
+> architecture overrides conflicting generic-graph, gesture and persona opt-out
+> language below. Historical requirements are not implementation status.
+
+
 **Status:** approved-for-implementation (not yet taken up; nothing else covers this work)
 **Author:** the CIE maintainer (with pi)
 **Date:** 2026-10-23

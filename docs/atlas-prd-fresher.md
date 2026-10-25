@@ -1,5 +1,17 @@
 # PRD — Atlas for the Fresher (Onboarding)
 
+> **Any chart, anywhere:** every analytical chart sends and receives the shared
+> selection. Placement never changes filtering. The [SmsController.java → submitSms() example](atlas-semantic-architecture.md#worked-example-smscontrollerjava--submitsms)
+> is mandatory acceptance coverage for this persona too.
+
+
+> **Implementation boundary:** follow [Atlas semantic architecture](atlas-semantic-architecture.md).
+> This persona composes producers + presentation profiles + layout slots. Every
+> data element selects/deselects contributors; double-click opens evidence. Legacy
+> POPUP-on-click and filtering opt-outs below are superseded. Producer gaps and
+> unavailable rendering remain explicit; changing layout never changes meaning.
+
+
 **Date:** 2026-10-24 · **Status:** ready for implementation · **Persona:** `fresher`
 **Reads first:** `atlas-persona-prd-foundations.md` (grid engine `LAYOUT-*`, cube `REG-*`/`ENG-*`)
 **Builds on:** `atlas-charter.md` §4, `atlas-ux-spec.md` §5 (choreography — unchanged by this PRD),
@@ -83,20 +95,13 @@ panel — other personas don't need it per charter §10's matrix).
 - **Click:** `CHIP(el)` + `ASK(el)` (bar has no single `loc` — today's `pendingAsk` path, ux-spec §3 row
   "element with no location").
 
-## 6. Slice/dice/filter — the fresher's (deliberately minimal) cube
+## 6. Shared selection with guided controls
 
-*Governed by `atlas-persona-prd-foundations.md` Part E (the universal selection/filter/source contract).
-Fresher is the one persona whose elements carry no `dims`/`watches` by design (E.5's coverage checklist
-marks this explicitly, "No, by design," not an oversight) — but every element still emits an
-`AtlasElementRef` for chip/double-click purposes, so single-click selects and double-click opens source
-exactly like every other persona; only the filter-contribution half is deliberately off.*
-
-| Field | Value |
-|---|---|
-| `hero` cube | `dimensions: [{id:"lang", dimension: Field("language")}]`, `measures: [{name:"symbolCount", agg:"count"}]`, `layout: Cells` — powers the `sizeintuition` strip only |
-| `facets` | none exposed to the user — a fresher is not shown a facet picker (charter: guided path, not a wall) |
-| `crossFilterDimensions` | `[]` — the fresher preset does **not** activate XFILTER (`chart-filter.ts`); clicking a fresher panel element always drills/pops up/chips per ux-spec §5.2, never cross-filters siblings. This is an explicit decision, not an omission: cross-filtering is a Reviewer/Architect/Auditor tool for narrowing a known structure, and would add a second interaction grammar on a fresher's first day. |
-| `drillThrough` | none beyond existing `SCOPE`/`POPUP` (ux-spec §5.2 is unchanged and is the fresher's entire interaction model) |
+The Fresher uses the same Atlas selection algebra as every other persona. Clicking
+any data element adds its exact contributor set; clicking again removes it;
+double-click opens evidence. Advanced pivot/facet controls may be hidden by the
+onboarding layout, but cross-view filtering is never disabled. Guided-tour focus,
+visual group expansion and camera movement are presentation actions, not filters.
 
 ## 7. Engine requirements
 
@@ -152,8 +157,7 @@ exactly like every other persona; only the filter-contribution half is deliberat
   chart scoped to the active container.
 - [ ] No existing fresher choreography test (`atlas-ux-spec.md` §5.2 table) regresses — full click table
   re-verified against the new grid.
-- [ ] XFILTER (`chart-filter.ts`) is confirmed NOT reachable from any fresher panel (explicit negative
-  test — guards against accidental preset-config drift turning it on).
+- [ ] Every Fresher data element participates in shared selection; simplified controls never disable cross-view filtering.
 
 ## 11. Resolved decisions log (nothing left open)
 
@@ -161,7 +165,7 @@ exactly like every other persona; only the filter-contribution half is deliberat
 |---|---|
 | Does skipping the tour hide it forever? | No — always re-enterable from the same button. |
 | Does `sizeintuition` get its own grid area? | No — a collapsible strip inside `components`, to avoid a 5th area on an already information-dense screen. |
-| Is cross-filtering available to the fresher? | No, explicitly disabled (`crossFilterDimensions: []`). |
+| Is cross-filtering available to the fresher? | Yes; the selection semantics are universal, while advanced controls may stay hidden. |
 | Mobile layout? | Linear `planOrder`, per foundations §A.3 invariant 5 — no custom mobile grid. |
 
 ## 12. Rollout

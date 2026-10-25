@@ -1,5 +1,17 @@
 # PRD — Atlas for the Consultant / Tech-Lead on a Foreign Codebase
 
+> **Any chart, anywhere:** every analytical chart sends and receives the shared
+> selection. Placement never changes filtering. The [SmsController.java → submitSms() example](atlas-semantic-architecture.md#worked-example-smscontrollerjava--submitsms)
+> is mandatory acceptance coverage for this persona too.
+
+
+> **Implementation boundary:** follow [Atlas semantic architecture](atlas-semantic-architecture.md).
+> This persona composes producers + presentation profiles + layout slots. Every
+> data element selects/deselects contributors; double-click opens evidence. Legacy
+> POPUP-on-click and filtering opt-outs below are superseded. Producer gaps and
+> unavailable rendering remain explicit; changing layout never changes meaning.
+
+
 **Date:** 2026-10-24 · **Status:** ready for implementation · **Persona:** `consultant`
 **Reads first:** `atlas-persona-prd-foundations.md` (`LAYOUT-*`, `REG-10/11/12`)
 **Reuses:** the condensed-context pattern from `atlas-prd-reviewer.md` §4; the `reviewer.default`

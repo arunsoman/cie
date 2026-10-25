@@ -1,5 +1,18 @@
 # Atlas UX spec — per-user-type layouts and complete click choreography (nothing left to guess)
 
+> **Universal cross-filter rule:** any chart may occupy any Atlas slot. Clicking
+> any data element updates the shared selection and every analytical chart;
+> clicking it again removes that constraint. Moving charts never changes scope.
+> See the [SmsController.java → submitSms() worked example](atlas-semantic-architecture.md#worked-example-smscontrollerjava--submitsms).
+
+
+> **Governing architecture (2026-10-25):** [Atlas semantic architecture](atlas-semantic-architecture.md).
+> Core accepts typed semantic data and contributor references; G6 owns graph
+> geometry and interaction hosting. SVG is an export/render format. The new
+> architecture overrides conflicting generic-graph, gesture and persona opt-out
+> language below. Historical requirements are not implementation status.
+
+
 **Date:** 2026-10-23 (rev 2 — builder audit applied: global rules renamed G1–G6; chip/popup semantics resolved; paired popup defined; verb vocabulary closed; R3/R4 exclusivity rule added; Reviewer scope made implementable)
 **Status:** build spec
 **Related:** `docs/atlas-charter.md` (charter; §12 = today's click behavior), `docs/rfc-0023-js-owns-pixels.md` (conductor, planSheet, chips; §9 = feasibility ids "RFC-0023 §9-Rn"), `docs/chart-inventory.md` (tier receipts), RFC-0022 §2.1 (the PDG — data source for decision boxes below)
