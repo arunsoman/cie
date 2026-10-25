@@ -7,6 +7,8 @@ node_modules
 htmlcov/
 web/.next/
 web/dev.log
+web/server.log
+web/.dev-server.pid
 web/next-env.d.ts
 tool-results/
 skills/
