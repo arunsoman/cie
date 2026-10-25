@@ -52,6 +52,7 @@ pub enum EntityKind {
     DuplicatePair,
     Cluster,
     Route,
+    EntryPoint,
     Framework,
     Component,
     Dependency,
@@ -71,6 +72,7 @@ impl EntityKind {
         Self::DuplicatePair,
         Self::Cluster,
         Self::Route,
+        Self::EntryPoint,
         Self::Framework,
         Self::Component,
         Self::Dependency,
@@ -136,11 +138,11 @@ impl RelationKind {
                 | (RelationKind::MemberOfComponent, Symbol, Component)
                 | (RelationKind::ChildComponentOf, Component, Component)
                 | (RelationKind::UsesDependency, File, Dependency)
-                | (RelationKind::SourceSymbol, StateMachine | Workflow, Symbol)
+                | (RelationKind::SourceSymbol, StateMachine | Workflow | Route | EntryPoint, Symbol)
                 | (RelationKind::StateOf, State, StateMachine)
                 | (
                     RelationKind::DefinedIn,
-                    Route | Framework | Dependency | Component,
+                    Route | EntryPoint | Framework | Dependency | Component,
                     File
                 )
                 | (RelationKind::DefinedIn, Symbol, File)

@@ -978,3 +978,19 @@ narrowed kind propagates into enclosing set operations. Disjoint explicit kinds
 remain invalid; unions still require compatible homogeneous operand kinds.
 This does not permit a mixed file/symbol union. Atlas uses this bounded traversal
 rather than repeatedly evaluating nested reverse-related predicates per entity.
+
+### Captured application and service entry identities
+
+`entry_point` is a retrievable entity kind projected from captured application
+entries (`stack.mains`). `route` and `entry_point` records expose
+`handler_resolution` (`unique`, `ambiguous`, `unresolved`) and
+`handler_candidate_count`. Only `unique` records expose `source_symbol_ref`,
+`handler_location` and a `source_symbol` edge to the captured Symbol. `defined_in`
+continues to identify the declaration file separately. A route's file is not its
+handler scope. Duplicate names/overloads do not receive a guessed symbol edge.
+
+Traverse `source_symbol` forward to select a route's target, or incoming from
+selected Symbols to find their routes/application entries. Typed intersections
+narrow this polymorphic relation. Application bootstrap classes retain Class
+identity; they do not establish a function execution flow. Unsupported inline,
+listen and other entries remain queryable as records with unresolved status.

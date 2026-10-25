@@ -252,6 +252,7 @@ impl RevisionReader {
             // SQL identifiers are fixed here, never supplied by callers.
             for (kind, key, tag) in [
                 (EntityKind::Route, "routes", "route"),
+                (EntityKind::EntryPoint, "mains", "entry_point"),
                 (EntityKind::Framework, "frameworks", "framework"),
             ] {
                 for (index, record) in self.snapshot["stack"][key]
@@ -275,6 +276,27 @@ impl RevisionReader {
                                 source: id.clone(),
                                 target: file.clone(),
                                 relation: RelationKind::DefinedIn,
+                            });
+                        }
+                    }
+                    if matches!(kind, EntityKind::Route | EntityKind::EntryPoint) {
+                        let candidates = entry_candidates(&ds, record, kind);
+                        value["handler_resolution"] = json!(match candidates.len() {
+                            0 => "unresolved",
+                            1 => "unique",
+                            _ => "ambiguous",
+                        });
+                        value["handler_candidate_count"] = json!(candidates.len());
+                        if candidates.len() == 1 {
+                            let symbol = &ds.entities[&candidates[0]];
+                            value["source_symbol_ref"] = json!(symbol.id);
+                            value["handler_location"] =
+                                serde_json::to_value(symbol.fields.get("location"))
+                                    .unwrap_or(Value::Null);
+                            ds.edges.push(Edge {
+                                source: id.clone(),
+                                target: candidates[0].clone(),
+                                relation: RelationKind::SourceSymbol,
                             });
                         }
                     }
@@ -1376,5 +1398,140 @@ mod kind_narrowing_tests {
             kinds_of(&broad, &dataset, 0).unwrap(),
             [EntityKind::Symbol, EntityKind::File].into_iter().collect()
         );
+    }
+}
+
+/// Resolve only within the captured file. Duplicate names/overloads are ambiguous;
+/// no basename, fuzzy-name or whole-file fallback may become an API identity.
+fn entry_candidates(ds: &Dataset, record: &Value, kind: EntityKind) -> Vec<String> {
+    let Some(path) = record["rel"].as_str() else {
+        return vec![];
+    };
+    let mut candidates = Vec::new();
+    for entity in ds
+        .entities
+        .values()
+        .filter(|e| e.kind == EntityKind::Symbol)
+    {
+        if entity
+            .fields
+            .get("file")
+            .and_then(|f| f.get("path"))
+            .and_then(Value::as_str)
+            != Some(path)
+        {
+            continue;
+        }
+        let name = entity
+            .fields
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let qualified = entity
+            .fields
+            .get("qualified_name")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let symbol_kind = entity
+            .fields
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let matches = if kind == EntityKind::Route {
+            let method = record["method"].as_str().unwrap_or("");
+            let owner = record["owner"].as_str().unwrap_or("");
+            let owner_method = format!("{owner}.{method}");
+            !method.is_empty()
+                && matches!(symbol_kind, "Function" | "Method")
+                && name == method
+                && (owner.is_empty()
+                    || qualified == owner_method
+                    || qualified.ends_with(&format!(".{owner_method}"))
+                    || symbol_kind == "Function")
+        } else {
+            let entry_name = record["name"].as_str().unwrap_or("");
+            let entry_kind = record["kind"].as_str().unwrap_or("");
+            // Spring records the application class. Rust serve entries record
+            // the module name while explicitly referring to fn main.
+            !entry_name.is_empty()
+                && (name == entry_name && matches!(symbol_kind, "Function" | "Method" | "Class")
+                    || entry_kind.ends_with("-serve")
+                        && record["lang"] == "rust"
+                        && name == "main"
+                        && symbol_kind == "Function")
+        };
+        if matches {
+            candidates.push(entity.id.clone());
+        }
+    }
+    candidates
+}
+
+#[cfg(test)]
+mod entry_resolution_tests {
+    use super::*;
+    fn symbol(id: &str, name: &str, qualified: &str, kind: &str, file: &str) -> Entity {
+        serde_json::from_value(json!({"id":id,"kind":"symbol","fields":{"name":name,"qualified_name":qualified,"kind":kind,"file":{"path":file},"location":{"file":file,"start":0,"end":20}}})).unwrap()
+    }
+    #[test]
+    fn api_identity_uses_unique_captured_handler_not_every_symbol_in_its_file() {
+        let symbols = vec![
+            symbol("pay", "pay", "Payments.pay", "Method", "Api.java"),
+            symbol("refund", "refund", "Payments.refund", "Method", "Api.java"),
+            symbol("other", "pay", "Payments.pay", "Method", "Other.java"),
+        ];
+        let mut ds = Dataset {
+            entities: symbols.into_iter().map(|e| (e.id.clone(), e)).collect(),
+            edges: vec![],
+        };
+        let route = json!({"rel":"Api.java","owner":"Payments","method":"pay"});
+        assert_eq!(
+            entry_candidates(&ds, &route, EntityKind::Route),
+            vec!["pay"]
+        );
+        ds.entities.insert(
+            "overload".into(),
+            symbol("overload", "pay", "Payments.pay", "Method", "Api.java"),
+        );
+        assert_eq!(entry_candidates(&ds, &route, EntityKind::Route).len(), 2);
+        assert!(entry_candidates(
+            &ds,
+            &json!({"rel":"Api.java","owner":"Wrong","method":"pay"}),
+            EntityKind::Route
+        )
+        .is_empty());
+    }
+    #[test]
+    fn bootstrap_class_and_rust_main_are_explicit_but_listen_name_is_not_guessed() {
+        let symbols = vec![
+            symbol("class", "App", "App", "Class", "App.java"),
+            symbol("main", "main", "server.main", "Function", "server.rs"),
+        ];
+        let ds = Dataset {
+            entities: symbols.into_iter().map(|e| (e.id.clone(), e)).collect(),
+            edges: vec![],
+        };
+        assert_eq!(
+            entry_candidates(
+                &ds,
+                &json!({"rel":"App.java","name":"App","kind":"spring-boot"}),
+                EntityKind::EntryPoint
+            ),
+            vec!["class"]
+        );
+        assert_eq!(
+            entry_candidates(
+                &ds,
+                &json!({"rel":"server.rs","name":"server","kind":"axum-serve","lang":"rust"}),
+                EntityKind::EntryPoint
+            ),
+            vec!["main"]
+        );
+        assert!(entry_candidates(
+            &ds,
+            &json!({"rel":"server.rs","name":"server","kind":"express-listen","lang":"typescript"}),
+            EntityKind::EntryPoint
+        )
+        .is_empty());
     }
 }
