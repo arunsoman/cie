@@ -125,6 +125,7 @@ pub enum RelationKind {
     MemberOfComponent,
     ChildComponentOf,
     UsesDependency,
+    DeclaresDependency,
     SourceSymbol,
     StateOf,
     HasEvidence,
@@ -146,7 +147,12 @@ impl RelationKind {
                 | (RelationKind::MemberOfComponent, Symbol, Component)
                 | (RelationKind::ChildComponentOf, Component, Component)
                 | (RelationKind::UsesDependency, File, Dependency)
-                | (RelationKind::SourceSymbol, StateMachine | Workflow | Route | EntryPoint, Symbol)
+                | (RelationKind::DeclaresDependency, Container, Dependency)
+                | (
+                    RelationKind::SourceSymbol,
+                    StateMachine | Workflow | Route | EntryPoint | Finding,
+                    Symbol
+                )
                 | (RelationKind::StateOf, State, StateMachine)
                 | (
                     RelationKind::DefinedIn,
@@ -154,7 +160,11 @@ impl RelationKind {
                     File
                 )
                 | (RelationKind::DefinedIn, Symbol, File)
-                | (RelationKind::Calls | RelationKind::DeclaredCalls, Symbol, Symbol)
+                | (
+                    RelationKind::Calls | RelationKind::DeclaredCalls,
+                    Symbol,
+                    Symbol
+                )
                 | (RelationKind::MemberOfConcept, Symbol, Concept)
                 | (RelationKind::MemberOfConcept, File, Concept)
                 | (RelationKind::ChildConceptOf, Concept, Concept)

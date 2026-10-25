@@ -25,7 +25,7 @@ export class AtlasRegistry {
     viewsFor(ids: string[]) { return ids.map(id => this.view(id)); }
     renderer(spec: AtlasViewSpec) {
         const host = spec.semantic ? planPresentation(spec.semantic, spec.presentation).host : undefined;
-        const requested = host === 'table' ? 'atlas-table' : host === 'metric' ? 'atlas-bars' : host;
+        const requested = host === 'table' ? 'atlas-table' : host === 'metric' ? 'atlas-bars' : host === 'treemap' ? 'atlas-treemap' : host;
         const candidates = [...this.renderers.values()].filter(r => (requested ? r.id === requested : r.kinds.includes(spec.kind)) && (!spec.renderer || r.id === spec.renderer));
         if (!candidates.length)
             throw new Error(`No registered renderer for ${spec.kind}`);
@@ -39,6 +39,7 @@ export class AtlasRegistry {
 export function standardAtlasRegistry(views: AtlasViewDefinition[] = []) {
     const r = new AtlasRegistry()
         .registerRenderer({ id: 'atlas-table', kinds: ['table', 'pivot'], interactive: true })
+        .registerRenderer({id:'atlas-treemap',kinds:['treemap'],interactive:true})
         .registerRenderer({ id: 'atlas-bars', kinds: ['bars'], interactive: true })
         .registerRenderer({ id: 'viz-adapter', kinds: ['graph', 'flow', 'sequence', 'tree', 'treemap', 'heatmap', 'flamegraph', 'chord', 'timeline', 'stat'], interactive: true });
     views.forEach(v => r.registerView(v));

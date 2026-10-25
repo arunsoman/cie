@@ -95,6 +95,17 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await page.waitForFunction(()=>document.querySelector('[aria-label="Selected symbols"]')?.getAttribute('aria-busy')==='false');
   check('API table file cell selects the file contributor set', (await symbols.locator('tbody').innerText()).includes('refund'));
   await page.getByRole('button',{name:'Atlas: Reviewer',exact:true}).click();await page.getByRole('menuitemradio',{name:/Architect/}).click();await page.getByTestId('atlas-core-architect').waitFor();
+  check('Architect opens with charts and hides workspace prose',await page.getByRole('region',{name:'Atlas workspace controls',exact:true}).count()===0);
+  await page.getByRole('region',{name:'Module dependency graph',exact:true}).waitFor();
+  check('Architect PRD dependency hero and bounded contexts are present',await page.getByRole('region',{name:'Bounded context candidates',exact:true}).count()===1);
+  const architectOut=process.env.ATLAS_QA_OUT??root;await fs.mkdir(architectOut,{recursive:true});
+  await page.waitForFunction(()=>document.querySelector('[role="img"][aria-label="Module dependency graph"]')?.getAttribute('data-render-state')==='ready');
+  await page.getByTestId('atlas-core-architect').evaluate(el=>el.scrollIntoView({block:'start'}));await page.screenshot({path:path.join(architectOut,'architect-charts-default.png'),fullPage:true});
+  await page.getByRole('button',{name:'Show controls and details',exact:true}).click();
+  check('Architect details are explicitly opt in',await page.getByRole('region',{name:'Atlas workspace controls',exact:true}).isVisible());
+  await page.getByLabel('Chart in hero',{exact:true}).selectOption('containers');
+  await page.getByLabel('Chart in bctx',{exact:true}).selectOption('components');
+  await page.getByLabel('Chart in dup',{exact:true}).selectOption('symbols');
   const containers=page.getByRole('region',{name:'C4 application containers',exact:true}),components=page.getByRole('region',{name:'C4 components',exact:true});
   const unit=containers.getByRole('list',{name:'Selectable graph nodes'}).getByRole('button',{name:'payments · container',exact:true});await unit.waitFor();await unit.click();
   await page.getByRole('button',{name:'Remove payments',exact:true}).waitFor();
@@ -124,6 +135,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   await scorecard.getByRole('button',{name:'90',exact:true}).dblclick();await page.getByRole('region',{name:'Captured evidence',exact:true}).getByText(/class Payments/).waitFor();
   check('scorecard metric double click opens captured file',await page.getByRole('region',{name:'Captured evidence',exact:true}).count()===1);await page.getByRole('button',{name:'Close evidence',exact:true}).click();
   await scorecard.getByRole('button',{name:'90',exact:true}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('[aria-label="Module scorecard"] button')].some(b=>b.textContent==='90'&&b.getAttribute('aria-pressed')==='false'));
   await page.getByRole('heading',{name:'Architect · captured architecture orientation',exact:true}).scrollIntoViewIfNeeded();
   await page.getByRole('button',{name:'Clear selection',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[aria-label="Module scorecard"]')?.getAttribute('aria-busy')==='false'&&document.querySelectorAll('[aria-label="Module scorecard"] tbody tr').length===3);

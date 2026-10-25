@@ -87,15 +87,21 @@ for (const layout of [reviewerLayout, fresherLayout]) {
     layout.slots.splice(2, 0, {viewId: 'entries', area: 'entry', minHeightPx: 220, chrome: 'table-dense'}, {viewId: 'routes', area: 'routes', minHeightPx: 220, chrome: 'table-dense'});
 }
 
-/** Architecture orientation slice; dependency, drift and scorecard producers remain pending. */
-export const architectLayout: AtlasLayout = {
-    ...reviewerLayout, id: 'architect.orientation',
-    areas: [...reviewerLayout.areas], areasMd: [...reviewerLayout.areasMd], areasBase: [...reviewerLayout.areasBase],
-    slots: reviewerLayout.slots.map(slot => ({...slot, viewId: slot.area === 'hero' ? 'containers' : slot.area === 'tree' ? 'components' : slot.area === 'files' ? 'symbols' : slot.area === 'kinds' ? 'files' : slot.viewId})),
+/** Architect PRD §4: one dependency hero and six complementary analytical panels. */
+export const architectLayout:AtlasLayout={
+ id:'architect.default',columns:8,rowHeightPx:110,dock:{defaultOpen:true,widthPx:280},
+ areas:['r4 r4 r4 r4 r4 r4 r4 r4',
+ 'hero hero hero hero hero bctx bctx bctx','hero hero hero hero hero bctx bctx bctx','hero hero hero hero hero bctx bctx bctx',
+ 'score score score score score score score score','score score score score score score score score',
+ 'dup dup dup dup drift drift drift drift','dup dup dup dup drift drift drift drift',
+ 'time time time time time time time time','tree tree tree tree tree tree tree tree','tree tree tree tree tree tree tree tree','tree tree tree tree tree tree tree tree'],
+ areasMd:['r4 r4','hero hero','bctx bctx','score score','dup drift','time time','tree tree','tree tree'],
+ areasBase:['r4','hero','bctx','score','dup','drift','time','tree'],
+ slots:[{viewId:'depgraph',area:'hero',minHeightPx:330,isHero:true,chrome:'canvas'},
+ {viewId:'boundedcontexts',area:'bctx',minHeightPx:330,chrome:'canvas'},
+ {viewId:'scorecard',area:'score',minHeightPx:220,chrome:'table-dense'},
+ {viewId:'duplication',area:'dup',minHeightPx:220,chrome:'card'},
+ {viewId:'driftboard',area:'drift',minHeightPx:220,chrome:'card'},
+ {viewId:'timeline',area:'time',minHeightPx:110,chrome:'card'},
+ {viewId:'risktreemap',area:'tree',minHeightPx:330,chrome:'canvas'}],
 };
-
-// REN-0 ships first: the Architect scorecard sits before the secondary graphs.
-architectLayout.areas.splice(4, 0, 'score score score score score score score score', 'score score score score score score score score');
-architectLayout.areasMd.splice(3, 0, 'score score', 'score score');
-architectLayout.areasBase.splice(3, 0, 'score');
-architectLayout.slots.splice(2, 0, {viewId:'scorecard', area:'score', minHeightPx:220, chrome:'table-dense'});
