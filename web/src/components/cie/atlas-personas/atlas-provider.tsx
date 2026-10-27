@@ -28,7 +28,13 @@ export function AtlasProvider({ root, revision, persona, children }: {
         let core: AtlasCore | undefined, interaction: ReturnType<typeof createAtlasInteraction> | undefined;
         setLoaded(null);
         setError('');
-        void storage.retrieve({ select: { kind: 'symbol' } }, [{ id: 'probe', output: { entities: { page: { limit: 1 } } } }], abort.signal).then(result => {
+        // The probe exists to open the pinned context and read the envelope's
+        // repository identity — it never needs the symbol list itself. An
+        // unfiltered `select symbol` makes the engine materialize every
+        // captured symbol before paging, which is exactly what the 30s
+        // retrieval deadline exists to stop on large repositories; a
+        // never-matching name predicate keeps the probe a scan of names.
+        void storage.retrieve({ select: { kind: 'symbol', filter: { field: { field: 'name', op: 'contains', value: '__cie_atlas_probe__' } } } }, [{ id: 'probe', output: { entities: { page: { limit: 1 } } } }], abort.signal).then(result => {
             if (abort.signal.aborted)
                 return;
             core = createAtlasCore({ pin: { repository: result.repository, revision }, base: { select: { kind: 'symbol' } }, storage, views: catalog.registry.viewsFor(catalog.plans.resolve(persona).views), registry: catalog.registry, plans: catalog.plans, persona });

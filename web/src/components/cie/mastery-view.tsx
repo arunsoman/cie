@@ -16,7 +16,7 @@
 //
 // The chat keeps the old journey's fast paths; this page is the map.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo } from "react";
 import { Boxes, CheckCircle2, FileQuestion, Map as MapIcon, Route as RouteIcon, Workflow } from "lucide-react";
 import { useCie } from "@/lib/cie-store";
 import { computeEntryPoints, type MasteryRow } from "@/lib/mastery";
@@ -648,8 +648,14 @@ function shortFile(rel: string): string {
 }
 
 function useSafeId(): string {
-  const [id] = useState(() => `fd${Math.random().toString(36).slice(2, 8)}`);
-  return id;
+  // SSR-stable id: useId() returns the SAME id on the server render and the
+  // client hydration render, so the SVG marker attributes
+  // (id="fd…-arrow" / markerEnd="url(#fd…-arrow)") hydrate byte-identical.
+  // The old Math.random() initializer generated a different id per render,
+  // which is React's "server rendered HTML didn't match the client
+  // properties" hydration error. The «»/: decorations React 19 wraps ids in
+  // are stripped so they stay safe inside url(#…) references.
+  return `fd${useId().replace(/[«»\u00AB\u00BB:]/g, "")}`;
 }
 
 // ============================================================

@@ -6,7 +6,7 @@
 // modelled on US-023: magnify locally, never mutate the base chart, state
 // the source.
 
-export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap" | "sequence" | "c4" | "mindmap";
+export type ChatChartKind = "hbar" | "donut" | "stat" | "table" | "uml" | "flow" | "tree" | "heatmap" | "sequence" | "c4" | "mindmap" | "dfd";
 
 /**
  * Where a chart element lives in the source code — the link that used to be
@@ -192,7 +192,7 @@ export interface ParsedReply {
   chart?: ChatChartSpec;
 }
 
-const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow", "tree", "heatmap"];
+const KINDS: ChatChartKind[] = ["hbar", "donut", "stat", "table", "uml", "flow", "tree", "heatmap", "sequence", "c4", "mindmap", "dfd"];
 const COLORS = new Set(["rose", "amber", "emerald", "stone"]);
 
 /** Engine + layout per kind — deterministic, so a hallucinated pair gets corrected. */
@@ -210,6 +210,7 @@ export function layoutFor(kind: ChatChartKind): string {
     case "sequence": return "sequence-lanes";
     case "c4": return "uml-boxes";
     case "mindmap": return "concept-mindmap";
+    case "dfd": return "uml-boxes";
   }
 }
 
@@ -243,11 +244,14 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
     return spec;
   }
 
-  // Diagrams, trees and heatmaps: the model gets NO say over boxes, arrows,
-  // hierarchy nodes or tiles. Whatever it sends is dropped here; the caller
-  // refills them from the loaded store (src/lib/draw-anything.ts,
-  // src/lib/quality.ts). Only title + tell survive.
-  if (kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap") {
+  // Diagrams, trees, sequences, C4, DFDs and heatmaps: the model gets NO
+  // say over boxes, arrows, lanes, hierarchy nodes, stores or tiles.
+  // Whatever it sends is dropped here; the caller refills them from the
+  // loaded store (src/lib/draw-anything.ts, src/lib/quality.ts). Only
+  // title + tell survive. This is also where the model's OWN kind pick
+  // (incl. "dfd") travels to the caller — the model decides WHAT kind
+  // answers the ask; the records decide what's on it.
+  if (kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4" || kind === "mindmap" || kind === "dfd") {
     return spec;
   }
 
@@ -274,7 +278,7 @@ function sanitizeChart(raw: unknown): ChatChartSpec | undefined {
 
 /** True for the kinds whose boxes/arrows/lanes are built from the store. */
 export function isDiagramKind(kind: ChatChartKind): boolean {
-  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4" || kind === "mindmap";
+  return kind === "uml" || kind === "flow" || kind === "tree" || kind === "heatmap" || kind === "sequence" || kind === "c4" || kind === "mindmap" || kind === "dfd";
 }
 
 /**

@@ -29,15 +29,25 @@ export interface ConceptDrawResult {
    *  nothing of the requested story to draw (the answer says what exists) */
   conceptId: number | null;
   kind: ConceptDiagramKind;
+  /** the symbol ids the question actually matched (the ask's own focus).
+   *  Refusals carry it so the picture the ask CAN honestly get — the asked
+   *  kind centered on these symbols, from the records — can be drawn
+   *  beside the refusal text without ever posing as a story. */
+  focus?: number[];
 }
 
 // "flowchart", "flow chart" — the story's call graph. Bare "flow"/"flow
 // chart of the whole project" stays with draw-anything via the target rule
-// below (no story named → null).
+// below (no story named → null). The word-bounded regex is joined by a
+// one-edit-tolerant check so a misspelled kind ("flwocart", "flowchart"
+// with a dropped letter) still resolves — a typo must not downgrade the
+// ask to the generic chart.
 const FLOWCHART_WORDS = /\bflow ?charts?\b/i;
 
 // ONLY the explicit phrase — a bare "sequence" (e.g. "the read-add-write
-// sequence") is not a drawing ask and must never be hijacked.
+// sequence") is not a drawing ask and must never be hijacked. The paired
+// fuzzy check needs the diagram head RIGHT THERE too, which is what keeps
+// behavior questions "the read-add-write sequence is not atomic" untouched.
 const SEQUENCE_WORDS = /\bsequence (diagrams?|charts?|pictures?|views?)\b/i;
 
 /** An explicitly named target: "the flowchart OF checkout", "…FOR the
@@ -48,6 +58,11 @@ const TARGET_WORDS = /\b(?:of|for|about)\s+([^?!.,;]+)/i;
 const FILLER = /^(?:the|a|an|this|that|story|usecase|use case|flow|diagram)\s+/i;
 
 export function isConceptDiagramAsk(question: string): ConceptDiagramKind | null {
+  // Word-bounded, exact spelling — a MISSPELLED kind ("sequnce diagram")
+  // deliberately matches nothing: no fuzzy guessing on the user's words.
+  // That ask reaches the configured LLM instead (the generic fast path is
+  // gone from draw-anything), and the model decides the kind; the store
+  // fills it from the records.
   if (FLOWCHART_WORDS.test(question)) return "flowchart";
   if (SEQUENCE_WORDS.test(question)) return "sequence";
   return null;
@@ -201,7 +216,7 @@ export function tryConceptDraw(
     const longest = [...matched.keys()].reduce((a, b) => (b.length > a.length ? b : a));
     const symbolId = matched.get(longest)!;
     const res = resolveStories(index, [symbolId]);
-    if (res) return finishScoped(res, kind, report, concepts, longest, diagramNoun);
+    if (res) return finishScoped(res, kind, report, concepts, longest, diagramNoun, [symbolId]);
   }
 
   // 2b — the words of a name: "booking" never appears word-bounded inside
@@ -222,7 +237,16 @@ export function tryConceptDraw(
   if (tokenHits.length > 0) {
     const tok = tokenHits[0];
     const res = resolveStories(index, [...tokenIndex.get(tok)!]);
-    if (res) return finishScoped(res, kind, report, concepts, tok, diagramNoun);
+    if (res)
+      return finishScoped(
+        res,
+        kind,
+        report,
+        concepts,
+        tok,
+        diagramNoun,
+        [...tokenIndex.get(tok)!],
+      );
   }
 
   // 3 — an explicit target nothing resolves: the named refusal. What CIE
@@ -251,6 +275,7 @@ export function tryConceptDraw(
           .join(", ")}${index.length > 8 ? "…" : ""}.`,
         conceptId: null,
         kind,
+        focus: [...matched.values()],
       };
     }
     const sample = index
@@ -298,6 +323,7 @@ function finishScoped(
   concepts: ConceptTree,
   name: string,
   diagramNoun: string,
+  focus?: number[],
 ): ConceptDrawResult {
   const sorted = [...res.holding].sort((a, b) => a.id - b.id);
   // Most-specific-wins: when the stories sharing the word form a chain
@@ -317,6 +343,7 @@ function finishScoped(
     answer: `More than one usecase ${relation} “${name}”: ${names}. Name the story you mean and I'll draw its ${diagramNoun} — each story is its own picture, and I don't merge them.`,
     conceptId: null,
     kind,
+    focus,
   };
 }
 

@@ -53,22 +53,56 @@ export function readLastWorkspace(): LastWorkspace | null {
   }
 }
 
-// Fetch a finished analyze job's exports and open them in the store — the
-// same mapping the connect-a-repo dialog performs, reused for launch-time
-// restore so a reopened workspace IS the workspace, not a lookalike.
+type ExtraResultPayload = {
+  viewspec?: CieViewSpec | null;
+  concepts?: ConceptTree | null;
+  deps?: CieDeps | null;
+  runtime?: CieRuntime | null;
+  cochange?: CieCochange | null;
+  overlap?: CieOverlap | null;
+  drift?: CieDrift | null;
+  stack?: TechStack | null;
+  polyglotSpecs?: PolyglotBundle | null;
+};
+
+// The main result route only ever returns `report` (the one field the
+// page shown right after a load needs — see sections.tsx's StartView);
+// everything else is fetched here, separately, AFTER the project has
+// already rendered, and merged in via mergeExtra without resetting
+// whatever the person already did (open chat, picked map element, …).
+// Called fire-and-forget by both load paths (showProject, restoreJobResult
+// below) — a failure here leaves those fields null; it never blocks or
+// un-opens the project, since `report` already rendered.
+export async function fetchAndMergeExtra(jobId: string): Promise<void> {
+  try {
+    const res = await fetch(`/api/analyze/result/extra?job=${encodeURIComponent(jobId)}`);
+    if (!res.ok) return;
+    const data = (await res.json().catch(() => null)) as ExtraResultPayload | null;
+    if (!data) return;
+    useCie.getState().mergeExtra({
+      viewspec: isValidViewspec(data.viewspec) ? data.viewspec : null,
+      concepts: isValidConcepts(data.concepts) ? data.concepts : null,
+      deps: data.deps?.table ? data.deps : null,
+      runtime: data.runtime?.datasets ? data.runtime : null,
+      cochange: data.cochange ?? null,
+      overlap: data.overlap ?? null,
+      drift: data.drift ?? null,
+      stack: data.stack && isTechStack(data.stack) ? data.stack : null,
+      polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
+    });
+  } catch {
+    // Best-effort backfill — the project is already open on `report` alone.
+  }
+}
+
+// Fetch a finished analyze job's core export (report) and open it in the
+// store — the same mapping the connect-a-repo dialog performs, reused for
+// launch-time restore so a reopened workspace IS the workspace, not a
+// lookalike. Kicks off the (non-blocking) extra-fields backfill too.
 export async function restoreJobResult(jobId: string): Promise<boolean> {
   const res = await fetch(`/api/analyze/result?job=${encodeURIComponent(jobId)}`);
   const data = (await res.json().catch(() => ({}))) as {
     report?: CieReport;
-    viewspec?: CieViewSpec | null;
-    concepts?: ConceptTree | null;
-    deps?: CieDeps | null;
-    runtime?: CieRuntime | null;
-    cochange?: CieCochange | null;
-    overlap?: CieOverlap | null;
-    drift?: CieDrift | null;
-    stack?: TechStack | null;
-    polyglotSpecs?: PolyglotBundle | null;
     label?: string;
     scan?: RepoScan | null;
     sourceRoot?: string | null;
@@ -76,17 +110,11 @@ export async function restoreJobResult(jobId: string): Promise<boolean> {
     error?: string;
   } | null;
   if (!res.ok || !data || !isValidReport(data.report ?? null)) return false;
-  useCie.getState().setCustom(data.report ?? null, isValidViewspec(data.viewspec) ? data.viewspec : null, isValidConcepts(data.concepts) ? data.concepts : null, data.label ?? "Your project", {
-    deps: data.deps?.table ? data.deps : null,
-    runtime: data.runtime?.datasets ? data.runtime : null,
-    cochange: data.cochange ?? null,
-    overlap: data.overlap ?? null,
-    drift: data.drift ?? null,
-    stack: data.stack && isTechStack(data.stack) ? data.stack : null,
-    polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
+  useCie.getState().setCustom(data.report ?? null, null, null, data.label ?? "Your project", {
     repoScan: data.scan ?? null,
     sourceRoot: data.sourceRoot ?? null,
     storageRoot: data.storageRoot ?? data.sourceRoot ?? null,
   });
+  void fetchAndMergeExtra(jobId);
   return true;
 }

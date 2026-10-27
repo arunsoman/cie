@@ -179,6 +179,192 @@ export async function chatOpenAi(cfg: OpenAICfg, messages: ChatTurn[], timeoutMs
   return text;
 }
 
+// ---------- tool-calling turn (the store agent) ----------
+
+export interface ToolCallRequest {
+  id: string;
+  name: string;
+  /** arguments in canonical form: a JSON string across all providers */
+  arguments: string;
+}
+export interface ToolChatResponse {
+  content: string | null;
+  toolCalls: ToolCallRequest[];
+}
+
+/** One turn of the tool loop: plain chat turns, an assistant turn that
+ *  asks for tools, or a tool turn answering one call. */
+export type LoopTurn =
+  | ChatTurn
+  | {
+      role: "assistant";
+      content: string | null;
+      tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+    }
+  | { role: "tool"; tool_call_id: string; content: string; name?: string };
+
+export type ToolSpec = Record<string, unknown>;
+
+const TOOL_BODY_TIMEOUT = 45_000; // per hop; the loop itself bounds the hops
+
+function toolCallRequestOf(raw: unknown, index: number): ToolCallRequest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const tc = raw as Record<string, unknown>;
+  const fn = (tc.function && typeof tc.function === "object" ? tc.function : {}) as Record<string, unknown>;
+  const name = typeof fn.name === "string" && fn.name ? fn.name : null;
+  if (!name) return null;
+  const id = typeof tc.id === "string" && tc.id ? tc.id : `call_${index}_${name}`;
+  const args = typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments ?? {});
+  return { id, name, arguments: args };
+}
+
+async function openAiStyleToolCall(base: string, headers: Record<string, string>, body: Record<string, unknown>, what: string): Promise<ToolChatResponse> {
+  const res = await fetchJson(`${base}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TOOL_BODY_TIMEOUT),
+  });
+  if (!res.ok) {
+    const errBody = await readErrorBody(res);
+    if (res.status === 401 || res.status === 403) throw new LlmError(`The service rejected that key. Double-check the API key in the connection settings.`, `POST ${base}/chat/completions → ${res.status}: ${errBody}`);
+    if (res.status === 404) throw new LlmError(`The service doesn't know the model. Check the spelling in the connection settings.`, `POST ${base}/chat/completions → ${res.status}: ${errBody}`);
+    if (res.status === 429) throw new LlmError("The service says CIE is going too fast (rate limit or out of credit). Wait a moment and try again.", `POST ${base}/chat/completions → ${res.status}: ${errBody}`);
+    throw new LlmError(`${what} had trouble answering. Please try again in a moment.`, `POST ${base}/chat/completions → ${res.status}: ${errBody}`);
+  }
+  const data = (await res.json().catch(() => null)) as { choices?: { message?: Record<string, unknown> }[] } | null;
+  const message = data?.choices?.[0]?.message ?? null;
+  const calls = Array.isArray(message?.tool_calls)
+    ? (message!.tool_calls as unknown[]).map(toolCallRequestOf)
+    : [];
+  return {
+    content: typeof message?.content === "string" ? message.content.trim() : null,
+    toolCalls: calls.filter((c): c is ToolCallRequest => c !== null),
+  };
+}
+
+/** One OpenAI-compatible turn with tools — may answer (content) or ask
+ *  for tool calls. */
+export async function chatOpenAiTools(cfg: OpenAICfg, turns: LoopTurn[], tools: ToolSpec[]): Promise<ToolChatResponse> {
+  const base = normalizeBase(cfg.baseUrl, "AI service");
+  if (!cfg.model) throw new LlmError("No model name was set. Open the connection settings and pick or type one.", "openai.model empty");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  return openAiStyleToolCall(base, headers, { model: cfg.model, messages: turns, temperature: 0.2, stream: false, tools }, "The AI service");
+}
+
+/** One Ollama turn with tools. Ollama carries tool-call arguments as an
+ *  OBJECT — normalized to the canonical JSON-string form here. */
+export async function chatOllamaTools(cfg: OllamaCfg, turns: LoopTurn[], tools: ToolSpec[]): Promise<ToolChatResponse> {
+  const base = normalizeBase(cfg.baseUrl, "Ollama");
+  if (!cfg.model) throw new LlmError("No model was picked for Ollama yet. Open the connection settings and choose one.", "ollama.model empty");
+  const res = await fetchJson(`${base}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: cfg.model, messages: turns, stream: false, tools }),
+    signal: AbortSignal.timeout(TOOL_BODY_TIMEOUT),
+  });
+  if (!res.ok) {
+    const errBody = await readErrorBody(res);
+    if (res.status === 404) throw new LlmError(`Ollama doesn't have the model yet. Pull it, or pick another model in the connection settings.`, `POST ${base}/api/chat → 404: ${errBody}`);
+    throw new LlmError("Ollama started but couldn't finish the answer. Try again — or try a smaller model.", `POST ${base}/api/chat (tools) → ${res.status}: ${errBody}`);
+  }
+  const data = (await res.json().catch(() => null)) as { message?: { content?: string; tool_calls?: unknown[] } } | null;
+  const message = data?.message ?? null;
+  const calls = Array.isArray(message?.tool_calls)
+    ? (message!.tool_calls as unknown[]).map((raw, i) => {
+        if (!raw || typeof raw !== "object") return null;
+        const fn = ((raw as Record<string, unknown>).function ?? {}) as Record<string, unknown>;
+        const name = typeof fn.name === "string" && fn.name ? fn.name : null;
+        if (!name) return null;
+        return toolCallRequestOf({ id: `call_${i}_${name}`, function: fn }, i);
+      })
+    : [];
+  return {
+    content: typeof message?.content === "string" ? message.content.trim() : null,
+    toolCalls: calls.filter((c): c is ToolCallRequest => c !== null),
+  };
+}
+
+/** One built-in (Z.ai) turn with tools. The SDK's body forwards extra
+ *  keys ([key: string]: any), so the standard OpenAI `tools` field rides
+ *  along; the response shape is the OpenAI one. */
+export async function chatBuiltinTools(turns: LoopTurn[], tools: ToolSpec[]): Promise<ToolChatResponse> {
+  try {
+    const { default: ZAI } = await import("z-ai-web-dev-sdk");
+    const zai = await ZAI.create();
+    // The SDK's declared message type is narrow (content: string, no tool
+    // turns) while the body accepts extra keys ([key: string]: any) — the
+    // cast is the same narrow-bridge the route's env-config path uses.
+    const body = { messages: turns, tools, thinking: { type: "disabled" } };
+    const completion = (await Promise.race([
+      zai.chat.completions.create(body as unknown as never),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new LlmError("The built-in AI took too long to answer. Please try again.", "builtin tools call: timeout")), TOOL_BODY_TIMEOUT)),
+    ])) as { choices?: { message?: Record<string, unknown> }[] };
+    const message = completion.choices?.[0]?.message ?? null;
+    const calls = Array.isArray(message?.tool_calls)
+      ? (message!.tool_calls as unknown[]).map((raw, i) => toolCallRequestOf({ id: `call_${i}`, function: (raw as Record<string, unknown>).function }, i))
+      : [];
+    return {
+      content: typeof message?.content === "string" ? message.content.trim() : null,
+      toolCalls: calls.filter((c): c is ToolCallRequest => c !== null),
+    };
+  } catch (e) {
+    if (e instanceof LlmError) throw e;
+    throw new LlmError("The built-in AI isn't reachable right now. It may not support tool calls — the plain digest answer still works.", `builtin tools call failed: ${(e as Error).message}`);
+  }
+}
+
+/** Provider-dispatched tools turn. */
+export async function chatWithTools(cfg: LlmCfg, turns: LoopTurn[], tools: ToolSpec[]): Promise<ToolChatResponse> {
+  if (cfg.provider === "ollama") return chatOllamaTools(cfg.ollama, turns, tools);
+  if (cfg.provider === "openai") return chatOpenAiTools(cfg.openai, turns, tools);
+  return chatBuiltinTools(turns, tools);
+}
+
+/** The built-in (Z.ai) plain turn — the same env-over-config bridge the
+ *  route always used, now a function the plain and fallback paths share. */
+export async function chatBuiltin(turns: ChatTurn[], timeoutMs: number): Promise<string> {
+  const { default: ZAI } = await import("z-ai-web-dev-sdk");
+  type ZaiLike = {
+    chat: { completions: { create: (body: unknown) => Promise<{ choices?: { message?: { content?: string } }[] }> } };
+  };
+  const envKey = process.env.ZAI_API_KEY || process.env.ZAI_APIKEY;
+  const envBase = process.env.ZAI_BASE_URL || process.env.ZAI_BASEURL;
+  const zai = envKey
+    ? new (ZAI as unknown as new (cfg: { baseUrl: string; apiKey: string }) => ZaiLike)({
+        baseUrl: envBase || "https://api.z.ai/api/paas/v4",
+        apiKey: envKey,
+      })
+    : await (async () => {
+        try {
+          return (await ZAI.create()) as unknown as ZaiLike;
+        } catch (err) {
+          // The SDK's config failure is a raw Error that used to surface as
+          // a generic 500 — name the real fix instead.
+          throw new LlmError(
+            "The built-in AI isn't configured on this server — add a .z-ai-config file (or set ZAI_API_KEY), or switch the answering model in the connection settings, then try again.",
+            `builtin: SDK config unavailable: ${(err as Error).message}`,
+          );
+        }
+      })();
+  const completion = (await Promise.race([
+    zai.chat.completions.create({ messages: turns, thinking: { type: "disabled" } }),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new LlmError("The built-in AI took too long to answer. Please try again.", "builtin call: timeout")), timeoutMs)),
+  ])) as { choices?: { message?: { content?: string } }[] };
+  const text = completion.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!text) throw new LlmError("The built-in AI answered with nothing. Please try again.", "builtin: empty reply");
+  return text;
+}
+
+/** Provider-dispatched plain turn — the loop's no-tools end and the
+ *  non-tool fallback share it. */
+export async function chatPlain(cfg: LlmCfg, turns: ChatTurn[], timeoutMs: number): Promise<string> {
+  if (cfg.provider === "ollama") return chatOllama(cfg.ollama, turns, timeoutMs);
+  if (cfg.provider === "openai") return chatOpenAi(cfg.openai, turns, timeoutMs);
+  return chatBuiltin(turns, timeoutMs);
+}
+
 /** One small honest ping to prove the built-in credentials work right now. */
 export async function pingBuiltin(): Promise<void> {
   try {

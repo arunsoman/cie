@@ -68,15 +68,19 @@ export function useAsk() {
  * authoritative, including aggregate rows with no recorded source span.
  * `big` is the big-quiet-canvas version: a chart the chat sent to the
  * stage gets room to breathe — a 107-node call flow squeezed into the
- * 300px card host reads as "nothing was drawn". */
+ * 300px card host reads as "nothing was drawn". `fill` is the whole-stage
+ * variant: the canvas has ONE chart and the whole space to show it in, so
+ * the host is flex-filled to the stage edges instead of a fixed strip. */
 export function ChatChart({
   spec,
   onSelectElement,
   big = false,
+  fill = false,
 }: {
   spec: ChatChartSpec;
   onSelectElement?: SelectHandler;
   big?: boolean;
+  fill?: boolean;
 }) {
   const {
     report,
@@ -218,7 +222,7 @@ export function ChatChart({
         owned = result.handle;
         handle.current = owned;
         setNote(
-          `${result.disclosure.headline} · layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views${
+          `layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views${
             filterKeep instanceof Set
               ? ` · chart filter “${chartFilter?.label}”: ${filterKeep.size} of ${data.view.elements.length} elements kept`
               : ""
@@ -278,115 +282,128 @@ export function ChatChart({
     a.click();
   };
   return (
-    <div className="mt-1" data-cie-chart={spec.kind}>
-      {spec.title && <p className="text-sm font-semibold">{spec.title}</p>}
-      {spec.tell && <p className="text-xs text-stone-500">{spec.tell}</p>}
+    <div
+      className={fill ? "flex h-full min-h-0 flex-col gap-1" : "mt-1"}
+      data-cie-chart={spec.kind}
+    >
+      {spec.title && <p className={`text-sm font-semibold ${fill ? "shrink-0" : ""}`}>{spec.title}</p>}
+      {spec.tell && <p className={`text-xs text-stone-500 ${fill ? "shrink-0" : ""}`}>{spec.tell}</p>}
       {spec.kind==="sequence"&&atlasFactsOnly&&<p className="text-xs text-amber-700">Candidate and unresolved boundaries remain visible; dashed calls are not proven runtime dispatch.</p>}
       {!!gated.spec?.elements.length && (
         <div
           ref={host}
-          className={`w-full rounded-lg border ${big ? "h-[640px]" : "h-[300px]"}`}
+          className={`w-full rounded-lg border ${
+            big ? (fill ? "min-h-0 flex-1" : "h-[640px]") : "h-[300px]"
+          }`}
           role="img"
           aria-label={`${spec.kind} canvas`}
         />
       )}
       {!gated.spec?.elements.length && <div ref={host} />}
-      {!!gated.spec?.elements.length && <DiagramNavigation handle={handle} />}
-      <p
-        role={failure ? "alert" : undefined}
-        className="text-[10px] text-stone-500 mt-1"
+      <div
+        className={
+          fill
+            ? "flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs"
+            : "block"
+        }
       >
-        {note} · catalog {spec.catalog ?? CHAT_CATALOG[spec.kind]} ·{" "}
-        {spec.source ?? "loaded project exports"}
-      </p>
-      {!!gated.spec?.elements.length && (
-        <label className="text-xs mr-2">
-          Layout{" "}
-          <select
-            aria-label="Chart layout"
-            value={layout}
-            onChange={(e) =>
-              setLayout(e.target.value as "auto" | "elk-layered")
-            }
+  {!!gated.spec?.elements.length && <DiagramNavigation handle={handle} tight={fill} />}
+  <p
+    role={failure ? "alert" : undefined}
+    className={`text-[10px] text-stone-500 ${fill ? "min-w-40" : "mt-1"}`}
+  >
+    {note} · catalog {spec.catalog ?? CHAT_CATALOG[spec.kind]} ·{" "}
+    {spec.source ?? "loaded project exports"}
+  </p>
+  {!!gated.spec?.elements.length && (
+    <label className="text-xs mr-2">
+      Layout{" "}
+      <select
+        aria-label="Chart layout"
+        value={layout}
+        onChange={(e) =>
+          setLayout(e.target.value as "auto" | "elk-layered")
+        }
+      >
+        <option value="auto">Automatic</option>
+        <option value="elk-layered">ELK layered</option>
+      </select>
+    </label>
+  )}
+  {!!gated.spec?.elements.length && (
+    <button
+      type="button"
+      className="text-xs underline mr-2"
+      onClick={() => {
+        const out = new MermaidAdapter().adapt(gated.spec!);
+        const url = URL.createObjectURL(
+          new Blob([out.text], { type: "text/plain" }),
+        );
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "cie-chart.mmd";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }}
+    >
+      Export Mermaid
+    </button>
+  )}
+  {!!gated.spec?.elements.length && !failure && (
+    <button
+      type="button"
+      className="text-xs underline"
+      onClick={() => void exportPng()}
+    >
+      Export PNG
+    </button>
+  )}
+  <details
+    className={`text-xs ${fill ? "" : "mt-2"}`}
+    open={!gated.spec?.elements.length || failure}
+  >
+    <summary>
+      Text outline · {data.entries.length} recorded elements
+    </summary>
+    {spec.columns && (
+      <p className="font-semibold">{spec.columns.join(" · ")}</p>
+    )}
+    <ul aria-label="Chart elements" className="max-h-64 overflow-auto">
+      {data.entries.map((e) => (
+        <li key={e.id}>
+          <button
+            type="button"
+            className="text-left p-1 hover:underline"
+            onClick={() => pick(e)}
+            aria-pressed={chatContext.some((c) => c.id === e.id)}
           >
-            <option value="auto">Automatic</option>
-            <option value="elk-layered">ELK layered</option>
-          </select>
-        </label>
-      )}
-      {!!gated.spec?.elements.length && (
-        <button
-          type="button"
-          className="text-xs underline mr-2"
-          onClick={() => {
-            const out = new MermaidAdapter().adapt(gated.spec!);
-            const url = URL.createObjectURL(
-              new Blob([out.text], { type: "text/plain" }),
-            );
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "cie-chart.mmd";
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-          }}
-        >
-          Export Mermaid
-        </button>
-      )}
-      {!!gated.spec?.elements.length && !failure && (
-        <button
-          type="button"
-          className="text-xs underline"
-          onClick={() => void exportPng()}
-        >
-          Export PNG
-        </button>
-      )}
-      <details
-        className="text-xs mt-2"
-        open={!gated.spec?.elements.length || failure}
-      >
-        <summary>
-          Text outline · {data.entries.length} recorded elements
-        </summary>
-        {spec.columns && (
-          <p className="font-semibold">{spec.columns.join(" · ")}</p>
-        )}
-        <ul aria-label="Chart elements" className="max-h-64 overflow-auto">
-          {data.entries.map((e) => (
-            <li key={e.id}>
-              <button
-                type="button"
-                className="text-left p-1 hover:underline"
-                onClick={() => pick(e)}
-                aria-pressed={chatContext.some((c) => c.id === e.id)}
-              >
-                {e.label}
-                {e.mode && e.mode !== "Fact" ? ` · ${e.mode}` : ""}
-              </button>
-              {e.lines?.map((line, i) => (
-                <p key={i} className="pl-3 text-stone-500">
-                  {line}
-                </p>
-              ))}
-            </li>
+            {e.label}
+            {e.mode && e.mode !== "Fact" ? ` · ${e.mode}` : ""}
+          </button>
+          {e.lines?.map((line, i) => (
+            <p key={i} className="pl-3 text-stone-500">
+              {line}
+            </p>
           ))}
-        </ul>
-      </details>
-      {!!gated.spec?.hidden.length && (
-        <details className="text-xs mt-1">
-          <summary>
-            Disclosure ledger · {gated.spec.hidden.length} omitted
-          </summary>
-          <ul>
-            {gated.spec.hidden.map((e, i) => (
-              <li key={`${e.id}:${i}`}>
-                {e.label ?? e.id} · {e.kind ?? "unknown"} · {e.reason}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+        </li>
+      ))}
+    </ul>
+  </details>
+  {!!gated.spec?.hidden.length && (
+    <details className={`text-xs ${fill ? "" : "mt-1"}`}>
+      <summary>
+        Disclosure ledger · {gated.spec.hidden.length} omitted
+      </summary>
+      <ul>
+        {gated.spec.hidden.map((e, i) => (
+          <li key={`${e.id}:${i}`}>
+            {e.label ?? e.id} · {e.kind ?? "unknown"} · {e.reason}
+          </li>
+        ))}
+      </ul>
+    </details>
+  )}
+      </div>
     </div>
   );
 }

@@ -1122,6 +1122,68 @@ pub fn load_outcome(project: &Path, rev: RevId) -> std::io::Result<IngestOutcome
     })
 }
 
+/// Walk `root` for bounded documentation inputs (md/rst/adoc, ≤256KiB,
+/// depth ≤14, first 20 by path) within `deadline`. Shared by the eager CLI
+/// drift path and the on-demand retrieval builder (RFC-0026 §9) so neither
+/// keeps its own copy of the discovery rules.
+pub fn discover_docs(
+    root: &std::path::Path,
+    deadline: std::time::Instant,
+) -> std::io::Result<Vec<(String, String)>> {
+    let check = || {
+        if std::time::Instant::now() >= deadline {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "Documentation discovery budget exceeded",
+            ))
+        } else {
+            Ok(())
+        }
+    };
+    check()?;
+    let mut paths = Vec::new();
+    let mut dirs = vec![(root.to_path_buf(), 0)];
+    while let Some((dir, depth)) = dirs.pop() {
+        check()?;
+        if depth > 14 {
+            continue;
+        }
+        for entry in std::fs::read_dir(dir)? {
+            check()?;
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            if ty.is_symlink() {
+                continue;
+            }
+            if ty.is_dir() {
+                if !IGNORED.contains(&entry.file_name().to_string_lossy().as_ref()) {
+                    dirs.push((entry.path(), depth + 1));
+                }
+            } else if ty.is_file()
+                && matches!(
+                    entry.path().extension().and_then(|x| x.to_str()),
+                    Some("md" | "rst" | "adoc")
+                )
+                && entry.metadata()?.len() <= 256 * 1024
+            {
+                paths.push(entry.path());
+            }
+        }
+    }
+    paths.sort_by_key(|p| (p.components().count(), p.clone()));
+    check()?;
+    let mut docs = Vec::new();
+    for path in paths.into_iter().take(20) {
+        check()?;
+        docs.push((
+            path.to_string_lossy().to_string(),
+            std::fs::read_to_string(path)?,
+        ));
+    }
+    check()?;
+    Ok(docs)
+}
+
 /// Run drift for the given docs against the project's latest revision.
 pub fn run_drift(
     project: &Path,
@@ -1310,6 +1372,89 @@ fn drift_cache_key(store: &Store, docs: &[(String, String)]) -> std::io::Result<
     key_bytes.extend_from_slice(&code_hash);
     key_bytes.extend_from_slice(&docs_hash);
     Ok(cie_core::types::hash_hex(&content_hash(&key_bytes)))
+}
+
+/// Implements the retrieval layer's on-demand build hook (RFC-0026 §9) for
+/// `drift`: reconstructs an `IngestOutcome` purely from the persisted
+/// revision via [`load_outcome`] — never a live re-ingest — discovers docs
+/// fresh, and runs the same pipeline the eager CLI path used to run inline
+/// at ingest time. Lives here (not in cie-storage, which cie-ingest already
+/// depends on) and gets injected into the retrieval layer as a trait object
+/// by whatever host crate can see both sides (cie-cli).
+pub struct OnDemandDeferredBuilder;
+impl cie_storage::retrieval::DeferredBuilder for OnDemandDeferredBuilder {
+    fn build(
+        &self,
+        root: &std::path::Path,
+        rev: RevId,
+        kind: cie_storage::retrieval::ArtifactKind,
+        budget: std::time::Duration,
+    ) -> std::result::Result<serde_json::Value, String> {
+        use cie_storage::retrieval::ArtifactKind;
+        match kind {
+            ArtifactKind::Drift => build_drift_on_demand(root, rev, budget),
+            ArtifactKind::Overlap => build_overlap_on_demand(root, rev),
+            other => Err(format!("OnDemandDeferredBuilder cannot build {other:?}")),
+        }
+    }
+}
+
+fn build_drift_on_demand(
+    root: &std::path::Path,
+    rev: RevId,
+    budget: std::time::Duration,
+) -> std::result::Result<serde_json::Value, String> {
+    let deadline = std::time::Instant::now() + budget;
+    let docs = discover_docs(root, deadline).map_err(|e| e.to_string())?;
+    if docs.is_empty() {
+        return Ok(serde_json::json!({
+            "rev": rev, "docs": Vec::<String>::new(), "claims": [], "mappings": [],
+            "verifications": [], "reverse_drift": [], "aggregate": {},
+            "complete": true, "generated_ns": now_ns(),
+        }));
+    }
+    let outcome = load_outcome(root, rev).map_err(|e| e.to_string())?;
+    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+    let (report, _) = run_drift_from_outcome_with_budget(root, &docs, outcome, remaining)
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(report).map_err(|e| e.to_string())
+}
+
+/// Still the brute-force all-pairs matrix (RFC-0026 §§1-8's lattice
+/// replacement is not implemented yet) — this only moves *when* it runs,
+/// from blocking ingest to the first on-demand request, so ingest/publish
+/// no longer wait on it. The algorithm's own cost is unchanged.
+fn build_overlap_on_demand(
+    root: &std::path::Path,
+    rev: RevId,
+) -> std::result::Result<serde_json::Value, String> {
+    let outcome = load_outcome(root, rev).map_err(|e| e.to_string())?;
+    let names: BTreeMap<SymbolId, String> = outcome
+        .store
+        .symbols
+        .iter()
+        .map(|s| (s.id, s.qual_name.clone()))
+        .collect();
+    let mappings: BTreeMap<String, std::collections::BTreeSet<SymbolId>> = outcome
+        .snapshot
+        .concepts
+        .nodes
+        .iter()
+        .filter(|n| n.kind != cie_concepts::ConceptKind::Domain && !n.symbols.is_empty())
+        .map(|n| (n.label.clone(), n.symbols.iter().copied().collect()))
+        .collect();
+    let matrix = cie_concepts::overlap_matrix(&mappings, 1);
+    let name_of = |ids: &std::collections::BTreeSet<SymbolId>| -> Vec<String> {
+        ids.iter().filter_map(|id| names.get(id).cloned()).collect()
+    };
+    let pairs: Vec<serde_json::Value> = matrix
+        .pairs
+        .iter()
+        .map(|p| {
+            serde_json::json!({"a":p.a,"b":p.b,"shared":name_of(&p.shared),"only_a":name_of(&p.only_a),"only_b":name_of(&p.only_b),"similarity":p.similarity()})
+        })
+        .collect();
+    Ok(serde_json::json!({"pairs":pairs,"unmapped":matrix.unmapped,"min_shared":1}))
 }
 
 /// Merge concept DAGs across repositories (FR-46 / CAP-16, acceptance #37).

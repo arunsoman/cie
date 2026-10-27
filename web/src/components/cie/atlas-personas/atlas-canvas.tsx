@@ -41,7 +41,7 @@ export function AtlasCanvas({ spec, disabled }: {spec: AtlasViewSpec; disabled: 
                 const item = spec.items.find(i => i.key === event.id)?.ref ?? spec.links?.find(e => e.key === event.id)?.ref;
                 if (item) {if (event.type === 'doubleClick') interaction.doubleClick(item); else interaction.click(item, event.detail);}
             });
-            setRender({hash, status: 'ready', notice: result.disclosure.headline});
+            setRender({hash, status: 'ready', notice: ''});
         }).catch(e => {if (!stopped) setRender({hash, status: 'unavailable', notice: `Canvas unavailable: ${String(e)}. Use the accessible outline.`});});
         return () => {
             stopped = true; off?.();
@@ -52,5 +52,5 @@ export function AtlasCanvas({ spec, disabled }: {spec: AtlasViewSpec; disabled: 
     useEffect(() => {
         if (current.status === 'ready') handle.current?.setSelected([...spec.items, ...(spec.links ?? [])].filter(i => core.isSelected(i.ref.id) || state.focusedItemId === i.ref.id).map(i => i.key), 'programmatic');
     }, [state.selection, state.focusedItemId, spec, core, current.status]);
-    return <><div ref={container} role="img" aria-label={spec.title} data-render-state={current.status} data-render-hash={hash} className="border rounded" style={{minHeight:canvasHeight,visibility: current.status === 'ready' ? 'visible' : 'hidden'}}/>{details&&<DiagramNavigation handle={handle}/>}{(details||current.status!=='ready')&&<p role="status" className="text-xs">{current.notice}</p>}</>;
+    return <><div ref={container} role="img" aria-label={spec.title} data-render-state={current.status} data-render-hash={hash} className="border rounded" style={{minHeight:canvasHeight,visibility: current.status === 'ready' ? 'visible' : 'hidden'}}/>{details&&<DiagramNavigation handle={handle}/>}{current.notice&&(details||current.status!=='ready')&&<p role="status" className="text-xs">{current.notice}</p>}</>;
 }

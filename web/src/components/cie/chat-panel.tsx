@@ -25,31 +25,27 @@ import { buildDigest } from "@/lib/chat-digest";
 // sliced to the chips' code space (scopeChatDigest, RFC-0024 stage 5).
 import { scopeDigest, scopeChatDigest } from "@/lib/scope-digest";
 import { parseChartReply, isDiagramKind, type ChatChartSpec } from "@/lib/chat-chart";
-import { tryDrawAnything, fillDiagram } from "@/lib/draw-anything";
-import { tryPolyglotDraw } from "@/lib/polyglot-chat";
-import { tryConceptDraw } from "@/lib/concept-chat";
-import { tryAnswerStory } from "@/lib/stories";
-import { tryAnswerQuality, buildCompanionChart, resolveConceptFocus, findSymbolInQuestion } from "@/lib/quality";
-import { buildTraceAnswer, tryAnswerMastery, type MasteryCtx } from "@/lib/mastery";
+import { fillDiagram } from "@/lib/draw-anything";
+import { buildCompanionChart, resolveConceptFocus } from "@/lib/quality";
+import { buildTraceAnswer } from "@/lib/mastery";
 import { MasteryCard } from "@/components/cie/mastery-cards";
-import type { CieImpact } from "@/lib/cie-types";
-import { providerLabel } from "@/lib/llm-config";
+import { providerLabel, presetFor, type LlmConfig } from "@/lib/llm-config";
 // One persona across the system (RFC-0024 §14): the top-bar Atlas persona
 // also picks who answers in Ask CIE — the chat's system prompt, starters
 // and status line all follow it (chat-persona.ts is the honest core + the
 // five voices).
 import { CHAT_PERSONAS, DEFAULT_CHAT_PERSONA, sanitizePersonaId, voiceInstant } from "@/lib/chat-persona";
-import type { InstantKind } from "@/lib/chat-persona";
 
-// Blast-radius / impact questions are the one chat path that calls the real
-// engine live, on demand (cie impact --symbol) — see the fast path below.
-const IMPACT_WORDS = /\b(impact|blast radius|what breaks|what('| i)s affected|minimum tests?|which tests?|test set)\b/i;
-
-function cut8(items: string[]): string {
-  if (!items.length) return "none";
-  const shown = items.slice(0, 4).join(", ");
-  return items.length > 4 ? `${shown}, +${items.length - 4} more` : shown;
-}
+/** Is the configured provider actually answerable, or would its turn just
+ *  error? builtin always ships; ollama/openai need a model (and openai a
+ *  key when its preset needs one) — without those the hybrid stays with
+ *  the instant answer instead of stacking an error bubble on it. */
+const llmUsable = (cfg: LlmConfig): boolean =>
+  cfg.provider === "builtin" ||
+  (cfg.provider === "ollama"
+    ? cfg.ollama.model.trim().length > 0
+    : cfg.openai.model.trim().length > 0 &&
+      (!presetFor(cfg.openai.preset).needsKey || cfg.openai.apiKey.trim().length > 0));
 
 const GREETING = CHAT_PERSONAS[DEFAULT_CHAT_PERSONA].greeting; // fallback if a voice omitted its greeting
 
@@ -100,9 +96,9 @@ export function Formatted({ text }: { text: string }) {
 export function ChatPanel() {
   const {
     report, viewspec, concepts, label, stack, chat, chatBusy, pushChat, setChatBusy, clearChat,
-    llm, setLlmSettingsOpen, openChartOnCanvas, openPolyglotOnCanvas, openConceptOnCanvas, mapSelected, setMapSelected,
-    deps, runtime, stories, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot: liveSourceRoot,
-    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, polyglotSpecs, persona,
+    llm, setLlmSettingsOpen, openChartOnCanvas, openConceptOnCanvas, mapSelected, setMapSelected,
+    deps, runtime, quality, cochange, overlap, drift, pendingAsk, setPendingAsk, sourceRoot: liveSourceRoot,
+    pendingTrace, setPendingTrace, updateMastery, loadMastery, chatContext, persona,
   } = useCie();
   const sourceRoot = useCie(s => s.storageRoot) ?? liveSourceRoot;
   const voice = CHAT_PERSONAS[sanitizePersonaId(persona)];
@@ -112,12 +108,12 @@ export function ChatPanel() {
   const answerData = useMemo(() => {
     const scoped = scopeDigest(report, viewspec, concepts, chatContext);
     // Aggregate exports have no selection-level attestation. Do not pass them
-    // to local answerers or companion-chart builders in a scoped answer.
-    return {...scoped, quality:scoped.scope ? null : quality, stories:scoped.scope ? null : stories,
+    // to the answer pipeline in a scoped answer.
+    return {...scoped, quality:scoped.scope ? null : quality,
       stack:scoped.scope ? null : stack, deps:scoped.scope ? null : deps,
       runtime:scoped.scope ? null : runtime, cochange:scoped.scope ? null : cochange,
       overlap:scoped.scope ? null : overlap, drift:scoped.scope ? null : drift};
-  }, [report, viewspec, concepts, chatContext, quality, stories, stack, deps, runtime, cochange, overlap, drift]);
+  }, [report, viewspec, concepts, chatContext, quality, stack, deps, runtime, cochange, overlap, drift]);
   const digest = useMemo(() => {
     const d = answerData;
     const facts = buildDigest(d.report, d.viewspec, d.concepts, label, d.deps, d.runtime, d.quality, d.cochange, d.overlap, d.drift);
@@ -171,185 +167,55 @@ export function ChatPanel() {
   };
 
   const send = async (text: string) => {
-    const {report, viewspec, concepts, quality, stories, stack, deps, runtime, cochange, overlap, drift, scope} = answerData;
+    const {report, viewspec, concepts, quality, stack, deps, runtime, cochange, overlap, drift, scope} = answerData;
     const question = text.trim();
     if (!question || chatBusy) return;
 
     pushChat({ role: "user", content: question });
     if (inputRef.current) inputRef.current.value = "";
 
-    // Core behaviour: every answer carries a chart, and the chart shows up
-    // on the canvas right away — never a click needed to see it. "respond"
-    // is the one place that pushes an assistant turn, so this cannot be
-    // forgotten by any of the answer paths below.
-    //
-    // Persona immersion (RFC-0025 §5): EVERY instant answer passes through
-    // voiceInstant here — the persona's lens line sits above the byte-
-    // verbatim canned data, so no matter which instant path fired, the
-    // answer speaks the persona's voice. The LLM path needs no lens (the
-    // persona composes its system prompt); error bubbles are never wrapped
-    // (diagnostic clarity outranks the voice). The legal scope header, when
-    // present, always renders above the lens. Fresher lens = identity, so
-    // this wrapper is a byte-for-byte no-op on the default experience.
+    // Core behaviour: EVERY question is handled by the configured LLM —
+    // one answering path, no instant fast paths. The server runs the store
+    // agent (cie_charts + cie_describe + cie_retrieve): the data the answer
+    // is formed from comes from the store; when it cannot find what the
+    // question needs, the model must say so plainly; when it can, the model
+    // also picks the complementary chart — only among the kinds cie_charts
+    // marked possible — and the app fills that kind's boxes and arrows from
+    // the loaded records, so nothing is invented anywhere in between.
     const respond = (msg: {
       content: string;
       chart?: ChatChartSpec;
-      instant?: boolean;
       error?: boolean;
       technical?: string;
       providerIssue?: boolean;
-    }, kind?: InstantKind) => {
-      const content = msg.error ? msg.content : voiceInstant(voice.id, kind, msg.content);
-      pushChat({ role: "assistant", ...msg, content: scope ? `${scope.header}\n\n${content}` : content });
+    }) => {
+      const content = scope ? `${scope.header}\n\n${msg.content}` : msg.content;
+      pushChat({ role: "assistant", ...msg, content });
       if (msg.chart) openChartOnCanvas(msg.chart);
     };
 
-    // De-facto companion chart: EVERY answer carries a chart drawn from the
-    // loaded exports. If the answerer found none, the companion picker picks
-    // the most relevant real chart for the question (never invented — see
-    // buildCompanionChart), centred on whatever the question is actually
-    // about (the tapped map bubble, or a symbol named in the question)
-    // rather than a fixed, unscoped default. Error bubbles stay chart-less.
+    // Companion chart: when the model's answer carries no picture (it chose
+    // none from the possible list, or answered plain text), the most
+    // relevant chart that IS grounded in the loaded exports accompanies the
+    // answer — centred on what the question is about (the tapped map
+    // bubble, or a symbol named in the question). Never invented.
     const withChart = (c: ChatChartSpec | null | undefined) =>
       c ?? buildCompanionChart(question, quality, concepts, report, mapSelected, cochange, overlap, drift) ?? undefined;
 
-    // ---- fast path 1: story questions are answered locally from the
-    // collected stories.json — instant, honest, nothing invented. Runs
-    // before the general drawer so "map of who knows which part" reaches
-    // its own story instead of the project map. ----
-    const storyAns = tryAnswerStory(question, stories);
-    if (storyAns) {
-      respond({ content: storyAns.answer, chart: withChart(storyAns.chart), instant: true }, "story");
-      return;
-    }
-
-    // ---- fast path 1b: quality/health questions (and every chart-element
-    // tap) are answered locally from the collected quality.json — the eight
-    // metrics, security findings, duplication, hot spots, drift, coverage.
-    // Instant, nothing invented; unmatched questions fall through. ----
-    const qualityAns = tryAnswerQuality(question, quality, concepts);
-    if (qualityAns) {
-      respond({ content: qualityAns.answer, chart: withChart(qualityAns.chart), instant: true }, "quality");
-      return;
-    }
-
-    // ---- fast path 2a: named-diagram requests are answered from the
-    // polyglot bundle when the pass produced one — the engine's OWN C4 /
-    // machines / workflows / impact views (byte-cited, footer-counted),
-    // not the store-derived stand-ins the general drawer builds. This
-    // runs BEFORE the journey's C4 prompt (mastery draws its big picture
-    // from the file table; the bundle's named artifact is strictly
-    // stronger evidence, so it wins when it exists) and before
-    // draw-anything, whose stand-ins remain the honest fallback when no
-    // bundle was produced. A kind the bundle doesn't hold gets the honest
-    // count answer, never the stand-in drawn as if it were named. ----
-    const polyAns = tryPolyglotDraw(question, polyglotSpecs);
-    if (polyAns) {
-      respond({ content: polyAns.answer, instant: true }, "diagram");
-      if (polyAns.artifact) openPolyglotOnCanvas(polyAns.artifact);
-      return;
-    }
-
-    // ---- fast path 2a-bis: a story's own diagrams — "draw the flowchart
-    // of <usecase>", "show the sequence diagram of <usecase>" — draw the
-    // B3-mapped extent of the story the question names, not a stand-in.
-    // Only a NAMED story hijacks: a bare "draw the flowchart" falls
-    // through to draw-anything's whole-project picture, and a named
-    // target nothing resolves gets the honest refusal (never the
-    // stand-in drawn as if it were the story). ----
-    const conceptAns = tryConceptDraw(question, report, concepts);
-    if (conceptAns) {
-      respond({ content: conceptAns.answer, instant: true }, "diagram");
-      if (conceptAns.conceptId != null) openConceptOnCanvas(conceptAns.conceptId, conceptAns.kind);
-      return;
-    }
-
-    // ---- fast path 2b: the journey's canonical prompts are answered
-    // locally, from the loaded exports — instant, cited, interactive cards
-    // (entry points / flows / trace with the verify loop / 5 things). ----
-    const masteryCtx: MasteryCtx = { report, concepts, stack, deps, cochange, overlap, drift, label };
-    const masteryAns = scope ? null : tryAnswerMastery(question, masteryCtx);
-    if (masteryAns) {
-      // every answered journey prompt keeps its chart in the MESSAGE; the
-      // canvas opens for diagram-bearing answers — except the trace card's
-      // sequence, which the card itself opens rebuilt with the live verify state
-      const traceCard = masteryAns.card?.kind === "trace";
-      pushChat({
-        role: "assistant",
-        content: voiceInstant(voice.id, "mastery", masteryAns.answer || "(the trace card below is the answer)"),
-        card: masteryAns.card,
-        chart: masteryAns.chart ?? undefined,
-        instant: true,
+    if (!llmUsable(llm)) {
+      respond({
+        content:
+          llm.provider === "builtin"
+            ? "The built-in answering model failed to load. Check the connection settings and try again."
+            : `No answering model is configured yet — set the ${providerLabel(llm)} model in the connection settings, then ask again.`,
+        providerIssue: llm.provider !== "builtin",
       });
-      if (!traceCard && masteryAns.chart) openChartOnCanvas(masteryAns.chart);
-      markMasteryPrompt(masteryAns.promptKey);
       return;
-    }
-
-    // ---- fast path 2c: drawing requests are built locally from the loaded
-    // store (draw-anything.ts) — instant, and nothing can be invented. ----
-    const local = tryDrawAnything(question, report, viewspec, concepts, mapSelected, deps, runtime);
-    if (local) {
-      respond({ content: local.answer, chart: withChart(local.chart), instant: true }, "diagram");
-      return;
-    }
-
-    // Impact uses the pinned storage revision, including retained URL archives.
-    if (!scope && IMPACT_WORDS.test(question)) {
-      const target = findSymbolInQuestion(report, question);
-      if (target) {
-        if (!sourceRoot) {
-          respond({
-            content: `Impact analysis for \`${target.qual_name}\` needs retained storage for this revision. Reconnect the repository to make it available.`,
-            instant: true,
-          });
-          return;
-        }
-        setChatBusy(true);
-        try {
-          const data = await readStoredImpact(sourceRoot, target.qual_name);
-          if (!data.symbol) {
-            respond({ content: "CIE couldn't work out the impact just now. Please try again.", error: true, technical: undefined });
-          } else {
-            const impact = data as CieImpact;
-            const rows: (string | number)[][] = [
-              ["Affected symbols", impact.affected_symbols.length, cut8(impact.affected_symbols)],
-              ["Minimum test set", impact.minimum_test_set.length, cut8(impact.minimum_test_set)],
-              ["Affected concepts", impact.affected_concepts.length, cut8(impact.affected_concepts)],
-            ];
-            const chart: ChatChartSpec = {
-              kind: "table",
-              engine: "grid",
-              layout: "scroll-rows",
-              title: `Blast radius of changing '${impact.symbol}'`,
-              tell: "A real dependency-graph walk from this symbol (cie impact), run just now on your actual project — never estimated.",
-              columns: ["What", "Count", "Which"],
-              rows,
-              source: "cie impact (on-demand, live)",
-            };
-            respond({
-              content:
-                `Changing **${impact.symbol}** touches **${impact.affected_symbols.length}** symbol(s) total` +
-                (impact.minimum_test_set.length
-                  ? `, and the minimum test set to catch a regression is **${impact.minimum_test_set.length}** test(s): ${cut8(impact.minimum_test_set)}.`
-                  : ", and CIE found no tests that cover it — a change here has no safety net.") +
-                (impact.affected_concepts.length ? ` It also reaches into: ${cut8(impact.affected_concepts)}.` : ""),
-              chart,
-              instant: true,
-            }, "impact");
-          }
-        } catch {
-          respond({ content: "The connection dropped before CIE could work out the impact. Please check your internet and try again.", error: true });
-        } finally {
-          setChatBusy(false);
-        }
-        return;
-      }
     }
 
     setChatBusy(true);
 
-    // History for the model: everything so far, minus old error bubbles.
+    // History for the model: everything so far, minus the old error bubbles.
     const history = [
       ...(scope ? [] : chat.filter((m) => !m.error)),
       { role: "user" as const, content: question },
@@ -361,6 +227,11 @@ export function ChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
+          // When a store is connected, the SERVER lets the configured LLM
+          // drive the store's read-only tools (cie_charts + cie_describe +
+          // cie_retrieve) — the model fetches what the answer needs, then
+          // answers with the chart kind it picked from the possible list.
+          root: sourceRoot || undefined,
           // The payload carries BOTH scope halves: `scope` is the input-level
           // attestation (RFC-0023 — the route refuses scoped questions without
           // selection-filtered facts), and the digest is SLICED to the chips'
@@ -380,7 +251,7 @@ export function ChatPanel() {
           },
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string; technical?: string; providerIssue?: boolean };
+      const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string; technical?: string; providerIssue?: boolean; toolsUsed?: string[]; hops?: number };
       if (!res.ok || !data.reply) {
         pushChat({
           role: "assistant",
@@ -391,17 +262,20 @@ export function ChatPanel() {
         });
       } else {
         // The model answers with JSON { answer, chart? }; the tolerant parser
-        // falls back to plain text if it doesn't cooperate. A text-only reply
-        // still gets its companion chart — every answer draws something real.
+        // falls back to plain text if it doesn't cooperate. A text-only
+        // answer still gets its grounded companion chart.
         const parsed = parseChartReply(data.reply);
         // Diagrams: the model only picks the KIND. Boxes and arrows are
-        // filled from the loaded store, so nothing can be invented.
+        // filled from the loaded records, so nothing can be invented.
         let chart = parsed.chart;
         if (chart && isDiagramKind(chart.kind) && !chart.nodes?.length && !chart.tree?.length && !chart.tiles?.length) {
           const focusId = resolveConceptFocus(concepts, report, question, mapSelected);
-          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality, focusId) ?? chart;
+          chart = fillDiagram(chart.kind, report, viewspec, concepts, chart.title, chart.tell, quality, focusId, stack) ?? chart;
         }
-        respond({ content: parsed.answer, chart: withChart(chart) });
+        const grounded = data.toolsUsed?.length
+          ? `\n\n*(The model looked up ${data.toolsUsed.length} thing(s) in the store itself — ${[...data.toolsUsed].join(", ")} — before answering.)*`
+          : "";
+        respond({ content: parsed.answer + grounded, chart: withChart(chart) });
       }
     } catch {
       pushChat({

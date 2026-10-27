@@ -21,6 +21,27 @@ pub enum ArtifactDocument {
     Fault(FaultDocument),
     ArchitectureBundle(ArchitectureBundleDocument),
     UiBootstrapV1(BootstrapDocument),
+    /// One stored report field ("section"), whole or as an array window —
+    /// the bounded transport for report artifacts whose whole document
+    /// exceeds the response-budget policy on large repositories.
+    ReportSection(ReportSectionDocument),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ReportSectionDocument {
+    /// Which captured report field this section carries.
+    pub section: String,
+    /// Array sections: total stored elements; any other shape reports 0.
+    #[serde(default)]
+    pub total: u64,
+    /// Array sections: the window's first element's index in stored order.
+    #[serde(default)]
+    pub offset: u64,
+    /// false while a continuation offset can fetch more of this section.
+    pub complete: bool,
+    /// The section's whole value, or the requested window out of an array.
+    pub document: Value,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapturedSpan {

@@ -133,10 +133,15 @@ export function Stage() {
           aria-label={`${meta.title}. Scroll zooms, drag pans, arrow keys pan, plus and minus zoom, zero fits.`}
           {...cameraProps}
         >
-          {/* the camera wrapper — a pure transform; content geometry never changes */}
+          {/* the camera wrapper — a pure transform; content geometry never changes.
+              The ONE-chart view is the exception: it sizes itself to the stage
+              (h-full), so a single chart fills the whole canvas instead of
+              sitting in a fixed-height strip that fit() then shrinks. */}
           <div
             ref={attach}
-            className="absolute top-0 left-0 w-full origin-top-left will-change-transform"
+            className={`absolute top-0 left-0 w-full origin-top-left will-change-transform ${
+              view === "chart" && !canvasPolyglot && !canvasConcept && canvasChart ? "h-full" : ""
+            }`}
           >
             {view === "map" ? (
               <MapViewSection />
@@ -231,21 +236,23 @@ export function Stage() {
   );
 }
 
-/** A chart the chat sent to the canvas — the big, quiet version. */
+/** A chart the chat sent to the canvas — the big, quiet version, taking
+ *  the WHOLE stage: the canvas shows exactly one chart, so it gets all the
+ *  room there is. */
 function ChartOnCanvas() {
   const { canvasChart, closeCanvasChart } = useCie();
   if (!canvasChart) return null;
   return (
-    <div className="p-4 sm:p-6 w-full">
-      <Card className="border-stone-200 shadow-sm w-full">
-        <CardContent className="p-5 w-full">
-          <ChatChart spec={canvasChart} big />
+    <div className="flex h-full w-full flex-col p-2">
+      <Card className="flex min-h-0 flex-1 flex-col gap-1.5 border-stone-200 py-2 shadow-sm">
+        <CardContent className="flex min-h-0 flex-1 flex-col p-2">
+          <ChatChart spec={canvasChart} big fill />
         </CardContent>
       </Card>
       <button
         type="button"
         onClick={closeCanvasChart}
-        className="mt-3 text-xs text-stone-500 hover:text-stone-800 underline"
+        className="mt-1.5 shrink-0 self-start text-xs text-stone-500 hover:text-stone-800 underline"
       >
         Close this chart and go back to Start here
       </button>

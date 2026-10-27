@@ -14,7 +14,7 @@ const WorkerCtor = nodeWorkerThreads.Worker;
 export class StorageFailure extends Error {
   constructor(public code: string, message: string) { super(message); }
 }
-type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> };
+type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout>; rearm: () => void };
 type Bridge = { worker: Worker; pending: Map<number, Pending>; next: number; generation: string };
 const globalStorage = globalThis as unknown as { __cieStorageBridge?: Bridge };
 function bridge(): Bridge {
@@ -27,11 +27,17 @@ function bridge(): Bridge {
     value.pending.clear();
     if (globalStorage.__cieStorageBridge === value) delete globalStorage.__cieStorageBridge;
   };
-  worker.on("message", ({ id, response }) => {
-    const pending = value.pending.get(id); if (!pending) return;
-    clearTimeout(pending.timer); value.pending.delete(id);
+  worker.on("message", (msg: { id: number; started?: boolean; response?: { ok: boolean; result?: unknown; error?: { code: string; message: string } } }) => {
+    const pending = value.pending.get(msg.id); if (!pending) return;
+    // The single worker runs requests strictly one at a time; this ack is
+    // the real start of THIS request's processing, not its enqueue time —
+    // restart its deadline here so time spent queued behind an earlier,
+    // slower request never counts against it.
+    if (msg.started) { pending.rearm(); return; }
+    clearTimeout(pending.timer); value.pending.delete(msg.id);
+    const response = msg.response!;
     if (response.ok) pending.resolve(response.result);
-    else pending.reject(new StorageFailure(response.error.code, response.error.message));
+    else pending.reject(new StorageFailure(response.error!.code, response.error!.message));
   });
   worker.on("error", fail);
   worker.on("exit", () => fail(new StorageFailure("CursorExpired", "Storage worker closed; reopen the revision context")));
@@ -53,7 +59,7 @@ export function storageCall<T = unknown>(request: Record<string, unknown>, signa
   const b = bridge(); const id = b.next++;
   const cancellationId = `${b.generation}:${id}`;
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const arm = (): ReturnType<typeof setTimeout> => setTimeout(() => {
       signal?.removeEventListener('abort', abort);
       b.pending.delete(id);
       reject(new StorageFailure("BudgetExceeded", "Storage worker deadline exceeded"));
@@ -61,12 +67,18 @@ export function storageCall<T = unknown>(request: Record<string, unknown>, signa
     }, 35_000);
     const abort = () => {
       if (!b.pending.delete(id)) return;
-      clearTimeout(timer);
+      clearTimeout(entry.timer);
       cancelRequest(cancellationId);
       reject(new StorageFailure("Cancelled", "Storage request cancelled"));
     };
     const cleanup = () => signal?.removeEventListener('abort', abort);
-    b.pending.set(id, { resolve: value => { cleanup(); resolve(value as T); }, reject: error => { cleanup(); reject(error); }, timer });
+    const entry: Pending = {
+      resolve: value => { cleanup(); resolve(value as T); },
+      reject: error => { cleanup(); reject(error); },
+      timer: arm(),
+      rearm: () => { clearTimeout(entry.timer); entry.timer = arm(); },
+    };
+    b.pending.set(id, entry);
     signal?.addEventListener('abort', abort, { once: true });
     b.worker.postMessage({ id, request: {...request, cancellation_id: cancellationId} });
   });

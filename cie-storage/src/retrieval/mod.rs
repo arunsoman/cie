@@ -1,6 +1,7 @@
 //! Revision-pinned retrieval. All physical access stays behind this module.
 mod artifact_payload;
 mod contract;
+mod deferred;
 mod document;
 mod outputs;
 mod payload;
@@ -13,13 +14,16 @@ mod architecture;
 mod quality;
 pub mod tools;
 pub use contract::*;
+pub use deferred::DeferredBuilder;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
+    sync::Arc,
     time::{Duration, Instant},
 };
+use query::Dataset;
 
 /// Declared continuation-cursor lifetime. Tokens embed an expiry and are
 /// rejected as expired afterwards; they never outlive their reader anyway.
@@ -28,6 +32,8 @@ pub(crate) const CURSOR_TTL_SECS: u64 = 15 * 60;
 pub struct Storage {
     root: PathBuf,
     policy: crate::StoragePolicy,
+    builder: Option<Arc<dyn DeferredBuilder>>,
+    builds: Arc<deferred::BuildRegistry>,
 }
 pub struct RevisionReader {
     pub(crate) conn: Connection,
@@ -37,6 +43,9 @@ pub struct RevisionReader {
     pub(crate) artifacts: document::PinnedDocument,
     pub(crate) secret: String,
     pub(crate) policy: crate::StoragePolicy,
+    pub(crate) root: PathBuf,
+    pub(crate) builder: Option<Arc<dyn DeferredBuilder>>,
+    pub(crate) builds: Arc<deferred::BuildRegistry>,
     projections: std::cell::RefCell<BTreeMap<String, (Value, usize)>>,
 }
 impl Storage {
@@ -49,7 +58,20 @@ impl Storage {
                 "No ingested revision",
             ));
         }
-        Ok(Self { root, policy })
+        Ok(Self {
+            root,
+            policy,
+            builder: None,
+            builds: Arc::new(deferred::BuildRegistry::default()),
+        })
+    }
+    /// Supply the implementation that computes artifacts the pinned
+    /// snapshot does not already have (RFC-0026 §9). Without one, missing
+    /// `BuildIfMissing`-eligible artifacts still just report unavailable —
+    /// this is additive, not a behavior change for hosts that never call it.
+    pub fn with_deferred_builder(mut self, builder: Arc<dyn DeferredBuilder>) -> Self {
+        self.builder = Some(builder);
+        self
     }
     /// Retain committed storage independently of a disposable source checkout.
     /// The destination must be new; no source files or symlinks are copied.
@@ -232,6 +254,9 @@ impl Storage {
             artifacts,
             secret,
             policy: self.policy.clone(),
+            root: self.root.clone(),
+            builder: self.builder.clone(),
+            builds: self.builds.clone(),
             projections: Default::default(),
         })
     }
@@ -243,6 +268,13 @@ pub(crate) struct Execution {
     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl Execution {
+    /// Remaining time before this request's own deadline. Used to bound how
+    /// long a caller waits on a coalesced background build (RFC-0026 §9)
+    /// before getting a "still building" status instead of blocking past
+    /// its declared budget.
+    pub(crate) fn remaining(&self) -> Duration {
+        self.deadline.saturating_duration_since(Instant::now())
+    }
     pub(crate) fn check(&mut self, n: usize) -> Result<()> {
         if self.cancelled.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(StorageError::new("Cancelled", "Retrieval cancelled"));
@@ -394,13 +426,32 @@ impl RevisionReader {
             }),
         );
         let (duplicates, domains) = query::dataset_needs(&request)?;
-        let mut dataset = if let Some(dataset) = self.file_plan(&request, &mut ex)? {
+        // Artifact-kind outputs carry stored documents, not query results —
+        // they are query-agnostic ("filter_application":"inapplicable") and
+        // never touch the entity graph. Building the full dataset (files,
+        // symbols, concepts…) before their first output would dominate every
+        // artifact call on large repositories, so artifact-only requests skip
+        // it; matches stay empty and the artifact renderer resolves its own
+        // data straight from the pinned reader.
+        let artifact_only = request
+            .outputs
+            .iter()
+            .all(|named| matches!(named.output, Output::Artifact { .. }));
+        let mut dataset = if artifact_only {
+            Dataset { entities: BTreeMap::new(), edges: Vec::new() }
+        } else if let Some(dataset) = self.file_plan(&request, &mut ex)? {
             dataset
         } else {
             self.dataset_with_duplicates(&mut ex, duplicates, domains)?
         };
-        if quality::needed(&request) { self.quality_fields(&mut dataset, &mut ex)?; }
-        let matches = self.evaluate(&request.query, &dataset, &mut ex, 0)?;
+        if quality::needed(&request) && !artifact_only {
+            self.quality_fields(&mut dataset, &mut ex)?;
+        }
+        let matches = if artifact_only {
+            BTreeSet::new()
+        } else {
+            self.evaluate(&request.query, &dataset, &mut ex, 0)?
+        };
         let hash = blake3::hash(&serde_json::to_vec(&request.query)?)
             .to_hex()
             .to_string();

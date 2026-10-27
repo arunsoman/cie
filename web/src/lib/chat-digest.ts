@@ -334,6 +334,47 @@ export function buildDigest(
     Low: "good to know",
   };
 
+  // The possible charts, STRUCTURED — this is what the chat's cie_charts
+  // tool returns, so the model can only ever pick a chart kind the loaded
+  // data can actually back (an impossible pick is absent from the list).
+  // data_from: "store" = the app fills every box/arrow/lane from the loaded
+  // records, the model only picks the kind; "model" = a count chart whose
+  // rows must be numbers the model actually read (tool results or the facts
+  // in this digest — a number it did not read is a fabrication).
+  const callRecords = report.summaries.some((s) => (s.callees?.length ?? 0) + (s.call_sites?.length ?? 0) > 0);
+  const dataMoves = report.summaries.some((s) => (s.reads?.length ?? 0) + (s.writes?.length ?? 0) > 0);
+  const countSources = [
+    "findings",
+    ...(dependencies ? ["declared dependencies"] : []),
+    ...(runtime_evidence ? ["measured runtime evidence"] : []),
+    ...(quality_facts ? ["quality data"] : []),
+    ...(repeatedBehavior.length ? ["repeated-behavior clusters"] : []),
+    ...(cochange_facts ? ["co-change history"] : []),
+    ...(overlap_facts ? ["overlap comparison"] : []),
+    ...(drift_facts ? ["doc-drift verification"] : []),
+  ].join("; ");
+  const chart_possibilities: { kind: string; shows: string; grounded_in: string; data_from: "store" | "model" }[] = [
+    { kind: "uml", shows: "UML-style structure: boxes = files and parts, arrows = how they connect", grounded_in: "the loaded report's structure map", data_from: "store" },
+    { kind: "flow", shows: "who-calls-whom flow through the parts", grounded_in: "the loaded report's call records", data_from: "store" },
+    ...(callRecords
+      ? [{ kind: "sequence", shows: "one call step by step — lifelines, then the messages between them in call order", grounded_in: "the loaded report's call records", data_from: "store" as const }]
+      : []),
+    ...(dataMoves
+      ? [{ kind: "dfd", shows: "data-flow: how data moves between code, stores (databases, files) and the outside world", grounded_in: "the loaded report's per-symbol read/write records", data_from: "store" as const }]
+      : []),
+    { kind: "c4", shows: "C4-style container view of the system's moving parts", grounded_in: "the loaded report's structure map", data_from: "store" },
+    ...(concepts
+      ? [
+          { kind: "mindmap", shows: "the code's concept hierarchy as a radial map", grounded_in: "the loaded concept tree", data_from: "store" as const },
+          { kind: "tree", shows: "the code's concept hierarchy, top-down", grounded_in: "the loaded concept tree", data_from: "store" as const },
+        ]
+      : []),
+    { kind: "hbar", shows: "bars comparing counts", grounded_in: `counts actually recorded in: ${countSources}`, data_from: "model" },
+    { kind: "donut", shows: "one whole split into named parts", grounded_in: `part-of-whole breakdowns recorded in: ${countSources}`, data_from: "model" },
+    { kind: "stat", shows: "one big number with a caption", grounded_in: `a single recorded count from: ${countSources}`, data_from: "model" },
+    { kind: "table", shows: "a few rows × columns of recorded facts", grounded_in: `tabular facts recorded in: ${countSources}`, data_from: "model" },
+  ];
+
   return {
     about: `Plain-words health report for: ${label}. Produced by the CIE engine from a direct read of the project (revision ${report.rev}).`,
     certainty_words: words,
@@ -362,6 +403,8 @@ export function buildDigest(
       ...(overlap_facts ? ["table of overlap_facts below for 'does this already exist / overlap / redundant' questions — real shared-symbol comparison on THIS project"] : []),
       ...(drift_facts ? ["hbar of drift_facts below for 'do the docs match the code / drift' questions — real claim verification on THIS project, not the git-date proxy"] : []),
     ],
+    // structured twin of drawings_cie_can_make — the cie_charts tool's payload
+    chart_possibilities,
     project: {
       files: report.files?.filter(Boolean).map((f) => f.split("/").pop() ?? f) ?? [],
       named_things_total: report.symbols.length,

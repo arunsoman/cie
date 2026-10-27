@@ -738,9 +738,18 @@ export function TrustView() {
       </Card>
 
       <StateTransitionEvidence report={report} onOpen={id=>{const s=report.symbols.find(s=>s.id===id);if(s)openSourceViewer({file:report.files[s.loc.file],byteStart:s.loc.start,byteEnd:s.loc.end,elName:s.qual_name});}}/>
-      {drift && !drift.complete && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-        Documentation checking is incomplete{drift.incomplete_reason === "documentation_budget_exceeded" ? " because its time budget was exceeded" : ""}. The captured code and views are available. Unchecked documentation does not mean there are no inconsistencies.
-      </p>}
+      {drift && !drift.complete && (
+        drift.incomplete_reason === "deferred_on_demand" ? (
+          <p role="status" className="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
+            Documentation hasn&rsquo;t been checked against the code for this revision yet. Unchecked
+            documentation does not mean there are no inconsistencies.
+          </p>
+        ) : (
+          <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            Documentation checking is incomplete{drift.incomplete_reason === "documentation_budget_exceeded" ? " because its time budget was exceeded" : ""}. The captured code and views are available. Unchecked documentation does not mean there are no inconsistencies.
+          </p>
+        )
+      )}
       <DriftProvenance claims={drift?.claims}/>
       <FaultEvidence report={report}/>
       {/* language honesty — only exists for connect-a-repo flows */}

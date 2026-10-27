@@ -1,3 +1,4 @@
+use super::deferred;
 use super::query::{field_value, strip_dimension_filters, Dataset};
 use super::*;
 use std::cmp::Ordering;
@@ -285,7 +286,7 @@ impl RevisionReader {
                 let rows=matches.iter().map(|id|{let e=&ds.entities[id];json!({"id":format!("evidence:{id}"),"entity":id,"revision":self.revision,"location":e.fields.get("location").or_else(||e.fields.get("loc")),"provenance":e.fields.get("provenance"),"source_kind":"captured_revision","coverage":self.snapshot["coverage"]})}).collect();
                 self.page(rows, page, hash, o)
             }
-            Output::Artifact { kind } => self.artifact(kind),
+            Output::Artifact { kind, availability, section, page } => self.artifact(kind, *availability, section.as_deref(), page, ex),
             Output::Detail(detail) => self.detail(detail, matches, ds, ex),
             Output::Cube(request) => self.cube(request, matches, ds, hash, o, ex),
             Output::Facets {
@@ -445,7 +446,13 @@ impl RevisionReader {
                     }
                     return self.domain_view(kind, matches, ds, *max_nodes, *max_edges, hash, ex);
                 }
-                let bundle = match self.artifact(&ArtifactKind::ArchitectureBundle) {
+                let bundle = match self.artifact(
+                    &ArtifactKind::ArchitectureBundle,
+                    AvailabilityPolicy::StoredOnly,
+                    None,
+                    &PageRequest::default(),
+                    ex,
+                ) {
                     Ok(bundle) => bundle,
                     Err(_) if *availability == AvailabilityPolicy::BuildIfMissing => {
                         cie_polyglot::viewspec::produce_bundle(&self.conn)
@@ -781,7 +788,71 @@ impl RevisionReader {
             json!({"renderer":"viz-adapter","schema_version":1,"spec":spec,"truncated":truncated,"revision":self.revision,"coverage":self.snapshot["coverage"]}),
         )
     }
-    fn artifact(&self, kind: &ArtifactKind) -> Result<Value> {
+    fn artifact(
+        &self,
+        kind: &ArtifactKind,
+        availability: AvailabilityPolicy,
+        section: Option<&str>,
+        page: &PageRequest,
+        ex: &mut Execution,
+    ) -> Result<Value> {
+        // Sectioned reports borrow the lazily-parsed PinnedDocument field
+        // directly: the parse is cached per pinned context, and slicing
+        // builds only the requested window instead of cloning the whole
+        // report tree per call.
+        if let Some(section) = section {
+            if matches!(kind, ArtifactKind::Report) {
+                if let Some(report) = self.artifacts.get("report") {
+                    return Self::artifact_section(section, page, report);
+                }
+            }
+            let value = self.artifact_document(kind, availability, ex)?;
+            return Self::artifact_section(section, page, &value);
+        }
+        self.artifact_document(kind, availability, ex)
+    }
+
+    /// Slice one artifact field out of a resolved whole-document value.
+    /// Arrays honour the page offset (plain base-10 continuation) so no
+    /// single response can grow past the budget; every other shape — a big
+    /// repository's remaining sections all fit individually — goes whole.
+    fn artifact_section(section: &str, page: &PageRequest, value: &Value) -> Result<Value> {
+        let picked = value.get(section).ok_or_else(|| {
+            StorageError::new(
+                "ArtifactUnavailable",
+                format!("The captured report has no {section} section"),
+            )
+        })?;
+        if let Some(items) = picked.as_array() {
+            let total = items.len();
+            let offset = page
+                .continuation
+                .as_ref()
+                .and_then(|cursor| cursor.parse::<usize>().ok())
+                .unwrap_or(0);
+            if offset > total {
+                return Err(StorageError::new(
+                    "InvalidRequest",
+                    "Section continuation points past the captured data",
+                ));
+            }
+            let limit = page.limit.max(1);
+            let end = offset.saturating_add(limit).min(total);
+            let window: Vec<Value> = items[offset..end].to_vec();
+            return Ok(json!(
+                {"section":section,"total":total,"offset":offset,"complete":end >= total,"document":window}
+            ));
+        }
+        Ok(json!(
+            {"section":section,"total":0,"offset":0,"complete":true,"document":picked}
+        ))
+    }
+    fn artifact_document(
+        &self,
+        kind: &ArtifactKind,
+        availability: AvailabilityPolicy,
+        ex: &mut Execution,
+    ) -> Result<Value> {
         let value = match kind {
             ArtifactKind::Report => self
                 .artifacts
@@ -798,13 +869,64 @@ impl RevisionReader {
                 .cloned()
                 .unwrap_or(Value::Null),
         };
-        if value.is_null() || value == json!({}) {
-            return Err(StorageError::new(
-                "ArtifactUnavailable",
-                format!("{} was not captured", kind.key()),
-            ));
+        // Any on-demand-eligible kind (`drift`, `overlap` — RFC-0026 §9-11)
+        // publishes a "deferred_on_demand" placeholder at ingest time now
+        // instead of computing eagerly. Treat that placeholder as missing,
+        // not as the answer, so the first real request triggers the
+        // on-demand build instead of handing back a permanent "not checked
+        // yet". Not kind-specific: the marker only ever appears on a
+        // placeholder this crate itself wrote.
+        let missing = value.is_null()
+            || value == json!({})
+            || value["incomplete_reason"] == json!("deferred_on_demand");
+        if !missing {
+            return Ok(value);
         }
-        Ok(value)
+        // Missing from this reader's pinned snapshot. A prior on-demand
+        // build may already have persisted it (RFC-0026 §9) — in this
+        // process or an earlier one — before falling back to starting (or
+        // joining) a coalesced background build.
+        if let Some(persisted) = deferred::BuildRegistry::read_persisted(
+            &self.root,
+            self.revision.parse().unwrap_or(0),
+            *kind,
+        ) {
+            return Ok(persisted);
+        }
+        if availability == AvailabilityPolicy::BuildIfMissing {
+            if let Some(builder) = self.builder.clone() {
+                let rev: u64 = self.revision.parse().map_err(|_| {
+                    StorageError::new("CorruptData", "Revision is not numeric")
+                })?;
+                match deferred::BuildRegistry::get_or_build(
+                    &self.builds,
+                    self.root.clone(),
+                    rev,
+                    *kind,
+                    builder,
+                    ex.remaining(),
+                ) {
+                    deferred::BuildOutcome::Ready(value) => return Ok(value),
+                    deferred::BuildOutcome::Pending => {
+                        return Err(StorageError::new(
+                            "BuildInProgress",
+                            format!(
+                                "{} is being computed on demand; retry shortly",
+                                kind.key()
+                            ),
+                        ));
+                    }
+                    deferred::BuildOutcome::Failed(e) => {
+                        return Err(StorageError::new("ProjectionUnavailable", e));
+                    }
+                    deferred::BuildOutcome::Unsupported => {}
+                }
+            }
+        }
+        Err(StorageError::new(
+            "ArtifactUnavailable",
+            format!("{} was not captured", kind.key()),
+        ))
     }
     fn detail(
         &self,

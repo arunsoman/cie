@@ -59,6 +59,27 @@ export function findSymbolInQuestion(report: CieReport | null, question: string)
       best = { s, len: name.length };
     }
   }
+  for (const s of report.symbols) {
+    const name = s.name?.toLowerCase();
+    if (name && name.length > 2 && q.includes(name) && (!best || name.length > best.len)) {
+      best = { s, len: name.length };
+    }
+  }
+  // Second pass — spoken names: "send sms" is `send_sms`/`sendSms` in the code. The symbol's name splits into its own word tokens (snake/camel); when EVERY token (two or more, so single generic words never decide) appears as a word in the question, the symbol is what the question names. This is the ask's CONTEXT for the chart the model picks, not the chart kind itself. Same longest-name ranking — audit_log(7) beats log(3).
+  const qWords = new Set(q.split(/[^a-z0-9]+/));
+  const tokensOf = (name: string): string[] =>
+    name
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .split(/[^a-zA-Z0-9]+/)
+      .filter((t) => t.length >= 2)
+      .map((t) => t.toLowerCase());
+  for (const s of report.symbols) {
+    if (!s.name) continue;
+    const tokens = tokensOf(s.name);
+    if (tokens.length < 2) continue;
+    if (!tokens.every((t) => qWords.has(t))) continue;
+    if (!best || s.name.length > best.len) best = { s, len: s.name.length };
+  }
   return best?.s ?? null;
 }
 

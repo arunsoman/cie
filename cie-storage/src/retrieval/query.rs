@@ -50,6 +50,11 @@ impl RevisionReader {
         }
         let mut core = BTreeMap::new();
         let mut spans = BTreeMap::new();
+        // language lookup by one pass, not a per-symbol linear scan
+        let lang_by_path: BTreeMap<String, String> = files
+            .iter()
+            .filter_map(|f| Some((f["path"].as_str()?.to_string(), f["language"].as_str().unwrap_or_default().to_string())))
+            .collect();
         for sym in self.snapshot["symbols"].as_array().into_iter().flatten() {
             let n = sym["id"]
                 .as_u64()
@@ -63,11 +68,7 @@ impl RevisionReader {
             value["qualified_name"] = sym["qual_name"].clone();
             value["location"] =
                 json!({"file":path,"start":sym["loc"]["start"],"end":sym["loc"]["end"]});
-            value["language"] = files
-                .iter()
-                .find(|f| f["path"] == path)
-                .map(|f| f["language"].clone())
-                .unwrap_or(Value::Null);
+            value["language"] = lang_by_path.get(path).map(|l| json!(l)).unwrap_or(Value::Null);
             spans.insert(
                 (
                     path.to_string(),

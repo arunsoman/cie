@@ -327,8 +327,14 @@ impl OutputData {
             Output::Detail(Detail::Impact { .. }) => "impact",
             Output::Artifact { .. } => "artifact",
         };
-        let mut value = if let Output::Artifact { kind } = output {
-            json!({"artifact_kind":kind,"schema_version":1,"document":value})
+        let mut value = if let Output::Artifact { kind, section, .. } = output {
+            if section.is_some() {
+                // A section carries the ReportSection document shape itself;
+                // the kind names it so typed parsing stays closed.
+                json!({"artifact_kind":"report_section","schema_version":1,"document":value})
+            } else {
+                json!({"artifact_kind":kind,"schema_version":1,"document":value})
+            }
         } else {
             value
         };

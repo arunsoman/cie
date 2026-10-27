@@ -137,6 +137,32 @@ test("a member the code holds but no usecase claims gets its own honest wording"
   assert.ok(r.answer.includes("no usecase claims it"));
 });
 
+// ---------- the refusal still honors the ask's kind and focus ----------
+
+// The refusal never draws a story — but it hands the panel the ask's own
+// context (the matched symbol ids) so the asked KIND can draw centered on
+// what the user named, from the records. The focus is what the resolution
+// machinery found, not a re-guess.
+test("the unclaimed-member refusal carries the question's focus", () => {
+  const r = tryConceptDraw("draw the flowchart of refund", report(), concepts());
+  assert.ok(r);
+  assert.deepEqual(r.focus, [6]); // symbol 6 = refund — the question's own context
+});
+
+test("the ambiguous-member refusal carries its focus too", () => {
+  const r = tryConceptDraw("draw the flowchart of charge", report(), concepts());
+  assert.ok(r);
+  assert.equal(r.conceptId, null);
+  assert.deepEqual(r.focus, [5]); // symbol 5 = charge — ambiguous but named
+});
+
+test("a named target matching NOTHING carries no focus (no invented center)", () => {
+  const r = tryConceptDraw("draw the flowchart of unicorn", report(), concepts());
+  assert.ok(r);
+  assert.ok(r.answer.includes("No usecase named \u201cunicorn\u201d"));
+  assert.ok(!r.focus); // no matched symbol — no center to claim
+});
+
 test("a story whose extent is unevidenced draws honestly empty, not a guess", () => {
   const r = tryConceptDraw("draw the flowchart of ghost story", report(), concepts());
   assert.ok(r);

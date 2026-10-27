@@ -19,7 +19,15 @@ fn declared_artifacts_accept_existing_exported_wire_contracts() {
         let value =
             serde_json::from_slice(&std::fs::read(root.join(format!("{name}.json"))).unwrap())
                 .unwrap();
-        let data = OutputData::from_output(&Output::Artifact { kind }, value);
+        let data = OutputData::from_output(
+            &Output::Artifact {
+                kind,
+                availability: AvailabilityPolicy::default(),
+                section: None,
+                page: PageRequest::default(),
+            },
+            value,
+        );
         assert!(data.is_ok(), "{name}: {data:?}");
     }
 }

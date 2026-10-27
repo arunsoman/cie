@@ -17,6 +17,7 @@ pub enum Artifact {
     StageStatus,
     Fault,
     Drift,
+    Overlap,
 }
 impl Artifact {
     fn file_name(self) -> &'static str {
@@ -32,6 +33,7 @@ impl Artifact {
             Self::StageStatus => "stages.json",
             Self::Fault => "fault.json",
             Self::Drift => "drift.json",
+            Self::Overlap => "overlap.json",
         }
     }
 }

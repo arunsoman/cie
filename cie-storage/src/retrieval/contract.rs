@@ -337,6 +337,22 @@ pub enum Output {
     Detail(Detail),
     Artifact {
         kind: ArtifactKind,
+        /// `build_if_missing` (the default) lets an eligible kind (RFC-0026
+        /// §9: currently `drift`) be computed on demand and persisted when
+        /// the pinned snapshot does not already have it; `stored_only`
+        /// keeps today's behavior of erroring immediately.
+        #[serde(default)]
+        availability: AvailabilityPolicy,
+        /// Serve one stored artifact field on its own ("sections"). A big
+        /// repository's report stays within the response budget one section
+        /// at a time; array sections honour `page` (offset continuation),
+        /// every other shape is served whole. The route that assembles the
+        /// web workspace composes bounded pieces this way; repos whose
+        /// whole artifact already fits never use it.
+        #[serde(default)]
+        section: Option<String>,
+        #[serde(default)]
+        page: PageRequest,
     },
     View {
         kind: String,
@@ -423,7 +439,7 @@ pub enum SourceRange {
         end: u64,
     },
 }
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ArtifactKind {
     Report,

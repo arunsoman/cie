@@ -19,7 +19,7 @@ import type { PolyglotBundle } from "./polyglot-types";
 import type { ChatChartSpec, MasteryCardData } from "./chat-chart";
 import type { RepoScan } from "./language-profiles";
 import { DEFAULT_LLM, loadLlmConfig, saveLlmConfig, type LlmConfig } from "./llm-config";
-import { rememberWorkspace } from "./workspace-memory";
+import { rememberWorkspace, restoreJobResult } from "./workspace-memory";
 import { freshMastery, loadMasteryState, masteryKeyOf, saveMasteryState, type MasteryState } from "./mastery";
 import { ATLAS_RESET, scopeForRef, containerOfPath, type AtlasRef, type AtlasSelection } from "./atlas";
 import { nextChartFilter, type ChartFilter } from "./chart-filter";
@@ -181,6 +181,32 @@ interface CieState {
       sourceRoot?: string | null;
     }
   ) => void;
+  // Backfills the fields `setCustom` didn't get yet (viewspec/concepts/
+  // stack/deps/runtime/cochange/overlap/drift/polyglotSpecs/quality/
+  // stories) without touching report/view/chat/sourceCache/etc. — the
+  // lazy half of a project load that rendered on `report` alone first
+  // (see showProject/restoreJobResult), so a late-arriving backfill never
+  // resets whatever the person already did while it was loading.
+  mergeExtra: (extra: {
+    viewspec?: CieViewSpec | null;
+    concepts?: ConceptTree | null;
+    deps?: CieDeps | null;
+    runtime?: CieRuntime | null;
+    stories?: CieStories | null;
+    quality?: CieQuality | null;
+    cochange?: CieCochange | null;
+    overlap?: CieOverlap | null;
+    drift?: CieDrift | null;
+    stack?: TechStack | null;
+    polyglotSpecs?: PolyglotBundle | null;
+  }) => void;
+  // "Show my project" / "Master this repo" — yields to the landing view
+  // IMMEDIATELY (the dialog closes with no server round-trip), then loads
+  // the workspace through the same launch-restore path
+  // (workspace-memory.ts's restoreJobResult → /api/analyze/result, whose
+  // answers are composed from bounded /api/storage retrievals). A failure
+  // is an honest loadError on the landing page — never a stale fallback.
+  openStoredProject: (jobId: string, dest?: "explore" | "master") => void;
   reset: () => void;
   pushChat: (m: ChatMessage) => void;
   setChatBusy: (b: boolean) => void;
@@ -414,8 +440,54 @@ export const useCie = create<CieState>((set, get) => ({
       chartFilter: null,
     }),
 
+  mergeExtra: (extra) =>
+    set((s) => ({
+      viewspec: extra.viewspec !== undefined ? extra.viewspec : s.viewspec,
+      concepts: extra.concepts !== undefined ? extra.concepts : s.concepts,
+      deps: extra.deps ?? s.deps,
+      runtime: extra.runtime ?? s.runtime,
+      stories: extra.stories ?? s.stories,
+      quality: extra.quality ?? s.quality,
+      cochange: extra.cochange ?? s.cochange,
+      overlap: extra.overlap ?? s.overlap,
+      drift: extra.drift ?? s.drift,
+      stack: extra.stack ?? s.stack,
+      polyglotSpecs: extra.polyglotSpecs ?? s.polyglotSpecs,
+    })),
+
   reset: () => {
     void useCie.getState().loadDemo(useCie.getState().demoKind);
+  },
+
+  // See the interface comment: the buttons yield at once, the load runs in
+  // the background over /api/analyze/result (and its lazy extras backfill),
+  // exactly like the launch-with-last-opened-workspace restore — one code
+  // path, no dialog-local await. The opened workspace becomes the "last
+  // opened" record the next launch reopens.
+  openStoredProject: (jobId, dest = "explore") => {
+    const view = dest === "master" ? "mastery" : "start";
+    set({
+      view,
+      loading: true,
+      loadError: "",
+      report: null, viewspec: null, concepts: null, deps: null, runtime: null,
+      stories: null, quality: null, cochange: null, overlap: null, drift: null,
+      stack: null, polyglotSpecs: null, label: "", source: null,
+      chat: [], chatBusy: false, jobId: null, repoScan: null, mastery: null,
+      pendingTrace: null, canvasChart: null, canvasPolyglot: null, canvasConcept: null,
+      mapSelected: null, chatContext: [], chipNotice: null, pendingAsk: null,
+      sourceViewer: null, sourceCache: {}, storageRoot: null, sourceRoot: null,
+      atlasSelection: ATLAS_RESET, atlasView: "containers", atlasFactsOnly: false,
+      chartFilter: null,
+    });
+    void (async () => {
+      const ok = await restoreJobResult(jobId).catch(() => false);
+      if (ok) {
+        rememberWorkspace({ kind: "job", jobId });
+        return;
+      }
+      set({ loading: false, loadError: `Your project's stored results can't be opened from here right now — reconnect it through “Use your own”.` });
+    })();
   },
 
   loadSpringDemo: async () => {

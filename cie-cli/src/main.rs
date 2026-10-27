@@ -494,7 +494,9 @@ fn run(cli: Cli) -> i32 {
                 .unwrap_or(cie_storage::retrieval::RevisionSelector::Latest);
             match cie_server::mcp::StorageMcp::open(&path, selector) {
                 Ok(server) => match cie_server::mcp::run_stdio(
-                    server,
+                    server.with_deferred_builder(std::sync::Arc::new(
+                        cie_ingest::OnDemandDeferredBuilder,
+                    )),
                     cie_server::mcp::McpBudget {
                         ns: budget_ms * 1_000_000,
                     },

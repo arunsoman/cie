@@ -17,10 +17,20 @@ import { buildSystemPrompt, sanitizePersonaId } from "@/lib/chat-persona";
 import {
   chatOllama,
   chatOpenAi,
+  chatPlain,
+  chatWithTools,
   LlmError,
   sanitizeLlmCfg,
   type ChatTurn,
 } from "@/lib/llm-providers";
+import {
+  executeStoreTool,
+  runStoreAgentTurn,
+  agentToolDefs,
+  toolPromptFragment,
+  TOOL_LOOP_MAX_HOPS,
+} from "@/lib/chat-tools";
+import { validateLocalPath } from "@/lib/analyze-jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -44,7 +54,7 @@ function sanitizeHistory(raw: unknown): ChatTurn[] {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: unknown; digest?: unknown; scope?: unknown; llm?: unknown; persona?: unknown };
+  let body: { messages?: unknown; digest?: unknown; scope?: unknown; llm?: unknown; persona?: unknown; root?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -69,10 +79,54 @@ export async function POST(req: NextRequest) {
   if (scoped && !(body.digest as Record<string, unknown>).answer_scope) {
     return NextResponse.json({error:"A scoped question requires selection-filtered facts."}, {status:400});
   }
+  // The store agent needs a validated local repo root — the panel sends it
+  // only when a store is actually connected. Without it the tools honestly
+  // say so (their teaching error returns as a tool result) and the digest
+  // stays the grounding.
+  const rootCheck = body.root != null ? validateLocalPath(String(body.root)) : null;
+  const root = rootCheck?.ok ? rootCheck.path : null;
+
+  const systemPrompt = buildSystemPrompt(persona, body.digest, scoped);
   const messages: ChatTurn[] = [
-    { role: "assistant", content: buildSystemPrompt(persona, body.digest, scoped) },
+    { role: "assistant", content: systemPrompt },
     ...(scoped ? [last] : history),
   ];
+
+  // ---- the store agent: EVERY question is handled by the configured LLM.
+  // It drives cie_charts (which charts are possible for what is loaded),
+  // cie_describe + cie_retrieve (the store's own read-only tools), forms
+  // the answer's data from what they returned (and says plainly when it
+  // could not find an answer), and picks the complementary chart kind from
+  // the possible list. Scoped questions go straight to the plain path —
+  // the store has no selection filter, so scoped chats must not read past
+  // their chips' attestation. The plain path below stays the fallback for
+  // providers without tool support. ----
+  const timeoutByProvider = llm.provider === "ollama" ? TIMEOUT_OLLAMA : llm.provider === "openai" ? TIMEOUT_OPENAI : TIMEOUT_BUILTIN;
+  if (!scoped) {
+    try {
+      const agent = await runStoreAgentTurn(
+        (turns) => chatWithTools(llm, turns, agentToolDefs()),
+        [{ role: "assistant", content: systemPrompt + "\n\n" + toolPromptFragment() }, ...messages.slice(1)],
+        (name, args) => executeStoreTool(root, (body.digest ?? null) as Record<string, unknown> | null, name, args),
+        {
+          maxHops: TOOL_LOOP_MAX_HOPS,
+          chatPlain: (turns) => chatPlain(llm, turns as ChatTurn[], timeoutByProvider),
+        },
+      );
+      if (agent.reply) {
+        return NextResponse.json({
+          reply: agent.reply,
+          toolsUsed: agent.toolsUsed,
+          hops: agent.hops,
+        });
+      }
+      // empty final answer — fall through to the plain single call below
+    } catch (err) {
+      console.warn(`[api/chat] store agent fell back to the digest answer:`, err instanceof LlmError ? err.technical : (err as Error).message);
+      // fall through: the digest-only path answers (works for models without
+      // tool support; the tools were an upgrade, never a hard requirement)
+    }
+  }
 
   try {
     let reply: string;
@@ -86,29 +140,8 @@ export async function POST(req: NextRequest) {
       // file second. No SDK fork: the runtime constructor takes the config
       // object, the type surface just keeps it private, so a narrow cast
       // is the honest bridge; fail is as honest as the file path's.
-      const { default: ZAI } = await import("z-ai-web-dev-sdk");
-      type ZaiLike = {
-        chat: { completions: { create: (body: unknown) => Promise<{ choices?: { message?: { content?: string } } [] }> } };
-      };
-      const envKey = process.env.ZAI_API_KEY || process.env.ZAI_APIKEY;
-      const envBase = process.env.ZAI_BASE_URL || process.env.ZAI_BASEURL;
-      const zai = envKey
-        ? new (ZAI as unknown as new (cfg: { baseUrl: string; apiKey: string }) => ZaiLike)({
-            baseUrl: envBase || "https://api.z.ai/api/paas/v4",
-            apiKey: envKey,
-          })
-        : ((await ZAI.create()) as unknown as ZaiLike);
-      const completion = await zai.chat.completions.create({
-        messages,
-        thinking: { type: "disabled" },
-      });
-      reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
-      if (!reply) {
-        return NextResponse.json(
-          { error: "CIE couldn't come up with an answer. Please try asking again." },
-          { status: 502 }
-        );
-      }
+      const { chatBuiltin } = await import("@/lib/llm-providers");
+      reply = await chatBuiltin(messages, TIMEOUT_BUILTIN);
     }
     return NextResponse.json({ reply });
   } catch (err) {

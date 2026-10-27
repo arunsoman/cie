@@ -25,7 +25,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* suppressHydrationWarning on body too: browser extensions (Dark
+          Reader, translators, …) inject style/class/data attributes onto
+          <body> before React hydrates, and React would otherwise report
+          "attributes of the server rendered HTML didn't match" at this
+          element. It only covers this element's own attributes — anything
+          our components render inside children still reports mismatches
+          normally, so real bugs in the app are not silenced by this. */}
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}

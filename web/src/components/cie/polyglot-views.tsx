@@ -218,7 +218,7 @@ export function ArtifactCanvas({ artifact, big = false }: { artifact: PolyglotAr
         owned = result.handle;
         handle.current = owned;
         setNote(
-          `${result.disclosure.headline} · layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views`,
+          `layout ${owned.layout.actual} (${owned.layout.fidelity}) · ${plans.length} eligible sheet views`,
         );
         const off = conductor.attach(
           owned,

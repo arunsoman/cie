@@ -1,5 +1,152 @@
 # Changelog
 
+## Unreleased — big repositories open: sectioned artifacts, yielding project buttons (2026-10-26)
+
+Opening "your own project" used one storage retrieval for the whole
+`ui_bootstrap_v1` bundle. On large repositories (a 3.4k-file repo's report
+alone is ~48MB) that crossed the retrieval policy's hard 16MB / 30s ceilings
+every single time, and clicking **Show my project** / **Master this repo**
+showed "Request deadline exceeded" — the project could never open at all.
+Three changes, storage-first throughout:
+
+- **The storage contract now serves a stored artifact one named section at
+  a time** (`Output::Artifact { section, page }` in
+  `cie-storage/src/retrieval/contract.rs` + `outputs.rs`): whole fields
+  served whole, array fields as bounded windows behind a plain-offset
+  continuation. A new `report_section` artifact document carries the
+  window shape (`artifact_payload.rs`). Requests whose outputs are all
+  artifacts also skip building the full entity dataset first
+  (retrieval/mod.rs) — artifact calls were paying a full files+symbols
+  dataset build they never read; warm artifact windows now cost
+  milliseconds instead of six-plus seconds. The per-symbol language lookup
+  in the dataset build is a single pass, not O(files × symbols).
+- **`/api/analyze/result` composes its `report` from bounded section
+  retrieves** (`web/src/lib/analyze-artifact.ts`): `describe` (1ms) names
+  the captured report fields, array sections page at 2,000 records, and a
+  byte-budget failure halves the window and retries the same cursor. The
+  whole-artifact fetch stays as the last-resort fallback for engines that
+  predate sections. The `extra` route's per-kind retrieves are unchanged.
+- **"Show my project" / "Master this repo" yield to the landing view
+  instantly** (dialog closes, no server round-trip while the button sits
+  in view). `openStoredProject` (`web/src/lib/cie-store.ts`) lands the
+  dashboard on Start or the Mastery journey with its own loading skeleton,
+  loads the workspace through the same launch-restore path the page uses
+  on every opening (workspace-memory's `restoreJobResult`), and backfills
+  the heavier fields after first paint (fetchAndMergeExtra). A failure is
+  an honest loadError on the landing page — never a stale fallback.
+
+Also fixed: Atlas's storage probe no longer selects every captured symbol
+(an unfiltered select makes the engine materialize the whole symbol list
+before paging — past the 30s bound on large repos); the probe uses a
+never-matching predicate, since its only need is the envelope's repository
+identity. The module-duck-typed storage codes catch the dev-bundler case
+where `StorageFailure` exists as two module instances.
+
+Verified on the 3.4k-file repository: restore renders the landing page,
+start/map/mindmap/what-it-does/usecases/trust render from the composed
+workspace (715 usecases, 18,257 member functions), Atlas opens from a
+fresh mount, small repositories keep the fast path (~150ms), and 28
+storage tests pass.
+
+## Unreleased — every question is answered by the configured LLM, grounded by the store's own tools (2026-10-25)
+
+The chat's fast-path cascade is retired: a canned instant summary ("no AI
+involved") answering "what does this project do?" is gone. Whenever a
+query is made, the CONFIGURED LLM answers it, and two things now hold.
+
+- **The answer's data comes from the store.** The server runs the model as
+  a store agent over the same read-only tools the MCP server declares:
+  `cie_describe` (opens a pinned context, teaches the query DSL),
+  `cie_retrieve` (reads symbols, call records, read/write facts, evidence)
+  — plus the new `cie_charts`. When neither the store nor the digest can
+  find what the question needs, the system prompt now REQUIRES the first
+  sentence to say plainly that it could not find an answer in the loaded
+  data (and what would make it answerable) — a guess is never dressed as
+  an answer. When the data IS found, the model also picks the
+  complementary chart, returned in the one-JSON `{answer, chart}` contract.
+- **`cie_charts` — the store names which charts are possible, so
+  impossible picks cannot happen (`chat-tools.ts` + `chat-digest.ts`).**
+  The digest now carries a structured `chart_possibilities` list, derived
+  strictly from the loaded datasets (sequence only when call records
+  exist; dfd only when read/write records exist; mindmap/tree only with
+  the concept tree; count charts point at the datasets that actually
+  recorded numbers). The tool returns that list verbatim, opens the
+  pinned store context alongside it, and constrains `chart.kind` to its
+  exact kind strings — the model picks among what the data can back, the
+  app fills every box/arrow/lane from the records (store-fed kinds take
+  `data: null`; the count kinds' rows must be numbers the model actually
+  read). Tool-call loop hardening: per-result 20k and per-turn 60k char
+  budgets return counted narrowing advice as tool results (never
+  half-cut data), a 4-hop budget forces an honest one-JSON closer, and
+  providers without tool support fall back to the plain digest call.
+- **One chart, the whole stage (`stage.tsx` + `chat-chart.tsx`).** The canvas
+  shows exactly one chart, so it now fills all of it: the camera wrapper
+  sizes to the stage for the single-chart view and the chart host is
+  flex-filled (`ChatChart fill`) instead of a fixed 640px strip that the
+  fit-to-content camera then shrank or letterboxed; the chart's meta rows
+  (rendered-by note, layout select, exports, outlines) collapse into one
+  compact strip below the drawing. The builtin SDK's missing-`​.z-ai-config`
+  failure is also named plainly now (a plain-words `LlmError` with the exact
+  fix) instead of a generic 500.
+- **Pinned:** the agent loop (tool-call hops, malformed-args teaching,
+  budget closer), the three-tool set + `cie_charts` payload and its
+  no-store teaching error, provider tools normalization (OpenAI
+  tool_calls, Ollama object-args), and the possible-charts conditionals
+  (chat-digest-pins.test.cjs). 218 tests pass; the one `rfc0023` G6
+  render-host failure is pre-existing on a clean tree (environment, not
+  this change).
+
+## Unreleased — the asked kind is honored: a named-ask refusal now draws its kind, and the LLM writes the prose (2026-10-25)
+
+*(Same-day follow-up: the chat's instant/hybrid panel paths below were
+then RETIRED wholesale — see the newer entry above; the seam, focus and
+kind-honoring machinery itself lives on — the model's picks are filled
+from records by the same builders.)*
+
+Ask CIE's concept seam used to answer a resolved-nothing ask ("draw the
+flowchart of the operator" where no usecase claims "operator") with an
+honest refusal — and no picture at all: the panel attached no chart to the
+message and skipped the canvas, so the user's requested KIND never drew.
+The refusal text stays exactly as honest as before; what changes is that
+the ask now gets both the kind it asked for and a proper prose answer.
+
+- **The refusal carries its focus and draws the asked kind (`concept-chat.ts
+  → `draw-anything.ts` → `chat-panel.tsx`).** A `ConceptDrawResult` refusal
+  now carries `focus` — the symbol ids the question actually matched — and
+  the panel hands it to `buildConceptRefusalChart`, which draws the asked
+  KIND centered on that focus, from the records only: a flowchart ask →
+  the one-hop recorded call flow around the named symbol
+  (`buildFocusedFlowSpec`, salience-capped at 30 boxes with the cut
+  counted); a sequence ask → the cross-file message order
+  (`buildProjectSequenceSpec`; when no cross-lane order honestly exists,
+  the focused flow is offered *named as itself*, never as a sequence).
+- **DFD and bare-sequence asks draw their own kind (`draw-anything.ts`).**
+  An explicit `dfd`/`data flow diagram` ask now draws the recorded
+  data-flow picture (`buildDataFlowSpec` — stores from the summaries'
+  reads/writes plus schema files, the unresolved-reaching box as the honest
+  external) instead of falling to the AI; with no data-store records the
+  focused call flow is the closest honest picture, labeled AS ITSELF. A
+  bare `draw the sequence diagram` (no story named — the concept seam
+  never seizes) draws the whole-records sequence instead of the who-calls-
+  whom stand-in. The UML ask and the flow ask now center on the question's
+  focus (the tapped map bubble's file, else the longest symbol name in the
+  question) instead of the plain store order.
+- **The hybrid leg: the chart is the records' picture, the configured LLM
+  writes the explanation (`chat-panel.tsx`).** After a refused concept ask
+  draws, the panel runs the configured provider (builtin / ollama / a
+  checked `llmUsable` config) on the SAME question, passing the instant
+  refusal as an assistant turn so the model answers it knowing precisely
+  what the records said and drew. The model's own chart pick (or the
+  generic companion) is suppressed on this leg — the asked kind owns the
+  canvas, and a follow-up leg never swaps it away. Scoped chats skip the
+  hybrid (the scoped route reads only the selection's turns). The honesty
+  footer stays on the instant bubble; the model's turn is visibly the AI's.
+- **Pinned:** the refusal-focus contract (`concept-chat.test.cjs`: refund →
+  `[6]`, the ambiguity and no-match refusals), the DFD/sequence/flow/uml
+  kind-honoring + focus-centering (draw-anything.test.cjs on the real demo
+  artifacts). 197 tests pass; the one `rfc0023` G6 render-host failure is
+  pre-existing on a clean tree (environment, not this change).
+
 ## Unreleased — duplicates: jscpd era hardened; summary seeds extracted in phase 3 (2026-10-25)
 
 The jscpd migration's leftovers are removed, the two-detector contract is

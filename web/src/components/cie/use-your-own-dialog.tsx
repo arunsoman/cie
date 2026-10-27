@@ -15,13 +15,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCie } from "@/lib/cie-store";
-import type { CieReport, CieViewSpec, ConceptTree, CieDeps, CieRuntime, CieCochange, CieOverlap, CieDrift } from "@/lib/cie-types";
+import type { CieReport, CieViewSpec, ConceptTree } from "@/lib/cie-types";
 import { isValidReport, isValidViewspec, isValidConcepts } from "@/lib/cie-types";
-import type { TechStack } from "@/lib/stack-types";
-import { isTechStack } from "@/lib/stack-types";
-import type { PolyglotBundle } from "@/lib/polyglot-types";
-import { isPolyglotBundle } from "@/lib/polyglot-types";
-import { rememberWorkspace } from "@/lib/workspace-memory";
+import { rememberWorkspace, fetchAndMergeExtra } from "@/lib/workspace-memory";
 import type { RepoScan } from "@/lib/language-profiles";
 import { FolderBrowser, ScanCard } from "@/components/cie/repo-scan-card";
 import {
@@ -417,7 +413,7 @@ function failWhereItStood(prev: JobStatusView, err: { plain: string; technical: 
 }
 
 function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (open: boolean) => void }) {
-  const { setCustom, jobId, setJobId } = useCie();
+  const { jobId, setJobId, openStoredProject } = useCie();
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [localPath, setLocalPath] = useState("");
@@ -431,7 +427,6 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
   const [startError, setStartError] = useState("");
   const [status, setStatus] = useState<JobStatusView | null>(null);
   const [technicalOpen, setTechnicalOpen] = useState(false);
-  const [loadingResult, setLoadingResult] = useState(false);
   // folder browsing + the pre-flight language peek
   const [browsing, setBrowsing] = useState(false);
   const [scan, setScan] = useState<RepoScan | null>(null);
@@ -464,68 +459,13 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
     }
   }, []);
 
-  // Fetch the JSON exports and load them into the dashboard. `dest`
-  // decides what happens after: default stays on the success card;
-  // "master" closes the dialog straight into the journey view.
-  const showProject = async (id: string, dest: "explore" | "master" = "explore") => {
-    setLoadingResult(true);
-    try {
-      const res = await fetch(`/api/analyze/result?job=${encodeURIComponent(id)}`);
-      const data = (await res.json().catch(() => ({}))) as {
-        report?: CieReport;
-        viewspec?: CieViewSpec | null;
-        concepts?: ConceptTree | null;
-        deps?: CieDeps | null;
-        runtime?: CieRuntime | null;
-        cochange?: CieCochange | null;
-        overlap?: CieOverlap | null;
-        drift?: CieDrift | null;
-        stack?: TechStack | null;
-        polyglotSpecs?: PolyglotBundle | null;
-        label?: string;
-        scan?: RepoScan | null;
-        sourceRoot?: string | null;
-        storageRoot?: string | null;
-        error?: string;
-      };
-      if (!res.ok || !isValidReport(data.report ?? null)) {
-        toast({ title: "Almost there", description: data.error ?? "We couldn't fetch your results. Please try again.", variant: "destructive" });
-        return;
-      }
-      const viewspec = data.viewspec && isValidViewspec(data.viewspec) ? data.viewspec : null;
-      const concepts = data.concepts && isValidConcepts(data.concepts) ? data.concepts : null;
-      const deps = data.deps && data.deps.table ? data.deps : null;
-      const runtime = data.runtime && data.runtime.datasets ? data.runtime : null;
-      setCustom(data.report ?? null, viewspec, concepts, data.label ?? "Your project", {
-        repoScan: data.scan ?? null,
-        deps,
-        runtime,
-        cochange: data.cochange ?? null,
-        overlap: data.overlap ?? null,
-        drift: data.drift ?? null,
-        stack: data.stack && isTechStack(data.stack) ? data.stack : null,
-        polyglotSpecs: data.polyglotSpecs && isPolyglotBundle(data.polyglotSpecs) ? data.polyglotSpecs : null,
-        sourceRoot: data.sourceRoot ?? null,
-        storageRoot: data.storageRoot ?? data.sourceRoot ?? null,
-      });
-      setJobId(null);
-      setStatus(null);
-      setUrl("");
-      setBranch("");
-      // This workspace is now the "last opened" one — the dashboard reopens
-      // it on the next launch (the job's result is persisted server-side).
-      rememberWorkspace({ kind: "job", jobId: id });
-      toast({ title: "Your project is ready", description: "Every page below now shows your code — and Ask CIE knows it too." });
-      if (dest === "master") {
-        onClosed?.(false);
-        useCie.getState().setView("mastery");
-      }
-    } catch {
-      toast({ title: "Connection problem", description: "We couldn't fetch your results. Please try again.", variant: "destructive" });
-    } finally {
-      setLoadingResult(false);
-    }
-  };
+  // "Show my project" / "Master this repo" yield to the landing view the
+  // moment either is clicked — no dialog-local await, no spinner inside
+  // this dialog. cie-store.ts's openStoredProject closes the workspace
+  // state machine, lands on Start (or the Mastery journey) with its own
+  // loading skeleton, and loads the project through the same storage-backed
+  // launch-restore path the page uses on every launch
+  // (see restoreJobResult → /api/analyze/result + fetchAndMergeExtra).
 
   // Resume an in-flight job after the dialog was closed and reopened.
   useEffect(() => {
@@ -995,25 +935,22 @@ function ConnectRepo({ kind, onClosed }: { kind: "web" | "local"; onClosed?: (op
                 Branch: <span className="font-mono">{status.branch ?? (kind === "web" ? "default" : "as on disk")}</span>
                 {status.viaSnapshot ? " (read-only copy — the source panel can't open these files)" : ""}
               </p>
-              {loadingResult ? (
-                <Button disabled className="bg-emerald-700 text-white h-10 w-full sm:w-auto">
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Opening your project…
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={() => { onClosed?.(false); void openStoredProject(status.id); }}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white h-10 w-full sm:w-auto"
+                >
+                  Show my project
                 </Button>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button onClick={() => void showProject(status.id)} className="bg-emerald-700 hover:bg-emerald-800 text-white h-10 w-full sm:w-auto">
-                    Show my project
-                  </Button>
-                  <Button
-                    onClick={() => void showProject(status.id, "master")}
-                    variant="outline"
-                    className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 h-10 w-full sm:w-auto inline-flex items-center gap-1.5 justify-center"
-                    title="Open the guided 5-station journey on this project"
-                  >
-                    <GraduationCap className="h-4 w-4" /> Master this repo (the journey)
-                  </Button>
-                </div>
-              )}
+                <Button
+                  onClick={() => { onClosed?.(false); void openStoredProject(status.id, "master"); }}
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 h-10 w-full sm:w-auto inline-flex items-center gap-1.5 justify-center"
+                  title="Open the guided 5-station journey on this project"
+                >
+                  <GraduationCap className="h-4 w-4" /> Master this repo (the journey)
+                </Button>
+              </div>
             </div>
           )}
         </div>

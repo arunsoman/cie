@@ -45,6 +45,15 @@ impl StorageMcp {
             next: AtomicU64::new(1),
         })
     }
+    /// Lets `BuildIfMissing`-eligible artifacts (RFC-0026 §9: currently
+    /// `drift`) be computed on demand and persisted instead of erroring.
+    /// cie-server stays independent of whatever crate implements the
+    /// builder (e.g. cie-ingest's drift checker) — the host binary supplies
+    /// it as a trait object.
+    pub fn with_deferred_builder(mut self, builder: Arc<dyn DeferredBuilder>) -> Self {
+        self.storage = self.storage.with_deferred_builder(builder);
+        self
+    }
     fn reader(&self, context: &str) -> Result<Arc<Mutex<RevisionReader>>> {
         let mut contexts = self.contexts.lock().map_err(|_| poisoned())?;
         contexts.retain(|_, context| context.touched.elapsed() < Duration::from_secs(900));
